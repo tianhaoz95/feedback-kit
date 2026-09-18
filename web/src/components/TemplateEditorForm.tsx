@@ -11,6 +11,7 @@ export function TemplateEditorForm({
   const [value, setValue] = useState(initialValue);
   const [isPending, startTransition] = useTransition();
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <div className="space-y-2">
@@ -30,9 +31,14 @@ export function TemplateEditorForm({
           onClick={() => {
             const formData = new FormData();
             formData.set("template_text", value);
+            setError(null);
             startTransition(async () => {
-              await action(formData);
-              setSavedAt(Date.now());
+              try {
+                await action(formData);
+                setSavedAt(Date.now());
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "Couldn't save the template. Try again.");
+              }
             });
           }}
           className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
@@ -40,6 +46,7 @@ export function TemplateEditorForm({
           {isPending ? "Saving..." : "Save template"}
         </button>
         {savedAt ? <span className="text-xs text-green-600">Saved</span> : null}
+        {error ? <span className="text-xs text-red-600">{error}</span> : null}
       </div>
     </div>
   );

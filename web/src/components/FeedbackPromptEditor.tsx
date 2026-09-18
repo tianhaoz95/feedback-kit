@@ -14,6 +14,7 @@ export function FeedbackPromptEditor({
   const [value, setValue] = useState(initialValue);
   const [isPending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <div className="space-y-2">
@@ -41,7 +42,14 @@ export function FeedbackPromptEditor({
           onClick={() => {
             const formData = new FormData();
             formData.set("template_text", value);
-            startTransition(() => onSave(formData));
+            setError(null);
+            startTransition(async () => {
+              try {
+                await onSave(formData);
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "Couldn't save. Try again.");
+              }
+            });
           }}
           className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
         >
@@ -51,16 +59,22 @@ export function FeedbackPromptEditor({
           <button
             type="button"
             disabled={isPending}
-            onClick={() =>
+            onClick={() => {
+              setError(null);
               startTransition(async () => {
-                await onReset();
-              })
-            }
+                try {
+                  await onReset();
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : "Couldn't reset. Try again.");
+                }
+              });
+            }}
             className="text-xs text-neutral-400 hover:text-neutral-700"
           >
             Reset to project template
           </button>
         ) : null}
+        {error ? <span className="text-xs text-red-600">{error}</span> : null}
       </div>
     </div>
   );
