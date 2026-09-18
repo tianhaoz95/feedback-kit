@@ -1,6 +1,9 @@
 import UIKit
 
-/// The tool/color/undo bar shown above the text field in `FeedbackViewController`.
+/// The tool/color/undo rail shown beside the screenshot in `FeedbackViewController`.
+/// Arranged as a narrow vertical column (rather than a horizontal bar under the
+/// screenshot) so it uses the leftover horizontal margin beside a portrait
+/// screenshot instead of spending vertical space the screenshot could use.
 final class AnnotationToolbar: UIView {
     var onToolSelected: ((AnnotationCanvasView.Tool) -> Void)?
     var onColorSelected: ((UIColor) -> Void)?
@@ -31,8 +34,9 @@ final class AnnotationToolbar: UIView {
         backgroundColor = .secondarySystemBackground
 
         let toolStack = UIStackView()
-        toolStack.axis = .horizontal
-        toolStack.spacing = 12
+        toolStack.axis = .vertical
+        toolStack.alignment = .center
+        toolStack.spacing = 14
         toolStack.translatesAutoresizingMaskIntoConstraints = false
 
         for (index, entry) in Self.tools.enumerated() {
@@ -46,8 +50,9 @@ final class AnnotationToolbar: UIView {
         highlight(toolButton: toolButtons.first)
 
         let colorStack = UIStackView()
-        colorStack.axis = .horizontal
-        colorStack.spacing = 10
+        colorStack.axis = .vertical
+        colorStack.alignment = .center
+        colorStack.spacing = 8
         colorStack.translatesAutoresizingMaskIntoConstraints = false
 
         for color in Self.colors {
@@ -67,17 +72,18 @@ final class AnnotationToolbar: UIView {
         undoButton.addAction(UIAction { [weak self] _ in self?.onUndo?() }, for: .touchUpInside)
 
         let mainStack = UIStackView(arrangedSubviews: [toolStack, colorStack, undoButton])
-        mainStack.axis = .horizontal
+        mainStack.axis = .vertical
         mainStack.alignment = .center
         mainStack.distribution = .equalSpacing
         mainStack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(mainStack)
 
         NSLayoutConstraint.activate([
-            mainStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            mainStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
-            mainStack.topAnchor.constraint(equalTo: topAnchor, constant: 10),
-            mainStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -10)
+            mainStack.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 8),
+            mainStack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -8),
+            mainStack.centerXAnchor.constraint(equalTo: centerXAnchor),
+            mainStack.topAnchor.constraint(equalTo: topAnchor, constant: 12),
+            mainStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12)
         ])
     }
 

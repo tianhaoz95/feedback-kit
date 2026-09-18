@@ -131,6 +131,8 @@ final class FeedbackViewController: UIViewController {
     }
 
     private func buildToolbar() {
+        toolbar.layer.cornerRadius = 12
+        toolbar.clipsToBounds = true
         toolbar.onToolSelected = { [weak self] tool in self?.canvasView.tool = tool }
         toolbar.onColorSelected = { [weak self] color in self?.canvasView.strokeColor = color }
         toolbar.onUndo = { [weak self] in self?.canvasView.undoLast() }
@@ -183,14 +185,19 @@ final class FeedbackViewController: UIViewController {
             cancelButton.leadingAnchor.constraint(equalTo: headerView.leadingAnchor, constant: 16),
             cancelButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
 
+            // The toolbar sits beside the screenshot, not under it — a portrait
+            // screenshot's aspect-fit frame rarely uses the full width, so this
+            // reclaims that leftover horizontal margin as vertical space for
+            // the screenshot instead of spending a horizontal strip on it.
             screenshotBoundsView.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 8),
             screenshotBoundsView.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 16),
-            screenshotBoundsView.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -16),
-            screenshotBoundsView.bottomAnchor.constraint(equalTo: toolbar.topAnchor, constant: -8),
+            screenshotBoundsView.trailingAnchor.constraint(equalTo: toolbar.leadingAnchor, constant: -4),
+            screenshotBoundsView.bottomAnchor.constraint(equalTo: textViewContainer.topAnchor, constant: -8),
 
-            toolbar.leadingAnchor.constraint(equalTo: safe.leadingAnchor),
-            toolbar.trailingAnchor.constraint(equalTo: safe.trailingAnchor),
+            toolbar.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 8),
+            toolbar.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -4),
             toolbar.bottomAnchor.constraint(equalTo: textViewContainer.topAnchor, constant: -8),
+            toolbar.widthAnchor.constraint(equalToConstant: 56),
 
             textViewContainer.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 16),
             textViewContainer.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -16),
