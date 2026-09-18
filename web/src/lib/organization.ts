@@ -8,17 +8,17 @@ import { supabase } from "@/lib/supabase";
  * once that becomes a real scenario for users.
  */
 export async function getCurrentOrganizationId(): Promise<string | null> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
   if (!user) return null;
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("memberships")
     .select("organization_id")
     .eq("user_id", user.id)
     .limit(1)
     .maybeSingle();
+  if (error) throw error;
 
   return data?.organization_id ?? null;
 }

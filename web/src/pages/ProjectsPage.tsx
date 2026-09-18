@@ -8,7 +8,7 @@ export function ProjectsPage() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
-  const [orgLoadFailed, setOrgLoadFailed] = useState(false);
+  const [orgLoadError, setOrgLoadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -21,7 +21,7 @@ export function ProjectsPage() {
         if (cancelled) return;
 
         if (!orgId) {
-          setOrgLoadFailed(true);
+          setOrgLoadError("No organization is associated with your account.");
           setProjects([]);
           return;
         }
@@ -37,9 +37,9 @@ export function ProjectsPage() {
         if (cancelled) return;
         if (error) throw error;
         setProjects(data ?? []);
-      } catch {
+      } catch (err) {
         if (!cancelled) {
-          setOrgLoadFailed(true);
+          setOrgLoadError(err instanceof Error ? err.message : "Couldn't load your organization.");
           setProjects([]);
         }
       }
@@ -85,9 +85,9 @@ export function ProjectsPage() {
         </p>
       </div>
 
-      {orgLoadFailed ? (
+      {orgLoadError ? (
         <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
-          Couldn't load your organization. Try reloading the page.
+          Couldn't load your organization: {orgLoadError}
         </div>
       ) : (
         <>
