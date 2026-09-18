@@ -27,7 +27,7 @@ file is about how to build/test/run things day to day.
 | `Sources/FeedbackKit/` | The iOS SDK (Swift Package) |
 | `Tests/FeedbackKitTests/` | SDK unit tests |
 | `DemoApp/` | Sample app exercising the SDK (XcodeGen project, generated — not committed) |
-| `web/` | Next.js dashboard |
+| `web/` | Static SPA dashboard (Vite + React + React Router) |
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function |
 | `scripts/` | `setup.sh`, `run-ios.sh`, `start-web.sh` |
 
@@ -71,23 +71,29 @@ simulator with `SIMULATOR_NAME="iPhone 16" ./scripts/run-ios.sh`.
 
 ```bash
 cd web
-npm run dev      # dev server (Turbopack)
-npm run build    # production build
+npm run dev      # dev server (Vite)
+npm run build    # type-check + production build to web/dist/
 npm run lint     # eslint
 ```
 
-Needs `web/.env.local` with `NEXT_PUBLIC_SUPABASE_URL` and
-`NEXT_PUBLIC_SUPABASE_ANON_KEY` — see `web/.env.local.example`.
-`./scripts/start-web.sh` starts local Supabase and writes this file
-automatically, then runs `npm run dev`.
+Needs `web/.env.local` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+— see `web/.env.local.example`. `./scripts/start-web.sh` starts local
+Supabase and writes this file automatically, then runs `npm run dev`.
 
-This is **Next.js 16** — App Router conventions differ from older training
-data in a few places already applied in this repo: route `params` and
-`cookies()` are `Promise`s that must be `await`ed, and the middleware
-convention is `src/proxy.ts` exporting `proxy()` (renamed from
-`middleware.ts`/`middleware()` in v16). Check
-`web/node_modules/next/dist/docs/01-app/02-guides/upgrading/version-16.md`
-before assuming an older Next.js pattern still applies.
+This is a **static single-page app** (Vite + React + React Router), not a
+Next.js app — there is no server, so there's no middleware, no Server
+Actions, no `cookies()`/request-scoped Supabase client. Every page fetches
+through the single browser Supabase client (`src/lib/supabase.ts`), auth
+state lives in `src/lib/auth.tsx` (`AuthProvider`/`useAuth`/`RequireAuth`),
+and mutations are just plain async functions that call `supabase-js`
+directly from the component — RLS is what enforces tenancy, so these
+functions don't re-implement permission checks. Because route-guarding is
+client-side (`RequireAuth`/`RedirectIfAuthed`), protected pages briefly
+render a loading state before redirecting signed-out visitors, unlike a
+server-side redirect. `web/dist/` is a plain static build deployable to any
+static host (GitHub Pages, Vercel static, Netlify, S3, …); a host serving
+deep links (e.g. `/projects/abc`) needs SPA fallback routing to
+`index.html`, since there's no server to resolve those paths.
 
 ### Supabase (`supabase/`)
 
@@ -124,11 +130,10 @@ numbered file rather than editing an already-applied one.
   `Sources/FeedbackKit/Model/FeedbackReport.swift`'s property names in sync
   with `web/src/lib/types.ts` by hand.
 - **RLS does the multi-tenancy enforcement**, not application code. Dashboard
-  Server Actions (`web/src/app/**/actions.ts`) generally just run the
-  equivalent Supabase query and rely on the policies in
-  `supabase/migrations/0001_init.sql` to scope it — don't add manual
-  organization/project ownership checks in TypeScript that duplicate what RLS
-  already guarantees.
+  mutations (in `web/src/pages/*.tsx`) generally just run the equivalent
+  Supabase query and rely on the policies in `supabase/migrations/0001_init.sql`
+  to scope it — don't add manual organization/project ownership checks in
+  TypeScript that duplicate what RLS already guarantees.
 - **The ingestion Edge Function runs with no Supabase auth**
   (`verify_jwt = false` in `supabase/config.toml` for `ingest-feedback`)
   because the caller is an anonymous iOS device identified only by

@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useTransition } from "react";
 import { PROMPT_TEMPLATE_PLACEHOLDERS } from "@/lib/prompt-template";
 

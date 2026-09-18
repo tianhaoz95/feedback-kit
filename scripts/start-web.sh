@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Starts the local Supabase stack (Postgres, Auth, Storage, Edge Functions,
-# Studio) with this project's schema applied, points the Next.js dashboard at
+# Studio) with this project's schema applied, points the dashboard at
 # it, and starts the dashboard's dev server.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -24,10 +24,10 @@ ENV_FILE="web/.env.local"
 
 echo "==> Writing $ENV_FILE from local Supabase credentials"
 if supabase status -o env \
-  --override-name api.url=NEXT_PUBLIC_SUPABASE_URL \
-  --override-name auth.anon_key=NEXT_PUBLIC_SUPABASE_ANON_KEY \
+  --override-name api.url=VITE_SUPABASE_URL \
+  --override-name auth.anon_key=VITE_SUPABASE_ANON_KEY \
   > "$ENV_FILE" 2>/dev/null \
-  && grep -q "NEXT_PUBLIC_SUPABASE_ANON_KEY=" "$ENV_FILE"; then
+  && grep -q "VITE_SUPABASE_ANON_KEY=" "$ENV_FILE"; then
   echo "    wrote $ENV_FILE"
 else
   # Field names for --override-name can shift between CLI versions; fall back
@@ -43,8 +43,8 @@ else
     echo "    Fill in $ENV_FILE manually using web/.env.local.example as a guide." >&2
   else
     {
-      echo "NEXT_PUBLIC_SUPABASE_URL=${API_URL}"
-      echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_KEY}"
+      echo "VITE_SUPABASE_URL=${API_URL}"
+      echo "VITE_SUPABASE_ANON_KEY=${ANON_KEY}"
     } > "$ENV_FILE"
     echo "    wrote $ENV_FILE"
   fi

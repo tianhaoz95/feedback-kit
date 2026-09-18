@@ -1,10 +1,9 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 import type { FeedbackItem, Project, PromptTemplate } from "@/lib/types";
 import { CopyButton } from "@/components/CopyButton";
 import { TemplateEditorForm } from "@/components/TemplateEditorForm";
-import { updatePromptTemplate } from "./actions";
 
 const STATUS_LABEL: Record<string, string> = {
   new: "New",
@@ -13,42 +12,74 @@ const STATUS_LABEL: Record<string, string> = {
   wont_fix: "Won't fix",
 };
 
-export default async function ProjectPage({
-  params,
-}: {
-  params: Promise<{ projectId: string }>;
-}) {
-  const { projectId } = await params;
-  const supabase = await createClient();
+export function ProjectPage() {
+  const { projectId } = useParams<{ projectId: string }>();
+  const [project, setProject] = useState<Project | null | undefined>(undefined);
+  const [template, setTemplate] = useState<PromptTemplate | null>(null);
+  const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
 
-  const { data: project } = await supabase
-    .from("projects")
-    .select("*")
-    .eq("id", projectId)
-    .single<Project>();
+  useEffect(() => {
+    if (!projectId) return;
+    let cancelled = false;
 
-  if (!project) notFound();
+    (async () => {
+      const [{ data: projectData }, { data: templateData }, { data: feedbackData }] = await Promise.all([
+        supabase.from("projects").select("*").eq("id", projectId).single<Project>(),
+        supabase.from("prompt_templates").select("*").eq("project_id", projectId).single<PromptTemplate>(),
+        supabase
+          .from("feedback_items")
+          .select("*")
+          .eq("project_id", projectId)
+          .order("created_at", { ascending: false })
+          .returns<FeedbackItem[]>(),
+      ]);
 
-  const { data: template } = await supabase
-    .from("prompt_templates")
-    .select("*")
-    .eq("project_id", projectId)
-    .single<PromptTemplate>();
+      if (cancelled) return;
+      setProject(projectData ?? null);
+      setTemplate(templateData ?? null);
+      setFeedbackItems(feedbackData ?? []);
+    })();
 
-  const { data: feedbackItems } = await supabase
-    .from("feedback_items")
-    .select("*")
-    .eq("project_id", projectId)
-    .order("created_at", { ascending: false })
-    .returns<FeedbackItem[]>();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
 
-  const ingestUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/ingest-feedback`;
+  async function updatePromptTemplate(formData: FormData) {
+    if (!projectId) return;
+    const templateText = String(formData.get("template_text") || "");
+
+    const { error } = await supabase
+      .from("prompt_templates")
+      .update({ template_text: templateText, updated_at: new Date().toISOString() })
+      .eq("project_id", projectId);
+
+    if (error) throw new Error(error.message);
+    setTemplate((current) => (current ? { ...current, template_text: templateText } : current));
+  }
+
+  if (project === undefined) {
+    return <p className="text-sm text-neutral-500">Loading…</p>;
+  }
+
+  if (project === null) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-neutral-500">Project not found.</p>
+        <Link to="/projects" className="text-sm text-neutral-900 hover:underline">
+          ← Back to projects
+        </Link>
+      </div>
+    );
+  }
+
+  const ingestUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ingest-feedback`;
   const swiftSnippet = `FeedbackKit.configure(.init(\n    endpointURL: URL(string: "${ingestUrl}")!,\n    projectKey: "${project.project_key}"\n))`;
 
   return (
     <div className="space-y-10">
       <div>
-        <Link href="/projects" className="text-sm text-neutral-500 hover:text-neutral-900">
+        <Link to="/projects" className="text-sm text-neutral-500 hover:text-neutral-900">
           ← Projects
         </Link>
         <h1 className="mt-1 text-xl font-semibold">{project.name}</h1>
@@ -74,17 +105,14 @@ export default async function ProjectPage({
           be edited individually before copying.
         </p>
         <div className="mt-3">
-          <TemplateEditorForm
-            action={updatePromptTemplate.bind(null, projectId)}
-            initialValue={template?.template_text ?? ""}
-          />
+          <TemplateEditorForm action={updatePromptTemplate} initialValue={template?.template_text ?? ""} />
         </div>
       </section>
 
       <section>
         <h2 className="text-sm font-medium">Feedback</h2>
         <div className="mt-3 overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
-          {(feedbackItems ?? []).length === 0 ? (
+          {feedbackItems.length === 0 ? (
             <p className="p-4 text-sm text-neutral-500">
               No feedback yet. Once the SDK is wired up, reports will show up here.
             </p>
@@ -99,11 +127,11 @@ export default async function ProjectPage({
                 </tr>
               </thead>
               <tbody>
-                {feedbackItems!.map((item) => (
+                {feedbackItems.map((item) => (
                   <tr key={item.id} className="border-b border-neutral-100 last:border-0">
                     <td className="px-4 py-3">
                       <Link
-                        href={`/projects/${projectId}/feedback/${item.id}`}
+                        to={`/projects/${projectId}/feedback/${item.id}`}
                         className="font-medium text-neutral-900 hover:underline"
                       >
                         {item.text ? truncate(item.text, 70) : "(no description)"}

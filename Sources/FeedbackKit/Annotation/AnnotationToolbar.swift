@@ -11,7 +11,8 @@ final class AnnotationToolbar: UIView {
         (.pen, "pencil.tip"),
         (.rectangle, "rectangle"),
         (.arrow, "arrow.up.right"),
-        (.text, "textformat")
+        (.text, "textformat"),
+        (.drag, "arrow.up.and.down.and.arrow.left.and.right")
     ]
 
     private var toolButtons: [UIButton] = []

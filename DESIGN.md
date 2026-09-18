@@ -146,16 +146,38 @@ Both are plain textareas with a "Copy for coding agent" button
 API, since "copy into whatever you use" is more durable than betting on one
 tool.
 
-## 5. Web dashboard (`web/`, Next.js 16 App Router + Supabase)
+## 5. Web dashboard (`web/`, static SPA: Vite + React + React Router + Supabase)
 
-Standard Server Components + Server Actions shape: pages fetch through a
-request-scoped Supabase client (`lib/supabase/server.ts`) that reads the
-user's auth cookies, and mutations (`createProject`, `updatePromptTemplate`,
-`updateFeedbackStatus`, `save/resetEditedPrompt`) are `"use server"` actions
-that just run the equivalent Supabase query — RLS does the authorization
-work, so these actions don't re-implement permission checks. `src/proxy.ts`
-(Next 16 renamed `middleware.ts` → `proxy.ts`) refreshes the auth session on
-every navigation and redirects signed-out users to `/login`.
+Originally a Next.js App Router app; rewritten as a plain static single-page
+app so it can be hosted anywhere that serves static files (including GitHub
+Pages), with no server component at all. There is no middleware, no Server
+Actions, no request-scoped Supabase client — every page uses one browser
+Supabase client (`src/lib/supabase.ts`) and fetches its own data in
+`useEffect` on mount. Mutations (`createProject`, `updatePromptTemplate`,
+`updateFeedbackStatus`, `save/resetEditedPrompt`) are plain async functions
+that call `supabase-js` directly from the component that needs them — RLS
+does the authorization work, so these still don't re-implement permission
+checks; they're the same query a Server Action would have run, just invoked
+client-side.
+
+Auth state lives in a `src/lib/auth.tsx` context (`AuthProvider`) backed by
+`supabase.auth.onAuthStateChange`; `RequireAuth`/`RedirectIfAuthed` wrapper
+components stand in for what `src/proxy.ts` (Next middleware) used to do.
+The tradeoff versus middleware: route-gating happens after the JS bundle
+loads and the auth check resolves, so a signed-out visitor briefly sees a
+loading state instead of never receiving the protected page's HTML. Since
+RLS — not the redirect — is the actual security boundary, this is a UX
+difference, not a security regression.
+
+The landing page (`/`), privacy notice (`/privacy`), and user agreement
+(`/terms`) are public routes in the same app rather than a separate site,
+since a static host like GitHub Pages has no natural place to split them out
+to. The legal pages are a content template (clearly marked as such, with
+`[bracketed]` placeholders) — not reviewed legal advice.
+
+A host serving deep links (e.g. `/projects/abc`) directly needs SPA fallback
+routing to `index.html`, since there's no server to resolve arbitrary paths
+the way Next's router did.
 
 ## Repo layout
 
@@ -163,7 +185,7 @@ every navigation and redirects signed-out users to `/login`.
 Sources/FeedbackKit/   the SDK (Swift Package)
 Tests/FeedbackKitTests/
 DemoApp/               project.yml (XcodeGen) + a sample app exercising the SDK
-web/                   Next.js dashboard
+web/                   Static SPA dashboard (Vite + React)
 supabase/              migrations, storage policies, the ingestion Edge Function
 scripts/               setup.sh, run-ios.sh, start-web.sh — see README.md
 ```

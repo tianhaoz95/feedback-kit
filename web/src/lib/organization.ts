@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 
 /**
  * The org the current user acts as. Membership supports many-to-many
@@ -7,8 +7,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * uses the first membership found. An org switcher is the natural next step
  * once that becomes a real scenario for users.
  */
-export async function getCurrentOrganizationId(supabase: SupabaseClient): Promise<string | null> {
-  const { data: { user } } = await supabase.auth.getUser();
+export async function getCurrentOrganizationId(): Promise<string | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return null;
 
   const { data } = await supabase

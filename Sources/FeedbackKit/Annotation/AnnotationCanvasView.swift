@@ -1,7 +1,7 @@
 import UIKit
 
 /// A transparent overlay that sits on top of the screenshot preview and lets
-/// the user mark it up. Handles its own touch tracking for all four tool
+/// the user mark it up. Handles its own touch tracking for all five tool
 /// kinds and can flatten itself plus the base screenshot into a single image.
 final class AnnotationCanvasView: UIView {
     enum Tool {
@@ -9,6 +9,10 @@ final class AnnotationCanvasView: UIView {
         case rectangle
         case arrow
         case text
+        /// Rectangle/arrow/text annotations can only be grabbed and moved
+        /// while this tool is active — otherwise a pan always draws with
+        /// whichever other tool is selected.
+        case drag
     }
 
     var tool: Tool = .pen
@@ -29,6 +33,12 @@ final class AnnotationCanvasView: UIView {
     /// In-progress rectangle/arrow drag, in view coordinates.
     private var dragStart: CGPoint?
     private var dragCurrent: CGPoint?
+
+    /// Index into `completedAnnotations` currently being repositioned, if any.
+    /// Only set while `tool == .drag`; freehand strokes are never draggable.
+    private var draggedAnnotationIndex: Int?
+    private var draggedAnnotationOriginalPoints: [CGPoint] = []
+    private var dragAnnotationStartLocation: CGPoint = .zero
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -69,8 +79,30 @@ final class AnnotationCanvasView: UIView {
     }
 
     @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
-        guard tool != .text else { return }
         let location = gesture.location(in: self)
+
+        if tool == .drag {
+            switch gesture.state {
+            case .began:
+                if let index = draggableAnnotationIndex(at: location) {
+                    draggedAnnotationIndex = index
+                    draggedAnnotationOriginalPoints = completedAnnotations[index].points
+                    dragAnnotationStartLocation = location
+                }
+            case .changed:
+                if let index = draggedAnnotationIndex {
+                    applyDrag(to: index, currentLocation: location)
+                }
+            case .ended, .cancelled:
+                draggedAnnotationIndex = nil
+                draggedAnnotationOriginalPoints = []
+            default:
+                break
+            }
+            return
+        }
+
+        guard tool != .text else { return }
 
         switch gesture.state {
         case .began:
@@ -80,7 +112,7 @@ final class AnnotationCanvasView: UIView {
             case .rectangle, .arrow:
                 dragStart = location
                 dragCurrent = location
-            case .text:
+            case .text, .drag:
                 break
             }
         case .changed:
@@ -89,7 +121,7 @@ final class AnnotationCanvasView: UIView {
                 activeFreehandPoints.append(location)
             case .rectangle, .arrow:
                 dragCurrent = location
-            case .text:
+            case .text, .drag:
                 break
             }
             setNeedsDisplay()
@@ -118,13 +150,36 @@ final class AnnotationCanvasView: UIView {
                 }
                 dragStart = nil
                 dragCurrent = nil
-            case .text:
+            case .text, .drag:
                 break
             }
             setNeedsDisplay()
         default:
             break
         }
+    }
+
+    /// Topmost rectangle/arrow/text annotation hit by `location`, if any.
+    private func draggableAnnotationIndex(at location: CGPoint) -> Int? {
+        for index in completedAnnotations.indices.reversed() {
+            if AnnotationRenderer.hitTest(completedAnnotations[index], at: location, targetSize: bounds.size) {
+                return index
+            }
+        }
+        return nil
+    }
+
+    private func applyDrag(to index: Int, currentLocation: CGPoint) {
+        guard bounds.width > 0, bounds.height > 0, index < completedAnnotations.count else { return }
+        let normalizedDelta = CGPoint(
+            x: (currentLocation.x - dragAnnotationStartLocation.x) / bounds.width,
+            y: (currentLocation.y - dragAnnotationStartLocation.y) / bounds.height
+        )
+        var annotation = completedAnnotations[index]
+        annotation.points = draggedAnnotationOriginalPoints.map {
+            CGPoint(x: $0.x + normalizedDelta.x, y: $0.y + normalizedDelta.y)
+        }
+        completedAnnotations[index] = annotation
     }
 
     func undoLast() {

@@ -14,6 +14,8 @@ final class FeedbackViewController: UIViewController {
 
     private let screenshotBoundsView = UIView()
     private let imageView = UIImageView()
+    private let deviceFrameView = UIView()
+    private let cameraIslandView = UIView()
     private let canvasView = AnnotationCanvasView()
 
     private let toolbar = AnnotationToolbar()
@@ -56,7 +58,22 @@ final class FeedbackViewController: UIViewController {
             insideRect: screenshotBoundsView.bounds
         )
         imageView.frame = fitRect
+        deviceFrameView.frame = fitRect
+        deviceFrameView.layer.cornerRadius = min(fitRect.width, fitRect.height) * 0.12
         canvasView.frame = fitRect
+
+        // Positioned/sized proportionally to the fitted screenshot so it tracks
+        // an iPhone's actual Dynamic Island proportions regardless of the
+        // screenshot's own resolution.
+        let islandWidth = fitRect.width * 0.32
+        let islandHeight = islandWidth * 0.29
+        cameraIslandView.frame = CGRect(
+            x: fitRect.minX + (fitRect.width - islandWidth) / 2,
+            y: fitRect.minY + islandHeight * 0.4,
+            width: islandWidth,
+            height: islandHeight
+        )
+        cameraIslandView.layer.cornerRadius = islandHeight / 2
     }
 
     // MARK: - Building
@@ -72,11 +89,26 @@ final class FeedbackViewController: UIViewController {
     }
 
     private func buildScreenshotArea() {
+        // Very thin iPhone-shaped outline traced around the fitted screenshot,
+        // including a Dynamic Island cutout, so users can see where the actual
+        // device's screen and camera island would sit and know not to draw
+        // over/outside them.
+        deviceFrameView.isUserInteractionEnabled = false
+        deviceFrameView.backgroundColor = .clear
+        deviceFrameView.layer.borderWidth = 1 / UIScreen.main.scale
+        deviceFrameView.layer.borderColor = UIColor.separator.cgColor
+        deviceFrameView.layer.cornerCurve = .continuous
+
+        cameraIslandView.isUserInteractionEnabled = false
+        cameraIslandView.backgroundColor = .black
+
         screenshotBoundsView.addSubview(imageView)
+        screenshotBoundsView.addSubview(deviceFrameView)
         canvasView.onRequestTextInput = { [weak self] location, completion in
             self?.presentTextPrompt(completion: completion)
         }
         screenshotBoundsView.addSubview(canvasView)
+        screenshotBoundsView.addSubview(cameraIslandView)
         view.addSubview(screenshotBoundsView)
     }
 

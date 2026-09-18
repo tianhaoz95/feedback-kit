@@ -87,16 +87,8 @@ enum AnnotationRenderer {
     }
 
     static func drawText(_ text: String, at point: CGPoint, color: UIColor, in ctx: CGContext) {
-        let font = UIFont.boldSystemFont(ofSize: 16)
-        let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: UIColor.white]
-        let textSize = (text as NSString).size(withAttributes: attributes)
-        let padding: CGFloat = 8
-        let bubbleRect = CGRect(
-            x: point.x,
-            y: point.y,
-            width: textSize.width + padding * 2,
-            height: textSize.height + padding * 2
-        )
+        let attributes: [NSAttributedString.Key: Any] = [.font: textFont, .foregroundColor: UIColor.white]
+        let bubbleRect = textBubbleRect(for: text, at: point)
         let bubblePath = UIBezierPath(roundedRect: bubbleRect, cornerRadius: 8)
 
         ctx.saveGState()
@@ -105,9 +97,67 @@ enum AnnotationRenderer {
         ctx.restoreGState()
 
         (text as NSString).draw(
-            at: CGPoint(x: bubbleRect.minX + padding, y: bubbleRect.minY + padding),
+            at: CGPoint(x: bubbleRect.minX + textPadding, y: bubbleRect.minY + textPadding),
             withAttributes: attributes
         )
+    }
+
+    private static let textFont = UIFont.boldSystemFont(ofSize: 16)
+    private static let textPadding: CGFloat = 8
+
+    /// The bubble rect a `.text` annotation occupies, shared by drawing and hit-testing
+    /// so a tap/drag registers exactly where the visible bubble is.
+    static func textBubbleRect(for text: String, at point: CGPoint) -> CGRect {
+        let textSize = (text as NSString).size(withAttributes: [.font: textFont])
+        return CGRect(
+            x: point.x,
+            y: point.y,
+            width: textSize.width + textPadding * 2,
+            height: textSize.height + textPadding * 2
+        )
+    }
+
+    /// How close a touch needs to land to an existing rectangle/arrow/text
+    /// annotation to count as grabbing it for a drag. Freehand strokes are
+    /// intentionally not draggable.
+    static let hitTestTolerance: CGFloat = 16
+
+    static func hitTest(_ annotation: FeedbackAnnotation, at point: CGPoint, targetSize: CGSize) -> Bool {
+        let points = annotation.points.map { CGPoint(x: $0.x * targetSize.width, y: $0.y * targetSize.height) }
+
+        switch annotation.kind {
+        case .rectangle:
+            guard points.count == 2 else { return false }
+            let rect = CGRect(
+                x: min(points[0].x, points[1].x),
+                y: min(points[0].y, points[1].y),
+                width: abs(points[1].x - points[0].x),
+                height: abs(points[1].y - points[0].y)
+            )
+            return rect.insetBy(dx: -hitTestTolerance, dy: -hitTestTolerance).contains(point)
+        case .arrow:
+            guard points.count == 2 else { return false }
+            return distance(from: point, toSegmentFrom: points[0], to: points[1]) <= hitTestTolerance
+        case .text:
+            guard let origin = points.first, let label = annotation.label else { return false }
+            return textBubbleRect(for: label, at: origin)
+                .insetBy(dx: -hitTestTolerance / 2, dy: -hitTestTolerance / 2)
+                .contains(point)
+        case .freehand:
+            return false
+        }
+    }
+
+    private static func distance(from point: CGPoint, toSegmentFrom a: CGPoint, to b: CGPoint) -> CGFloat {
+        let dx = b.x - a.x
+        let dy = b.y - a.y
+        let lengthSquared = dx * dx + dy * dy
+        guard lengthSquared > 0 else {
+            return hypot(point.x - a.x, point.y - a.y)
+        }
+        let t = max(0, min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared))
+        let projection = CGPoint(x: a.x + t * dx, y: a.y + t * dy)
+        return hypot(point.x - projection.x, point.y - projection.y)
     }
 }
 

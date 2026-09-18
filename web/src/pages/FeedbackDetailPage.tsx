@@ -1,57 +1,106 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 import type { FeedbackItem, FeedbackStatus, PromptTemplate } from "@/lib/types";
 import { renderPromptTemplate } from "@/lib/prompt-template";
 import { StatusSelect } from "@/components/StatusSelect";
 import { FeedbackPromptEditor } from "@/components/FeedbackPromptEditor";
-import { resetEditedPrompt, saveEditedPrompt, updateFeedbackStatus } from "./actions";
 
-export default async function FeedbackDetailPage({
-  params,
-}: {
-  params: Promise<{ projectId: string; feedbackId: string }>;
-}) {
-  const { projectId, feedbackId } = await params;
-  const supabase = await createClient();
+export function FeedbackDetailPage() {
+  const { projectId, feedbackId } = useParams<{ projectId: string; feedbackId: string }>();
+  const [feedback, setFeedback] = useState<FeedbackItem | null | undefined>(undefined);
+  const [template, setTemplate] = useState<PromptTemplate | null>(null);
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
 
-  const { data: feedback } = await supabase
-    .from("feedback_items")
-    .select("*")
-    .eq("id", feedbackId)
-    .single<FeedbackItem>();
+  useEffect(() => {
+    if (!projectId || !feedbackId) return;
+    let cancelled = false;
 
-  if (!feedback) notFound();
+    (async () => {
+      const { data: feedbackData } = await supabase
+        .from("feedback_items")
+        .select("*")
+        .eq("id", feedbackId)
+        .single<FeedbackItem>();
 
-  const { data: template } = await supabase
-    .from("prompt_templates")
-    .select("*")
-    .eq("project_id", projectId)
-    .single<PromptTemplate>();
+      if (cancelled) return;
+      setFeedback(feedbackData ?? null);
+      if (!feedbackData) return;
 
-  const { data: signedScreenshot } = await supabase.storage
-    .from("feedback-screenshots")
-    .createSignedUrl(feedback.screenshot_annotated_path, 60 * 60);
+      const [{ data: templateData }, { data: signedScreenshot }] = await Promise.all([
+        supabase.from("prompt_templates").select("*").eq("project_id", projectId).single<PromptTemplate>(),
+        supabase.storage
+          .from("feedback-screenshots")
+          .createSignedUrl(feedbackData.screenshot_annotated_path, 60 * 60),
+      ]);
 
-  const screenshotUrl = signedScreenshot?.signedUrl ?? null;
+      if (cancelled) return;
+      setTemplate(templateData ?? null);
+      setScreenshotUrl(signedScreenshot?.signedUrl ?? null);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, feedbackId]);
+
+  async function updateFeedbackStatus(status: FeedbackStatus) {
+    if (!feedbackId) return;
+    const { error } = await supabase.from("feedback_items").update({ status }).eq("id", feedbackId);
+    if (error) throw new Error(error.message);
+    setFeedback((current) => (current ? { ...current, status } : current));
+  }
+
+  async function saveEditedPrompt(formData: FormData) {
+    if (!feedbackId) return;
+    const editedPrompt = String(formData.get("template_text") || "");
+    const { error } = await supabase
+      .from("feedback_items")
+      .update({ edited_prompt: editedPrompt })
+      .eq("id", feedbackId);
+    if (error) throw new Error(error.message);
+    setFeedback((current) => (current ? { ...current, edited_prompt: editedPrompt } : current));
+  }
+
+  async function resetEditedPrompt() {
+    if (!feedbackId) return;
+    const { error } = await supabase
+      .from("feedback_items")
+      .update({ edited_prompt: null })
+      .eq("id", feedbackId);
+    if (error) throw new Error(error.message);
+    setFeedback((current) => (current ? { ...current, edited_prompt: null } : current));
+  }
+
+  if (feedback === undefined) {
+    return <p className="text-sm text-neutral-500">Loading…</p>;
+  }
+
+  if (feedback === null) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-neutral-500">Feedback not found.</p>
+        <Link to={`/projects/${projectId}`} className="text-sm text-neutral-900 hover:underline">
+          ← Back to project
+        </Link>
+      </div>
+    );
+  }
+
   const promptValue =
     feedback.edited_prompt ?? renderPromptTemplate(template?.template_text ?? "", feedback, screenshotUrl);
-
   const env = feedback.environment;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <Link href={`/projects/${projectId}`} className="text-sm text-neutral-500 hover:text-neutral-900">
+          <Link to={`/projects/${projectId}`} className="text-sm text-neutral-500 hover:text-neutral-900">
             ← Back to project
           </Link>
           <h1 className="mt-1 text-xl font-semibold">Feedback</h1>
         </div>
-        <StatusSelect
-          value={feedback.status}
-          onChange={(status: FeedbackStatus) => updateFeedbackStatus(projectId, feedbackId, status)}
-        />
+        <StatusSelect value={feedback.status} onChange={updateFeedbackStatus} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -59,7 +108,6 @@ export default async function FeedbackDetailPage({
           {screenshotUrl ? (
             <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
               {/* Signed, time-limited URL from private storage — not a static asset. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={screenshotUrl} alt="Annotated screenshot" className="w-full" />
             </div>
           ) : (
@@ -104,8 +152,8 @@ export default async function FeedbackDetailPage({
               key={promptValue}
               initialValue={promptValue}
               isEdited={feedback.edited_prompt !== null}
-              onSave={(formData) => saveEditedPrompt(projectId, feedbackId, formData)}
-              onReset={() => resetEditedPrompt(projectId, feedbackId)}
+              onSave={saveEditedPrompt}
+              onReset={resetEditedPrompt}
             />
           </div>
         </div>
