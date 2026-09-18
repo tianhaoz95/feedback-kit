@@ -19,6 +19,9 @@ interface IngestPayload {
   screenshot_annotated_png_base64: string;
   annotations: unknown;
   environment: Record<string, unknown>;
+  attachment_filename?: string;
+  attachment_mime_type?: string;
+  attachment_data_base64?: string;
 }
 
 const corsHeaders = {
@@ -85,6 +88,20 @@ Deno.serve(async (req) => {
     );
   }
 
+  let attachmentPath: string | null = null;
+  if (payload.attachment_data_base64 && payload.attachment_filename) {
+    attachmentPath = `${project.id}/${payload.id}/attachment/${sanitizeFilename(payload.attachment_filename)}`;
+    const { error: attachmentError } = await supabase.storage
+      .from("feedback-screenshots")
+      .upload(attachmentPath, decodeBase64(payload.attachment_data_base64), {
+        contentType: payload.attachment_mime_type || "application/octet-stream",
+        upsert: true,
+      });
+    if (attachmentError) {
+      return json({ error: "failed to store attachment", detail: attachmentError }, 500);
+    }
+  }
+
   const { error: insertError } = await supabase.from("feedback_items").insert({
     id: payload.id,
     project_id: project.id,
@@ -94,6 +111,9 @@ Deno.serve(async (req) => {
     annotations: payload.annotations ?? [],
     environment: payload.environment ?? {},
     created_at: payload.created_at ?? new Date().toISOString(),
+    attachment_path: attachmentPath,
+    attachment_filename: attachmentPath ? payload.attachment_filename : null,
+    attachment_mime_type: attachmentPath ? (payload.attachment_mime_type ?? null) : null,
   });
 
   if (insertError) {
@@ -102,6 +122,14 @@ Deno.serve(async (req) => {
 
   return json({ id: payload.id }, 201);
 });
+
+// Keeps the original filename (for nicer downloads) while stripping
+// anything that could be read as a path separator or otherwise escape the
+// `{project_id}/{feedback_id}/attachment/` prefix it's uploaded under.
+function sanitizeFilename(filename: string): string {
+  const base = filename.split(/[/\\]/).pop() || "attachment";
+  return base.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-200);
+}
 
 function decodeBase64(base64: string): Uint8Array {
   const binary = atob(base64);

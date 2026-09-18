@@ -48,4 +48,7 @@ export interface FeedbackItem {
   status: FeedbackStatus;
   edited_prompt: string | null;
   created_at: string;
+  attachment_path: string | null;
+  attachment_filename: string | null;
+  attachment_mime_type: string | null;
 }

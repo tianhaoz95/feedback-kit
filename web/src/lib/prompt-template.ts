@@ -10,6 +10,7 @@ export function renderPromptTemplate(
   template: string,
   feedback: FeedbackItem,
   screenshotUrl: string | null,
+  attachmentUrl: string | null,
 ): string {
   const env = feedback.environment;
   const values: Record<string, string> = {
@@ -22,6 +23,7 @@ export function renderPromptTemplate(
     app_build: env.appBuild ?? "",
     locale: env.locale ?? "",
     screenshot_url: screenshotUrl ?? "(screenshot unavailable)",
+    attachment_url: attachmentUrl ?? "(no attachment)",
   };
 
   return template.replace(/{{\s*(\w+)\s*}}/g, (match, key: string) =>
@@ -39,4 +41,5 @@ export const PROMPT_TEMPLATE_PLACEHOLDERS = [
   "app_build",
   "locale",
   "screenshot_url",
+  "attachment_url",
 ] as const;

@@ -22,12 +22,18 @@ final class FeedbackReportTests: XCTestCase {
             points: [CGPoint(x: 0.1, y: 0.2), CGPoint(x: 0.5, y: 0.6)],
             colorHex: "#FF0000"
         )
+        let attachment = FeedbackAttachment(
+            filename: "console.log",
+            mimeType: "text/plain",
+            data: Data([0x05, 0x06])
+        )
         let report = FeedbackReport(
             text: "The submit button is unresponsive",
             screenshotRawPNG: Data([0x01, 0x02]),
             screenshotAnnotatedPNG: Data([0x03, 0x04]),
             annotations: [annotation],
-            environment: environment
+            environment: environment,
+            attachment: attachment
         )
 
         let encoded = try JSONEncoder().encode(report)

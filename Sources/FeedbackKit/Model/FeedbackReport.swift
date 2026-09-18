@@ -30,6 +30,21 @@ public struct FeedbackAnnotation: Codable, Equatable, Sendable {
     }
 }
 
+/// An arbitrary file the user attached to the report from the composer's
+/// attach button, separate from the screenshot itself (e.g. a log file, a
+/// second screenshot, a video).
+public struct FeedbackAttachment: Codable, Equatable, Sendable {
+    public var filename: String
+    public var mimeType: String
+    public var data: Data
+
+    public init(filename: String, mimeType: String, data: Data) {
+        self.filename = filename
+        self.mimeType = mimeType
+        self.data = data
+    }
+}
+
 /// Information about the device/app/screen the report was captured from.
 /// This is what lets a developer reproduce the bug without asking "what device/OS/screen was this?".
 public struct FeedbackEnvironment: Codable, Equatable, Sendable {
@@ -92,6 +107,8 @@ public struct FeedbackReport: Codable, Equatable, Sendable {
     /// consumer (e.g. the dashboard) can re-render or edit them later.
     public var annotations: [FeedbackAnnotation]
     public var environment: FeedbackEnvironment
+    /// Optional file attached from the composer, separate from the screenshot.
+    public var attachment: FeedbackAttachment?
 
     public init(
         id: UUID = UUID(),
@@ -100,7 +117,8 @@ public struct FeedbackReport: Codable, Equatable, Sendable {
         screenshotRawPNG: Data,
         screenshotAnnotatedPNG: Data,
         annotations: [FeedbackAnnotation],
-        environment: FeedbackEnvironment
+        environment: FeedbackEnvironment,
+        attachment: FeedbackAttachment? = nil
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -109,5 +127,6 @@ public struct FeedbackReport: Codable, Equatable, Sendable {
         self.screenshotAnnotatedPNG = screenshotAnnotatedPNG
         self.annotations = annotations
         self.environment = environment
+        self.attachment = attachment
     }
 }

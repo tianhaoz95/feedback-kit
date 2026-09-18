@@ -121,6 +121,14 @@ project, uploads both PNGs to Storage, and inserts the `feedback_items` row —
 using the service-role key throughout, since RLS is built for authenticated
 dashboard users, not anonymous ingestion.
 
+The composer's optional attachment (any file, via `UIDocumentPickerViewController`
+— separate from the screenshot, added from the "+" button next to send)
+follows the same base64-over-JSON path as the screenshots and lands in the
+same `feedback-screenshots` bucket, under `{project_id}/{feedback_id}/attachment/{filename}`
+— the storage RLS policy only keys off the first path segment, so no new
+bucket or policy was needed, just three new nullable `feedback_items` columns
+(`attachment_path`/`attachment_filename`/`attachment_mime_type`).
+
 ## 4. AI-agent prompt generation (the dashboard's actual differentiator)
 
 This is intentionally just string substitution, not a templating engine

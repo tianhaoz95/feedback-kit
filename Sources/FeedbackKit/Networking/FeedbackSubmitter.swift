@@ -62,6 +62,9 @@ private struct IngestPayload: Encodable {
         case createdAt = "created_at"
         case screenshotRawPNG = "screenshot_raw_png_base64"
         case screenshotAnnotatedPNG = "screenshot_annotated_png_base64"
+        case attachmentFilename = "attachment_filename"
+        case attachmentMimeType = "attachment_mime_type"
+        case attachmentDataBase64 = "attachment_data_base64"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -74,5 +77,8 @@ private struct IngestPayload: Encodable {
         try container.encode(report.screenshotAnnotatedPNG, forKey: .screenshotAnnotatedPNG)
         try container.encode(report.annotations, forKey: .annotations)
         try container.encode(report.environment, forKey: .environment)
+        try container.encodeIfPresent(report.attachment?.filename, forKey: .attachmentFilename)
+        try container.encodeIfPresent(report.attachment?.mimeType, forKey: .attachmentMimeType)
+        try container.encodeIfPresent(report.attachment?.data, forKey: .attachmentDataBase64)
     }
 }

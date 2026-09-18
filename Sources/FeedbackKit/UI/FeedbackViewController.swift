@@ -1,5 +1,6 @@
 import AVFoundation
 import UIKit
+import UniformTypeIdentifiers
 
 /// The full-screen capture/annotate/describe/submit flow. Not part of the
 /// public API — presented and dismissed by `FeedbackKit`.
@@ -20,11 +21,21 @@ final class FeedbackViewController: UIViewController {
 
     private let toolbar = AnnotationToolbar()
 
-    private let textViewContainer = UIView()
+    // A compact, chat-style composer: an optional attachment chip, a
+    // single-line-by-default text view that grows as the user types, and a
+    // second row below it with an attach button and a send button — rather
+    // than a big fixed-height text box with a full-width submit button below.
+    private let composerContainer = UIView()
+    private let composerStack = UIStackView()
+    private let attachmentChipView = UIView()
+    private let attachmentNameLabel = UILabel()
+    private let removeAttachmentButton = UIButton(type: .system)
     private let placeholderLabel = UILabel()
     private let textView = UITextView()
+    private let attachButton = UIButton(type: .system)
+    private let sendButton = UIButton(type: .system)
 
-    private let submitButton = UIButton(type: .system)
+    private var pickedAttachment: (filename: String, mimeType: String, data: Data)?
 
     init(rawScreenshot: UIImage, screenNameOverride: String?, onComplete: @escaping (FeedbackReport?) -> Void) {
         self.rawScreenshot = rawScreenshot
@@ -46,8 +57,7 @@ final class FeedbackViewController: UIViewController {
         buildHeader()
         buildScreenshotArea()
         buildToolbar()
-        buildTextInput()
-        buildSubmitButton()
+        buildComposer()
         layoutAll()
     }
 
@@ -139,37 +149,89 @@ final class FeedbackViewController: UIViewController {
         view.addSubview(toolbar)
     }
 
-    private func buildTextInput() {
-        textViewContainer.layer.borderColor = UIColor.separator.cgColor
-        textViewContainer.layer.borderWidth = 1
-        textViewContainer.layer.cornerRadius = 8
+    private func buildComposer() {
+        composerContainer.layer.borderColor = UIColor.separator.cgColor
+        composerContainer.layer.borderWidth = 1
+        composerContainer.layer.cornerRadius = 16
+
+        buildAttachmentChip()
 
         textView.font = .preferredFont(forTextStyle: .body)
         textView.backgroundColor = .clear
         textView.delegate = self
+        textView.isScrollEnabled = false
+        textView.textContainerInset = .zero
+        textView.textContainer.lineFragmentPadding = 0
+        textView.heightAnchor.constraint(greaterThanOrEqualToConstant: 24).isActive = true
+        textView.heightAnchor.constraint(lessThanOrEqualToConstant: 120).isActive = true
 
-        placeholderLabel.text = "What's the problem? Be as specific as you can."
+        placeholderLabel.text = "What's the problem?"
         placeholderLabel.font = .preferredFont(forTextStyle: .body)
         placeholderLabel.textColor = .placeholderText
-        placeholderLabel.numberOfLines = 0
 
-        textViewContainer.addSubview(textView)
-        textViewContainer.addSubview(placeholderLabel)
-        view.addSubview(textViewContainer)
+        let iconConfig = UIImage.SymbolConfiguration(pointSize: 26)
+        attachButton.setImage(UIImage(systemName: "plus.circle.fill"), for: .normal)
+        attachButton.setPreferredSymbolConfiguration(iconConfig, forImageIn: .normal)
+        attachButton.tintColor = .secondaryLabel
+        attachButton.addAction(UIAction { [weak self] _ in self?.attachTapped() }, for: .touchUpInside)
+
+        sendButton.setImage(UIImage(systemName: "arrow.up.circle.fill"), for: .normal)
+        sendButton.setPreferredSymbolConfiguration(iconConfig, forImageIn: .normal)
+        sendButton.tintColor = .systemBlue
+        sendButton.addAction(UIAction { [weak self] _ in self?.submitTapped() }, for: .touchUpInside)
+
+        // Attach on the left, send on the right — the composer's "second row".
+        let buttonRow = UIStackView(arrangedSubviews: [attachButton, UIView(), sendButton])
+        buttonRow.axis = .horizontal
+        buttonRow.alignment = .center
+
+        composerStack.axis = .vertical
+        composerStack.spacing = 8
+        composerStack.addArrangedSubview(attachmentChipView)
+        composerStack.addArrangedSubview(textView)
+        composerStack.addArrangedSubview(buttonRow)
+        composerContainer.addSubview(composerStack)
+        composerContainer.addSubview(placeholderLabel)
+        view.addSubview(composerContainer)
     }
 
-    private func buildSubmitButton() {
-        var config = UIButton.Configuration.filled()
-        config.title = "Submit Feedback"
-        config.cornerStyle = .medium
-        submitButton.configuration = config
-        submitButton.addAction(UIAction { [weak self] _ in self?.submitTapped() }, for: .touchUpInside)
-        view.addSubview(submitButton)
+    private func buildAttachmentChip() {
+        attachmentChipView.backgroundColor = .secondarySystemBackground
+        attachmentChipView.layer.cornerRadius = 8
+        attachmentChipView.isHidden = true
+
+        let paperclip = UIImageView(image: UIImage(systemName: "paperclip"))
+        paperclip.tintColor = .secondaryLabel
+        paperclip.setContentHuggingPriority(.required, for: .horizontal)
+
+        attachmentNameLabel.font = .preferredFont(forTextStyle: .caption1)
+        attachmentNameLabel.textColor = .secondaryLabel
+        attachmentNameLabel.numberOfLines = 1
+        attachmentNameLabel.lineBreakMode = .byTruncatingMiddle
+
+        removeAttachmentButton.setImage(UIImage(systemName: "xmark.circle.fill"), for: .normal)
+        removeAttachmentButton.tintColor = .secondaryLabel
+        removeAttachmentButton.setContentHuggingPriority(.required, for: .horizontal)
+        removeAttachmentButton.addAction(UIAction { [weak self] _ in self?.clearAttachment() }, for: .touchUpInside)
+
+        let chipStack = UIStackView(arrangedSubviews: [paperclip, attachmentNameLabel, removeAttachmentButton])
+        chipStack.axis = .horizontal
+        chipStack.spacing = 6
+        chipStack.alignment = .center
+        chipStack.translatesAutoresizingMaskIntoConstraints = false
+        attachmentChipView.addSubview(chipStack)
+
+        NSLayoutConstraint.activate([
+            chipStack.leadingAnchor.constraint(equalTo: attachmentChipView.leadingAnchor, constant: 8),
+            chipStack.trailingAnchor.constraint(equalTo: attachmentChipView.trailingAnchor, constant: -8),
+            chipStack.topAnchor.constraint(equalTo: attachmentChipView.topAnchor, constant: 4),
+            chipStack.bottomAnchor.constraint(equalTo: attachmentChipView.bottomAnchor, constant: -4)
+        ])
     }
 
     private func layoutAll() {
         [headerView, titleLabel, cancelButton, screenshotBoundsView, toolbar,
-         textViewContainer, textView, placeholderLabel, submitButton].forEach {
+         composerContainer, composerStack, textView, placeholderLabel].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
         }
 
@@ -192,31 +254,28 @@ final class FeedbackViewController: UIViewController {
             screenshotBoundsView.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 8),
             screenshotBoundsView.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 16),
             screenshotBoundsView.trailingAnchor.constraint(equalTo: toolbar.leadingAnchor, constant: -4),
-            screenshotBoundsView.bottomAnchor.constraint(equalTo: textViewContainer.topAnchor, constant: -8),
+            screenshotBoundsView.bottomAnchor.constraint(equalTo: composerContainer.topAnchor, constant: -8),
 
             toolbar.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 8),
             toolbar.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -4),
-            toolbar.bottomAnchor.constraint(equalTo: textViewContainer.topAnchor, constant: -8),
+            toolbar.bottomAnchor.constraint(equalTo: composerContainer.topAnchor, constant: -8),
             toolbar.widthAnchor.constraint(equalToConstant: 56),
 
-            textViewContainer.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 16),
-            textViewContainer.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -16),
-            textViewContainer.heightAnchor.constraint(equalToConstant: 100),
-            textViewContainer.bottomAnchor.constraint(equalTo: submitButton.topAnchor, constant: -12),
+            // No fixed height here on purpose: the composer sizes itself from
+            // its content (attachment chip + text view + button row), so it
+            // stays compact as a single line and only grows as the user types.
+            composerContainer.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 16),
+            composerContainer.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -16),
+            composerContainer.bottomAnchor.constraint(equalTo: safe.bottomAnchor, constant: -12),
 
-            textView.topAnchor.constraint(equalTo: textViewContainer.topAnchor, constant: 4),
-            textView.leadingAnchor.constraint(equalTo: textViewContainer.leadingAnchor, constant: 8),
-            textView.trailingAnchor.constraint(equalTo: textViewContainer.trailingAnchor, constant: -8),
-            textView.bottomAnchor.constraint(equalTo: textViewContainer.bottomAnchor, constant: -4),
+            composerStack.leadingAnchor.constraint(equalTo: composerContainer.leadingAnchor, constant: 12),
+            composerStack.trailingAnchor.constraint(equalTo: composerContainer.trailingAnchor, constant: -12),
+            composerStack.topAnchor.constraint(equalTo: composerContainer.topAnchor, constant: 10),
+            composerStack.bottomAnchor.constraint(equalTo: composerContainer.bottomAnchor, constant: -10),
 
-            placeholderLabel.topAnchor.constraint(equalTo: textView.topAnchor, constant: 8),
-            placeholderLabel.leadingAnchor.constraint(equalTo: textView.leadingAnchor, constant: 4),
-            placeholderLabel.trailingAnchor.constraint(equalTo: textView.trailingAnchor, constant: -4),
-
-            submitButton.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 16),
-            submitButton.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -16),
-            submitButton.bottomAnchor.constraint(equalTo: safe.bottomAnchor, constant: -12),
-            submitButton.heightAnchor.constraint(equalToConstant: 48)
+            placeholderLabel.topAnchor.constraint(equalTo: textView.topAnchor),
+            placeholderLabel.leadingAnchor.constraint(equalTo: textView.leadingAnchor),
+            placeholderLabel.trailingAnchor.constraint(lessThanOrEqualTo: textView.trailingAnchor)
         ])
     }
 
@@ -236,6 +295,17 @@ final class FeedbackViewController: UIViewController {
         dismiss(animated: true) { [weak self] in self?.onComplete(nil) }
     }
 
+    private func attachTapped() {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.item], asCopy: true)
+        picker.delegate = self
+        present(picker, animated: true)
+    }
+
+    private func clearAttachment() {
+        pickedAttachment = nil
+        attachmentChipView.isHidden = true
+    }
+
     private func submitTapped() {
         let flattened = canvasView.flattenedImage(baseImage: rawScreenshot)
         guard
@@ -246,12 +316,17 @@ final class FeedbackViewController: UIViewController {
             return
         }
 
+        let attachment = pickedAttachment.map {
+            FeedbackAttachment(filename: $0.filename, mimeType: $0.mimeType, data: $0.data)
+        }
+
         let report = FeedbackReport(
             text: textView.text ?? "",
             screenshotRawPNG: rawPNG,
             screenshotAnnotatedPNG: annotatedPNG,
             annotations: canvasView.completedAnnotations,
-            environment: EnvironmentInfo.current(screenName: screenNameOverride)
+            environment: EnvironmentInfo.current(screenName: screenNameOverride),
+            attachment: attachment
         )
 
         dismiss(animated: true) { [weak self] in self?.onComplete(report) }
@@ -261,5 +336,19 @@ final class FeedbackViewController: UIViewController {
 extension FeedbackViewController: UITextViewDelegate {
     func textViewDidChange(_ textView: UITextView) {
         placeholderLabel.isHidden = !textView.text.isEmpty
+        textView.invalidateIntrinsicContentSize()
+        let contentHeight = textView.sizeThatFits(CGSize(width: textView.bounds.width, height: .greatestFiniteMagnitude)).height
+        textView.isScrollEnabled = contentHeight > 120
+    }
+}
+
+extension FeedbackViewController: UIDocumentPickerDelegate {
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        guard let url = urls.first, let data = try? Data(contentsOf: url) else { return }
+        let filename = url.lastPathComponent
+        let mimeType = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
+        pickedAttachment = (filename: filename, mimeType: mimeType, data: data)
+        attachmentNameLabel.text = filename
+        attachmentChipView.isHidden = false
     }
 }

@@ -11,6 +11,7 @@ export function FeedbackDetailPage() {
   const [feedback, setFeedback] = useState<FeedbackItem | null | undefined>(undefined);
   const [template, setTemplate] = useState<PromptTemplate | null>(null);
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
+  const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!projectId || !feedbackId) return;
@@ -27,16 +28,20 @@ export function FeedbackDetailPage() {
       setFeedback(feedbackData ?? null);
       if (!feedbackData) return;
 
-      const [{ data: templateData }, { data: signedScreenshot }] = await Promise.all([
+      const [{ data: templateData }, { data: signedScreenshot }, signedAttachment] = await Promise.all([
         supabase.from("prompt_templates").select("*").eq("project_id", projectId).single<PromptTemplate>(),
         supabase.storage
           .from("feedback-screenshots")
           .createSignedUrl(feedbackData.screenshot_annotated_path, 60 * 60),
+        feedbackData.attachment_path
+          ? supabase.storage.from("feedback-screenshots").createSignedUrl(feedbackData.attachment_path, 60 * 60)
+          : Promise.resolve(null),
       ]);
 
       if (cancelled) return;
       setTemplate(templateData ?? null);
       setScreenshotUrl(signedScreenshot?.signedUrl ?? null);
+      setAttachmentUrl(signedAttachment?.data?.signedUrl ?? null);
     })();
 
     return () => {
@@ -88,7 +93,8 @@ export function FeedbackDetailPage() {
   }
 
   const promptValue =
-    feedback.edited_prompt ?? renderPromptTemplate(template?.template_text ?? "", feedback, screenshotUrl);
+    feedback.edited_prompt ??
+    renderPromptTemplate(template?.template_text ?? "", feedback, screenshotUrl, attachmentUrl);
   const env = feedback.environment;
 
   return (
@@ -138,6 +144,24 @@ export function FeedbackDetailPage() {
               <Row label="Received" value={new Date(feedback.created_at).toLocaleString()} />
             </dl>
           </div>
+
+          {feedback.attachment_path ? (
+            <div className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+              <h2 className="text-sm font-medium">Attachment</h2>
+              {attachmentUrl ? (
+                <a
+                  href={attachmentUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-block truncate text-sm text-blue-600 hover:underline"
+                >
+                  {feedback.attachment_filename ?? "Download attachment"}
+                </a>
+              ) : (
+                <p className="mt-2 text-sm text-neutral-400">Attachment unavailable</p>
+              )}
+            </div>
+          ) : null}
         </div>
 
         <div className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
