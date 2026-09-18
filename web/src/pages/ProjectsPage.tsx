@@ -2,6 +2,7 @@ import { useEffect, useState, useTransition } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { getCurrentOrganizationId } from "@/lib/organization";
+import { getErrorMessage } from "@/lib/errors";
 import type { Project } from "@/lib/types";
 
 export function ProjectsPage() {
@@ -39,7 +40,7 @@ export function ProjectsPage() {
         setProjects(data ?? []);
       } catch (err) {
         if (!cancelled) {
-          setOrgLoadError(err instanceof Error ? err.message : "Couldn't load your organization.");
+          setOrgLoadError(getErrorMessage(err, "Couldn't load your organization."));
           setProjects([]);
         }
       }
@@ -71,7 +72,7 @@ export function ProjectsPage() {
         if (error) throw error;
         navigate(`/projects/${data.id}`);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Couldn't create the project. Try again.");
+        setError(getErrorMessage(err, "Couldn't create the project. Try again."));
       }
     });
   }

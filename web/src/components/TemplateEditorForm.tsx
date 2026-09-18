@@ -1,5 +1,6 @@
 import { useState, useTransition } from "react";
 import { PROMPT_TEMPLATE_PLACEHOLDERS } from "@/lib/prompt-template";
+import { getErrorMessage } from "@/lib/errors";
 
 export function TemplateEditorForm({
   action,
@@ -37,7 +38,7 @@ export function TemplateEditorForm({
                 await action(formData);
                 setSavedAt(Date.now());
               } catch (err) {
-                setError(err instanceof Error ? err.message : "Couldn't save the template. Try again.");
+                setError(getErrorMessage(err, "Couldn't save the template. Try again."));
               }
             });
           }}

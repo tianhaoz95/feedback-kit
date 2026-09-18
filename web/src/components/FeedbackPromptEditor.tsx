@@ -1,4 +1,5 @@
 import { useState, useTransition } from "react";
+import { getErrorMessage } from "@/lib/errors";
 
 export function FeedbackPromptEditor({
   initialValue,
@@ -47,7 +48,7 @@ export function FeedbackPromptEditor({
               try {
                 await onSave(formData);
               } catch (err) {
-                setError(err instanceof Error ? err.message : "Couldn't save. Try again.");
+                setError(getErrorMessage(err, "Couldn't save. Try again."));
               }
             });
           }}
@@ -65,7 +66,7 @@ export function FeedbackPromptEditor({
                 try {
                   await onReset();
                 } catch (err) {
-                  setError(err instanceof Error ? err.message : "Couldn't reset. Try again.");
+                  setError(getErrorMessage(err, "Couldn't reset. Try again."));
                 }
               });
             }}

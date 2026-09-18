@@ -1,5 +1,6 @@
 import { useState, useTransition } from "react";
 import type { FeedbackStatus } from "@/lib/types";
+import { getErrorMessage } from "@/lib/errors";
 
 const OPTIONS: { value: FeedbackStatus; label: string }[] = [
   { value: "new", label: "New" },
@@ -30,7 +31,7 @@ export function StatusSelect({
             try {
               await onChange(status);
             } catch (err) {
-              setError(err instanceof Error ? err.message : "Couldn't update status. Try again.");
+              setError(getErrorMessage(err, "Couldn't update status. Try again."));
             }
           });
         }}
