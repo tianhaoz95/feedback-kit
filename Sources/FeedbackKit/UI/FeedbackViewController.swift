@@ -53,23 +53,37 @@ final class FeedbackViewController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        let fitRect = AVMakeRect(
+        let outerRect = AVMakeRect(
             aspectRatio: rawScreenshot.size,
             insideRect: screenshotBoundsView.bounds
         )
-        imageView.frame = fitRect
-        deviceFrameView.frame = fitRect
-        deviceFrameView.layer.cornerRadius = min(fitRect.width, fitRect.height) * 0.12
-        canvasView.frame = fitRect
 
-        // Positioned/sized proportionally to the fitted screenshot so it tracks
-        // an iPhone's actual Dynamic Island proportions regardless of the
+        // A real bezel sits outside the screen, not painted over it, so the
+        // screenshot is inset within the frame rather than sharing its bounds
+        // — otherwise a bezel thick enough to read as a phone body would eat
+        // into the screenshot content instead of surrounding it.
+        let bezelWidth = outerRect.width * 0.045
+        let innerRect = outerRect.insetBy(dx: bezelWidth, dy: bezelWidth)
+
+        imageView.frame = innerRect
+        canvasView.frame = innerRect
+
+        deviceFrameView.frame = outerRect
+        deviceFrameView.layer.borderWidth = bezelWidth
+        deviceFrameView.layer.cornerRadius = outerRect.width * 0.13
+
+        let innerCornerRadius = max(deviceFrameView.layer.cornerRadius - bezelWidth, 0)
+        imageView.layer.cornerRadius = innerCornerRadius
+        canvasView.layer.cornerRadius = innerCornerRadius
+
+        // Positioned/sized proportionally to the screen area so it tracks an
+        // iPhone's actual Dynamic Island proportions regardless of the
         // screenshot's own resolution.
-        let islandWidth = fitRect.width * 0.32
+        let islandWidth = innerRect.width * 0.32
         let islandHeight = islandWidth * 0.29
         cameraIslandView.frame = CGRect(
-            x: fitRect.minX + (fitRect.width - islandWidth) / 2,
-            y: fitRect.minY + islandHeight * 0.4,
+            x: innerRect.minX + (innerRect.width - islandWidth) / 2,
+            y: innerRect.minY + islandHeight * 0.4,
             width: islandWidth,
             height: islandHeight
         )
@@ -89,15 +103,19 @@ final class FeedbackViewController: UIViewController {
     }
 
     private func buildScreenshotArea() {
-        // Very thin iPhone-shaped outline traced around the fitted screenshot,
-        // including a Dynamic Island cutout, so users can see where the actual
-        // device's screen and camera island would sit and know not to draw
-        // over/outside them.
+        // An actual iPhone-shaped bezel — thick and dark, like a real device
+        // body — traced around the fitted screenshot, including a Dynamic
+        // Island cutout, so this genuinely reads as "a phone" rather than a
+        // faint outline, and shows where the screen/camera island would sit.
         deviceFrameView.isUserInteractionEnabled = false
         deviceFrameView.backgroundColor = .clear
-        deviceFrameView.layer.borderWidth = 1 / UIScreen.main.scale
-        deviceFrameView.layer.borderColor = UIColor.separator.cgColor
+        deviceFrameView.layer.borderColor = UIColor.black.cgColor
         deviceFrameView.layer.cornerCurve = .continuous
+
+        imageView.clipsToBounds = true
+        imageView.layer.cornerCurve = .continuous
+        canvasView.clipsToBounds = true
+        canvasView.layer.cornerCurve = .continuous
 
         cameraIslandView.isUserInteractionEnabled = false
         cameraIslandView.backgroundColor = .black

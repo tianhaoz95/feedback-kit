@@ -1,40 +1,25 @@
 import { useState, useTransition } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 
 export function LoginPage() {
-  const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function signIn(formData: FormData) {
+  function signInWithGitHub() {
     setError(null);
     startTransition(async () => {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: String(formData.get("email")),
-        password: String(formData.get("password")),
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "github",
+        options: {
+          // Land back on /login so RedirectIfAuthed forwards to /projects
+          // once the session from the OAuth redirect is detected.
+          redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}login`,
+        },
       });
-      if (error) {
-        setError(error.message);
-        return;
-      }
-      navigate("/projects");
-    });
-  }
-
-  function signUp(formData: FormData) {
-    setError(null);
-    startTransition(async () => {
-      const { error } = await supabase.auth.signUp({
-        email: String(formData.get("email")),
-        password: String(formData.get("password")),
-        options: { data: { organization_name: String(formData.get("organizationName") || "My Team") } },
-      });
-      if (error) {
-        setError(error.message);
-        return;
-      }
-      navigate("/projects");
+      // On success the browser navigates to GitHub immediately; this only
+      // returns if kicking off the redirect itself failed.
+      if (error) setError(error.message);
     });
   }
 
@@ -55,46 +40,18 @@ export function LoginPage() {
         ) : null}
 
         <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-medium text-neutral-900">Sign in</h2>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              signIn(new FormData(event.currentTarget));
-            }}
-            className="mt-4 space-y-3"
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={signInWithGitHub}
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-neutral-900 px-3 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
           >
-            <Field name="email" type="email" label="Email" />
-            <Field name="password" type="password" label="Password" />
-            <button
-              type="submit"
-              disabled={isPending}
-              className="w-full rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
-            >
-              {isPending ? "Signing in..." : "Sign in"}
-            </button>
-          </form>
-        </div>
-
-        <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-medium text-neutral-900">Create an account</h2>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              signUp(new FormData(event.currentTarget));
-            }}
-            className="mt-4 space-y-3"
-          >
-            <Field name="organizationName" type="text" label="Team / company name" />
-            <Field name="email" type="email" label="Email" />
-            <Field name="password" type="password" label="Password" />
-            <button
-              type="submit"
-              disabled={isPending}
-              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50 disabled:opacity-50"
-            >
-              {isPending ? "Creating account..." : "Create account"}
-            </button>
-          </form>
+            <GitHubMark className="h-4 w-4" />
+            {isPending ? "Redirecting to GitHub..." : "Continue with GitHub"}
+          </button>
+          <p className="mt-3 text-center text-xs text-neutral-400">
+            First time here? Signing in creates your account automatically.
+          </p>
         </div>
 
         <p className="text-center text-xs text-neutral-400">
@@ -113,16 +70,10 @@ export function LoginPage() {
   );
 }
 
-function Field({ name, type, label }: { name: string; type: string; label: string }) {
+function GitHubMark({ className }: { className?: string }) {
   return (
-    <label className="block">
-      <span className="block text-xs font-medium text-neutral-600">{label}</span>
-      <input
-        name={name}
-        type={type}
-        required
-        className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-      />
-    </label>
+    <svg viewBox="0 0 16 16" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+    </svg>
   );
 }
