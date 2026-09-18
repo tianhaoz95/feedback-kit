@@ -1,0 +1,35 @@
+name: FeedbackKitDemo
+options:
+  bundleIdPrefix: com.feedbackkit.demo
+  deploymentTarget:
+    iOS: "15.0"
+targets:
+  FeedbackKitDemo:
+    type: application
+    platform: iOS
+    sources:
+      - path: DemoApp
+    info:
+      path: Generated/Info.plist
+      properties:
+        UILaunchScreen: {}
+        UIApplicationSupportsIndirectInputEvents: true
+        # Local Supabase (`supabase start`) serves plain HTTP on 127.0.0.1 —
+        # this lets the demo app's FeedbackKit.configure(...) reach it from
+        # the simulator without ATS blocking the request. Only relevant if
+        # you uncomment the presentAndSubmit / configure call in
+        # FeedbackKitDemoApp.swift to test the hosted-submission path.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.feedbackkit.demo
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+    dependencies:
+      - package: FeedbackKit
+packages:
+  FeedbackKit:
+    path: ..

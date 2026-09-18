@@ -1,0 +1,18 @@
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Xcode
+DemoApp/FeedbackKitDemo.xcodeproj/
+DemoApp/Generated/
+DemoApp/.build/
+*.xcuserstate
+xcuserdata/
+DerivedData/
+
+# Supabase local dev
+supabase/.branches/
+supabase/.temp/
+
+.DS_Store

@@ -1,0 +1,189 @@
+# FeedbackKit — Design Overview
+
+FeedbackKit is two things that share one contract:
+
+1. **An iOS SDK** (`FeedbackKit`, Swift Package) that lets any app capture a
+   screenshot, let the user annotate it and describe a problem, and hands the
+   developer a structured `FeedbackReport`. What happens to that report is
+   entirely up to the developer.
+2. **An optional hosted dashboard** (`web/` + `supabase/`) that's just one way
+   to consume that report: a place to receive it, organize it by project,
+   and turn it into a prompt for a coding agent.
+
+The SDK never requires the dashboard. The dashboard never requires anything
+beyond "something POSTs this JSON shape to this URL." That boundary is the
+main architectural decision in this project — everything else follows from it.
+
+```
+ ┌─────────────────────┐        FeedbackReport         ┌──────────────────────┐
+ │   iOS app + SDK      │ ─────────────────────────────▶│  developer's own     │
+ │  (Sources/FeedbackKit)       (completion handler)     │  code — print it,    │
+ │                      │                                │  send it anywhere    │
+ └──────────┬───────────┘                                └──────────────────────┘
+            │ optional: FeedbackKit.configure(...) + presentAndSubmit
+            ▼
+ ┌──────────────────────┐   POST /functions/v1/ingest-feedback (project_key)
+ │ Supabase Edge Function│ ◀────────────────────────────────────────────────────
+ │   ingest-feedback     │
+ └──────────┬────────────┘
+            │ service-role writes
+            ▼
+ ┌──────────────────────┐   RLS-scoped reads/writes  ┌───────────────────────┐
+ │ Postgres + Storage    │ ◀─────────────────────────▶│ Next.js dashboard (web)│
+ │ (organizations,       │                             │ projects, feedback,   │
+ │  projects, feedback)  │                             │ prompt templates      │
+ └──────────────────────┘                             └───────────────────────┘
+```
+
+## 1. iOS SDK (`Sources/FeedbackKit`)
+
+**Capture is window-level, not view-controller-level.** `ScreenshotCapture`
+renders the key `UIWindow`'s layer to a bitmap (`UIGraphicsImageRenderer` +
+`drawHierarchy`). This is the load-bearing decision that lets the SDK work
+identically whether the screen on top was built with UIKit, SwiftUI, or a mix
+— it never has to know or care. The demo app has one screen of each
+(`HomeView.swift` in SwiftUI, `CartViewController.swift` in UIKit) specifically
+to prove this.
+
+**Annotation is a transparent overlay** (`AnnotationCanvasView`) sized to
+exactly match the screenshot's on-screen frame (computed with `AVMakeRect` so
+there's no letterboxing math to get wrong). It supports four tools —
+freehand, rectangle, arrow, text — and stores every shape as normalized
+(0...1) points, so annotations render identically at any resolution. On
+submit, `flattenedImage(baseImage:)` burns the shapes into the screenshot at
+its *native pixel size* (independent of the on-screen view size), and both the
+raw and flattened PNGs travel in the final report — raw for record-keeping,
+flattened for actually looking at the bug, plus the structured shapes in case
+a future consumer wants to re-render or edit them.
+
+**Triggers are pluggable by design.** `FeedbackKit.present(from:)` is the one
+call everything else is built on. `enableShakeToReport` and
+`showFloatingTriggerButton` are conveniences on top of it — a developer who
+wants a custom trigger (menu item, debug gesture, whatever) just calls
+`present(from:)` directly and ignores both. Shake detection swizzles
+`UIWindow.motionEnded` (the standard technique for this — Instabug and
+similar SDKs do the same) so it works without the host app subclassing
+`UIWindow`.
+
+**"Which screen was this?" has no fully reliable answer**, so the SDK takes a
+best-effort layered approach: `FeedbackKit.currentScreen` is a developer-set
+string (recommended — set it as the user navigates), with automatic
+top-view-controller-name detection (`TopViewControllerResolver`) as a fallback
+for apps that don't bother. The fallback only sees UIKit view controllers,
+which is disclosed in the doc comment rather than silently pretending it's
+reliable for SwiftUI-only screens.
+
+**The wire format is decoupled from the Swift API.** `FeedbackReport` and its
+nested types use idiomatic Swift camelCase — that's the public API surface.
+`FeedbackSubmitter`'s `IngestPayload` is a private mirror struct that encodes
+the same data as snake_case JSON for the ingestion endpoint. This keeps the
+public SDK API from being shaped by a backend convention it doesn't need to
+know about.
+
+## 2. Data model / multi-tenancy (`supabase/migrations`)
+
+```
+organizations ──< memberships >── auth.users     (an org = a developer account;
+     │                                             memberships is many-to-many,
+     ▼                                             so teams work from day one)
+  projects ──< prompt_templates (1:1 default template per project)
+     │
+     └──< feedback_items (screenshots in Storage, annotations/environment as JSONB)
+```
+
+- **RLS, not application code, enforces privacy.** Every table's policies
+  resolve through `auth_organization_ids()` (a `security definer` function
+  reading `memberships`), so "no cross-visibility between accounts" is a
+  database guarantee, not something every query has to remember to filter by.
+- **Two different kinds of keys, on purpose.** A project's `project_key` is
+  embedded in a shipped iOS binary and can only ever *create* feedback for
+  that project (the ingestion function looks it up with the service-role key,
+  bypassing RLS entirely, by design — there's no user session on an anonymous
+  device). It is never used to *read* anything, so it doesn't need to be a
+  guarded secret. Dashboard access is entirely separate, via normal Supabase
+  Auth sessions + RLS.
+- **New signups get an organization automatically** (`handle_new_user`
+  trigger), and **every project gets a default prompt template automatically**
+  (`create_default_prompt_template` trigger) — both so the dashboard is
+  useful immediately after signup/project-creation with zero required setup
+  steps.
+- **Screenshots live in private Storage**, not the database, at
+  `{project_id}/{feedback_id}/{raw,annotated}.png`. The dashboard reads them
+  via short-lived signed URLs generated per-request; a storage RLS policy
+  restricts *signing* to members of the owning organization.
+
+## 3. Ingestion (`supabase/functions/ingest-feedback`)
+
+A single Edge Function, deliberately with no Supabase-auth requirement
+(`verify_jwt = false` in `supabase/config.toml`) since the caller is an
+anonymous iOS device identified only by `project_key`. It looks up the
+project, uploads both PNGs to Storage, and inserts the `feedback_items` row —
+using the service-role key throughout, since RLS is built for authenticated
+dashboard users, not anonymous ingestion.
+
+## 4. AI-agent prompt generation (the dashboard's actual differentiator)
+
+This is intentionally just string substitution, not a templating engine
+(`web/src/lib/prompt-template.ts`): a `{{placeholder}}` find-and-replace over
+a plain-text template. The set of placeholders (`feedback_text`,
+`screen_name`, `os_name`, `device_model`, `screenshot_url`, etc.) is small and
+fixed, and keeping this trivial keeps the template itself — which developers
+read and hand-edit directly — easy to reason about instead of hiding behind
+templating-language syntax.
+
+Two layers of editability, matching the two requirements ("preview the
+conversion" and "let the developer make the final call"):
+- **Per-project default template** (`prompt_templates.template_text`) — edited
+  on the project page, applies to every new feedback item.
+- **Per-item override** (`feedback_items.edited_prompt`) — a developer can
+  tweak the generated prompt for one specific report (e.g. to add "also check
+  the caching layer") without touching the shared template. A feedback item
+  with no override just renders the current template live, so template edits
+  retroactively improve prompts for old, still-unedited items.
+
+Both are plain textareas with a "Copy for coding agent" button
+(`navigator.clipboard`) — no attempt to integrate with any specific agent's
+API, since "copy into whatever you use" is more durable than betting on one
+tool.
+
+## 5. Web dashboard (`web/`, Next.js 16 App Router + Supabase)
+
+Standard Server Components + Server Actions shape: pages fetch through a
+request-scoped Supabase client (`lib/supabase/server.ts`) that reads the
+user's auth cookies, and mutations (`createProject`, `updatePromptTemplate`,
+`updateFeedbackStatus`, `save/resetEditedPrompt`) are `"use server"` actions
+that just run the equivalent Supabase query — RLS does the authorization
+work, so these actions don't re-implement permission checks. `src/proxy.ts`
+(Next 16 renamed `middleware.ts` → `proxy.ts`) refreshes the auth session on
+every navigation and redirects signed-out users to `/login`.
+
+## Repo layout
+
+```
+Sources/FeedbackKit/   the SDK (Swift Package)
+Tests/FeedbackKitTests/
+DemoApp/               project.yml (XcodeGen) + a sample app exercising the SDK
+web/                   Next.js dashboard
+supabase/              migrations, storage policies, the ingestion Edge Function
+scripts/               setup.sh, run-ios.sh, start-web.sh — see README.md
+```
+
+## Known gaps / deliberate scope cuts
+
+- **No organization switcher.** The schema supports one user belonging to
+  multiple orgs; the dashboard UI just uses the first membership found. Fine
+  until someone is actually on two teams.
+- **No offline queueing in the SDK.** If `presentAndSubmit` fails (no
+  network), the report is just lost unless the developer's own completion
+  handler does something with it. A disk-backed retry queue is the natural
+  next step if the hosted path becomes the primary use case rather than
+  "hand me the struct."
+- **No image compression/downsizing.** Screenshots are full-resolution PNGs;
+  fine for a v1, but worth revisiting (JPEG or PNG downscaling) if storage
+  cost or upload time on cellular becomes a concern.
+- **No rate limiting on the ingestion endpoint.** A leaked `project_key`
+  could be used to spam a project with junk feedback. Not a data-privacy
+  issue (it can't read anything), but worth adding before this is used by
+  real strangers' apps at scale.
+- **Local Supabase requires Docker**, which this environment didn't have
+  installed — see README.md for the one manual prerequisite.
