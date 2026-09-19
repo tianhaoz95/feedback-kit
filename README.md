@@ -69,6 +69,44 @@ changes. It also copies `dist/index.html` to `dist/404.html` after building
 so direct loads/refreshes of deep links (e.g. `/projects/abc`) still resolve
 client-side, since GitHub Pages has no server-side rewrites.
 
+## Deploying Supabase (migrations + edge functions)
+
+**Migrations** deploy automatically via Supabase's own native GitHub
+integration (Dashboard → Project Settings → Integrations → GitHub), not a
+custom Actions workflow — it applies `supabase/migrations/` to the
+production database whenever `main` changes. This is deliberately preferred
+over a custom workflow: it's a GitHub App connection Supabase manages and
+scopes to this repo/project itself, so no Postgres password or access token
+needs to live in this repo's GitHub Secrets at all. One-time setup, on that
+integration page:
+
+- GitHub repository: this repo
+- Working directory: `.` (repo root, since `supabase/` lives directly there)
+- Deploy to production: on, with production branch `main`
+
+**Edge Functions** (currently just `ingest-feedback`) are deployed manually:
+
+```bash
+supabase login              # once per machine — interactive browser OAuth
+./scripts/deploy-functions.sh                # deploy every function
+./scripts/deploy-functions.sh ingest-feedback   # or just one
+```
+
+This isn't automated because, unlike the database sync above, there's no
+project-scoped credential for it — `supabase functions deploy` needs a
+Supabase personal access token, which grants Management API access to
+every project on the account, not just this one. Not worth storing an
+account-wide secret in CI for a function that changes rarely.
+
+**Auth/MFA/pooler/storage config** (`supabase config push`) isn't automated
+either, and for a sharper reason: unlike migrations or function code, it
+syncs config.toml's *entire* declared state to the project on every push,
+which risks silently overwriting live settings that were never meant to
+match config.toml's (often local-dev-oriented) defaults — this happened
+during development (see git history around the GitHub-auth config).
+Always review `supabase config diff --project-ref <ref>` yourself before
+`supabase config push --project-ref <ref>`.
+
 ## Repo layout
 
 | Path | What |
@@ -78,4 +116,4 @@ client-side, since GitHub Pages has no server-side rewrites.
 | `DemoApp/` | Sample app exercising the SDK (XcodeGen project) |
 | `web/` | Static SPA dashboard (Vite + React), deployable to any static host |
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function |
-| `scripts/` | `setup.sh`, `run-ios.sh`, `start-web.sh` |
+| `scripts/` | `setup.sh`, `run-ios.sh`, `start-web.sh`, `deploy-functions.sh` |

@@ -39,7 +39,8 @@ echo "==> Installing web dashboard dependencies"
 cat <<'EOF'
 
 Setup complete. Next:
-  ./scripts/run-ios.sh     Build and launch the demo app (FeedbackKit in action) in Simulator
-  ./scripts/start-web.sh   Start local Supabase + the developer dashboard
+  ./scripts/run-ios.sh          Build and launch the demo app (FeedbackKit in action) in Simulator
+  ./scripts/start-web.sh        Start local Supabase + the developer dashboard
+  ./scripts/deploy-functions.sh Deploy Edge Functions to the hosted project
 
 EOF

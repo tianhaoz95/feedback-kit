@@ -109,8 +109,23 @@ supabase functions serve        # if iterating on the Edge Function without a fu
 Supabase Studio (inspect tables/storage/auth locally): http://127.0.0.1:54323.
 
 Migrations are numbered and applied in order (`0001_init.sql`,
-`0002_storage.sql`, `0003_defaults.sql`). Add new schema changes as a new
-numbered file rather than editing an already-applied one.
+`0002_storage.sql`, `0003_defaults.sql`, …). Add new schema changes as a new
+numbered file rather than editing an already-applied one — once a migration
+has been applied to the hosted project, editing it in place is a no-op
+remotely (`supabase db push` tracks applied migrations by filename), so a
+fix always needs its own new numbered file.
+
+Migrations deploy to the hosted project automatically via Supabase's native
+GitHub integration (Dashboard → Project Settings → Integrations → GitHub —
+not a custom Actions workflow, deliberately: it's a GitHub App connection
+Supabase itself manages and scopes to this repo, so no Postgres password or
+account-wide access token needs to live in this repo's secrets). Edge
+Functions are deployed manually via `./scripts/deploy-functions.sh` — see
+README.md for why that one isn't automated. `supabase config push`
+(auth/MFA/pooler/storage settings) is never automated either; push those
+manually after reviewing `supabase config diff` — a blind push syncs
+config.toml's entire declared state, including its local-dev-oriented
+defaults, over whatever's actually live.
 
 ## Architecture notes worth knowing before editing
 
