@@ -58,13 +58,7 @@ enum AnnotationRenderer {
         let center = CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
         let halfWidth = abs(end.x - start.x) / 2 * scale
         let halfHeight = abs(end.y - start.y) / 2 * scale
-
-        let corners = [
-            CGPoint(x: -halfWidth, y: -halfHeight),
-            CGPoint(x: halfWidth, y: -halfHeight),
-            CGPoint(x: halfWidth, y: halfHeight),
-            CGPoint(x: -halfWidth, y: halfHeight)
-        ].map { rotate($0, by: rotation, around: center) }
+        let corners = rectangleCorners(center: center, halfWidth: halfWidth, halfHeight: halfHeight, rotation: rotation)
 
         let path = UIBezierPath()
         path.move(to: corners[0])
@@ -154,6 +148,18 @@ enum AnnotationRenderer {
             width: textSize.width + padding * 2,
             height: textSize.height + padding * 2
         )
+    }
+
+    /// The four corners of a (possibly rotated) rectangle centered on
+    /// `center`. Not `private` so `AnnotationRendererTests` can exercise this
+    /// geometry directly rather than only through rendered pixels.
+    static func rectangleCorners(center: CGPoint, halfWidth: CGFloat, halfHeight: CGFloat, rotation: CGFloat) -> [CGPoint] {
+        [
+            CGPoint(x: center.x - halfWidth, y: center.y - halfHeight),
+            CGPoint(x: center.x + halfWidth, y: center.y - halfHeight),
+            CGPoint(x: center.x + halfWidth, y: center.y + halfHeight),
+            CGPoint(x: center.x - halfWidth, y: center.y + halfHeight)
+        ].map { rotate($0, by: rotation, around: center) }
     }
 
     private static func rotate(_ point: CGPoint, by angle: CGFloat, around center: CGPoint) -> CGPoint {
