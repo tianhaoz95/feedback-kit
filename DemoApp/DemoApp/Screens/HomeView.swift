@@ -55,7 +55,7 @@ struct HomeView: View {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
             withAnimation(.snappy) {
-                recentlyAddedIDs.remove(product.id)
+                _ = recentlyAddedIDs.remove(product.id)
             }
         }
     }
