@@ -40,6 +40,16 @@ final class AnnotationCanvasView: UIView {
     private var draggedAnnotationOriginalPoints: [CGPoint] = []
     private var dragAnnotationStartLocation: CGPoint = .zero
 
+    /// Index into `completedAnnotations` currently being resized/rotated by a
+    /// two-finger gesture, if any. Shared between the pinch and rotation
+    /// recognizers so a single two-finger touch can drive both at once.
+    private var transformedAnnotationIndex: Int?
+    private var transformedAnnotationOriginalScale: Double = 1
+    private var transformedAnnotationOriginalRotation: Double = 0
+
+    private let pinchGesture = UIPinchGestureRecognizer()
+    private let rotationGesture = UIRotationGestureRecognizer()
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .clear
@@ -61,6 +71,17 @@ final class AnnotationCanvasView: UIView {
 
         let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
         addGestureRecognizer(tap)
+
+        // Resize/rotate an existing annotation with a two-finger pinch/twist
+        // while the drag tool is active. Both need `delegate` set so they can
+        // recognize simultaneously with each other (UIKit's default is to
+        // let only one gesture recognizer per view win).
+        pinchGesture.addTarget(self, action: #selector(handlePinch(_:)))
+        rotationGesture.addTarget(self, action: #selector(handleRotation(_:)))
+        pinchGesture.delegate = self
+        rotationGesture.delegate = self
+        addGestureRecognizer(pinchGesture)
+        addGestureRecognizer(rotationGesture)
     }
 
     @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
@@ -159,6 +180,74 @@ final class AnnotationCanvasView: UIView {
         }
     }
 
+    @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
+        guard tool == .drag else { return }
+        switch gesture.state {
+        case .began:
+            beginTransformIfNeeded(at: gesture.location(in: self))
+        case .changed:
+            if let index = transformedAnnotationIndex {
+                applyScale(to: index, gestureScale: gesture.scale)
+            }
+        case .ended, .cancelled, .failed:
+            endTransformIfFinished()
+        default:
+            break
+        }
+    }
+
+    @objc private func handleRotation(_ gesture: UIRotationGestureRecognizer) {
+        guard tool == .drag else { return }
+        switch gesture.state {
+        case .began:
+            beginTransformIfNeeded(at: gesture.location(in: self))
+        case .changed:
+            if let index = transformedAnnotationIndex {
+                applyRotation(to: index, gestureRotation: gesture.rotation)
+            }
+        case .ended, .cancelled, .failed:
+            endTransformIfFinished()
+        default:
+            break
+        }
+    }
+
+    /// Shared by both the pinch and rotation recognizers so whichever of the
+    /// two crosses its own recognition threshold first picks the target
+    /// annotation for both.
+    private func beginTransformIfNeeded(at location: CGPoint) {
+        guard transformedAnnotationIndex == nil, let index = draggableAnnotationIndex(at: location) else { return }
+        transformedAnnotationIndex = index
+        transformedAnnotationOriginalScale = completedAnnotations[index].scale
+        transformedAnnotationOriginalRotation = completedAnnotations[index].rotation
+    }
+
+    /// Only clears the shared target once *both* two-finger gestures have
+    /// actually finished, so lifting to a single finger mid-gesture (which
+    /// can end one recognizer slightly before the other) doesn't drop
+    /// tracking while the other is still live.
+    private func endTransformIfFinished() {
+        let stillActive = [pinchGesture.state, rotationGesture.state].contains { $0 == .began || $0 == .changed }
+        guard !stillActive else { return }
+        transformedAnnotationIndex = nil
+        transformedAnnotationOriginalScale = 1
+        transformedAnnotationOriginalRotation = 0
+    }
+
+    private func applyScale(to index: Int, gestureScale: CGFloat) {
+        guard index < completedAnnotations.count else { return }
+        var annotation = completedAnnotations[index]
+        annotation.scale = max(0.2, transformedAnnotationOriginalScale * Double(gestureScale))
+        completedAnnotations[index] = annotation
+    }
+
+    private func applyRotation(to index: Int, gestureRotation: CGFloat) {
+        guard index < completedAnnotations.count else { return }
+        var annotation = completedAnnotations[index]
+        annotation.rotation = transformedAnnotationOriginalRotation + Double(gestureRotation)
+        completedAnnotations[index] = annotation
+    }
+
     /// Topmost rectangle/arrow/text annotation hit by `location`, if any.
     private func draggableAnnotationIndex(at location: CGPoint) -> Int? {
         for index in completedAnnotations.indices.reversed() {
@@ -225,6 +314,15 @@ final class AnnotationCanvasView: UIView {
                 AnnotationRenderer.draw(annotation, in: context.cgContext, targetSize: baseImage.size)
             }
         }
+    }
+}
+
+extension AnnotationCanvasView: UIGestureRecognizerDelegate {
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        true
     }
 }
 

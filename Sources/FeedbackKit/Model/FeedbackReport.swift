@@ -21,12 +21,29 @@ public struct FeedbackAnnotation: Codable, Equatable, Sendable {
     public var colorHex: String
     /// Only populated for `.text` annotations.
     public var label: String?
+    /// Uniform scale applied around the shape's center (`.rectangle`/`.arrow`)
+    /// or its font size (`.text`) — set via a two-finger pinch while the drag
+    /// tool is active. Unused for `.freehand`.
+    public var scale: Double
+    /// Rotation in radians applied around the shape's center — set via a
+    /// two-finger twist while the drag tool is active. Only meaningful for
+    /// `.rectangle`/`.arrow`; text bubbles and freehand strokes aren't rotated.
+    public var rotation: Double
 
-    public init(kind: Kind, points: [CGPoint], colorHex: String, label: String? = nil) {
+    public init(
+        kind: Kind,
+        points: [CGPoint],
+        colorHex: String,
+        label: String? = nil,
+        scale: Double = 1,
+        rotation: Double = 0
+    ) {
         self.kind = kind
         self.points = points
         self.colorHex = colorHex
         self.label = label
+        self.scale = scale
+        self.rotation = rotation
     }
 }
 

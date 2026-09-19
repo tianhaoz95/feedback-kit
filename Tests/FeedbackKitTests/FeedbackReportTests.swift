@@ -20,7 +20,9 @@ final class FeedbackReportTests: XCTestCase {
         let annotation = FeedbackAnnotation(
             kind: .rectangle,
             points: [CGPoint(x: 0.1, y: 0.2), CGPoint(x: 0.5, y: 0.6)],
-            colorHex: "#FF0000"
+            colorHex: "#FF0000",
+            scale: 1.5,
+            rotation: .pi / 4
         )
         let attachment = FeedbackAttachment(
             filename: "console.log",

@@ -20,6 +20,12 @@ export interface FeedbackAnnotation {
   points: { x: number; y: number }[];
   colorHex: string;
   label?: string;
+  /** Uniform scale around the shape's center (rectangle/arrow) or font size
+   * (text), set via a two-finger pinch in the SDK's drag tool. Defaults to 1. */
+  scale?: number;
+  /** Rotation in radians around the shape's center (rectangle/arrow only),
+   * set via a two-finger twist in the SDK's drag tool. Defaults to 0. */
+  rotation?: number;
 }
 
 /** Mirrors `FeedbackEnvironment` in the iOS SDK (Sources/FeedbackKit/Model/FeedbackReport.swift). */
