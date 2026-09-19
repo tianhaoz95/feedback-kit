@@ -15,4 +15,7 @@ DerivedData/
 supabase/.branches/
 supabase/.temp/
 
+# scripts/release_testflight.sh archive/export output
+build/
+
 .DS_Store

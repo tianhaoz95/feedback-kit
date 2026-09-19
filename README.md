@@ -107,6 +107,23 @@ during development (see git history around the GitHub-auth config).
 Always review `supabase config diff --project-ref <ref>` yourself before
 `supabase config push --project-ref <ref>`.
 
+## Releasing the demo app to TestFlight
+
+```bash
+APPLE_TEAM_ID=68CTFST8W2 ./scripts/release_testflight.sh
+```
+
+Archives `DemoApp` (Release configuration) and uploads it to App Store
+Connect for TestFlight, directly from this Mac — no Fastlane, no manually
+exported `.p12`. Signing is automatic via an App Store Connect API key
+(`FA_ASC_KEY_ID` / `FA_ASC_ISSUER_ID` / `FA_KEY_LOCATION`, set in `~/.zshrc`
+on this machine). `APPLE_TEAM_ID` is passed per invocation rather than
+defaulting globally, since this machine has signing identities for more
+than one Apple Developer Team — `68CTFST8W2` (HEJI TECHNOLOGY LLC) is the
+team that owns the `com.feedbackkit.demo` app record in App Store Connect.
+An app record with that bundle ID must already exist there before you run
+this; the script doesn't create one.
+
 ## Repo layout
 
 | Path | What |
@@ -116,4 +133,4 @@ Always review `supabase config diff --project-ref <ref>` yourself before
 | `DemoApp/` | Sample app exercising the SDK (XcodeGen project) |
 | `web/` | Static SPA dashboard (Vite + React), deployable to any static host |
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function |
-| `scripts/` | `setup.sh`, `run-ios.sh`, `start-web.sh`, `deploy-functions.sh` |
+| `scripts/` | `setup.sh`, `run-ios.sh`, `start-web.sh`, `deploy-functions.sh`, `release_testflight.sh` |

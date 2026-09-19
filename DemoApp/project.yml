@@ -14,6 +14,16 @@ targets:
       properties:
         UILaunchScreen: {}
         UIApplicationSupportsIndirectInputEvents: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         # Local Supabase (`supabase start`) serves plain HTTP on 127.0.0.1 —
         # this lets the demo app's FeedbackKit.configure(...) reach it from
         # the simulator without ATS blocking the request. Only relevant if
