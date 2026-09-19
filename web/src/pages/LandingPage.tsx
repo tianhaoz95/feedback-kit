@@ -101,14 +101,26 @@ export function LandingPage() {
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="relative overflow-hidden">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,_rgba(23,23,23,0.06),_transparent_60%)]"
-          />
+        <section className="relative isolate overflow-hidden">
+          <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+            {/* Slow-drifting blurred blobs */}
+            <div className="animate-aurora-1 absolute left-1/2 top-[-14rem] h-[34rem] w-[34rem] -translate-x-1/2 rounded-full bg-blue-400/25 blur-3xl" />
+            <div className="animate-aurora-2 absolute right-[-8rem] top-[2rem] h-[26rem] w-[26rem] rounded-full bg-violet-400/20 blur-3xl" />
+            <div className="animate-aurora-3 absolute bottom-[-12rem] left-[-6rem] h-[28rem] w-[28rem] rounded-full bg-amber-300/15 blur-3xl" />
+            {/* Faint grid, fading toward the edges */}
+            <div
+              className="absolute inset-0 bg-[linear-gradient(to_right,rgba(23,23,23,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(23,23,23,0.05)_1px,transparent_1px)] bg-[size:44px_44px]"
+              style={{
+                maskImage: "radial-gradient(ellipse 65% 55% at 50% 0%, black, transparent)",
+                WebkitMaskImage: "radial-gradient(ellipse 65% 55% at 50% 0%, black, transparent)",
+              }}
+            />
+            {/* Fade the whole ambiance into the page background at the bottom */}
+            <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-white" />
+          </div>
           <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 sm:py-24 lg:grid-cols-2">
-            <div>
-              <span className="inline-flex items-center rounded-full border border-neutral-200 px-3 py-1 text-xs font-medium text-neutral-600">
+            <div className="animate-fade-up">
+              <span className="inline-flex items-center rounded-full border border-neutral-200 bg-white/70 px-3 py-1 text-xs font-medium text-neutral-600 backdrop-blur">
                 Open source &middot; MIT licensed
               </span>
               <h1 className="mt-5 text-4xl font-semibold tracking-tight text-neutral-900 sm:text-5xl">
@@ -140,7 +152,9 @@ export function LandingPage() {
                 Swift Package. No dashboard required — bring your own backend, or use ours.
               </p>
             </div>
-            <PhoneMockup />
+            <div className="animate-fade-up" style={{ animationDelay: "150ms" }}>
+              <PhoneMockup />
+            </div>
           </div>
         </section>
 
