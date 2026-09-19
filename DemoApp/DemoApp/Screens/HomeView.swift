@@ -15,8 +15,8 @@ struct HomeView: View {
                     Text("Sample screen for exercising FeedbackKit. Shake the simulator (Device \u{2192} Shake Gesture) or tap the floating button to report an issue with whatever's on screen.")
                         .foregroundStyle(.secondary)
 
-                    ForEach(1...3, id: \.self) { index in
-                        ProductCardView(title: "Product \(index)")
+                    ForEach(Self.products) { product in
+                        ProductCardView(product: product)
                     }
 
                     Button {
@@ -42,19 +42,41 @@ struct HomeView: View {
             print("[FeedbackKit demo] captured report \(report.id) — \"\(report.text)\"")
         }
     }
+
+    // Fake catalog data, just so the sample screen reads like a real product
+    // list instead of three identical placeholder rows.
+    private static let products: [Product] = [
+        Product(name: "Wireless Headphones", price: "$59.99", icon: "headphones", tint: .purple),
+        Product(name: "Canvas Tote Bag", price: "$24.99", icon: "bag.fill", tint: .green),
+        Product(name: "Classic T-Shirt", price: "$19.99", icon: "tshirt.fill", tint: .orange)
+    ]
+}
+
+private struct Product: Identifiable {
+    let name: String
+    let price: String
+    let icon: String
+    let tint: Color
+
+    var id: String { name }
 }
 
 private struct ProductCardView: View {
-    let title: String
+    let product: Product
 
     var body: some View {
         HStack {
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color.blue.opacity(0.2))
+                .fill(product.tint.opacity(0.15))
                 .frame(width: 56, height: 56)
+                .overlay {
+                    Image(systemName: product.icon)
+                        .font(.title2)
+                        .foregroundStyle(product.tint)
+                }
             VStack(alignment: .leading) {
-                Text(title).font(.headline)
-                Text("$19.99").foregroundStyle(.secondary)
+                Text(product.name).font(.headline)
+                Text(product.price).foregroundStyle(.secondary)
             }
             Spacer()
         }
