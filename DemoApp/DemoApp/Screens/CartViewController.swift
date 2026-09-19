@@ -1,26 +1,13 @@
+import Combine
 import FeedbackKit
 import SwiftUI
 import UIKit
 
 /// A plain UIKit screen — see `HomeView` for the SwiftUI equivalent. Both use
-/// the exact same FeedbackKit.present(from:) call.
+/// the exact same FeedbackKit.present(from:) call. Observes the same
+/// `CartStore` Home's "Add" buttons write to, via a plain Combine
+/// subscription (SwiftUI's `@ObservedObject` isn't available here).
 final class CartViewController: UIViewController {
-    private struct CartItem {
-        let name: String
-        let price: Double
-        let quantity: Int
-        let icon: String
-        let tint: UIColor
-    }
-
-    // Fake cart contents, just so this reads like a real shopping cart
-    // instead of an empty-state placeholder.
-    private let items: [CartItem] = [
-        CartItem(name: "Wireless Headphones", price: 59.99, quantity: 1, icon: "headphones", tint: .systemPurple),
-        CartItem(name: "Canvas Tote Bag", price: 24.99, quantity: 2, icon: "bag.fill", tint: .systemGreen),
-        CartItem(name: "Classic T-Shirt", price: 19.99, quantity: 1, icon: "tshirt.fill", tint: .systemOrange)
-    ]
-
     private let cellReuseIdentifier = "CartItemCell"
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let footerView = UIView()
@@ -30,6 +17,9 @@ final class CartViewController: UIViewController {
         config.title = "Report a Problem"
         return UIButton(configuration: config)
     }()
+
+    private var items: [CartStore.Item] = []
+    private var cancellable: AnyCancellable?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -46,6 +36,14 @@ final class CartViewController: UIViewController {
         setUpTableView()
         setUpFooter()
         layoutAll()
+
+        cancellable = CartStore.shared.$items
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] items in
+                self?.items = items
+                self?.tableView.reloadData()
+                self?.updateEmptyState()
+            }
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -62,7 +60,6 @@ final class CartViewController: UIViewController {
 
     private func setUpFooter() {
         subtotalLabel.font = .preferredFont(forTextStyle: .headline)
-        subtotalLabel.text = "Subtotal: \(subtotalText)"
 
         reportButton.addTarget(self, action: #selector(reportTapped), for: .touchUpInside)
 
@@ -98,8 +95,23 @@ final class CartViewController: UIViewController {
         ])
     }
 
-    private var subtotalText: String {
-        items.reduce(0) { $0 + $1.price * Double($1.quantity) }.formatted(.currency(code: "USD"))
+    /// Shows a real empty-state message in place of the row list once
+    /// everything's been swiped away, rather than just a blank table.
+    private func updateEmptyState() {
+        subtotalLabel.text = "Subtotal: \(CartStore.shared.subtotal.formatted(.currency(code: "USD")))"
+
+        guard items.isEmpty else {
+            tableView.backgroundView = nil
+            return
+        }
+
+        let emptyLabel = UILabel()
+        emptyLabel.text = "Your cart is empty.\nAdd something from Home to see it here."
+        emptyLabel.numberOfLines = 0
+        emptyLabel.textAlignment = .center
+        emptyLabel.font = .preferredFont(forTextStyle: .subheadline)
+        emptyLabel.textColor = .secondaryLabel
+        tableView.backgroundView = emptyLabel
     }
 
     @objc private func infoTapped() {
@@ -134,10 +146,19 @@ extension CartViewController: UITableViewDataSource {
         config.text = item.name
         config.secondaryText = "Qty \(item.quantity) · \(item.price.formatted(.currency(code: "USD")))"
         config.image = UIImage(systemName: item.icon)
-        config.imageProperties.tintColor = item.tint
+        config.imageProperties.tintColor = UIColor(item.tint)
         cell.contentConfiguration = config
 
         return cell
+    }
+
+    func tableView(
+        _ tableView: UITableView,
+        commit editingStyle: UITableViewCell.EditingStyle,
+        forRowAt indexPath: IndexPath
+    ) {
+        guard editingStyle == .delete else { return }
+        CartStore.shared.remove(at: indexPath.row)
     }
 }
 
