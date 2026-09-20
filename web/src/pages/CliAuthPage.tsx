@@ -43,9 +43,10 @@ export function CliAuthPage() {
     return (
       <CenteredMessage>
         This link is missing information it needs (
-        <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs">port</code> /{" "}
-        <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs">state</code>). Make sure
-        you're following a link that <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs">feedbackkit login</code>{" "}
+        <code className="break-words rounded bg-neutral-100 px-1 py-0.5 text-xs">port</code> /{" "}
+        <code className="break-words rounded bg-neutral-100 px-1 py-0.5 text-xs">state</code>). Make sure
+        you're following a link that{" "}
+        <code className="break-words rounded bg-neutral-100 px-1 py-0.5 text-xs">feedbackkit login</code>{" "}
         just printed, not a bookmarked or pasted one.
       </CenteredMessage>
     );
@@ -116,7 +117,7 @@ export function CliAuthPage() {
             read feedback and generated prompts for projects you're a member of.
           </p>
           <p className="mt-2 text-xs text-neutral-500">
-            Only continue if you just ran <code className="rounded bg-neutral-100 px-1 py-0.5">feedbackkit login</code> in
+            Only continue if you just ran <code className="break-words rounded bg-neutral-100 px-1 py-0.5">feedbackkit login</code> in
             your own terminal.
           </p>
 
@@ -156,7 +157,7 @@ export function CliAuthPage() {
 function CenteredMessage({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 text-center text-sm text-neutral-500">
-      {children}
+      <p className="max-w-sm">{children}</p>
     </div>
   );
 }

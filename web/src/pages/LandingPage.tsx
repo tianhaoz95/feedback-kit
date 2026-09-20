@@ -235,13 +235,13 @@ export function LandingPage() {
         {/* Integration code sample */}
         <section className="border-t border-neutral-100 bg-neutral-50/60">
           <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 sm:py-20 lg:grid-cols-2">
-            <Reveal>
+            <Reveal className="min-w-0">
               <div>
                 <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
                   A few lines to wire up
                 </h2>
                 <p className="mt-3 text-sm text-neutral-600 sm:text-base">
-                  One call — <code className="rounded bg-neutral-100 px-1.5 py-0.5 text-[13px]">FeedbackKit.present(from:)</code> —
+                  One call — <code className="break-words rounded bg-neutral-100 px-1.5 py-0.5 text-[13px]">FeedbackKit.present(from:)</code> —
                   is everything else is built on. Shake-to-report and a
                   floating trigger button are convenience wrappers on top of it;
                   call it directly if you already have your own trigger.
@@ -258,13 +258,13 @@ export function LandingPage() {
                   </li>
                   <li className="flex gap-2">
                     <span className="text-neutral-400">&middot;</span>
-                    Set <code className="rounded bg-neutral-100 px-1.5 py-0.5 text-[13px]">currentScreen</code> as
+                    Set <code className="break-words rounded bg-neutral-100 px-1.5 py-0.5 text-[13px]">currentScreen</code> as
                     users navigate so reports say where they came from.
                   </li>
                 </ul>
               </div>
             </Reveal>
-            <Reveal delayMs={150}>
+            <Reveal delayMs={150} className="min-w-0">
               <div className="overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 shadow-xl transition-transform duration-300 hover:-translate-y-1">
                 <div className="flex items-center gap-1.5 border-b border-neutral-800 px-4 py-2.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-neutral-700" />
@@ -283,12 +283,12 @@ export function LandingPage() {
         {/* Dashboard */}
         <section className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
           <div className="grid items-center gap-12 lg:grid-cols-2">
-            <Reveal>
+            <Reveal className="min-w-0">
               <div className="animate-float-delayed">
                 <DashboardMockup />
               </div>
             </Reveal>
-            <Reveal delayMs={150}>
+            <Reveal delayMs={150} className="min-w-0">
               <div>
                 <span className="inline-flex items-center rounded-full border border-neutral-200 px-3 py-1 text-xs font-medium text-neutral-600">
                   Optional

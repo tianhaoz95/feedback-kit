@@ -52,25 +52,31 @@ export function DocsLayout() {
       </header>
 
       <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">
-        {/* Section pills on small screens, in place of the sidebar. */}
-        <nav className="mb-8 flex gap-2 overflow-x-auto pb-1 lg:hidden">
-          {NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                `shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium ${
-                  isActive
-                    ? "border-neutral-900 bg-neutral-900 text-white"
-                    : "border-neutral-200 text-neutral-600"
-                }`
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
+        {/* Section pills on small screens, in place of the sidebar. The
+            trailing fade hints that there's more to scroll to — without it,
+            a pill cut off mid-word at the viewport edge reads as broken
+            layout rather than "swipe for more". */}
+        <div className="relative mb-8 lg:hidden">
+          <nav className="flex gap-2 overflow-x-auto pb-1">
+            {NAV.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium ${
+                    isActive
+                      ? "border-neutral-900 bg-neutral-900 text-white"
+                      : "border-neutral-200 text-neutral-600"
+                  }`
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="pointer-events-none absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-white to-transparent" />
+        </div>
 
         <div className="flex gap-10">
           <nav className="hidden w-52 shrink-0 lg:block">

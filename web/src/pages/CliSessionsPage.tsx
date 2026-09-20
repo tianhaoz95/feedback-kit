@@ -62,7 +62,7 @@ export function CliSessionsPage() {
         <h1 className="text-xl font-semibold text-neutral-900">CLI access</h1>
         <p className="mt-1 text-sm text-neutral-500">
           CLIs and MCP servers that have signed in as you via{" "}
-          <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs">feedbackkit login</code>. Revoking
+          <code className="break-words rounded bg-neutral-100 px-1 py-0.5 text-xs">feedbackkit login</code>. Revoking
           one stops it the next time it checks in — see the note on this page's source for the
           exact guarantee.
         </p>
@@ -82,7 +82,7 @@ export function CliSessionsPage() {
           title="No CLIs connected yet"
           description={
             <>
-              Run <code className="rounded bg-neutral-100 px-1 py-0.5 text-xs">feedbackkit login</code> to
+              Run <code className="break-words rounded bg-neutral-100 px-1 py-0.5 text-xs">feedbackkit login</code> to
               connect one.
             </>
           }

@@ -97,5 +97,9 @@ export function DocsTable({
 }
 
 export function InlineCode({ children }: { children: ReactNode }) {
-  return <code className="rounded bg-neutral-100 px-1.5 py-0.5 text-[13px] text-neutral-800">{children}</code>;
+  return (
+    <code className="break-words rounded bg-neutral-100 px-1.5 py-0.5 text-[13px] text-neutral-800">
+      {children}
+    </code>
+  );
 }
