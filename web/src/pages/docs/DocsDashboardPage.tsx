@@ -42,8 +42,9 @@ export function DocsDashboardPage() {
 
       <DocsSection title="Review feedback">
         <p>
-          Each report shows the annotated screenshot, the user's description, environment details
-          (OS, device, app version, locale, screen size), and any attachment. Set its status —{" "}
+          Each report shows the annotated screenshot — or "Screenshot unavailable" if the reporter
+          toggled it off before submitting, see the SDK's docs — the user's description, environment
+          details (OS, device, app version, locale, screen size), and any attachment. Set its status —{" "}
           <InlineCode>new</InlineCode>, <InlineCode>in_progress</InlineCode>, <InlineCode>resolved</InlineCode>, or{" "}
           <InlineCode>wont_fix</InlineCode> — to track it through your workflow.
         </p>
@@ -65,7 +66,7 @@ export function DocsDashboardPage() {
             [<InlineCode>{"{{device_model}}"}</InlineCode>, "e.g. iPhone16,1."],
             [<InlineCode>{"{{app_version}} / {{app_build}}"}</InlineCode>, "Your app's version/build."],
             [<InlineCode>{"{{locale}}"}</InlineCode>, "The device's locale."],
-            [<InlineCode>{"{{screenshot_url}}"}</InlineCode>, "A time-limited signed URL to the annotated screenshot."],
+            [<InlineCode>{"{{screenshot_url}}"}</InlineCode>, "A time-limited signed URL to the annotated screenshot, or \"(screenshot unavailable)\" if the reporter left it out."],
             [<InlineCode>{"{{attachment_url}}"}</InlineCode>, "A signed URL to the attachment, if one was included."],
           ]}
         />

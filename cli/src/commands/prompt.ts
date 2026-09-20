@@ -25,8 +25,10 @@ export async function printPrompt(feedbackId: string): Promise<void> {
     .eq("project_id", feedback.project_id)
     .single<PromptTemplate>();
 
-  const [{ data: screenshotSigned }, attachmentSigned] = await Promise.all([
-    client.storage.from("feedback-screenshots").createSignedUrl(feedback.screenshot_annotated_path, 3600),
+  const [screenshotSigned, attachmentSigned] = await Promise.all([
+    feedback.screenshot_annotated_path
+      ? client.storage.from("feedback-screenshots").createSignedUrl(feedback.screenshot_annotated_path, 3600)
+      : Promise.resolve(null),
     feedback.attachment_path
       ? client.storage.from("feedback-screenshots").createSignedUrl(feedback.attachment_path, 3600)
       : Promise.resolve(null),
@@ -36,7 +38,7 @@ export async function printPrompt(feedbackId: string): Promise<void> {
     renderPromptTemplate(
       template?.template_text ?? "",
       feedback,
-      screenshotSigned?.signedUrl ?? null,
+      screenshotSigned?.data?.signedUrl ?? null,
       attachmentSigned?.data?.signedUrl ?? null,
     ),
   );

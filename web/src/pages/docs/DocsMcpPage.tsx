@@ -71,7 +71,7 @@ export function DocsMcpPage() {
           rows={[
             ["list_projects", "List projects the logged-in user is a member of."],
             ["list_feedback", "List feedback, optionally filtered by project_id/status."],
-            ["get_feedback", "Full detail for one report, including a signed screenshot URL."],
+            ["get_feedback", "Full detail for one report, including a signed screenshot URL (null if the reporter left the screenshot out)."],
             ["get_prompt", "The generated (or developer-edited) coding-agent prompt for one report — the whole point."],
             ["get_docs", "FeedbackKit's own documentation — e.g. how to add the SDK to an iOS app. Doesn't require being logged in."],
             ["update_feedback_status", "Mark a report's status, e.g. resolved after fixing it."],

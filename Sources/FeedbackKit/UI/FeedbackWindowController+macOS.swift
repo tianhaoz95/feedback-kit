@@ -16,8 +16,18 @@ final class FeedbackWindowController: NSWindowController {
     private let onComplete: (FeedbackReport?) -> Void
 
     private let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
+    private let includeScreenshotLabel = NSTextField(labelWithString: "Screenshot")
+    private let includeScreenshotToggle = NSSwitch()
     private let screenshotBoundsView = ScreenshotBoundsView()
     private let toolbar = AnnotationToolbar()
+
+    // Exactly one of the "ToScreenshot"/"ToHeader" pair is active at a time
+    // (see `toggleScreenshotChanged`); `toolbarBottomConstraint` travels with
+    // them since it also anchors to `screenshotBoundsView`, which otherwise
+    // goes unconstrained on the excluded side.
+    private var composerTopToScreenshotConstraint: NSLayoutConstraint!
+    private var composerTopToHeaderConstraint: NSLayoutConstraint!
+    private var toolbarBottomConstraint: NSLayoutConstraint!
 
     private let composerContainer = NSView()
     private let attachmentChipView = NSView()
@@ -74,6 +84,14 @@ final class FeedbackWindowController: NSWindowController {
         cancelButton.target = self
         cancelButton.action = #selector(cancelTapped)
         root.addSubview(cancelButton)
+
+        includeScreenshotLabel.textColor = .secondaryLabelColor
+        includeScreenshotLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        includeScreenshotToggle.state = .on
+        includeScreenshotToggle.target = self
+        includeScreenshotToggle.action = #selector(toggleScreenshotChanged)
+        root.addSubview(includeScreenshotLabel)
+        root.addSubview(includeScreenshotToggle)
     }
 
     private func buildScreenshotArea(in root: NSView) {
@@ -209,13 +227,30 @@ final class FeedbackWindowController: NSWindowController {
     }
 
     private func layoutAll(in root: NSView) {
-        [cancelButton, screenshotBoundsView, toolbar, composerContainer].forEach {
+        [cancelButton, includeScreenshotLabel, includeScreenshotToggle,
+         screenshotBoundsView, toolbar, composerContainer].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
         }
+
+        composerTopToScreenshotConstraint = composerContainer.topAnchor.constraint(
+            equalTo: screenshotBoundsView.bottomAnchor, constant: 12
+        )
+        composerTopToHeaderConstraint = composerContainer.topAnchor.constraint(
+            equalTo: cancelButton.bottomAnchor, constant: 12
+        )
+        toolbarBottomConstraint = toolbar.bottomAnchor.constraint(equalTo: screenshotBoundsView.bottomAnchor)
+        composerTopToHeaderConstraint.isActive = false
 
         NSLayoutConstraint.activate([
             cancelButton.topAnchor.constraint(equalTo: root.topAnchor, constant: 16),
             cancelButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 16),
+
+            includeScreenshotToggle.topAnchor.constraint(equalTo: root.topAnchor, constant: 16),
+            includeScreenshotToggle.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -16),
+            includeScreenshotLabel.centerYAnchor.constraint(equalTo: includeScreenshotToggle.centerYAnchor),
+            includeScreenshotLabel.trailingAnchor.constraint(
+                equalTo: includeScreenshotToggle.leadingAnchor, constant: -8
+            ),
 
             // screenshotBoundsView itself is Auto-Layout-positioned; the
             // image/canvas pair inside it are frame-based (see
@@ -226,11 +261,11 @@ final class FeedbackWindowController: NSWindowController {
             screenshotBoundsView.topAnchor.constraint(equalTo: cancelButton.bottomAnchor, constant: 12),
             screenshotBoundsView.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 16),
             screenshotBoundsView.trailingAnchor.constraint(equalTo: toolbar.leadingAnchor, constant: -12),
-            screenshotBoundsView.bottomAnchor.constraint(equalTo: composerContainer.topAnchor, constant: -12),
+            composerTopToScreenshotConstraint,
 
             toolbar.topAnchor.constraint(equalTo: screenshotBoundsView.topAnchor),
             toolbar.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -16),
-            toolbar.bottomAnchor.constraint(equalTo: screenshotBoundsView.bottomAnchor),
+            toolbarBottomConstraint,
             toolbar.widthAnchor.constraint(equalToConstant: 64),
 
             composerContainer.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 16),
@@ -309,15 +344,30 @@ final class FeedbackWindowController: NSWindowController {
         attachmentChipView.isHidden = true
     }
 
+    @objc private func toggleScreenshotChanged() {
+        let included = includeScreenshotToggle.state == .on
+        screenshotBoundsView.isHidden = !included
+        toolbar.isHidden = !included
+        composerTopToScreenshotConstraint.isActive = included
+        toolbarBottomConstraint.isActive = included
+        composerTopToHeaderConstraint.isActive = !included
+    }
+
     @objc private func submitTapped() {
-        let flattened = screenshotBoundsView.canvasView.flattenedImage(baseImage: rawScreenshot)
-        guard
-            let rawPNG = rawScreenshot.pngData(),
-            let annotatedPNG = flattened.pngData()
-        else {
-            dismiss()
-            onComplete(nil)
-            return
+        var rawPNG: Data?
+        var annotatedPNG: Data?
+        var annotations: [FeedbackAnnotation] = []
+
+        if includeScreenshotToggle.state == .on {
+            let flattened = screenshotBoundsView.canvasView.flattenedImage(baseImage: rawScreenshot)
+            guard let raw = rawScreenshot.pngData(), let annotated = flattened.pngData() else {
+                dismiss()
+                onComplete(nil)
+                return
+            }
+            rawPNG = raw
+            annotatedPNG = annotated
+            annotations = screenshotBoundsView.canvasView.completedAnnotations
         }
 
         let attachment = pickedAttachment.map {
@@ -328,7 +378,7 @@ final class FeedbackWindowController: NSWindowController {
             text: textView.string,
             screenshotRawPNG: rawPNG,
             screenshotAnnotatedPNG: annotatedPNG,
-            annotations: screenshotBoundsView.canvasView.completedAnnotations,
+            annotations: annotations,
             environment: EnvironmentInfo.current(screenName: screenNameOverride),
             attachment: attachment
         )

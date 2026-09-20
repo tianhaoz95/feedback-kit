@@ -87,7 +87,8 @@ export function DocsOverviewPage() {
 
       <DocsSection title="What gets collected">
         <p>
-          A report includes a raw and an annotated screenshot, the shapes drawn on it (freehand,
+          A report includes a raw and an annotated screenshot — optional on iOS/macOS, where a
+          header toggle lets the user leave it out entirely — the shapes drawn on it (freehand,
           rectangle, arrow, text), the free-text description, and device/app context (OS, device
           model, app version, locale, and — if you set it — the current screen name). Nothing beyond
           what's visible on screen at capture time and those fields. See{" "}

@@ -84,7 +84,8 @@ export function DocsIosSdkPage() {
         title="iOS, macOS & watchOS SDK"
         description="One Swift Package. On iOS and macOS, it captures a screenshot, lets the user
           annotate it, and hands your app a structured report — works with UIKit, SwiftUI, or AppKit
-          without needing to know which one built the screen on top. watchOS gets a deliberately
+          without needing to know which one built the screen on top. A header toggle lets the user
+          exclude the screenshot for a pure-description report. watchOS gets a deliberately
           smaller version of the same idea: no screenshot, no annotation tools, just a text
           description and device/app context — see the watchOS section below."
       />
@@ -174,6 +175,18 @@ export function DocsIosSdkPage() {
         </DocsCallout>
       </DocsSection>
 
+      <DocsSection title="Making the screenshot optional">
+        <p>
+          A "Screenshot" switch in the annotate flow's header — on by default — lets the user
+          exclude it entirely, for a report that's pure description with nothing worth
+          screenshotting. Turning it off hides the screenshot/annotation area and toolbar and
+          expands the description composer to fill the space. This is a submission-time choice
+          only — the SDK still captures the screenshot up front (window-level capture is what lets
+          it show the annotate UI at all); it's simply discarded rather than included in the
+          report if the switch is off, along with any annotations.
+        </p>
+      </DocsSection>
+
       <DocsSection title="Sending to the hosted dashboard">
         <p>
           Skip this section entirely if you're handling delivery yourself via{" "}
@@ -223,8 +236,8 @@ export function DocsIosSdkPage() {
           rows={[
             ["id / createdAt", "A generated identifier and timestamp."],
             ["text", "The user's free-text description."],
-            ["screenshot (raw + annotated)", "Both PNGs — raw for record-keeping, annotated for actually looking at the bug."],
-            ["annotations", "Each shape's kind, normalized points, color, and (for rectangle/arrow) scale/rotation."],
+            ["screenshot (raw + annotated)", "Both PNGs — raw for record-keeping, annotated for actually looking at the bug — or both nil if the user toggled the screenshot off (or on watchOS, which never captures one)."],
+            ["annotations", "Each shape's kind, normalized points, color, and (for rectangle/arrow) scale/rotation. Empty whenever there's no screenshot."],
             ["environment", "OS name/version, device model, app version/build, bundle id, locale, screen size/scale, and the current screen name if set."],
             ["attachment", "An optional extra file the user picked from the composer's attach button."],
           ]}

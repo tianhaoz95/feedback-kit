@@ -47,7 +47,7 @@ Everything shares one contract. The SDK produces a \`FeedbackReport\` (screensho
 
 ## What gets collected
 
-A report includes a raw and an annotated screenshot (iOS/macOS only — watchOS uses a placeholder card instead, see the \`sdk\` topic), the annotation shapes drawn on it, the free-text description, and device/app context (OS, device model, app version, locale, and — if set — the current screen name). Nothing beyond what's visible on screen at capture time and those fields.
+A report includes a raw and an annotated screenshot (iOS/macOS only, and optional there too — a toggle in the annotate UI lets the user exclude it for a pure-description report; watchOS never captures one, using a placeholder card instead, see the \`sdk\` topic), the annotation shapes drawn on it, the free-text description, and device/app context (OS, device model, app version, locale, and — if set — the current screen name). Nothing beyond what's visible on screen at capture time and those fields.
 
 ## Getting help
 
@@ -59,7 +59,7 @@ FeedbackKit is open source: https://github.com/tianhaoz95/feedback-kit`,
     summary: "How to add FeedbackKit to an iOS, macOS, or watchOS app — install, trigger, submit.",
     content: `# SDK — iOS, macOS, watchOS
 
-One Swift Package. On iOS and macOS it captures a screenshot, lets the user annotate it, and hands your app a structured report. watchOS gets a deliberately smaller version: no screenshot, no annotation tools, just a text description and device/app context.
+One Swift Package. On iOS and macOS it captures a screenshot, lets the user annotate it, and hands your app a structured report — a header toggle lets the user exclude the screenshot entirely for a pure-description report. watchOS gets a deliberately smaller version: no screenshot, no annotation tools, just a text description and device/app context.
 
 ## Requirements
 
@@ -172,6 +172,10 @@ FeedbackKit.currentScreen = "Checkout"
 
 Four tools — freehand, rectangle, arrow, text — plus a drag tool for repositioning a shape (two-finger pinch to scale, two-finger twist to rotate; the same gestures on a Mac trackpad). Every shape is stored as normalized (0...1) points, so annotations render correctly at any screenshot resolution. Scaling/rotating an existing annotation is trackpad-only on macOS — no plain-mouse equivalent for a two-finger gesture.
 
+## Making the screenshot optional (iOS/macOS only)
+
+A "Screenshot" switch in the annotate flow's header (on by default) lets the user exclude it entirely — useful for a report that's pure description, with nothing worth screenshotting. Turning it off hides the screenshot/annotation area and toolbar and expands the description composer to fill the space; \`FeedbackReport.screenshotRawPNG\`, \`screenshotAnnotatedPNG\`, and \`annotations\` all come back nil/empty in that case (see the field table below). This is purely a submission-time choice — the SDK still captures the screenshot up front (window-level capture is what lets it show the annotate UI at all), it just discards it rather than including it in the report if the switch is off.
+
 ## Sending to the hosted dashboard (optional)
 
 Skip this if you're handling delivery yourself via the completion handler. To have the SDK also submit to the dashboard, configure it once with the endpoint URL and project key from your dashboard project page, then use \`presentAndSubmit\` instead of \`present\` (iOS/macOS) or call \`FeedbackSubmitter.submit\` directly (watchOS):
@@ -202,8 +206,8 @@ The project key is a routing key, not a secret — it can only ever *create* fee
 |---|---|
 | id / createdAt | A generated identifier and timestamp. |
 | text | The user's free-text description. |
-| screenshotRawPNG / screenshotAnnotatedPNG | Both PNGs (iOS/macOS: real capture; watchOS: a placeholder card). |
-| annotations | Each shape's kind, normalized points, color, scale/rotation (empty on watchOS). |
+| screenshotRawPNG / screenshotAnnotatedPNG | Both PNGs, or both nil (iOS/macOS: real capture, unless the user toggles the screenshot off; watchOS: always nil — it never captures one, see the placeholder-card note above). |
+| annotations | Each shape's kind, normalized points, color, scale/rotation. Empty on watchOS, and whenever the screenshot was toggled off. |
 | environment | OS name/version, device model, app version/build, bundle id, locale, screen size/scale, current screen name. |
 | attachment | An optional extra file (iOS/macOS only). |`,
   },
@@ -225,7 +229,7 @@ From **Projects**, create one and open it. Every project gets a unique \`project
 
 ## Review feedback
 
-Each report shows the annotated screenshot, description, environment details, and any attachment. Status: \`new\`, \`in_progress\`, \`resolved\`, or \`wont_fix\`.
+Each report shows the annotated screenshot (or "Screenshot unavailable" if the reporter toggled it off before submitting — see the \`sdk\` topic), description, environment details, and any attachment. Status: \`new\`, \`in_progress\`, \`resolved\`, or \`wont_fix\`.
 
 ## Prompt templates
 
@@ -249,7 +253,7 @@ Screenshot: {{screenshot_url}}
 | \`{{device_model}}\` | e.g. iPhone16,1. |
 | \`{{app_version}}\` / \`{{app_build}}\` | Your app's version/build. |
 | \`{{locale}}\` | The device's locale. |
-| \`{{screenshot_url}}\` | A time-limited signed URL to the annotated screenshot. |
+| \`{{screenshot_url}}\` | A time-limited signed URL to the annotated screenshot, or "(screenshot unavailable)" if the reporter left it out. |
 | \`{{attachment_url}}\` | A signed URL to the attachment, if included. |
 
 Edit the project's default template anytime — it applies to every new report. A single report can also get its own edited override without touching the shared template. A "Copy for coding agent" button copies the rendered result.
@@ -366,7 +370,7 @@ The exact file location and surrounding config shape varies by tool — check th
 |---|---|
 | \`list_projects\` | List projects the logged-in user is a member of. |
 | \`list_feedback\` | List feedback, optionally filtered by \`project_id\`/\`status\`. |
-| \`get_feedback\` | Full detail for one report, including a signed screenshot URL. |
+| \`get_feedback\` | Full detail for one report, including a signed screenshot URL (null if the reporter left the screenshot out). |
 | \`get_prompt\` | The generated (or developer-edited) coding-agent prompt for one report — the whole point. |
 | \`update_feedback_status\` | Mark a report's status, e.g. \`resolved\` after fixing it. |
 | \`get_docs\` | Fetch FeedbackKit's own documentation — e.g. "how do I add this to an iOS app." No argument lists topics; pass \`topic\` for one topic's full content. |

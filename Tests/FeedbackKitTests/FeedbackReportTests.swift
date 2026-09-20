@@ -44,6 +44,36 @@ final class FeedbackReportTests: XCTestCase {
         XCTAssertEqual(decoded, report)
     }
 
+    func testFeedbackReportWithoutScreenshotRoundTripsThroughJSON() throws {
+        let environment = FeedbackEnvironment(
+            osName: "iOS",
+            osVersion: "17.0",
+            deviceModel: "iPhone16,2",
+            appVersion: "1.0",
+            appBuild: "42",
+            bundleIdentifier: "com.example.app",
+            screenName: "Checkout",
+            locale: "en_US",
+            screenWidthPoints: 390,
+            screenHeightPoints: 844,
+            screenScale: 3
+        )
+        let report = FeedbackReport(
+            text: "Prices should support multiple currencies",
+            screenshotRawPNG: nil,
+            screenshotAnnotatedPNG: nil,
+            annotations: [],
+            environment: environment
+        )
+
+        let encoded = try JSONEncoder().encode(report)
+        let decoded = try JSONDecoder().decode(FeedbackReport.self, from: encoded)
+
+        XCTAssertEqual(decoded, report)
+        XCTAssertNil(decoded.screenshotRawPNG)
+        XCTAssertNil(decoded.screenshotAnnotatedPNG)
+    }
+
     func testHexColorRoundTrip() {
         let color = PlatformColor(hex: "#1A2B3C")
         XCTAssertEqual(color?.hexString, "#1A2B3C")

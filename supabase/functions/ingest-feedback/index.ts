@@ -15,8 +15,8 @@ interface IngestPayload {
   id: string;
   created_at: string;
   text: string;
-  screenshot_raw_png_base64: string;
-  screenshot_annotated_png_base64: string;
+  screenshot_raw_png_base64?: string;
+  screenshot_annotated_png_base64?: string;
   annotations: unknown;
   environment: Record<string, unknown>;
   attachment_filename?: string;
@@ -63,29 +63,35 @@ Deno.serve(async (req) => {
     return json({ error: "unknown project_key" }, 401);
   }
 
-  const rawPath = `${project.id}/${payload.id}/raw.png`;
-  const annotatedPath = `${project.id}/${payload.id}/annotated.png`;
+  // Screenshots are optional — the user can toggle them off before
+  // submitting, e.g. for a pure-description report.
+  let rawPath: string | null = null;
+  let annotatedPath: string | null = null;
+  if (payload.screenshot_raw_png_base64 && payload.screenshot_annotated_png_base64) {
+    rawPath = `${project.id}/${payload.id}/raw.png`;
+    annotatedPath = `${project.id}/${payload.id}/annotated.png`;
 
-  const [rawUpload, annotatedUpload] = await Promise.all([
-    supabase.storage
-      .from("feedback-screenshots")
-      .upload(rawPath, decodeBase64(payload.screenshot_raw_png_base64), {
-        contentType: "image/png",
-        upsert: true,
-      }),
-    supabase.storage
-      .from("feedback-screenshots")
-      .upload(annotatedPath, decodeBase64(payload.screenshot_annotated_png_base64), {
-        contentType: "image/png",
-        upsert: true,
-      }),
-  ]);
+    const [rawUpload, annotatedUpload] = await Promise.all([
+      supabase.storage
+        .from("feedback-screenshots")
+        .upload(rawPath, decodeBase64(payload.screenshot_raw_png_base64), {
+          contentType: "image/png",
+          upsert: true,
+        }),
+      supabase.storage
+        .from("feedback-screenshots")
+        .upload(annotatedPath, decodeBase64(payload.screenshot_annotated_png_base64), {
+          contentType: "image/png",
+          upsert: true,
+        }),
+    ]);
 
-  if (rawUpload.error || annotatedUpload.error) {
-    return json(
-      { error: "failed to store screenshots", detail: rawUpload.error ?? annotatedUpload.error },
-      500,
-    );
+    if (rawUpload.error || annotatedUpload.error) {
+      return json(
+        { error: "failed to store screenshots", detail: rawUpload.error ?? annotatedUpload.error },
+        500,
+      );
+    }
   }
 
   let attachmentPath: string | null = null;

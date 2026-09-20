@@ -117,11 +117,15 @@ public struct FeedbackReport: Codable, Equatable, Sendable {
     public var createdAt: Date
     public var text: String
     /// Raw, unmodified capture of the screen at trigger time. PNG-encoded.
-    public var screenshotRawPNG: Data
+    /// Nil if the user toggled the screenshot off before submitting (iOS/macOS
+    /// only have a toggle to do so; watchOS never captures one at all).
+    public var screenshotRawPNG: Data?
     /// Same capture with the user's annotations flattened/burned in. PNG-encoded.
-    public var screenshotAnnotatedPNG: Data
+    /// Nil under the same conditions as `screenshotRawPNG`.
+    public var screenshotAnnotatedPNG: Data?
     /// Structured annotation shapes, kept alongside the flattened image so a
-    /// consumer (e.g. the dashboard) can re-render or edit them later.
+    /// consumer (e.g. the dashboard) can re-render or edit them later. Empty
+    /// when there's no screenshot to annotate.
     public var annotations: [FeedbackAnnotation]
     public var environment: FeedbackEnvironment
     /// Optional file attached from the composer, separate from the screenshot.
@@ -131,8 +135,8 @@ public struct FeedbackReport: Codable, Equatable, Sendable {
         id: UUID = UUID(),
         createdAt: Date = Date(),
         text: String,
-        screenshotRawPNG: Data,
-        screenshotAnnotatedPNG: Data,
+        screenshotRawPNG: Data?,
+        screenshotAnnotatedPNG: Data?,
         annotations: [FeedbackAnnotation],
         environment: FeedbackEnvironment,
         attachment: FeedbackAttachment? = nil

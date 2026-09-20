@@ -76,11 +76,13 @@ export async function runMcpServer(): Promise<void> {
         return errorResult(`Feedback ${feedback_id} not found, or you don't have access to it.`);
       }
 
-      const { data: signed } = await client.storage
-        .from("feedback-screenshots")
-        .createSignedUrl(feedback.screenshot_annotated_path, 3600);
+      const signed = feedback.screenshot_annotated_path
+        ? await client.storage
+            .from("feedback-screenshots")
+            .createSignedUrl(feedback.screenshot_annotated_path, 3600)
+        : null;
 
-      return jsonResult({ ...feedback, screenshot_url: signed?.signedUrl ?? null });
+      return jsonResult({ ...feedback, screenshot_url: signed?.data?.signedUrl ?? null });
     },
   );
 
@@ -112,8 +114,10 @@ export async function runMcpServer(): Promise<void> {
         .eq("project_id", feedback.project_id)
         .single<PromptTemplate>();
 
-      const [{ data: screenshotSigned }, attachmentSigned] = await Promise.all([
-        client.storage.from("feedback-screenshots").createSignedUrl(feedback.screenshot_annotated_path, 3600),
+      const [screenshotSigned, attachmentSigned] = await Promise.all([
+        feedback.screenshot_annotated_path
+          ? client.storage.from("feedback-screenshots").createSignedUrl(feedback.screenshot_annotated_path, 3600)
+          : Promise.resolve(null),
         feedback.attachment_path
           ? client.storage.from("feedback-screenshots").createSignedUrl(feedback.attachment_path, 3600)
           : Promise.resolve(null),
@@ -123,7 +127,7 @@ export async function runMcpServer(): Promise<void> {
         renderPromptTemplate(
           template?.template_text ?? "",
           feedback,
-          screenshotSigned?.signedUrl ?? null,
+          screenshotSigned?.data?.signedUrl ?? null,
           attachmentSigned?.data?.signedUrl ?? null,
         ),
       );

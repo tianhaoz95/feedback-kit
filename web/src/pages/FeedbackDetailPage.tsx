@@ -28,11 +28,13 @@ export function FeedbackDetailPage() {
       setFeedback(feedbackData ?? null);
       if (!feedbackData) return;
 
-      const [{ data: templateData }, { data: signedScreenshot }, signedAttachment] = await Promise.all([
+      const [{ data: templateData }, signedScreenshot, signedAttachment] = await Promise.all([
         supabase.from("prompt_templates").select("*").eq("project_id", projectId).single<PromptTemplate>(),
-        supabase.storage
-          .from("feedback-screenshots")
-          .createSignedUrl(feedbackData.screenshot_annotated_path, 60 * 60),
+        feedbackData.screenshot_annotated_path
+          ? supabase.storage
+              .from("feedback-screenshots")
+              .createSignedUrl(feedbackData.screenshot_annotated_path, 60 * 60)
+          : Promise.resolve(null),
         feedbackData.attachment_path
           ? supabase.storage.from("feedback-screenshots").createSignedUrl(feedbackData.attachment_path, 60 * 60)
           : Promise.resolve(null),
@@ -40,7 +42,7 @@ export function FeedbackDetailPage() {
 
       if (cancelled) return;
       setTemplate(templateData ?? null);
-      setScreenshotUrl(signedScreenshot?.signedUrl ?? null);
+      setScreenshotUrl(signedScreenshot?.data?.signedUrl ?? null);
       setAttachmentUrl(signedAttachment?.data?.signedUrl ?? null);
     })();
 

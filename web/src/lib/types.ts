@@ -47,8 +47,9 @@ export interface FeedbackItem {
   id: string;
   project_id: string;
   text: string;
-  screenshot_raw_path: string;
-  screenshot_annotated_path: string;
+  /** Null if the user toggled the screenshot off before submitting. */
+  screenshot_raw_path: string | null;
+  screenshot_annotated_path: string | null;
   annotations: FeedbackAnnotation[];
   environment: FeedbackEnvironment;
   status: FeedbackStatus;

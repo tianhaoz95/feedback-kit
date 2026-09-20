@@ -134,23 +134,34 @@ just a text field — the developer embeds it in their own presentation
 to present modally over the way `present(from:)` does on the other two
 platforms.
 
-`FeedbackReport`'s `screenshotRawPNG`/`screenshotAnnotatedPNG` are
-non-optional `Data` — reasonable everywhere else, but a real fit problem for
-a platform with no real screenshot to put there. Making them optional was
-considered and rejected for this feature: it would ripple through the
-Postgres schema (`not null` columns), the ingestion Edge Function (which
-always uploads and inserts two paths), and the web dashboard/CLI/MCP (which
-all assume a valid `screenshot_annotated_path` when generating a signed URL
-or a `{{screenshot_url}}` prompt placeholder) — a lot of already-shipped
-surface area to make optional for one platform's sake. Instead,
-`ScreenshotCapture`'s watchOS branch renders a small, clearly-labeled
+`FeedbackReport`'s `screenshotRawPNG`/`screenshotAnnotatedPNG` were
+originally non-optional `Data`. When watchOS was added, making them optional
+was considered and rejected for that feature alone — too much ripple (the
+Postgres `not null` columns, the ingestion Edge Function's unconditional
+upload/insert, the web dashboard/CLI/MCP's unconditional signed-URL/prompt-
+placeholder generation) to take on for one platform's sake. Instead,
+`ScreenshotCapture`'s watchOS branch rendered a small, clearly-labeled
 placeholder card (a plain colored rectangle with a border — not an attempt
-at a fake screenshot) purely to give those fields *something*. The actual
-substance of a watchOS report is `text` plus `FeedbackEnvironment` (device,
-watchOS version, app version, locale) — which the dashboard's existing
-prompt-template placeholders (§4) already surface with zero new plumbing,
-since a report's environment fields are handled identically regardless of
-which platform produced them.
+at a fake screenshot) purely to give those fields *something*, and the
+actual substance of a watchOS report stayed `text` plus `FeedbackEnvironment`
+(device, watchOS version, app version, locale) — surfaced by the dashboard's
+existing prompt-template placeholders (§4) with zero new plumbing, since a
+report's environment fields are handled identically regardless of which
+platform produced them.
+
+That deferred rework became genuinely necessary once iOS/macOS themselves
+needed an optional screenshot (a header toggle for reports that are pure
+description, with nothing worth screenshotting) — at that point "optional
+screenshot" was no longer a watchOS-only quirk to route around, it was the
+actual shape of the data everywhere, so the fields became real `Data?` end
+to end: the Postgres columns dropped `not null`
+(`0008_optional_screenshot.sql`), the Edge Function uploads/inserts the
+paths conditionally, and the web/CLI/MCP signed-URL and prompt-placeholder
+code paths all guard on the path being non-null (mirroring the existing
+`attachment_path` pattern they already had for the same reason). watchOS's
+placeholder-card behavior is unchanged — it still always produces *a*
+screenshot rather than `nil`, since there's no user-facing toggle on that
+platform to leave one out.
 
 Two watchOS-specific findings worth flagging because they contradicted a
 reasonable-sounding assumption, caught by actually building against a watch
@@ -379,10 +390,13 @@ scripts/               setup.sh, run-ios.sh, start-web.sh — see README.md
   `xcodebuild` runs against a watch simulator for watchOS), not a committed
   sample app the way the iOS side has one. Worth adding if usage on either
   platform grows past "the original author's own smoke testing."
-- **A watchOS report's `screenshotRawPNG`/`screenshotAnnotatedPNG` are a
-  generated placeholder card, not a real screenshot** — see §1's watchOS
-  section for why the model wasn't changed to make these fields optional
-  instead. If a real per-platform "does this report have an actual
-  screenshot" distinction becomes genuinely necessary later (vs. "the
-  dashboard just shows a small gray card for watch reports, which is fine"),
-  that's the migration to reconsider — not a quick fix.
+- **A watchOS report's `screenshotRawPNG`/`screenshotAnnotatedPNG` are still
+  a generated placeholder card, not a real screenshot or `nil`** — see §1's
+  watchOS section. The fields did eventually become genuinely optional
+  (`Data?`) end to end once iOS/macOS grew their own screenshot toggle, but
+  watchOS itself was left unchanged: there's no user-facing toggle there
+  (no window-level capture API to make a real screenshot worth toggling in
+  the first place), so it still always produces the placeholder rather than
+  `nil`. Worth revisiting only if that placeholder card itself becomes a
+  problem (e.g. someone builds dashboard logic that assumes a non-nil
+  screenshot path means "there's something worth looking at").

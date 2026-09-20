@@ -13,6 +13,8 @@ final class FeedbackViewController: UIViewController {
     private let headerView = UIView()
     private let titleLabel = UILabel()
     private let cancelButton = UIButton(type: .system)
+    private let includeScreenshotLabel = UILabel()
+    private let includeScreenshotToggle = UISwitch()
 
     private let screenshotBoundsView = UIView()
     private let imageView = UIImageView()
@@ -37,6 +39,14 @@ final class FeedbackViewController: UIViewController {
     private let sendButton = UIButton(type: .system)
 
     private var pickedAttachment: (filename: String, mimeType: String, data: Data)?
+
+    // The composer's top edge either follows the screenshot area (screenshot
+    // included) or sits right under the header (screenshot excluded) —
+    // exactly one of these is active at a time, swapped in `toggleChanged()`.
+    private var composerTopToScreenshotConstraint: NSLayoutConstraint!
+    private var composerTopToHeaderConstraint: NSLayoutConstraint!
+    private var toolbarTopConstraint: NSLayoutConstraint!
+    private var toolbarBottomConstraint: NSLayoutConstraint!
 
     init(rawScreenshot: UIImage, screenNameOverride: String?, onComplete: @escaping (FeedbackReport?) -> Void) {
         self.rawScreenshot = rawScreenshot
@@ -108,8 +118,17 @@ final class FeedbackViewController: UIViewController {
         titleLabel.font = .preferredFont(forTextStyle: .headline)
         cancelButton.setTitle("Cancel", for: .normal)
         cancelButton.addAction(UIAction { [weak self] _ in self?.cancelTapped() }, for: .touchUpInside)
+
+        includeScreenshotLabel.text = "Screenshot"
+        includeScreenshotLabel.font = .preferredFont(forTextStyle: .footnote)
+        includeScreenshotLabel.textColor = .secondaryLabel
+        includeScreenshotToggle.isOn = true
+        includeScreenshotToggle.addAction(UIAction { [weak self] _ in self?.toggleScreenshotChanged() }, for: .valueChanged)
+
         headerView.addSubview(titleLabel)
         headerView.addSubview(cancelButton)
+        headerView.addSubview(includeScreenshotLabel)
+        headerView.addSubview(includeScreenshotToggle)
         view.addSubview(headerView)
     }
 
@@ -231,12 +250,28 @@ final class FeedbackViewController: UIViewController {
     }
 
     private func layoutAll() {
-        [headerView, titleLabel, cancelButton, screenshotBoundsView, toolbar,
-         composerContainer, composerStack, textView, placeholderLabel].forEach {
+        [headerView, titleLabel, cancelButton, includeScreenshotLabel, includeScreenshotToggle,
+         screenshotBoundsView, toolbar, composerContainer, composerStack, textView, placeholderLabel].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
         }
 
         let safe = view.safeAreaLayoutGuide
+
+        // Exactly one of these is active at a time (see `toggleScreenshotChanged`).
+        // `toolbarBottomConstraint` travels with the screenshot-included state
+        // too — without it, the toolbar's top (pinned to the header) would sit
+        // below its bottom (pinned to the composer) once the composer moves up
+        // to fill the excluded screenshot's space, an unsatisfiable constraint.
+        composerTopToScreenshotConstraint = composerContainer.topAnchor.constraint(
+            equalTo: screenshotBoundsView.bottomAnchor, constant: 8
+        )
+        composerTopToHeaderConstraint = composerContainer.topAnchor.constraint(
+            equalTo: headerView.bottomAnchor, constant: 8
+        )
+        toolbarTopConstraint = toolbar.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 8)
+        toolbarBottomConstraint = toolbar.bottomAnchor.constraint(equalTo: composerContainer.topAnchor, constant: -8)
+        composerTopToHeaderConstraint.isActive = false
+
         NSLayoutConstraint.activate([
             headerView.topAnchor.constraint(equalTo: safe.topAnchor),
             headerView.leadingAnchor.constraint(equalTo: safe.leadingAnchor),
@@ -248,6 +283,13 @@ final class FeedbackViewController: UIViewController {
             cancelButton.leadingAnchor.constraint(equalTo: headerView.leadingAnchor, constant: 16),
             cancelButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
 
+            includeScreenshotToggle.trailingAnchor.constraint(equalTo: headerView.trailingAnchor, constant: -16),
+            includeScreenshotToggle.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
+            includeScreenshotLabel.trailingAnchor.constraint(
+                equalTo: includeScreenshotToggle.leadingAnchor, constant: -8
+            ),
+            includeScreenshotLabel.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
+
             // The toolbar sits beside the screenshot, not under it — a portrait
             // screenshot's aspect-fit frame rarely uses the full width, so this
             // reclaims that leftover horizontal margin as vertical space for
@@ -255,11 +297,11 @@ final class FeedbackViewController: UIViewController {
             screenshotBoundsView.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 8),
             screenshotBoundsView.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 16),
             screenshotBoundsView.trailingAnchor.constraint(equalTo: toolbar.leadingAnchor, constant: -4),
-            screenshotBoundsView.bottomAnchor.constraint(equalTo: composerContainer.topAnchor, constant: -8),
+            composerTopToScreenshotConstraint,
 
-            toolbar.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 8),
+            toolbarTopConstraint,
             toolbar.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -4),
-            toolbar.bottomAnchor.constraint(equalTo: composerContainer.topAnchor, constant: -8),
+            toolbarBottomConstraint,
             toolbar.widthAnchor.constraint(equalToConstant: 56),
 
             // No fixed height here on purpose: the composer sizes itself from
@@ -307,14 +349,34 @@ final class FeedbackViewController: UIViewController {
         attachmentChipView.isHidden = true
     }
 
+    private func toggleScreenshotChanged() {
+        let included = includeScreenshotToggle.isOn
+        screenshotBoundsView.isHidden = !included
+        toolbar.isHidden = !included
+        composerTopToScreenshotConstraint.isActive = included
+        toolbarTopConstraint.isActive = included
+        toolbarBottomConstraint.isActive = included
+        composerTopToHeaderConstraint.isActive = !included
+
+        UIView.animate(withDuration: 0.2) { [self] in
+            view.layoutIfNeeded()
+        }
+    }
+
     private func submitTapped() {
-        let flattened = canvasView.flattenedImage(baseImage: rawScreenshot)
-        guard
-            let rawPNG = rawScreenshot.pngData(),
-            let annotatedPNG = flattened.pngData()
-        else {
-            dismiss(animated: true) { [weak self] in self?.onComplete(nil) }
-            return
+        var rawPNG: Data?
+        var annotatedPNG: Data?
+        var annotations: [FeedbackAnnotation] = []
+
+        if includeScreenshotToggle.isOn {
+            let flattened = canvasView.flattenedImage(baseImage: rawScreenshot)
+            guard let raw = rawScreenshot.pngData(), let annotated = flattened.pngData() else {
+                dismiss(animated: true) { [weak self] in self?.onComplete(nil) }
+                return
+            }
+            rawPNG = raw
+            annotatedPNG = annotated
+            annotations = canvasView.completedAnnotations
         }
 
         let attachment = pickedAttachment.map {
@@ -325,7 +387,7 @@ final class FeedbackViewController: UIViewController {
             text: textView.text ?? "",
             screenshotRawPNG: rawPNG,
             screenshotAnnotatedPNG: annotatedPNG,
-            annotations: canvasView.completedAnnotations,
+            annotations: annotations,
             environment: EnvironmentInfo.current(screenName: screenNameOverride),
             attachment: attachment
         )

@@ -296,12 +296,25 @@ usable before `feedbackkit login`.
   renders a small, clearly-labeled placeholder card (plain `CGContext`
   drawing, not `UIGraphicsImageRenderer` — confirmed unavailable there by
   a real build against a watch simulator, not assumed) purely so
-  `FeedbackReport`'s screenshot fields have *something* rather than
-  reopening whether those fields should be optional across the whole stack
-  (Postgres schema, ingestion function, dashboard, CLI/MCP) for one
-  platform's sake. The actual content of a watchOS report is `text` +
-  `FeedbackEnvironment`, which the existing prompt-template placeholders
-  already surface with zero new plumbing.
+  `FeedbackReport`'s screenshot fields have *something* rather than `nil`.
+  watchOS has no user-facing toggle to leave the screenshot out (see the
+  next bullet) — it always produces the placeholder.
+- **`FeedbackReport.screenshotRawPNG`/`screenshotAnnotatedPNG` are `Data?`,
+  not `Data`** — on iOS/macOS a "Screenshot" switch in the annotate flow's
+  header (on by default) lets the user exclude the screenshot for a
+  pure-description report; when off, `FeedbackViewController`/
+  `FeedbackWindowController`'s `submitTapped()` sends `nil`/`nil`/`[]` for
+  screenshot/annotations instead of encoding real PNG data. This is exactly
+  the "should these fields be optional across the whole stack" question the
+  watchOS port above deferred — it became worth doing once iOS/macOS needed
+  it too, not just watchOS. If you touch this path, the whole chain has to
+  move together: `IngestPayload.encode` (`encodeIfPresent`, not `encode`),
+  `feedback_items.screenshot_raw_path`/`screenshot_annotated_path` (nullable
+  since `0008_optional_screenshot.sql`), the `ingest-feedback` Edge
+  Function's conditional upload/insert, and every dashboard/CLI/MCP call
+  site that creates a signed URL or fills the `{{screenshot_url}}` prompt
+  placeholder from those paths — they all guard on the path being non-null
+  now, the same pattern already used for the optional `attachment_path`.
 - **`AnnotationRenderer` and `PlatformTypes.swift` cover watchOS too**, via
   `#if os(iOS) || os(watchOS)` for the `UIColor`/`UIFont` typealiases —
   watchOS carries UIKit's plain data types (no `UIView`/`UIWindow`, but
