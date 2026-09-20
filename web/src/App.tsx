@@ -10,6 +10,7 @@ import { ProjectPage } from "@/pages/ProjectPage";
 import { FeedbackDetailPage } from "@/pages/FeedbackDetailPage";
 import { CliAuthPage } from "@/pages/CliAuthPage";
 import { CliSessionsPage } from "@/pages/CliSessionsPage";
+import { BillingPage } from "@/pages/BillingPage";
 import { DocsLayout } from "@/components/docs/DocsLayout";
 import { DocsOverviewPage } from "@/pages/docs/DocsOverviewPage";
 import { DocsIosSdkPage } from "@/pages/docs/DocsIosSdkPage";
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="/projects/:projectId" element={<ProjectPage />} />
           <Route path="/projects/:projectId/feedback/:feedbackId" element={<FeedbackDetailPage />} />
           <Route path="/cli-sessions" element={<CliSessionsPage />} />
+          <Route path="/billing" element={<BillingPage />} />
         </Route>
       </Routes>
     </AuthProvider>

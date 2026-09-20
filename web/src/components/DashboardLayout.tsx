@@ -2,7 +2,7 @@ import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { Logomark } from "@/components/Logomark";
-import { BookIcon, KeyIcon, LogOutIcon } from "@/components/icons";
+import { BookIcon, CreditCardIcon, KeyIcon, LogOutIcon } from "@/components/icons";
 
 const NAV_LINK_CLASS = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium transition-colors sm:px-2.5 ${
@@ -33,6 +33,10 @@ export function DashboardLayout() {
             <NavLink to="/cli-sessions" className={NAV_LINK_CLASS} aria-label="CLI access">
               <KeyIcon className="h-4 w-4" />
               <span className="hidden sm:inline">CLI access</span>
+            </NavLink>
+            <NavLink to="/billing" className={NAV_LINK_CLASS} aria-label="Billing">
+              <CreditCardIcon className="h-4 w-4" />
+              <span className="hidden sm:inline">Billing</span>
             </NavLink>
 
             <div className="mx-1 hidden h-5 w-px bg-neutral-200 sm:mx-2 sm:block" />

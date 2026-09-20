@@ -139,7 +139,9 @@ integration page:
 - Working directory: `.` (repo root, since `supabase/` lives directly there)
 - Deploy to production: on, with production branch `main`
 
-**Edge Functions** (currently just `ingest-feedback`) are deployed manually:
+**Edge Functions** (`ingest-feedback`, plus `create-checkout-session` /
+`create-portal-session` / `stripe-webhook` for billing — see below) are
+deployed manually:
 
 ```bash
 supabase login              # once per machine — interactive browser OAuth
@@ -152,6 +154,27 @@ project-scoped credential for it — `supabase functions deploy` needs a
 Supabase personal access token, which grants Management API access to
 every project on the account, not just this one. Not worth storing an
 account-wide secret in CI for a function that changes rarely.
+
+### Turning on real billing
+
+FeedbackKit is free today — every organization is permanently on the free
+plan (`organization_billing`, `supabase/migrations/0009_billing.sql`) until
+a real Stripe account exists. The dashboard's Billing page and the three
+billing Edge Functions are already built and deployed; they just detect the
+missing Stripe credentials and say so (`{"error": "billing_not_configured"}`)
+instead of doing anything. To make it real:
+
+1. Create the Stripe product/price for the paid plan, and a webhook
+   endpoint pointed at
+   `https://<project-ref>.supabase.co/functions/v1/stripe-webhook`
+   subscribed to at least `checkout.session.completed`,
+   `customer.subscription.updated`, and `customer.subscription.deleted`.
+2. Set the secrets the functions read (`supabase/functions/_shared/stripe.ts`):
+   ```bash
+   supabase secrets set STRIPE_SECRET_KEY=sk_live_... STRIPE_WEBHOOK_SECRET=whsec_... STRIPE_PRICE_ID_PRO=price_...
+   ```
+3. Nothing else — no schema change, no dashboard code change. The next
+   request to any billing function picks up the new secrets immediately.
 
 **Auth/MFA/pooler/storage config** (`supabase config push`) isn't automated
 either, and for a sharper reason: unlike migrations or function code, it
@@ -219,6 +242,6 @@ API key with access to the team, the same one works for both.
 | `Tests/FeedbackKitTests/` | SDK unit tests |
 | `DemoApp/` | Sample apps exercising the SDK on iOS, macOS, and watchOS (one XcodeGen project, three targets) |
 | `web/` | Static SPA dashboard (Vite + React), deployable to any static host |
-| `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function |
+| `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function, billing (Stripe) Edge Functions |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) |
 | `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `start-web.sh`, `deploy-functions.sh`, `release_testflight.sh`, `release_macos_demo.sh` |

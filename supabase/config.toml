@@ -410,6 +410,12 @@ deno_version = 2
 [functions.ingest-feedback]
 verify_jwt = false
 
+# Stripe calls this directly and authenticates via a signed payload
+# (Stripe-Signature header + STRIPE_WEBHOOK_SECRET), not a Supabase session —
+# see supabase/functions/stripe-webhook/index.ts.
+[functions.stripe-webhook]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

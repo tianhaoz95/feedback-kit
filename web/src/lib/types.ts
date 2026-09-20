@@ -69,3 +69,29 @@ export interface CliSession {
   created_at: string;
   revoked_at: string | null;
 }
+
+export type BillingPlan = "free" | "pro";
+
+/** Mirrors Stripe's own subscription statuses, plus "none" — see supabase/migrations/0009_billing.sql. */
+export type BillingStatus =
+  | "none"
+  | "trialing"
+  | "active"
+  | "past_due"
+  | "canceled"
+  | "unpaid"
+  | "incomplete"
+  | "incomplete_expired";
+
+/** Mirrors supabase/migrations/0009_billing.sql. Always exists (one row per organization,
+ * created by a trigger the moment the organization is), so there's no "no row yet" case to handle. */
+export interface OrganizationBilling {
+  organization_id: string;
+  plan: BillingPlan;
+  status: BillingStatus;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  updated_at: string;
+}

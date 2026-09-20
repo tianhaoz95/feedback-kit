@@ -179,7 +179,10 @@ checking — it's a real subset, not "UIKit minus views."
 ```
 organizations ──< memberships >── auth.users     (an org = a developer account;
      │                                             memberships is many-to-many,
-     ▼                                             so teams work from day one)
+     │                                             so teams work from day one)
+     ├──< organization_billing (1:1, Stripe plan/status — see below)
+     │
+     ▼
   projects ──< prompt_templates (1:1 default template per project)
      │
      └──< feedback_items (screenshots in Storage, annotations/environment as JSONB)
@@ -205,6 +208,14 @@ organizations ──< memberships >── auth.users     (an org = a developer a
   `{project_id}/{feedback_id}/{raw,annotated}.png`. The dashboard reads them
   via short-lived signed URLs generated per-request; a storage RLS policy
   restricts *signing* to members of the owning organization.
+- **Billing (`organization_billing`) is built ahead of having a real Stripe
+  account.** Same "auto-create on insert" trigger pattern as
+  `prompt_templates`, so every organization has exactly one billing row from
+  the moment it exists (`plan='free'`, `status='none'` by default) rather
+  than the dashboard needing to handle a third "no row yet" case. The three
+  Stripe-facing Edge Functions detect missing credentials and say so rather
+  than erroring — see CLAUDE.md's billing note and README.md's "Turning on
+  real billing" for exactly what flips this from dummy to live.
 
 ## 3. Ingestion (`supabase/functions/ingest-feedback`)
 
@@ -342,13 +353,22 @@ Tests/FeedbackKitTests/
 DemoApp/               project.yml (XcodeGen) + sample apps exercising the SDK
                        on iOS, macOS, and watchOS (one project, three targets)
 web/                   Static SPA dashboard (Vite + React)
-supabase/              migrations, storage policies, the ingestion Edge Function
+supabase/              migrations, storage policies, the ingestion + billing (Stripe) Edge Functions
 cli/                   feedbackkit CLI + MCP server (Node/TypeScript)
 scripts/               setup.sh, run-ios.sh, start-web.sh — see README.md
 ```
 
 ## Known gaps / deliberate scope cuts
 
+- **Billing is entirely dummy — no plan actually enforces anything yet.**
+  `organization_billing` tracks a plan/status, and the dashboard's Billing
+  page and Stripe Edge Functions are fully wired up, but nothing in the app
+  actually checks `plan === 'pro'` before allowing an action — a free-plan
+  org can create as many projects/feedback items as it wants today, despite
+  the Billing page's copy claiming a cap. Enforcing that (probably a check
+  in `ProjectsPage.tsx`'s create-project flow, or an RLS policy referencing
+  `organization_billing`) is real work to do once there's an actual limit to
+  enforce, not before.
 - **No organization switcher.** The schema supports one user belonging to
   multiple orgs; the dashboard UI just uses the first membership found. Fine
   until someone is actually on two teams.

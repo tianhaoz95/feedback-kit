@@ -39,7 +39,7 @@ file is about how to build/test/run things day to day.
 | `Tests/FeedbackKitTests/` | SDK unit tests |
 | `DemoApp/` | Sample apps exercising the SDK on iOS, macOS, and watchOS (one XcodeGen project, three targets; the `.xcodeproj` is generated — not committed) |
 | `web/` | Static SPA dashboard (Vite + React + React Router), deployed to GitHub Pages |
-| `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function |
+| `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function, billing (Stripe) Edge Functions |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) — reads feedback/prompts as a logged-in user |
 | `scripts/` | `setup.sh`, `run-ios.sh`, `start-web.sh`, `deploy-functions.sh` |
 | `branding/` | FeedbackKit logo assets (SVG source + PNG exports) — reused for the iOS app icon and the GitHub OAuth App's logo |
@@ -263,6 +263,30 @@ usable before `feedbackkit login`.
   (`verify_jwt = false` in `supabase/config.toml` for `ingest-feedback`)
   because the caller is an anonymous iOS device identified only by
   `project_key`. It uses the service-role key and bypasses RLS by design.
+- **Billing is dummy infrastructure today, wired up before a real Stripe
+  account exists.** `organization_billing` (`0009_billing.sql`) is a
+  1:1-per-organization row (same auto-create-on-insert trigger pattern as
+  `prompt_templates` for projects), defaulting every org to
+  `plan='free'`/`status='none'` forever. Three Edge Functions —
+  `create-checkout-session`, `create-portal-session`, `stripe-webhook` — talk
+  to Stripe via `supabase/functions/_shared/stripe.ts`'s `getStripe()`, which
+  returns `null` (never throws) when `STRIPE_SECRET_KEY` isn't set; every
+  function checks for that and responds `501 {error: "billing_not_configured"}`
+  instead of failing weirdly, which `web/src/pages/BillingPage.tsx` renders
+  as a plain "billing isn't set up yet" notice. This means turning on real
+  billing later — `supabase secrets set STRIPE_SECRET_KEY=... STRIPE_WEBHOOK_SECRET=...
+  STRIPE_PRICE_ID_PRO=...` on the hosted project, then registering the
+  webhook URL in the Stripe Dashboard — needs zero schema or app-code
+  changes. The checkout/portal functions authenticate the caller with their
+  own Supabase JWT (`verify_jwt` left at its default `true`) and use an
+  anon-key client forwarding that JWT to check org membership via RLS, the
+  same as the dashboard's own queries — no application-code permission
+  checks duplicating what RLS already does. `stripe-webhook` is the
+  exception: `verify_jwt = false` (like `ingest-feedback`), since Stripe
+  can't present a Supabase session — its trust boundary is verifying the
+  `Stripe-Signature` header against `STRIPE_WEBHOOK_SECRET` instead, via
+  `constructEventAsync` + `Stripe.createSubtleCryptoProvider()` (the sync
+  verifier needs Node's `crypto` module, which doesn't exist in Deno).
 - **Screenshot capture is window-level** (`ScreenshotCapture.captureKeyWindow`),
   not view-controller-level — this is why it works for both UIKit and SwiftUI
   screens without the SDK needing to know which one built the screen. Don't
