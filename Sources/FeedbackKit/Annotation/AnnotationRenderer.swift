@@ -15,7 +15,11 @@ enum AnnotationRenderer {
     static let strokeWidth: CGFloat = 4
 
     static func draw(_ annotation: FeedbackAnnotation, in ctx: CGContext, targetSize: CGSize) {
-        let color = (PlatformColor(hex: annotation.colorHex) ?? .systemRed).cgColor
+        // `.red` rather than `.systemRed`: a plain literal color, not one of
+        // the "dynamic system palette" colors, which watchOS's UIKit subset
+        // doesn't carry. This only matters for a malformed stored hex string
+        // anyway — an extremely rare, purely defensive fallback.
+        let color = (PlatformColor(hex: annotation.colorHex) ?? .red).cgColor
         let points = annotation.points.map { CGPoint(x: $0.x * targetSize.width, y: $0.y * targetSize.height) }
         let scale = CGFloat(annotation.scale)
         let rotation = CGFloat(annotation.rotation)

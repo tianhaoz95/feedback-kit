@@ -60,22 +60,39 @@ FeedbackKit.presentAndSubmit(from: self) { result in
 
 const spmPackage = `.package(url: "https://github.com/tianhaoz95/feedback-kit", branch: "main")`;
 
+const watchOSUsage = `import SwiftUI
+import FeedbackKit
+
+FeedbackKit.configure(.init(endpointURL: myEndpoint, projectKey: "pk_live_..."))
+FeedbackKit.currentScreen = "Checkout"
+
+// Embed this in your own presentation — there's no present(from:) on
+// watchOS, since watch apps are SwiftUI-only with no window to present
+// modally over:
+.sheet(isPresented: $showingFeedback) {
+    FeedbackQuickNoteView { report in
+        guard let report else { return }
+        FeedbackSubmitter.submit(report, configuration: myConfiguration) { _ in }
+    }
+}`;
+
 export function DocsIosSdkPage() {
   return (
     <div>
       <DocsTitle
         eyebrow="SDK"
-        title="iOS & macOS SDK"
-        description="One Swift Package that captures a screenshot, lets the user annotate it and describe
-          a problem, and hands your app a structured report. On iOS it works with UIKit, SwiftUI, or
-          a mix of both; on macOS, AppKit or SwiftUI — the SDK never needs to know which one built
-          the screen on top."
+        title="iOS, macOS & watchOS SDK"
+        description="One Swift Package. On iOS and macOS, it captures a screenshot, lets the user
+          annotate it, and hands your app a structured report — works with UIKit, SwiftUI, or AppKit
+          without needing to know which one built the screen on top. watchOS gets a deliberately
+          smaller version of the same idea: no screenshot, no annotation tools, just a text
+          description and device/app context — see the watchOS section below."
       />
 
       <DocsSection title="Requirements">
         <DocsList
           items={[
-            <>iOS 15.0+ or macOS 12.0+</>,
+            <>iOS 15.0+, macOS 12.0+, or watchOS 8.0+</>,
             <>Swift 5.9 (swift-tools-version in the package)</>,
             <>No external dependencies</>,
           ]}
@@ -177,6 +194,29 @@ export function DocsIosSdkPage() {
         </DocsCallout>
       </DocsSection>
 
+      <DocsSection title="watchOS: a stripped-down flow">
+        <p>
+          watchOS doesn't get a port of the iOS/macOS annotate flow — the screen is too small for
+          freehand/rectangle/arrow drawing to be usable regardless of how it's implemented, and watch
+          apps are SwiftUI-only with no window-level API to capture a screenshot from in the first
+          place. Instead, <InlineCode>FeedbackQuickNoteView</InlineCode> is a plain SwiftUI view with just a
+          text field, that you embed in your own presentation:
+        </p>
+        <CodeBlock code={watchOSUsage} label="Swift (watchOS)" />
+        <p>
+          There's no <InlineCode>present(from:)</InlineCode> on watchOS (no window to present modally
+          over) and no <InlineCode>presentAndSubmit</InlineCode> either — call{" "}
+          <InlineCode>FeedbackSubmitter.submit(_:configuration:completion:)</InlineCode> yourself from the
+          view's completion handler, same function the other two platforms use under the hood.
+        </p>
+        <DocsCallout>
+          A watchOS report's screenshot fields hold a small generated placeholder card, not a real
+          screenshot — the actual content is <InlineCode>text</InlineCode> plus{" "}
+          <InlineCode>environment</InlineCode> (device model, watchOS version, app version, locale),
+          which the dashboard's prompt template placeholders already surface like any other report.
+        </DocsCallout>
+      </DocsSection>
+
       <DocsSection title="What's in a FeedbackReport">
         <DocsTable
           columns={["Field", "What it is"]}
@@ -201,7 +241,8 @@ export function DocsIosSdkPage() {
         <p>
           There's no macOS sample app yet — <InlineCode>swift build</InlineCode> and{" "}
           <InlineCode>swift test</InlineCode> build and run the shared test suite natively on your
-          Mac, no simulator required.
+          Mac, no simulator required. Same for watchOS, but via a watch simulator destination:{" "}
+          <InlineCode>xcodebuild test -scheme FeedbackKit -destination 'id=&lt;WATCH_SIMULATOR_UDID&gt;'</InlineCode>.
         </p>
       </DocsSection>
     </div>

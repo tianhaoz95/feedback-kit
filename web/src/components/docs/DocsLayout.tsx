@@ -5,7 +5,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 
 const NAV = [
   { to: "/docs", label: "Overview", end: true },
-  { to: "/docs/ios-sdk", label: "SDK (iOS & macOS)" },
+  { to: "/docs/ios-sdk", label: "SDK (iOS, macOS & watchOS)" },
   { to: "/docs/dashboard", label: "Web dashboard" },
   { to: "/docs/cli", label: "CLI" },
   { to: "/docs/mcp", label: "MCP & coding agents" },

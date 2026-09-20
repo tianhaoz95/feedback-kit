@@ -2,10 +2,12 @@
 
 FeedbackKit is three things that share one contract:
 
-1. **An iOS + macOS SDK** (`FeedbackKit`, one Swift Package) that lets any app
-   capture a screenshot, let the user annotate it and describe a problem, and
-   hands the developer a structured `FeedbackReport`. What happens to that
-   report is entirely up to the developer.
+1. **An iOS + macOS + watchOS SDK** (`FeedbackKit`, one Swift Package) that
+   lets any app capture a screenshot, let the user annotate it and describe
+   a problem, and hands the developer a structured `FeedbackReport`. What
+   happens to that report is entirely up to the developer. (watchOS is a
+   deliberately stripped-down flow — text and context only, no screenshot,
+   no annotation — see §1.)
 2. **An optional hosted dashboard** (`web/` + `supabase/`) that's just one way
    to consume that report: a place to receive it, organize it by project,
    and turn it into a prompt for a coding agent.
@@ -39,7 +41,7 @@ main architectural decision in this project — everything else follows from it.
  └──────────────────────┘                             └───────────────────────┘
 ```
 
-## 1. iOS + macOS SDK (`Sources/FeedbackKit`)
+## 1. iOS + macOS + watchOS SDK (`Sources/FeedbackKit`)
 
 **Capture is window-level, not view-controller-level.** `ScreenshotCapture`
 renders the key `UIWindow`'s layer to a bitmap (`UIGraphicsImageRenderer` +
@@ -118,6 +120,48 @@ an existing annotation is trackpad-only on macOS too
 (`NSMagnificationGestureRecognizer`/`NSRotationGestureRecognizer`, the direct
 analogs of iOS's two-finger pinch/twist) — there's no mouse equivalent for a
 two-finger gesture.
+
+**watchOS is a stripped-down flow, deliberately not a third UI port.** Two
+things make "port the annotate UI to watchOS" the wrong move, not just a
+harder version of the same move: the screen is too small for
+freehand/rectangle/arrow drawing to be a usable interaction regardless of
+how it's implemented, and there's no window-level (or any) API for capturing
+arbitrary on-screen content the way `drawHierarchy`/`cacheDisplay` do on
+iOS/macOS — watch apps are SwiftUI-only, with no `UIWindow` a third party
+can reach into. So `FeedbackQuickNoteView` is a plain SwiftUI view carrying
+just a text field — the developer embeds it in their own presentation
+(typically `.sheet`), since there's no `UIWindow`/`NSWindow` for FeedbackKit
+to present modally over the way `present(from:)` does on the other two
+platforms.
+
+`FeedbackReport`'s `screenshotRawPNG`/`screenshotAnnotatedPNG` are
+non-optional `Data` — reasonable everywhere else, but a real fit problem for
+a platform with no real screenshot to put there. Making them optional was
+considered and rejected for this feature: it would ripple through the
+Postgres schema (`not null` columns), the ingestion Edge Function (which
+always uploads and inserts two paths), and the web dashboard/CLI/MCP (which
+all assume a valid `screenshot_annotated_path` when generating a signed URL
+or a `{{screenshot_url}}` prompt placeholder) — a lot of already-shipped
+surface area to make optional for one platform's sake. Instead,
+`ScreenshotCapture`'s watchOS branch renders a small, clearly-labeled
+placeholder card (a plain colored rectangle with a border — not an attempt
+at a fake screenshot) purely to give those fields *something*. The actual
+substance of a watchOS report is `text` plus `FeedbackEnvironment` (device,
+watchOS version, app version, locale) — which the dashboard's existing
+prompt-template placeholders (§4) already surface with zero new plumbing,
+since a report's environment fields are handled identically regardless of
+which platform produced them.
+
+Two watchOS-specific findings worth flagging because they contradicted a
+reasonable-sounding assumption, caught by actually building against a watch
+simulator rather than guessing: **`UIGraphicsImageRenderer` is not
+available on watchOS**, even though `UIColor`/`UIFont`/`UIImage` are (the
+placeholder card is built from a raw `CGContext` bitmap instead, the same
+style `AnnotationRenderer` already uses); and **`UIColor.systemRed` is not
+available on watchOS** either, even though plain literal colors like `.red`
+are (`AnnotationRenderer`'s malformed-hex fallback uses `.red` for exactly
+this reason). Don't assume the rest of watchOS's UIKit subset without
+checking — it's a real subset, not "UIKit minus views."
 
 ## 2. Data model / multi-tenancy (`supabase/migrations`)
 
@@ -272,7 +316,7 @@ token server-side, a bigger secret to hold than the problem justifies.
 ## Repo layout
 
 ```
-Sources/FeedbackKit/   the SDK (Swift Package, iOS + macOS)
+Sources/FeedbackKit/   the SDK (Swift Package, iOS + macOS + watchOS)
 Tests/FeedbackKitTests/
 DemoApp/               project.yml (XcodeGen) + a sample app exercising the SDK
 web/                   Static SPA dashboard (Vite + React)
@@ -319,7 +363,16 @@ scripts/               setup.sh, run-ios.sh, start-web.sh — see README.md
   automated XCTest UI suite; the iOS side has never had one either. Worth
   a proper UI test target on both sides before this SDK has many more
   contributors than just its original author.
-- **There's no macOS demo app** (`DemoApp/` is iOS-only) — the macOS SDK was
-  validated against a throwaway `NSApplication` harness during development,
-  not a committed sample app the way the iOS side has one. Worth adding if
-  macOS usage grows past "the original author's own smoke testing."
+- **There's no macOS or watchOS demo app** (`DemoApp/` is iOS-only) — both
+  were validated with throwaway harnesses during development (an
+  `NSApplication` smoke run for macOS; `WatchOSCaptureTests` plus real
+  `xcodebuild` runs against a watch simulator for watchOS), not a committed
+  sample app the way the iOS side has one. Worth adding if usage on either
+  platform grows past "the original author's own smoke testing."
+- **A watchOS report's `screenshotRawPNG`/`screenshotAnnotatedPNG` are a
+  generated placeholder card, not a real screenshot** — see §1's watchOS
+  section for why the model wasn't changed to make these fields optional
+  instead. If a real per-platform "does this report have an actual
+  screenshot" distinction becomes genuinely necessary later (vs. "the
+  dashboard just shows a small gray card for watch reports, which is fine"),
+  that's the migration to reconsider — not a quick fix.

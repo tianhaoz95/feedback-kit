@@ -27,12 +27,31 @@ import AppKit
 /// FeedbackKit.showFloatingTriggerButton { NSApplication.shared.keyWindow }
 /// // or call FeedbackKit.present(from:) directly, e.g. from a menu item's action.
 /// ```
+///
+/// watchOS is a stripped-down flow: no screenshot, no annotation tools (the
+/// screen's too small for freehand/rectangle/arrow drawing to be usable, and
+/// there's no window-level API to capture from regardless). There's no
+/// `present(from:)` either, since watch apps are SwiftUI-only with no
+/// `UIWindow`/`UIViewController` to present modally over — embed
+/// `FeedbackQuickNoteView` in your own presentation instead:
+/// ```swift
+/// FeedbackKit.configure(.init(endpointURL: myEndpoint, projectKey: "pk_live_..."))
+/// FeedbackKit.currentScreen = "Checkout"
+///
+/// .sheet(isPresented: $showingFeedback) {
+///     FeedbackQuickNoteView { report in
+///         guard let report else { return }
+///         FeedbackSubmitter.submit(report, configuration: myConfiguration) { _ in }
+///     }
+/// }
+/// ```
 public enum FeedbackKit {
     /// Best-effort label for the screen currently visible, included in every
     /// report's environment info. Set this as the user navigates (e.g. in
     /// `viewDidAppear`, or when a window/view becomes key); FeedbackKit falls
     /// back to auto-detection on iOS if left nil, but has no such fallback on
-    /// macOS (see `EnvironmentInfo`), so it's worth setting there in particular.
+    /// macOS or watchOS (see `EnvironmentInfo`), so it's worth setting there
+    /// in particular.
     public static var currentScreen: String?
 
     private static var configuration: FeedbackKitConfiguration?

@@ -111,4 +111,42 @@ enum EnvironmentInfo {
         return String(cString: machine)
     }
 }
+#elseif os(watchOS)
+import WatchKit
+
+enum EnvironmentInfo {
+    static func current(screenName: String?) -> FeedbackEnvironment {
+        let device = WKInterfaceDevice.current()
+        let bundle = Bundle.main
+
+        return FeedbackEnvironment(
+            osName: device.systemName,
+            osVersion: device.systemVersion,
+            deviceModel: deviceModelIdentifier(),
+            appVersion: bundle.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
+            appBuild: bundle.infoDictionary?["CFBundleVersion"] as? String ?? "unknown",
+            bundleIdentifier: bundle.bundleIdentifier ?? "unknown",
+            // No window/view-controller-stack concept to fall back on here
+            // either (same as macOS) — set `FeedbackKit.currentScreen`
+            // explicitly as the user navigates.
+            screenName: screenName,
+            locale: Locale.current.identifier,
+            screenWidthPoints: Double(device.screenBounds.width),
+            screenHeightPoints: Double(device.screenBounds.height),
+            screenScale: Double(device.screenScale)
+        )
+    }
+
+    /// Returns the raw hardware identifier (e.g. "Watch7,1"), mirroring the
+    /// iOS/macOS sides.
+    private static func deviceModelIdentifier() -> String {
+        var systemInfo = utsname()
+        uname(&systemInfo)
+        let machineMirror = Mirror(reflecting: systemInfo.machine)
+        return machineMirror.children.reduce(into: "") { identifier, element in
+            guard let value = element.value as? Int8, value != 0 else { return }
+            identifier += String(UnicodeScalar(UInt8(value)))
+        }
+    }
+}
 #endif

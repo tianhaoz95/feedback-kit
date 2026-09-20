@@ -1,7 +1,11 @@
 import CoreGraphics
 import Foundation
 
-#if os(iOS)
+#if os(iOS) || os(watchOS)
+// watchOS has no UIView/UIViewController/UIWindow, but it does carry
+// UIKit's plain data types (UIColor, UIFont, UIImage) for use from SwiftUI —
+// which is all AnnotationRenderer (the only cross-platform consumer of
+// these on watchOS, since there's no annotation *tool* there) needs.
 import UIKit
 
 typealias PlatformFont = UIFont

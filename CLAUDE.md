@@ -6,13 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 FeedbackKit is three things sharing one JSON contract / one Postgres schema:
 
-1. **An iOS + macOS SDK** (`Sources/FeedbackKit`, one Swift Package) — a drop-in
-   library that captures a screenshot, lets the user annotate it and describe
-   a problem, and hands the developer a structured `FeedbackReport`. The SDK
-   never requires the dashboard; delivery is entirely up to the integrating
-   app. The two platforms share the data model and the drawing/geometry core
-   (`AnnotationRenderer`) but have separate UIKit/AppKit UI implementations —
-   see the architecture notes below before touching either.
+1. **An iOS + macOS + watchOS SDK** (`Sources/FeedbackKit`, one Swift Package)
+   — a drop-in library that captures a screenshot, lets the user annotate it
+   and describe a problem, and hands the developer a structured
+   `FeedbackReport`. The SDK never requires the dashboard; delivery is
+   entirely up to the integrating app. iOS and macOS share the data model
+   and the drawing/geometry core (`AnnotationRenderer`) but have separate
+   UIKit/AppKit UI implementations — see the architecture notes below before
+   touching either. watchOS is a deliberately stripped-down third flow (text
+   + context only, no screenshot, no annotation tools) rather than a third
+   full UI port — see `FeedbackQuickNoteView`.
 2. **An optional hosted dashboard** (`web/` + `supabase/`) — one way to consume
    that report: receive it, organize it by project, and turn it into a prompt
    for a coding agent.
@@ -32,7 +35,7 @@ file is about how to build/test/run things day to day.
 
 | Path | What |
 |---|---|
-| `Sources/FeedbackKit/` | The iOS + macOS SDK (Swift Package) |
+| `Sources/FeedbackKit/` | The iOS + macOS + watchOS SDK (Swift Package) |
 | `Tests/FeedbackKitTests/` | SDK unit tests |
 | `DemoApp/` | Sample app exercising the SDK (XcodeGen project, generated — not committed) |
 | `web/` | Static SPA dashboard (Vite + React + React Router), deployed to GitHub Pages |
@@ -59,8 +62,9 @@ swift test
 swift test --filter FeedbackReportTests/testHexColorRoundTrip   # a single test
 ```
 
-The iOS side needs `xcodebuild` against a simulator destination instead,
-since `swift build`/`swift test` always resolve to *this* Mac's platform:
+iOS and watchOS both need `xcodebuild` against a simulator destination
+instead, since `swift build`/`swift test` always resolve to *this* Mac's
+platform:
 
 ```bash
 # Find a simulator id: xcrun simctl list devices available
@@ -72,9 +76,16 @@ xcodebuild test -scheme FeedbackKit -destination 'id=<SIMULATOR_UDID>' \
   -only-testing:FeedbackKitTests/FeedbackReportTests/testFeedbackReportRoundTripsThroughJSON
 ```
 
-`Tests/FeedbackKitTests/` runs on both platforms unchanged — it only exercises
-the shared model/geometry code, not either platform's UI layer, which has no
-automated tests on either side (see the architecture note on why below).
+Same commands for a watch simulator id — `xcodebuild`/the `FeedbackKit`
+scheme don't care which platform the destination resolves to.
+
+`Tests/FeedbackKitTests/` runs on all three platforms. Most of it
+(`AnnotationRendererTests`, `FeedbackReportTests`) is platform-agnostic,
+exercising only the shared model/geometry code; `WatchOSCaptureTests` is
+the one platform-specific file, `#if os(watchOS)`-gated, covering that
+platform's `EnvironmentInfo`/`ScreenshotCapture`/`FeedbackQuickNoteView`
+directly since there's no UI layer to test on any platform otherwise (see
+the architecture note on why below).
 
 ### Demo app (`DemoApp/`)
 
@@ -267,6 +278,31 @@ a local `./scripts/start-web.sh` stack instead of the hosted dashboard.
   equivalent for a two-finger gesture, so a mouse-only user can draw/move
   shapes but not resize/rotate one after the fact. Known, accepted gap
   rather than an oversight.
+- **watchOS is intentionally not a third UI port** — the screen's too small
+  for freehand/rectangle/arrow annotation to be usable, and there's no
+  window-level API to capture a screenshot from in the first place
+  (watch apps are SwiftUI-only, no `UIWindow`). `FeedbackQuickNoteView` is a
+  plain SwiftUI view the developer embeds themselves (there's no
+  `UIWindow`/`NSWindow` for FeedbackKit to present modally over, so no
+  `present(from:)` on this platform); `ScreenshotCapture`'s watchOS branch
+  renders a small, clearly-labeled placeholder card (plain `CGContext`
+  drawing, not `UIGraphicsImageRenderer` — confirmed unavailable there by
+  a real build against a watch simulator, not assumed) purely so
+  `FeedbackReport`'s screenshot fields have *something* rather than
+  reopening whether those fields should be optional across the whole stack
+  (Postgres schema, ingestion function, dashboard, CLI/MCP) for one
+  platform's sake. The actual content of a watchOS report is `text` +
+  `FeedbackEnvironment`, which the existing prompt-template placeholders
+  already surface with zero new plumbing.
+- **`AnnotationRenderer` and `PlatformTypes.swift` cover watchOS too**, via
+  `#if os(iOS) || os(watchOS)` for the `UIColor`/`UIFont` typealiases —
+  watchOS carries UIKit's plain data types (no `UIView`/`UIWindow`, but
+  `UIColor`/`UIFont`/`UIImage` exist, since SwiftUI needs them there) — see
+  `PlatformTypes.swift`'s comment. `UIColor.systemRed` is *not* one of
+  those available bits (another one found by a real build, not assumed);
+  the one fallback color in `AnnotationRenderer` uses plain `.red` instead
+  for exactly this reason — don't reach for a `.system*` color there again
+  without checking watchOS availability.
 - **The CLI authenticates by receiving a real Supabase session, not a
   separate token type.** `feedbackkit login` opens `/cli-auth` in the
   browser (`CliAuthPage.tsx`), which — once the user is signed in — hands

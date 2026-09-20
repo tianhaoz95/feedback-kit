@@ -1,9 +1,9 @@
 # FeedbackKit
 
-An iOS + macOS SDK for capturing in-app user feedback (screenshot +
-annotations + description + device/app/screen info), plus an optional
-Supabase-backed dashboard for collecting it and turning it into prompts for
-a coding agent.
+An iOS + macOS + watchOS SDK for capturing in-app user feedback (screenshot +
+annotations + description + device/app/screen info on iOS/macOS; text +
+context only on watchOS), plus an optional Supabase-backed dashboard for
+collecting it and turning it into prompts for a coding agent.
 
 See [DESIGN.md](DESIGN.md) for how it's put together and why.
 
@@ -39,6 +39,18 @@ No simulator needed — this builds natively for the Mac you're on. There's no
 committed macOS demo app (yet); `FeedbackKit.present(from: window)` and
 `FeedbackKit.showFloatingTriggerButton { ... }` are the macOS equivalents of
 the iOS calls above, minus a shake trigger (no motion sensor on a Mac).
+
+### Try the watchOS SDK
+
+```bash
+# Find a watch simulator id: xcrun simctl list devices available
+xcodebuild test -scheme FeedbackKit -destination 'id=<WATCH_SIMULATOR_UDID>'
+```
+
+No committed watchOS demo app either. watchOS is a deliberately
+stripped-down flow — no screenshot, no annotation tools, just a text
+description plus device/app context — via `FeedbackQuickNoteView`, a plain
+SwiftUI view you embed in your own `.sheet`. See [DESIGN.md](DESIGN.md) for why.
 
 ### Run the web dashboard
 
