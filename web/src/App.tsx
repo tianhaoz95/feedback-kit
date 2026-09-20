@@ -10,6 +10,12 @@ import { ProjectPage } from "@/pages/ProjectPage";
 import { FeedbackDetailPage } from "@/pages/FeedbackDetailPage";
 import { CliAuthPage } from "@/pages/CliAuthPage";
 import { CliSessionsPage } from "@/pages/CliSessionsPage";
+import { DocsLayout } from "@/components/docs/DocsLayout";
+import { DocsOverviewPage } from "@/pages/docs/DocsOverviewPage";
+import { DocsIosSdkPage } from "@/pages/docs/DocsIosSdkPage";
+import { DocsDashboardPage } from "@/pages/docs/DocsDashboardPage";
+import { DocsCliPage } from "@/pages/docs/DocsCliPage";
+import { DocsMcpPage } from "@/pages/docs/DocsMcpPage";
 
 export default function App() {
   return (
@@ -18,6 +24,13 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
+        <Route path="/docs" element={<DocsLayout />}>
+          <Route index element={<DocsOverviewPage />} />
+          <Route path="ios-sdk" element={<DocsIosSdkPage />} />
+          <Route path="dashboard" element={<DocsDashboardPage />} />
+          <Route path="cli" element={<DocsCliPage />} />
+          <Route path="mcp" element={<DocsMcpPage />} />
+        </Route>
         <Route
           path="/login"
           element={

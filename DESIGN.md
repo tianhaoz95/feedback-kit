@@ -181,11 +181,16 @@ loading state instead of never receiving the protected page's HTML. Since
 RLS — not the redirect — is the actual security boundary, this is a UX
 difference, not a security regression.
 
-The landing page (`/`), privacy notice (`/privacy`), and user agreement
-(`/terms`) are public routes in the same app rather than a separate site,
-since a static host like GitHub Pages has no natural place to split them out
-to. The legal pages are a content template (clearly marked as such, with
-`[bracketed]` placeholders) — not reviewed legal advice.
+The landing page (`/`), privacy notice (`/privacy`), user agreement
+(`/terms`), and docs (`/docs/*`) are public routes in the same app rather
+than a separate site, since a static host like GitHub Pages has no natural
+place to split them out to. The legal pages are a content template (clearly
+marked as such, with `[bracketed]` placeholders) — not reviewed legal
+advice. The docs (`web/src/pages/docs/`, laid out by `DocsLayout.tsx`) are
+plain hand-written TSX, not a markdown/MDX pipeline — there's exactly four
+pages (iOS SDK, dashboard, CLI, MCP) plus an overview, which doesn't
+justify a docs generator's build-time cost or a new content format for
+this repo to keep in sync with the code by hand either way.
 
 A host serving deep links (e.g. `/projects/abc`) directly needs SPA fallback
 routing to `index.html`, since there's no server to resolve arbitrary paths

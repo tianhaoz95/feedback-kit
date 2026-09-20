@@ -12,6 +12,9 @@ export function DashboardLayout() {
             FeedbackKit
           </Link>
           <div className="flex items-center gap-4">
+            <Link to="/docs" className="text-sm text-neutral-500 hover:text-neutral-900">
+              Docs
+            </Link>
             <Link to="/cli-sessions" className="text-sm text-neutral-500 hover:text-neutral-900">
               CLI access
             </Link>

@@ -1,0 +1,79 @@
+import { Link } from "react-router-dom";
+import { CodeBlock } from "@/components/docs/CodeBlock";
+import { DocsCallout, DocsSection, DocsTable, DocsTitle, InlineCode } from "@/components/docs/DocsProse";
+
+const install = `git clone https://github.com/tianhaoz95/feedback-kit
+cd feedback-kit/cli
+npm install
+npm run build
+npm link   # puts \`feedbackkit\` on your PATH`;
+
+const login = `feedbackkit login`;
+
+const localDev = `feedbackkit login --dashboard-url http://localhost:3000`;
+
+export function DocsCliPage() {
+  return (
+    <div>
+      <DocsTitle
+        eyebrow="CLI"
+        title="CLI"
+        description="A command-line client for the dashboard — read feedback and generated prompts from a
+          terminal, authenticated as your own account."
+      />
+
+      <DocsCallout tone="warning">
+        Not published to npm yet — build it from the repo.
+      </DocsCallout>
+
+      <DocsSection title="Install">
+        <CodeBlock code={install} label="Terminal" />
+      </DocsSection>
+
+      <DocsSection title="Log in">
+        <p>
+          Opens your browser to authorize the CLI, signing in with GitHub first if you aren't
+          already. It hands the CLI your real dashboard session — not a separate token you have to
+          generate and paste — so it can only see what your account can see.
+        </p>
+        <CodeBlock code={login} label="Terminal" />
+        <p>Point it at a local dashboard instead of the hosted one during development:</p>
+        <CodeBlock code={localDev} label="Terminal" />
+      </DocsSection>
+
+      <DocsSection title="Commands">
+        <DocsTable
+          columns={["Command", "What it does"]}
+          rows={[
+            [<InlineCode>feedbackkit login [--dashboard-url &lt;url&gt;]</InlineCode>, "Sign in via your browser."],
+            [<InlineCode>feedbackkit logout</InlineCode>, "Remove locally stored credentials."],
+            [<InlineCode>feedbackkit whoami</InlineCode>, "Show the signed-in user."],
+            [<InlineCode>feedbackkit projects</InlineCode>, "List projects you're a member of."],
+            [
+              <InlineCode>feedbackkit list [--project &lt;id&gt;] [--status &lt;status&gt;]</InlineCode>,
+              "List feedback reports, optionally filtered.",
+            ],
+            [<InlineCode>feedbackkit prompt &lt;feedbackId&gt;</InlineCode>, "Print the generated coding-agent prompt for one report."],
+            [<InlineCode>feedbackkit mcp</InlineCode>, "Run an MCP server over stdio — see the next page."],
+          ]}
+        />
+        <p className="text-neutral-600">
+          <InlineCode>--status</InlineCode> accepts <InlineCode>new</InlineCode>, <InlineCode>in_progress</InlineCode>,{" "}
+          <InlineCode>resolved</InlineCode>, or <InlineCode>wont_fix</InlineCode>.
+        </p>
+      </DocsSection>
+
+      <DocsSection title="Managing access">
+        <p>
+          Credentials live at <InlineCode>~/.feedbackkit/credentials.json</InlineCode> (owner-only permissions).
+          See which CLIs are connected, and revoke one, from the dashboard's{" "}
+          <Link to="/docs/dashboard" className="link-underline font-medium text-neutral-900">
+            CLI access page
+          </Link>
+          . Revoking there is cooperative — the CLI checks its own status before doing work and clears
+          its local credentials if revoked, rather than an instant kill of the underlying session.
+        </p>
+      </DocsSection>
+    </div>
+  );
+}

@@ -95,6 +95,12 @@ export function LandingPage() {
             <span className="text-sm font-semibold tracking-tight">FeedbackKit</span>
           </Link>
           <div className="flex items-center gap-4">
+            <Link
+              to="/docs"
+              className="link-underline text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900"
+            >
+              Docs
+            </Link>
             <a
               href="https://github.com/tianhaoz95/feedback-kit"
               target="_blank"
