@@ -92,7 +92,7 @@ export function LandingPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <Link to="/" className="flex items-center gap-2">
             <Logomark size={26} />
-            <span className="text-sm font-semibold tracking-tight">FeedbackKit</span>
+            <span className="text-sm font-semibold tracking-tight text-neutral-900">FeedbackKit</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link

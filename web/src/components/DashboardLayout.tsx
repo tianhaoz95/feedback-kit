@@ -8,7 +8,7 @@ export function DashboardLayout() {
     <div className="min-h-screen bg-neutral-50">
       <header className="border-b border-neutral-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <Link to="/projects" className="text-sm font-semibold tracking-tight">
+          <Link to="/projects" className="text-sm font-semibold tracking-tight text-neutral-900">
             FeedbackKit
           </Link>
           <div className="flex items-center gap-4">

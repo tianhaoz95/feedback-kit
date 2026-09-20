@@ -27,7 +27,7 @@ export function LoginPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-50 px-4 py-12">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <Link to="/" className="text-2xl font-semibold tracking-tight">
+          <Link to="/" className="text-2xl font-semibold tracking-tight text-neutral-900">
             FeedbackKit
           </Link>
           <p className="mt-1 text-sm text-neutral-500">

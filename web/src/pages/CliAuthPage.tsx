@@ -93,7 +93,7 @@ export function CliAuthPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-50 px-4 py-12">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <Link to="/" className="text-2xl font-semibold tracking-tight">
+          <Link to="/" className="text-2xl font-semibold tracking-tight text-neutral-900">
             FeedbackKit
           </Link>
         </div>

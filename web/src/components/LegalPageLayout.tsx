@@ -15,7 +15,7 @@ export function LegalPageLayout({
     <div className="flex min-h-screen flex-col bg-neutral-50">
       <header className="border-b border-neutral-200 bg-white">
         <div className="mx-auto max-w-3xl px-4 py-3">
-          <Link to="/" className="text-sm font-semibold tracking-tight">
+          <Link to="/" className="text-sm font-semibold tracking-tight text-neutral-900">
             FeedbackKit
           </Link>
         </div>
