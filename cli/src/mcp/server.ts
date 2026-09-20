@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { getAuthenticatedClient } from "../supabaseClient.js";
 import { renderPromptTemplate } from "../promptTemplate.js";
+import { getDocTopic, listDocTopics } from "../docs.js";
 import type { FeedbackItem, PromptTemplate } from "../types.js";
 
 const STATUS_ENUM = z.enum(["new", "in_progress", "resolved", "wont_fix"]);
@@ -126,6 +127,32 @@ export async function runMcpServer(): Promise<void> {
           attachmentSigned?.data?.signedUrl ?? null,
         ),
       );
+    },
+  );
+
+  server.registerTool(
+    "get_docs",
+    {
+      description:
+        "Get FeedbackKit's own documentation — e.g. how to add the SDK to an iOS/macOS/watchOS app, " +
+        "set up the dashboard, or use this CLI/MCP server. Call with no arguments to list topics, or " +
+        "with `topic` for that topic's full content. Doesn't require being logged in.",
+      inputSchema: {
+        topic: z
+          .string()
+          .describe("A topic slug from the no-argument call's list, e.g. 'sdk' or 'dashboard'.")
+          .optional(),
+      },
+    },
+    async ({ topic }) => {
+      if (!topic) return jsonResult(listDocTopics());
+      const doc = getDocTopic(topic);
+      if (!doc) {
+        return errorResult(
+          `Unknown doc topic "${topic}". Call get_docs with no arguments to see available topics.`,
+        );
+      }
+      return textResult(doc.content);
     },
   );
 

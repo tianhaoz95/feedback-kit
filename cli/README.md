@@ -33,8 +33,16 @@ feedbackkit whoami                          # show the signed-in user
 feedbackkit projects                        # list your projects
 feedbackkit list [--project <id>] [--status new|in_progress|resolved|wont_fix]
 feedbackkit prompt <feedbackId>             # print the generated coding-agent prompt
+feedbackkit docs [topic]                    # print FeedbackKit's own docs (no topic = list topics)
 feedbackkit mcp                             # run an MCP server over stdio
 ```
+
+`docs` doesn't require being logged in — it's static reference content
+(`src/docs.ts`), covering the SDK (iOS/macOS/watchOS install + usage), the
+dashboard, the CLI, and MCP itself. It exists so an agent connected via MCP
+can answer "how do I add FeedbackKit to my iOS app?" from real, current
+documentation instead of guessing from training data — see the `get_docs`
+tool below.
 
 `--dashboard-url` defaults to the hosted GitHub Pages dashboard; point it at
 `http://localhost:3000` when developing against a local Supabase stack
@@ -64,6 +72,7 @@ Tools exposed:
 | `list_feedback` | List feedback, optionally filtered by `project_id`/`status` |
 | `get_feedback` | Full detail for one feedback item, with a signed screenshot URL |
 | `get_prompt` | The generated (or developer-edited) coding-agent prompt for one item |
+| `get_docs` | FeedbackKit's own documentation — no `topic` lists topics, e.g. `sdk`/`dashboard`/`cli`/`mcp`; with `topic` returns that topic's full content. Doesn't require being logged in. |
 | `update_feedback_status` | Mark a feedback item's status, e.g. `resolved` after fixing it |
 
 Everything but `update_feedback_status` is read-only by design — the goal is
@@ -84,3 +93,7 @@ There's no published npm package yet — run it from `dist/` directly, or
 `src/types.ts` and `src/promptTemplate.ts` are hand-kept-in-sync copies of
 `web/src/lib/types.ts` and `web/src/lib/prompt-template.ts` — same pattern
 this repo already uses for the Swift↔JSON wire format (see CLAUDE.md).
+`src/docs.ts` is similarly a condensed, hand-kept-in-sync copy of
+`web/src/pages/docs/*.tsx`'s content, in plain markdown instead of JSX —
+verify against the real source (`Sources/FeedbackKit/`, the website) if the
+two ever seem to disagree.

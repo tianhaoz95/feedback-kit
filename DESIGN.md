@@ -313,6 +313,16 @@ if revoked. This mirrors a real limitation in Supabase's own admin API
 before it expires); doing better would mean persisting the CLI's raw access
 token server-side, a bigger secret to hold than the problem justifies.
 
+**`get_docs` (and `feedbackkit docs`) exist so an agent can learn the
+product, not just query it.** Every other tool/command answers questions
+about a specific user's *data*; this one answers "how do I add FeedbackKit
+to an iOS app" from real reference content (`cli/src/docs.ts`, condensed
+from the website's docs) rather than the model's training-data guess about
+a library it may have never seen. It's deliberately the one tool that
+doesn't call `getAuthenticatedClient()` — static local content has no
+reason to require being logged in, and gating it behind auth would block
+exactly the "help me get started" moment it exists for.
+
 ## Repo layout
 
 ```

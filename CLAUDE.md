@@ -200,6 +200,14 @@ running from `dist/` directly, the full command list, and the MCP tool
 list. `feedbackkit login --dashboard-url http://localhost:3000` points it at
 a local `./scripts/start-web.sh` stack instead of the hosted dashboard.
 
+`feedbackkit docs [topic]` / the `get_docs` MCP tool (`cli/src/docs.ts`)
+print FeedbackKit's own reference docs — a condensed, hand-kept-in-sync copy
+of `web/src/pages/docs/*.tsx`'s content in plain markdown — so a connected
+coding agent can answer "how do I add this to an iOS app" from real
+documentation. Unlike every other CLI command/MCP tool, this one doesn't
+call `getAuthenticatedClient()` — it's static local content, deliberately
+usable before `feedbackkit login`.
+
 ## Architecture notes worth knowing before editing
 
 - **The wire format is intentionally decoupled from the SDK's public Swift

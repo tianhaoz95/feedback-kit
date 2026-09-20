@@ -54,12 +54,30 @@ export function DocsCliPage() {
               "List feedback reports, optionally filtered.",
             ],
             [<InlineCode>feedbackkit prompt &lt;feedbackId&gt;</InlineCode>, "Print the generated coding-agent prompt for one report."],
+            [
+              <InlineCode>feedbackkit docs [topic]</InlineCode>,
+              "Print this documentation — no topic lists topics. Doesn't require being logged in.",
+            ],
             [<InlineCode>feedbackkit mcp</InlineCode>, "Run an MCP server over stdio — see the next page."],
           ]}
         />
         <p className="text-neutral-600">
           <InlineCode>--status</InlineCode> accepts <InlineCode>new</InlineCode>, <InlineCode>in_progress</InlineCode>,{" "}
           <InlineCode>resolved</InlineCode>, or <InlineCode>wont_fix</InlineCode>.
+        </p>
+      </DocsSection>
+
+      <DocsSection title="Asking it how to use FeedbackKit itself">
+        <p>
+          <InlineCode>feedbackkit docs</InlineCode> prints this same documentation — the SDK (including
+          how to add it to an iOS/macOS/watchOS app), the dashboard, the CLI, and MCP itself — as
+          plain text, without leaving the terminal:
+        </p>
+        <CodeBlock code="feedbackkit docs sdk" label="Terminal" />
+        <p>
+          The same content is exposed as an MCP tool (<InlineCode>get_docs</InlineCode>, see the next page),
+          so a connected coding agent can answer "how do I add FeedbackKit to my iOS app?" from real,
+          current documentation instead of guessing.
         </p>
       </DocsSection>
 

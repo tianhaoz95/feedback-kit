@@ -6,6 +6,7 @@ import { whoami } from "./commands/whoami.js";
 import { listProjects } from "./commands/projects.js";
 import { listFeedback } from "./commands/list.js";
 import { printPrompt } from "./commands/prompt.js";
+import { printDocs } from "./commands/docs.js";
 import { runMcpServer } from "./mcp/server.js";
 
 function handleError(err: unknown): void {
@@ -84,6 +85,18 @@ program
   .action(async (feedbackId: string) => {
     try {
       await printPrompt(feedbackId);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+program
+  .command("docs")
+  .argument("[topic]", "Doc topic to print (omit to list available topics).")
+  .description("Print FeedbackKit's own documentation — e.g. how to add the SDK to an iOS app.")
+  .action(async (topic: string | undefined) => {
+    try {
+      await printDocs(topic);
     } catch (err) {
       handleError(err);
     }

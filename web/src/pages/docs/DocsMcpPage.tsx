@@ -73,6 +73,7 @@ export function DocsMcpPage() {
             ["list_feedback", "List feedback, optionally filtered by project_id/status."],
             ["get_feedback", "Full detail for one report, including a signed screenshot URL."],
             ["get_prompt", "The generated (or developer-edited) coding-agent prompt for one report — the whole point."],
+            ["get_docs", "FeedbackKit's own documentation — e.g. how to add the SDK to an iOS app. Doesn't require being logged in."],
             ["update_feedback_status", "Mark a report's status, e.g. resolved after fixing it."],
           ]}
         />
@@ -83,7 +84,7 @@ export function DocsMcpPage() {
         </p>
       </DocsSection>
 
-      <DocsSection title="Example prompt">
+      <DocsSection title="Example prompts">
         <p>
           Once connected, you can just ask your agent to use it:
         </p>
@@ -92,6 +93,11 @@ export function DocsMcpPage() {
           The agent calls <InlineCode>get_prompt</InlineCode>, gets back the same rendered prompt you'd otherwise
           copy from the dashboard, and can call <InlineCode>update_feedback_status</InlineCode> once it's done.
         </p>
+        <p>
+          <InlineCode>get_docs</InlineCode> means the agent can also answer questions about FeedbackKit itself,
+          from its real documentation rather than a guess:
+        </p>
+        <CodeBlock code={`How do I add FeedbackKit to my iOS app?`} label="You, to your agent" />
       </DocsSection>
     </div>
   );
