@@ -179,6 +179,38 @@ team that owns the `com.feedbackkit.demo` app record in App Store Connect.
 An app record with that bundle ID must already exist there before you run
 this; the script doesn't create one.
 
+## Releasing the macOS demo app to GitHub Releases
+
+```bash
+git tag mac-demo-v1.0.0 && git push origin mac-demo-v1.0.0
+```
+
+Pushing a `mac-demo-vX.Y.Z` tag runs `.github/workflows/release-macos-demo.yml`
+on GitHub, which builds `FeedbackKitDemoMac`, signs it with a **Developer ID
+Application** certificate, notarizes the result with Apple, and publishes a
+signed, stapled DMG to a GitHub Release for that tag — no TestFlight, no App
+Store review, just a DMG anyone can download and run without a Gatekeeper
+warning. Unlike TestFlight signing (an "Apple Development" identity Xcode
+manages automatically), Developer ID distribution needs a real exported
+`.p12` in CI, so this workflow imports one into a throwaway keychain rather
+than relying on `-allowProvisioningUpdates`. You can also trigger it by hand
+from the Actions tab (`workflow_dispatch`, with a `version` input) — check
+"build, sign and notarize only" there to validate the pipeline without
+touching a real release.
+
+To do the same thing locally instead (e.g. to debug a notarization
+rejection without spending a CI run):
+
+```bash
+APPLE_TEAM_ID=68CTFST8W2 ./scripts/release_macos_demo.sh --version 1.0.0 --no-upload
+```
+
+Needs a "Developer ID Application" certificate already in your keychain
+(Xcode > Settings > Accounts > Manage Certificates > +) and the same
+`FA_ASC_KEY_ID`/`FA_ASC_ISSUER_ID`/`FA_KEY_LOCATION` App Store Connect API
+key the TestFlight release above uses — notarization just needs *an* ASC
+API key with access to the team, the same one works for both.
+
 ## Repo layout
 
 | Path | What |
@@ -189,4 +221,4 @@ this; the script doesn't create one.
 | `web/` | Static SPA dashboard (Vite + React), deployable to any static host |
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) |
-| `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `start-web.sh`, `deploy-functions.sh`, `release_testflight.sh` |
+| `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `start-web.sh`, `deploy-functions.sh`, `release_testflight.sh`, `release_macos_demo.sh` |

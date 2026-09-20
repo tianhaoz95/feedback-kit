@@ -68,6 +68,7 @@ targets:
         # Same reasoning as the iOS target's NSAppTransportSecurity above.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        LSApplicationCategoryType: public.app-category.developer-tools
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.feedbackkit.demo.mac
