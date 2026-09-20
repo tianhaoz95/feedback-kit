@@ -339,7 +339,8 @@ exactly the "help me get started" moment it exists for.
 ```
 Sources/FeedbackKit/   the SDK (Swift Package, iOS + macOS + watchOS)
 Tests/FeedbackKitTests/
-DemoApp/               project.yml (XcodeGen) + a sample app exercising the SDK
+DemoApp/               project.yml (XcodeGen) + sample apps exercising the SDK
+                       on iOS, macOS, and watchOS (one project, three targets)
 web/                   Static SPA dashboard (Vite + React)
 supabase/              migrations, storage policies, the ingestion Edge Function
 cli/                   feedbackkit CLI + MCP server (Node/TypeScript)
@@ -384,12 +385,6 @@ scripts/               setup.sh, run-ios.sh, start-web.sh — see README.md
   automated XCTest UI suite; the iOS side has never had one either. Worth
   a proper UI test target on both sides before this SDK has many more
   contributors than just its original author.
-- **There's no macOS or watchOS demo app** (`DemoApp/` is iOS-only) — both
-  were validated with throwaway harnesses during development (an
-  `NSApplication` smoke run for macOS; `WatchOSCaptureTests` plus real
-  `xcodebuild` runs against a watch simulator for watchOS), not a committed
-  sample app the way the iOS side has one. Worth adding if usage on either
-  platform grows past "the original author's own smoke testing."
 - **A watchOS report's `screenshotRawPNG`/`screenshotAnnotatedPNG` are still
   a generated placeholder card, not a real screenshot or `nil`** — see §1's
   watchOS section. The fields did eventually become genuinely optional

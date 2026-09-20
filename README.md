@@ -28,29 +28,45 @@ Builds and launches `DemoApp` (a small sample app with FeedbackKit wired up —
 shake-to-report, a floating trigger button, and manual "Report a Problem"
 buttons on both a SwiftUI and a UIKit screen) in the iOS Simulator.
 
-### Build/test the macOS SDK
+### Run the macOS demo app
+
+```bash
+./scripts/run-macos.sh
+```
+
+Builds and launches natively — no simulator needed. Exercises the floating
+trigger button, a Help-menu "Report a Problem…" item (⌘⇧R, the menu-item
+trigger style the SDK's docs show), and manual "Report a Problem" buttons on
+a sidebar Home/Cart pair sharing the same `CartStore` the iOS demo uses.
+`FeedbackKit.present(from: window)` and `FeedbackKit.showFloatingTriggerButton { ... }`
+are the macOS equivalents of the iOS calls above, minus a shake trigger (no
+motion sensor on a Mac).
+
+You can also build/test just the SDK itself, without the demo app:
 
 ```bash
 swift build
 swift test
 ```
 
-No simulator needed — this builds natively for the Mac you're on. There's no
-committed macOS demo app (yet); `FeedbackKit.present(from: window)` and
-`FeedbackKit.showFloatingTriggerButton { ... }` are the macOS equivalents of
-the iOS calls above, minus a shake trigger (no motion sensor on a Mac).
+### Run the watchOS demo app
 
-### Try the watchOS SDK
+```bash
+./scripts/run-watchos.sh
+```
+
+A standalone watch app (no iOS companion needed) built and launched on a
+watch simulator. watchOS is a deliberately stripped-down flow — no
+screenshot, no annotation tools, just a text description plus device/app
+context — via `FeedbackQuickNoteView`, a plain SwiftUI view embedded in a
+`.sheet`. See [DESIGN.md](DESIGN.md) for why.
+
+To test just the SDK itself on a watch simulator instead:
 
 ```bash
 # Find a watch simulator id: xcrun simctl list devices available
 xcodebuild test -scheme FeedbackKit -destination 'id=<WATCH_SIMULATOR_UDID>'
 ```
-
-No committed watchOS demo app either. watchOS is a deliberately
-stripped-down flow — no screenshot, no annotation tools, just a text
-description plus device/app context — via `FeedbackQuickNoteView`, a plain
-SwiftUI view you embed in your own `.sheet`. See [DESIGN.md](DESIGN.md) for why.
 
 ### Run the web dashboard
 
@@ -169,8 +185,8 @@ this; the script doesn't create one.
 |---|---|
 | `Sources/FeedbackKit/` | The iOS SDK (Swift Package) |
 | `Tests/FeedbackKitTests/` | SDK unit tests |
-| `DemoApp/` | Sample app exercising the SDK (XcodeGen project) |
+| `DemoApp/` | Sample apps exercising the SDK on iOS, macOS, and watchOS (one XcodeGen project, three targets) |
 | `web/` | Static SPA dashboard (Vite + React), deployable to any static host |
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) |
-| `scripts/` | `setup.sh`, `run-ios.sh`, `start-web.sh`, `deploy-functions.sh`, `release_testflight.sh` |
+| `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `start-web.sh`, `deploy-functions.sh`, `release_testflight.sh` |
