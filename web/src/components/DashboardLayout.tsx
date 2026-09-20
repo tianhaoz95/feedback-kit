@@ -11,16 +11,21 @@ export function DashboardLayout() {
           <Link to="/projects" className="text-sm font-semibold tracking-tight">
             FeedbackKit
           </Link>
-          <button
-            type="button"
-            onClick={async () => {
-              await supabase.auth.signOut();
-              navigate("/login");
-            }}
-            className="text-sm text-neutral-500 hover:text-neutral-900"
-          >
-            Sign out
-          </button>
+          <div className="flex items-center gap-4">
+            <Link to="/cli-sessions" className="text-sm text-neutral-500 hover:text-neutral-900">
+              CLI access
+            </Link>
+            <button
+              type="button"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                navigate("/login");
+              }}
+              className="text-sm text-neutral-500 hover:text-neutral-900"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-8">

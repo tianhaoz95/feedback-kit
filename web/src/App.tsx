@@ -8,6 +8,8 @@ import { TermsPage } from "@/pages/TermsPage";
 import { ProjectsPage } from "@/pages/ProjectsPage";
 import { ProjectPage } from "@/pages/ProjectPage";
 import { FeedbackDetailPage } from "@/pages/FeedbackDetailPage";
+import { CliAuthPage } from "@/pages/CliAuthPage";
+import { CliSessionsPage } from "@/pages/CliSessionsPage";
 
 export default function App() {
   return (
@@ -24,6 +26,10 @@ export default function App() {
             </RedirectIfAuthed>
           }
         />
+        {/* Not under RequireAuth: it needs to run its own logic (stash +
+            redirect to /login) when signed out, rather than bounce straight
+            there — see CliAuthPage.tsx. */}
+        <Route path="/cli-auth" element={<CliAuthPage />} />
         <Route
           element={
             <RequireAuth>
@@ -34,6 +40,7 @@ export default function App() {
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:projectId" element={<ProjectPage />} />
           <Route path="/projects/:projectId/feedback/:feedbackId" element={<FeedbackDetailPage />} />
+          <Route path="/cli-sessions" element={<CliSessionsPage />} />
         </Route>
       </Routes>
     </AuthProvider>

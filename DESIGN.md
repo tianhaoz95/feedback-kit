@@ -1,6 +1,6 @@
 # FeedbackKit — Design Overview
 
-FeedbackKit is two things that share one contract:
+FeedbackKit is three things that share one contract:
 
 1. **An iOS SDK** (`FeedbackKit`, Swift Package) that lets any app capture a
    screenshot, let the user annotate it and describe a problem, and hands the
@@ -9,6 +9,10 @@ FeedbackKit is two things that share one contract:
 2. **An optional hosted dashboard** (`web/` + `supabase/`) that's just one way
    to consume that report: a place to receive it, organize it by project,
    and turn it into a prompt for a coding agent.
+3. **A CLI + MCP server** (`cli/`) that lets a coding agent fetch that
+   generated prompt directly — the last manual step (copying it from the
+   dashboard and pasting it to the agent) removed. It's additive on top of
+   (2): a CLI-shaped client of the same database, not a new backend.
 
 The SDK never requires the dashboard. The dashboard never requires anything
 beyond "something POSTs this JSON shape to this URL." That boundary is the
@@ -187,6 +191,44 @@ A host serving deep links (e.g. `/projects/abc`) directly needs SPA fallback
 routing to `index.html`, since there's no server to resolve arbitrary paths
 the way Next's router did.
 
+## 6. CLI + MCP server (`cli/`)
+
+The dashboard's prompt generation (§4) still ended with a human copying text
+out of a browser tab and pasting it into a coding agent. `feedbackkit mcp`
+removes that step: an agent calls `get_prompt` (or `list_feedback`,
+`get_feedback`, `update_feedback_status`) directly. `feedbackkit` the CLI is
+the same tool with the MCP server as one of its subcommands, so there's a
+single codebase, not two.
+
+**It authenticates as a real dashboard user, not a new credential type.**
+`feedbackkit login` opens the browser to `/cli-auth` — a new route in the
+same static SPA, no new backend — where, once signed in, the page hands the
+CLI its *own* current Supabase session (`access_token`/`refresh_token`) via
+a redirect to a local server the CLI starts for exactly this handshake
+(`gh auth login`'s pattern, not a device-code flow, since GitHub OAuth via
+Supabase Auth is already a browser redirect). This was a deliberate choice
+over minting a separate opaque API token: a real session means RLS enforces
+CLI access exactly like it enforces browser access, with **zero new
+authorization logic** — `cli/src/supabaseClient.ts` has none, on purpose,
+matching this project's rule that RLS does tenancy enforcement (§2), not
+application code.
+
+The OAuth `redirectTo` has to stay the one fixed, allow-listed URL (`/login`)
+— it can't carry the CLI's callback port/state through the full-page
+redirect to GitHub and back. Those get stashed in `sessionStorage` instead
+and picked back up once `/login` sees a real session, which avoids a hosted
+Supabase auth-config change for this feature entirely.
+
+`cli_sessions` (`supabase/migrations/0007_cli_sessions.sql`) is bookkeeping,
+not the auth mechanism: it's what lets a user see "CLI on my-macbook, since
+Sept 19" on the dashboard and flip a `revoked_at` column. Revocation is
+**cooperative**, not a cryptographic kill of the underlying session — the
+CLI checks its own row before doing work and deletes its local credentials
+if revoked. This mirrors a real limitation in Supabase's own admin API
+(revoking a refresh token doesn't invalidate an already-issued access token
+before it expires); doing better would mean persisting the CLI's raw access
+token server-side, a bigger secret to hold than the problem justifies.
+
 ## Repo layout
 
 ```
@@ -195,6 +237,7 @@ Tests/FeedbackKitTests/
 DemoApp/               project.yml (XcodeGen) + a sample app exercising the SDK
 web/                   Static SPA dashboard (Vite + React)
 supabase/              migrations, storage policies, the ingestion Edge Function
+cli/                   feedbackkit CLI + MCP server (Node/TypeScript)
 scripts/               setup.sh, run-ios.sh, start-web.sh — see README.md
 ```
 
@@ -217,3 +260,14 @@ scripts/               setup.sh, run-ios.sh, start-web.sh — see README.md
   real strangers' apps at scale.
 - **Local Supabase requires Docker**, which this environment didn't have
   installed — see README.md for the one manual prerequisite.
+- **`feedbackkit login` needs a browser reachable from wherever the CLI
+  runs.** Fine for a developer's own laptop; breaks over SSH or in CI. A
+  device-code-style fallback (enter a code shown in the terminal on any
+  browser, `gh auth login`'s non-`--web` path) is the natural v2 addition,
+  deliberately deferred rather than building both flows at once.
+- **A CLI session isn't scoped to one project.** It gets exactly what the
+  signed-in user's browser session would — every project across every
+  organization they belong to — since it's the same session, not a
+  narrower credential. Fine while "the CLI user" and "the dashboard user"
+  are the same person; would need real thought before, say, handing a CLI
+  session to a CI job.

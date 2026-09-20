@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import { Navigate, useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { peekPendingCliAuth, clearPendingCliAuth } from "@/lib/cliAuth";
 
 interface AuthContextValue {
   user: User | null;
@@ -56,12 +57,43 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-/** Signed-in visitors hitting /login are sent straight to /projects. */
+/**
+ * Signed-in visitors hitting /login are sent to /projects — unless they were
+ * on their way to authorize a CLI login (see cliAuth.ts) when they got
+ * bounced here to sign in, in which case they're sent back to finish that
+ * instead.
+ */
 export function RedirectIfAuthed({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
+  // Computed (and the sessionStorage entry cleared) at most once per
+  // sign-in, cached in a ref rather than a plain variable or effect. This
+  // is React's documented pattern for a one-time side effect during
+  // render: a `useEffect` here raced against <Navigate>'s own internal
+  // effect (child effects fire before parent effects, and <Navigate>'s
+  // fires a real navigation that can unmount this component first), and a
+  // plain destructive read during render broke under StrictMode's
+  // intentional double-invoke — the second invocation saw it already
+  // cleared by the first and silently fell back to /projects. A ref
+  // survives both invocations, so the second one just reuses the cached
+  // result instead of reading (and clearing) sessionStorage again.
+  const redirectTarget = useRef<string | undefined>(undefined);
+  if (!loading && user && redirectTarget.current === undefined) {
+    const pending = peekPendingCliAuth();
+    if (pending) {
+      clearPendingCliAuth();
+      const params = new URLSearchParams({
+        port: pending.port,
+        state: pending.state,
+        label: pending.label,
+      });
+      redirectTarget.current = `/cli-auth?${params.toString()}`;
+    } else {
+      redirectTarget.current = "/projects";
+    }
+  }
 
   if (loading) return <AuthLoadingScreen />;
-  if (user) return <Navigate to="/projects" replace />;
+  if (user) return <Navigate to={redirectTarget.current ?? "/projects"} replace />;
   return <>{children}</>;
 }
 

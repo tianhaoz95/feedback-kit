@@ -1,3 +1,8 @@
+// Mirrors web/src/lib/types.ts — kept in sync by hand, same as the other
+// wire-format duplications in this repo (see CLAUDE.md's note on
+// FeedbackReport/IngestPayload). Only the fields the CLI/MCP tools actually
+// use are included.
+
 export type FeedbackStatus = "new" | "in_progress" | "resolved" | "wont_fix";
 
 export interface Project {
@@ -15,20 +20,6 @@ export interface PromptTemplate {
   updated_at: string;
 }
 
-export interface FeedbackAnnotation {
-  kind: "rectangle" | "arrow" | "freehand" | "text";
-  points: { x: number; y: number }[];
-  colorHex: string;
-  label?: string;
-  /** Uniform scale around the shape's center (rectangle/arrow) or font size
-   * (text), set via a two-finger pinch in the SDK's drag tool. Defaults to 1. */
-  scale?: number;
-  /** Rotation in radians around the shape's center (rectangle/arrow only),
-   * set via a two-finger twist in the SDK's drag tool. Defaults to 0. */
-  rotation?: number;
-}
-
-/** Mirrors `FeedbackEnvironment` in the iOS SDK (Sources/FeedbackKit/Model/FeedbackReport.swift). */
 export interface FeedbackEnvironment {
   osName: string;
   osVersion: string;
@@ -49,7 +40,6 @@ export interface FeedbackItem {
   text: string;
   screenshot_raw_path: string;
   screenshot_annotated_path: string;
-  annotations: FeedbackAnnotation[];
   environment: FeedbackEnvironment;
   status: FeedbackStatus;
   edited_prompt: string | null;
@@ -57,14 +47,4 @@ export interface FeedbackItem {
   attachment_path: string | null;
   attachment_filename: string | null;
   attachment_mime_type: string | null;
-}
-
-/** Mirrors supabase/migrations/0007_cli_sessions.sql. */
-export interface CliSession {
-  id: string;
-  user_id: string;
-  session_id: string | null;
-  label: string;
-  created_at: string;
-  revoked_at: string | null;
 }

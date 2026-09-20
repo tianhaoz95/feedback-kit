@@ -46,6 +46,20 @@ on the project page into `DemoApp/DemoApp/FeedbackKitDemoApp.swift` (it's
 already there, commented out) to see feedback submitted from the simulator
 show up live.
 
+### Use the CLI / MCP server
+
+```bash
+cd cli
+npm install && npm run build
+node dist/index.js login --dashboard-url http://localhost:3000   # against a local stack
+node dist/index.js list
+```
+
+Lets a coding agent fetch a feedback report's generated prompt directly
+(`feedbackkit mcp`) instead of a human copying it out of the dashboard —
+see [cli/README.md](cli/README.md) for the full command/tool list and how
+its browser-based login works.
+
 ## Deploying the web dashboard to GitHub Pages
 
 `.github/workflows/deploy-web.yml` builds `web/` and deploys it to GitHub
@@ -133,4 +147,5 @@ this; the script doesn't create one.
 | `DemoApp/` | Sample app exercising the SDK (XcodeGen project) |
 | `web/` | Static SPA dashboard (Vite + React), deployable to any static host |
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function |
+| `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) |
 | `scripts/` | `setup.sh`, `run-ios.sh`, `start-web.sh`, `deploy-functions.sh`, `release_testflight.sh` |

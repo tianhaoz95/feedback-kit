@@ -1,0 +1,32 @@
+{
+  "name": "feedbackkit-cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CLI + MCP server for reading FeedbackKit dashboard feedback from a coding agent.",
+  "type": "module",
+  "bin": {
+    "feedbackkit": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch",
+    "lint": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@supabase/supabase-js": "^2.116.0",
+    "commander": "^15.0.0",
+    "open": "^11.0.4",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

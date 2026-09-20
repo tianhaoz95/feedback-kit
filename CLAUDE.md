@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-FeedbackKit is two things sharing one JSON contract:
+FeedbackKit is three things sharing one JSON contract / one Postgres schema:
 
 1. **An iOS SDK** (`Sources/FeedbackKit`, Swift Package) — a drop-in library that
    captures a screenshot, lets the user annotate it and describe a problem, and
@@ -13,6 +13,11 @@ FeedbackKit is two things sharing one JSON contract:
 2. **An optional hosted dashboard** (`web/` + `supabase/`) — one way to consume
    that report: receive it, organize it by project, and turn it into a prompt
    for a coding agent.
+3. **A CLI + MCP server** (`cli/`) — lets a coding agent fetch that generated
+   prompt directly (`feedbackkit mcp`), instead of a human copying it from the
+   dashboard and pasting it in. It authenticates as a real dashboard user (see
+   the architecture notes below), so it's additive on top of (2), not a new
+   backend or credential system.
 
 Read `DESIGN.md` before making non-trivial changes — it explains the
 architecture and the reasoning behind the key decisions (window-level capture,
@@ -29,6 +34,7 @@ file is about how to build/test/run things day to day.
 | `DemoApp/` | Sample app exercising the SDK (XcodeGen project, generated — not committed) |
 | `web/` | Static SPA dashboard (Vite + React + React Router), deployed to GitHub Pages |
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function |
+| `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) — reads feedback/prompts as a logged-in user |
 | `scripts/` | `setup.sh`, `run-ios.sh`, `start-web.sh`, `deploy-functions.sh` |
 | `branding/` | FeedbackKit logo assets (SVG source + PNG exports) — reused for the iOS app icon and the GitHub OAuth App's logo |
 
@@ -155,6 +161,20 @@ manually after reviewing `supabase config diff` — a blind push syncs
 config.toml's entire declared state, including its local-dev-oriented
 defaults, over whatever's actually live.
 
+### CLI + MCP server (`cli/`)
+
+```bash
+cd cli
+npm install
+npm run build      # tsc -b -> dist/
+node dist/index.js --help
+```
+
+No published npm package yet — see `cli/README.md` for `npm link` /
+running from `dist/` directly, the full command list, and the MCP tool
+list. `feedbackkit login --dashboard-url http://localhost:3000` points it at
+a local `./scripts/start-web.sh` stack instead of the hosted dashboard.
+
 ## Architecture notes worth knowing before editing
 
 - **The wire format is intentionally decoupled from the SDK's public Swift
@@ -193,6 +213,20 @@ defaults, over whatever's actually live.
   not view-controller-level — this is why it works for both UIKit and SwiftUI
   screens without the SDK needing to know which one built the screen. Don't
   reintroduce a `UIViewController`-specific capture path.
+- **The CLI authenticates by receiving a real Supabase session, not a
+  separate token type.** `feedbackkit login` opens `/cli-auth` in the
+  browser (`CliAuthPage.tsx`), which — once the user is signed in — hands
+  the CLI its *own* `access_token`/`refresh_token` via a redirect to a
+  local server the CLI started for this purpose (`cli/src/commands/login.ts`).
+  This means RLS enforces CLI access exactly like it enforces browser access,
+  with zero new authorization logic (`cli/src/supabaseClient.ts` deliberately
+  has none). `cli_sessions` (`0007_cli_sessions.sql`) is bookkeeping only, so
+  a user can see/revoke connected CLIs — revocation is cooperative (the CLI
+  checks its own row before doing work), not a cryptographic kill of the
+  underlying Supabase session, because doing that properly needs the raw
+  access token persisted server-side, which is a bigger secret to hold than
+  the problem justifies. Don't try to make revocation "harder" by storing
+  access tokens in that table — see the migration's comment.
 - **RLS helper functions that query the same table their policy protects
   must be PL/pgSQL, not `language sql`, and every policy on that table needs
   the same treatment.** This bit us for real: `auth_organization_ids()` (used
