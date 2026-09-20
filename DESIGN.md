@@ -2,10 +2,10 @@
 
 FeedbackKit is three things that share one contract:
 
-1. **An iOS SDK** (`FeedbackKit`, Swift Package) that lets any app capture a
-   screenshot, let the user annotate it and describe a problem, and hands the
-   developer a structured `FeedbackReport`. What happens to that report is
-   entirely up to the developer.
+1. **An iOS + macOS SDK** (`FeedbackKit`, one Swift Package) that lets any app
+   capture a screenshot, let the user annotate it and describe a problem, and
+   hands the developer a structured `FeedbackReport`. What happens to that
+   report is entirely up to the developer.
 2. **An optional hosted dashboard** (`web/` + `supabase/`) that's just one way
    to consume that report: a place to receive it, organize it by project,
    and turn it into a prompt for a coding agent.
@@ -39,7 +39,7 @@ main architectural decision in this project — everything else follows from it.
  └──────────────────────┘                             └───────────────────────┘
 ```
 
-## 1. iOS SDK (`Sources/FeedbackKit`)
+## 1. iOS + macOS SDK (`Sources/FeedbackKit`)
 
 **Capture is window-level, not view-controller-level.** `ScreenshotCapture`
 renders the key `UIWindow`'s layer to a bitmap (`UIGraphicsImageRenderer` +
@@ -83,6 +83,41 @@ nested types use idiomatic Swift camelCase — that's the public API surface.
 the same data as snake_case JSON for the ingestion endpoint. This keeps the
 public SDK API from being shaped by a backend convention it doesn't need to
 know about.
+
+**macOS is a second UI implementation on top of the same model, not a port.**
+`FeedbackReport`, `FeedbackAnnotation`, `FeedbackEnvironment`,
+`FeedbackKitConfiguration`, and `FeedbackSubmitter` were already pure
+Foundation/CoreGraphics — zero changes needed for a second platform. The UI
+layer is where iOS and macOS genuinely diverge (UIKit and AppKit don't share
+view, event, or gesture-recognizer *classes*, even where the concepts line
+up closely), so every UIKit file has an AppKit sibling
+(`FeedbackViewController` ↔ `FeedbackWindowController`, `AnnotationCanvasView`
+↔ its `+macOS` file, etc.) rather than one file trying to abstract over both.
+Two exceptions, because the underlying APIs happened to allow it:
+
+- **`AnnotationRenderer` draws with raw `CGContext` path/color calls**
+  (`ctx.addLine(to:)`, `ctx.setStrokeColor(_:)`) instead of
+  `UIBezierPath`/`NSBezierPath`, whose APIs look similar but genuinely
+  diverge (`addLine(to:)` vs `line(to:)`, different rounded-rect
+  initializers). Core Graphics itself has zero platform divergence, so this
+  one file — the actual drawing math for all four annotation shapes plus
+  hit-testing — is shared byte-for-byte between both platforms.
+- **`UIColor` and `NSColor` happen to expose identical
+  `init(red:green:blue:alpha:)`/`getRed(_:green:blue:alpha:)` signatures**
+  (unlike their bezier paths), so `PlatformTypes.swift` typealiases
+  `PlatformColor`/`PlatformFont` per platform and defines the hex↔color
+  conversion once against that typealias instead of twice.
+
+The one real, unavoidable gap: **shake-to-report has no macOS equivalent** —
+no motion sensor, no analogous gesture — so `enableShakeToReport` simply
+doesn't exist on macOS; `showFloatingTriggerButton` (an `NSPanel`-adjacent
+floating button, positioned via Auto Layout constraint constants rather than
+raw frame math since an arbitrary host app's content view may or may not be
+flipped) is the recommended default trigger there instead. Scaling/rotating
+an existing annotation is trackpad-only on macOS too
+(`NSMagnificationGestureRecognizer`/`NSRotationGestureRecognizer`, the direct
+analogs of iOS's two-finger pinch/twist) — there's no mouse equivalent for a
+two-finger gesture.
 
 ## 2. Data model / multi-tenancy (`supabase/migrations`)
 
@@ -237,7 +272,7 @@ token server-side, a bigger secret to hold than the problem justifies.
 ## Repo layout
 
 ```
-Sources/FeedbackKit/   the SDK (Swift Package)
+Sources/FeedbackKit/   the SDK (Swift Package, iOS + macOS)
 Tests/FeedbackKitTests/
 DemoApp/               project.yml (XcodeGen) + a sample app exercising the SDK
 web/                   Static SPA dashboard (Vite + React)
@@ -276,3 +311,15 @@ scripts/               setup.sh, run-ios.sh, start-web.sh — see README.md
   narrower credential. Fine while "the CLI user" and "the dashboard user"
   are the same person; would need real thought before, say, handing a CLI
   session to a CI job.
+- **Neither platform's UI layer has automated tests** — `Tests/FeedbackKitTests/`
+  only covers the shared model/geometry code (`AnnotationRenderer`,
+  `FeedbackReport`). The macOS port was verified with real, running
+  `NSApplication` smoke runs (presenting the sheet, clicking through to
+  submit, inspecting the resulting `FeedbackReport`) rather than an
+  automated XCTest UI suite; the iOS side has never had one either. Worth
+  a proper UI test target on both sides before this SDK has many more
+  contributors than just its original author.
+- **There's no macOS demo app** (`DemoApp/` is iOS-only) — the macOS SDK was
+  validated against a throwaway `NSApplication` harness during development,
+  not a committed sample app the way the iOS side has one. Worth adding if
+  macOS usage grows past "the original author's own smoke testing."

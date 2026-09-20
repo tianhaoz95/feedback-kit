@@ -1,32 +1,38 @@
-#if os(iOS)
-import UIKit
+#if os(macOS)
+import AppKit
 
 /// A transparent overlay that sits on top of the screenshot preview and lets
-/// the user mark it up. Handles its own touch tracking for all five tool
-/// kinds and can flatten itself plus the base screenshot into a single image.
-final class AnnotationCanvasView: UIView {
+/// the user mark it up. Mirrors `AnnotationCanvasView` (iOS) closely — AppKit
+/// has direct equivalents of every UIKit gesture recognizer this needs
+/// (`NSPanGestureRecognizer`, `NSClickGestureRecognizer`,
+/// `NSMagnificationGestureRecognizer`, `NSRotationGestureRecognizer`), which
+/// is what makes the two-finger trackpad scale/rotate gesture translate
+/// directly. There's no equivalent for a plain (non-trackpad) mouse, though —
+/// scaling/rotating an existing shape is trackpad-only on macOS, same as it's
+/// two-finger-only (not one-finger) on iOS.
+final class AnnotationCanvasView: NSView {
     enum Tool {
         case pen
         case rectangle
         case arrow
         case text
         /// Rectangle/arrow/text annotations can only be grabbed and moved
-        /// while this tool is active — otherwise a pan always draws with
+        /// while this tool is active — otherwise a drag always draws with
         /// whichever other tool is selected.
         case drag
     }
 
     var tool: Tool = .pen
-    var strokeColor: UIColor = .systemRed {
-        didSet { setNeedsDisplay() }
+    var strokeColor: NSColor = .systemRed {
+        didSet { needsDisplay = true }
     }
 
-    /// Called after a text-tool tap so the host view controller can present a
-    /// text-entry prompt (keeps UIAlertController presentation out of this view).
+    /// Called after a text-tool click so the host window controller can
+    /// present a text-entry prompt (keeps NSAlert presentation out of this view).
     var onRequestTextInput: ((_ locationInView: CGPoint, _ completion: @escaping (String?) -> Void) -> Void)?
 
     private(set) var completedAnnotations: [FeedbackAnnotation] = [] {
-        didSet { setNeedsDisplay() }
+        didSet { needsDisplay = true }
     }
 
     /// In-progress freehand stroke, in view coordinates.
@@ -42,50 +48,57 @@ final class AnnotationCanvasView: UIView {
     private var dragAnnotationStartLocation: CGPoint = .zero
 
     /// Index into `completedAnnotations` currently being resized/rotated by a
-    /// two-finger gesture, if any. Shared between the pinch and rotation
-    /// recognizers so a single two-finger touch can drive both at once.
+    /// two-finger trackpad gesture, if any. Shared between the magnification
+    /// and rotation recognizers so a single two-finger touch can drive both.
     private var transformedAnnotationIndex: Int?
     private var transformedAnnotationOriginalScale: Double = 1
     private var transformedAnnotationOriginalRotation: Double = 0
 
-    private let pinchGesture = UIPinchGestureRecognizer()
-    private let rotationGesture = UIRotationGestureRecognizer()
+    private let magnificationGesture = NSMagnificationGestureRecognizer()
+    private let rotationGesture = NSRotationGestureRecognizer()
 
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        backgroundColor = .clear
-        isOpaque = false
+    /// UIKit's coordinate system has its origin top-left; AppKit's is
+    /// bottom-left by default. Flipping keeps every bit of the normalized
+    /// (0...1) coordinate math identical to the iOS implementation instead
+    /// of needing a parallel, Y-inverted version of it.
+    override var isFlipped: Bool { true }
+    override var isOpaque: Bool { false }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
         setUpGestures()
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
-        backgroundColor = .clear
-        isOpaque = false
         setUpGestures()
     }
 
     private func setUpGestures() {
-        let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
-        pan.maximumNumberOfTouches = 1
+        // Recognizes both a plain mouse click-drag (for users without a
+        // trackpad) and a one-finger trackpad drag.
+        let pan = NSPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
         addGestureRecognizer(pan)
 
-        let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
-        addGestureRecognizer(tap)
+        let click = NSClickGestureRecognizer(target: self, action: #selector(handleClick(_:)))
+        addGestureRecognizer(click)
 
-        // Resize/rotate an existing annotation with a two-finger pinch/twist
-        // while the drag tool is active. Both need `delegate` set so they can
-        // recognize simultaneously with each other (UIKit's default is to
-        // let only one gesture recognizer per view win).
-        pinchGesture.addTarget(self, action: #selector(handlePinch(_:)))
-        rotationGesture.addTarget(self, action: #selector(handleRotation(_:)))
-        pinchGesture.delegate = self
+        // Resize/rotate an existing annotation with a two-finger trackpad
+        // pinch/twist while the drag tool is active. Both need `delegate` set
+        // so they can recognize simultaneously with each other and with the
+        // pan recognizer above (AppKit's default, like UIKit's, is to let
+        // only one gesture recognizer per view win).
+        magnificationGesture.target = self
+        magnificationGesture.action = #selector(handleMagnification(_:))
+        rotationGesture.target = self
+        rotationGesture.action = #selector(handleRotation(_:))
+        magnificationGesture.delegate = self
         rotationGesture.delegate = self
-        addGestureRecognizer(pinchGesture)
+        addGestureRecognizer(magnificationGesture)
         addGestureRecognizer(rotationGesture)
     }
 
-    @objc private func handleTap(_ gesture: UITapGestureRecognizer) {
+    @objc private func handleClick(_ gesture: NSClickGestureRecognizer) {
         guard tool == .text else { return }
         let location = gesture.location(in: self)
         onRequestTextInput?(location) { [weak self] text in
@@ -100,7 +113,7 @@ final class AnnotationCanvasView: UIView {
         }
     }
 
-    @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
+    @objc private func handlePan(_ gesture: NSPanGestureRecognizer) {
         let location = gesture.location(in: self)
 
         if tool == .drag {
@@ -146,7 +159,7 @@ final class AnnotationCanvasView: UIView {
             case .text, .drag:
                 break
             }
-            setNeedsDisplay()
+            needsDisplay = true
         case .ended, .cancelled:
             switch tool {
             case .pen:
@@ -175,20 +188,25 @@ final class AnnotationCanvasView: UIView {
             case .text, .drag:
                 break
             }
-            setNeedsDisplay()
+            needsDisplay = true
         default:
             break
         }
     }
 
-    @objc private func handlePinch(_ gesture: UIPinchGestureRecognizer) {
+    @objc private func handleMagnification(_ gesture: NSMagnificationGestureRecognizer) {
         guard tool == .drag else { return }
         switch gesture.state {
         case .began:
             beginTransformIfNeeded(at: gesture.location(in: self))
         case .changed:
             if let index = transformedAnnotationIndex {
-                applyScale(to: index, gestureScale: gesture.scale)
+                // Unlike UIPinchGestureRecognizer.scale (multiplicative,
+                // starts at 1), NSMagnificationGestureRecognizer.magnification
+                // is the *change* as a fraction and starts at 0 — a value of
+                // 0.5 means "50% bigger." Adding 1 converts it to the same
+                // multiplicative factor the shared `applyScale` expects.
+                applyScale(to: index, gestureScale: 1 + gesture.magnification)
             }
         case .ended, .cancelled, .failed:
             endTransformIfFinished()
@@ -197,7 +215,7 @@ final class AnnotationCanvasView: UIView {
         }
     }
 
-    @objc private func handleRotation(_ gesture: UIRotationGestureRecognizer) {
+    @objc private func handleRotation(_ gesture: NSRotationGestureRecognizer) {
         guard tool == .drag else { return }
         switch gesture.state {
         case .began:
@@ -213,9 +231,9 @@ final class AnnotationCanvasView: UIView {
         }
     }
 
-    /// Shared by both the pinch and rotation recognizers so whichever of the
-    /// two crosses its own recognition threshold first picks the target
-    /// annotation for both.
+    /// Shared by both the magnification and rotation recognizers so
+    /// whichever of the two crosses its own recognition threshold first
+    /// picks the target annotation for both.
     private func beginTransformIfNeeded(at location: CGPoint) {
         guard transformedAnnotationIndex == nil, let index = draggableAnnotationIndex(at: location) else { return }
         transformedAnnotationIndex = index
@@ -228,7 +246,7 @@ final class AnnotationCanvasView: UIView {
     /// can end one recognizer slightly before the other) doesn't drop
     /// tracking while the other is still live.
     private func endTransformIfFinished() {
-        let stillActive = [pinchGesture.state, rotationGesture.state].contains { $0 == .began || $0 == .changed }
+        let stillActive = [magnificationGesture.state, rotationGesture.state].contains { $0 == .began || $0 == .changed }
         guard !stillActive else { return }
         transformedAnnotationIndex = nil
         transformedAnnotationOriginalScale = 1
@@ -286,8 +304,8 @@ final class AnnotationCanvasView: UIView {
         return CGPoint(x: point.x / bounds.width, y: point.y / bounds.height)
     }
 
-    override func draw(_ rect: CGRect) {
-        guard let ctx = UIGraphicsGetCurrentContext() else { return }
+    override func draw(_ dirtyRect: NSRect) {
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
 
         for annotation in completedAnnotations {
             AnnotationRenderer.draw(annotation, in: ctx, targetSize: bounds.size)
@@ -306,22 +324,27 @@ final class AnnotationCanvasView: UIView {
     }
 
     /// Renders the base screenshot with every annotation burned in, at the
-    /// base image's native pixel size (independent of this view's on-screen size).
-    func flattenedImage(baseImage: UIImage) -> UIImage {
-        let renderer = UIGraphicsImageRenderer(size: baseImage.size)
-        return renderer.image { context in
-            baseImage.draw(at: .zero)
-            for annotation in completedAnnotations {
-                AnnotationRenderer.draw(annotation, in: context.cgContext, targetSize: baseImage.size)
+    /// base image's native pixel size (independent of this view's on-screen
+    /// size). `NSImage(size:flipped:drawingHandler:)` sets up `NSGraphicsContext.current`
+    /// for the block automatically — the AppKit analog of `UIGraphicsImageRenderer`.
+    func flattenedImage(baseImage: NSImage) -> NSImage {
+        let size = baseImage.size
+        return NSImage(size: size, flipped: true) { rect in
+            baseImage.draw(in: rect)
+            if let ctx = NSGraphicsContext.current?.cgContext {
+                for annotation in self.completedAnnotations {
+                    AnnotationRenderer.draw(annotation, in: ctx, targetSize: size)
+                }
             }
+            return true
         }
     }
 }
 
-extension AnnotationCanvasView: UIGestureRecognizerDelegate {
+extension AnnotationCanvasView: NSGestureRecognizerDelegate {
     func gestureRecognizer(
-        _ gestureRecognizer: UIGestureRecognizer,
-        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+        _ gestureRecognizer: NSGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: NSGestureRecognizer
     ) -> Bool {
         true
     }

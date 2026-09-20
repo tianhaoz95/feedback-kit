@@ -1,13 +1,21 @@
-import UIKit
+import CoreGraphics
+import Foundation
 
 /// Shared drawing logic used both for live on-screen preview
 /// (`AnnotationCanvasView.draw`) and for flattening into the final PNG
 /// (`AnnotationCanvasView.flattenedImage`), so the two always look identical.
+///
+/// Deliberately written against raw `CGContext` path/color APIs rather than
+/// `UIBezierPath`/`NSBezierPath` (whose method names diverge — `addLine(to:)`
+/// vs `line(to:)`, different rounded-rect initializers, etc.) so this entire
+/// file is shared as-is between iOS and macOS with no `#if os()` branches
+/// except in the small text-label helper, which needs a real font/color type
+/// for `NSAttributedString` (see `PlatformTypes.swift`).
 enum AnnotationRenderer {
     static let strokeWidth: CGFloat = 4
 
     static func draw(_ annotation: FeedbackAnnotation, in ctx: CGContext, targetSize: CGSize) {
-        let color = UIColor(hex: annotation.colorHex) ?? .systemRed
+        let color = (PlatformColor(hex: annotation.colorHex) ?? .systemRed).cgColor
         let points = annotation.points.map { CGPoint(x: $0.x * targetSize.width, y: $0.y * targetSize.height) }
         let scale = CGFloat(annotation.scale)
         let rotation = CGFloat(annotation.rotation)
@@ -27,19 +35,19 @@ enum AnnotationRenderer {
         }
     }
 
-    static func drawFreehand(_ points: [CGPoint], color: UIColor, in ctx: CGContext) {
+    static func drawFreehand(_ points: [CGPoint], color: CGColor, in ctx: CGContext) {
         guard let first = points.first else { return }
-        let path = UIBezierPath()
-        path.move(to: first)
-        for point in points.dropFirst() {
-            path.addLine(to: point)
-        }
-        path.lineWidth = strokeWidth
-        path.lineJoinStyle = .round
-        path.lineCapStyle = .round
         ctx.saveGState()
-        color.setStroke()
-        path.stroke()
+        ctx.setLineWidth(strokeWidth)
+        ctx.setLineJoin(.round)
+        ctx.setLineCap(.round)
+        ctx.setStrokeColor(color)
+        ctx.beginPath()
+        ctx.move(to: first)
+        for point in points.dropFirst() {
+            ctx.addLine(to: point)
+        }
+        ctx.strokePath()
         ctx.restoreGState()
     }
 
@@ -50,7 +58,7 @@ enum AnnotationRenderer {
     static func drawRectangle(
         start: CGPoint,
         end: CGPoint,
-        color: UIColor,
+        color: CGColor,
         scale: CGFloat = 1,
         rotation: CGFloat = 0,
         in ctx: CGContext
@@ -60,23 +68,23 @@ enum AnnotationRenderer {
         let halfHeight = abs(end.y - start.y) / 2 * scale
         let corners = rectangleCorners(center: center, halfWidth: halfWidth, halfHeight: halfHeight, rotation: rotation)
 
-        let path = UIBezierPath()
-        path.move(to: corners[0])
-        for corner in corners.dropFirst() {
-            path.addLine(to: corner)
-        }
-        path.close()
-        path.lineWidth = strokeWidth
         ctx.saveGState()
-        color.setStroke()
-        path.stroke()
+        ctx.setLineWidth(strokeWidth)
+        ctx.setStrokeColor(color)
+        ctx.beginPath()
+        ctx.move(to: corners[0])
+        for corner in corners.dropFirst() {
+            ctx.addLine(to: corner)
+        }
+        ctx.closePath()
+        ctx.strokePath()
         ctx.restoreGState()
     }
 
     static func drawArrow(
         start rawStart: CGPoint,
         end rawEnd: CGPoint,
-        color: UIColor,
+        color: CGColor,
         scale: CGFloat = 1,
         rotation: CGFloat = 0,
         in ctx: CGContext
@@ -84,10 +92,6 @@ enum AnnotationRenderer {
         let center = CGPoint(x: (rawStart.x + rawEnd.x) / 2, y: (rawStart.y + rawEnd.y) / 2)
         let start = rotate(scaled(rawStart, by: scale, around: center), by: rotation, around: center)
         let end = rotate(scaled(rawEnd, by: scale, around: center), by: rotation, around: center)
-
-        let path = UIBezierPath()
-        path.move(to: start)
-        path.addLine(to: end)
 
         let angle = atan2(end.y - start.y, end.x - start.x)
         let headLength: CGFloat = 18
@@ -101,29 +105,43 @@ enum AnnotationRenderer {
             x: end.x - headLength * cos(angle + headAngle),
             y: end.y - headLength * sin(angle + headAngle)
         )
-        path.addLine(to: left)
-        path.move(to: end)
-        path.addLine(to: right)
 
-        path.lineWidth = strokeWidth
-        path.lineJoinStyle = .round
-        path.lineCapStyle = .round
         ctx.saveGState()
-        color.setStroke()
-        path.stroke()
+        ctx.setLineWidth(strokeWidth)
+        ctx.setLineJoin(.round)
+        ctx.setLineCap(.round)
+        ctx.setStrokeColor(color)
+        ctx.beginPath()
+        ctx.move(to: start)
+        ctx.addLine(to: end)
+        ctx.addLine(to: left)
+        ctx.move(to: end)
+        ctx.addLine(to: right)
+        ctx.strokePath()
         ctx.restoreGState()
     }
 
-    static func drawText(_ text: String, at point: CGPoint, color: UIColor, scale: CGFloat = 1, in ctx: CGContext) {
-        let attributes: [NSAttributedString.Key: Any] = [.font: textFont(scale: scale), .foregroundColor: UIColor.white]
+    /// Callers must ensure `ctx` is the *current* graphics context before
+    /// calling this (true automatically inside `UIView.draw`/`NSView.draw`
+    /// and inside `UIGraphicsImageRenderer`'s block; the macOS flattening
+    /// path sets this up explicitly via `NSGraphicsContext` — see
+    /// `AnnotationCanvasView+macOS.swift`) — `NSString.draw(at:withAttributes:)`
+    /// always draws into the current context, on both platforms, not
+    /// necessarily the `ctx` passed in here.
+    static func drawText(_ text: String, at point: CGPoint, color: CGColor, scale: CGFloat = 1, in ctx: CGContext) {
         let bubbleRect = textBubbleRect(for: text, at: point, scale: scale)
-        let bubblePath = UIBezierPath(roundedRect: bubbleRect, cornerRadius: 8)
 
         ctx.saveGState()
-        color.setFill()
-        bubblePath.fill()
+        ctx.setFillColor(color)
+        ctx.beginPath()
+        ctx.addPath(CGPath(roundedRect: bubbleRect, cornerWidth: 8, cornerHeight: 8, transform: nil))
+        ctx.fillPath()
         ctx.restoreGState()
 
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: textFont(scale: scale),
+            .foregroundColor: PlatformColor.white,
+        ]
         (text as NSString).draw(
             at: CGPoint(x: bubbleRect.minX + textPadding, y: bubbleRect.minY + textPadding),
             withAttributes: attributes
@@ -133,7 +151,7 @@ enum AnnotationRenderer {
     private static let baseFontSize: CGFloat = 16
     private static let textPadding: CGFloat = 8
 
-    private static func textFont(scale: CGFloat) -> UIFont {
+    private static func textFont(scale: CGFloat) -> PlatformFont {
         .boldSystemFont(ofSize: baseFontSize * scale)
     }
 
@@ -175,7 +193,7 @@ enum AnnotationRenderer {
         CGPoint(x: center.x + (point.x - center.x) * scale, y: center.y + (point.y - center.y) * scale)
     }
 
-    /// How close a touch needs to land to an existing rectangle/arrow/text
+    /// How close a touch/click needs to land to an existing rectangle/arrow/text
     /// annotation to count as grabbing it for a drag. Freehand strokes are
     /// intentionally not draggable.
     static let hitTestTolerance: CGFloat = 16
@@ -226,30 +244,5 @@ enum AnnotationRenderer {
         let t = max(0, min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared))
         let projection = CGPoint(x: a.x + t * dx, y: a.y + t * dy)
         return hypot(point.x - projection.x, point.y - projection.y)
-    }
-}
-
-extension UIColor {
-    convenience init?(hex: String) {
-        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-        hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
-        guard hexSanitized.count == 6, let rgb = UInt32(hexSanitized, radix: 16) else { return nil }
-        self.init(
-            red: CGFloat((rgb & 0xFF0000) >> 16) / 255,
-            green: CGFloat((rgb & 0x00FF00) >> 8) / 255,
-            blue: CGFloat(rgb & 0x0000FF) / 255,
-            alpha: 1
-        )
-    }
-
-    var hexString: String {
-        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
-        getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-        return String(
-            format: "#%02X%02X%02X",
-            Int(red * 255),
-            Int(green * 255),
-            Int(blue * 255)
-        )
     }
 }

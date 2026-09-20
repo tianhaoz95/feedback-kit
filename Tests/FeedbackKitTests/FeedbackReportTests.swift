@@ -1,4 +1,4 @@
-import UIKit
+import CoreGraphics
 import XCTest
 @testable import FeedbackKit
 
@@ -45,7 +45,7 @@ final class FeedbackReportTests: XCTestCase {
     }
 
     func testHexColorRoundTrip() {
-        let color = UIColor(hex: "#1A2B3C")
+        let color = PlatformColor(hex: "#1A2B3C")
         XCTAssertEqual(color?.hexString, "#1A2B3C")
     }
 }

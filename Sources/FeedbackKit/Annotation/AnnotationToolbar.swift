@@ -1,3 +1,4 @@
+#if os(iOS)
 import UIKit
 
 /// The tool/color/undo rail shown beside the screenshot in `FeedbackViewController`.
@@ -98,3 +99,4 @@ final class AnnotationToolbar: UIView {
         }
     }
 }
+#endif

@@ -1,8 +1,9 @@
 # FeedbackKit
 
-An iOS SDK for capturing in-app user feedback (screenshot + annotations +
-description + device/app/screen info), plus an optional Supabase-backed
-dashboard for collecting it and turning it into prompts for a coding agent.
+An iOS + macOS SDK for capturing in-app user feedback (screenshot +
+annotations + description + device/app/screen info), plus an optional
+Supabase-backed dashboard for collecting it and turning it into prompts for
+a coding agent.
 
 See [DESIGN.md](DESIGN.md) for how it's put together and why.
 
@@ -26,6 +27,18 @@ Supabase locally.
 Builds and launches `DemoApp` (a small sample app with FeedbackKit wired up —
 shake-to-report, a floating trigger button, and manual "Report a Problem"
 buttons on both a SwiftUI and a UIKit screen) in the iOS Simulator.
+
+### Build/test the macOS SDK
+
+```bash
+swift build
+swift test
+```
+
+No simulator needed — this builds natively for the Mac you're on. There's no
+committed macOS demo app (yet); `FeedbackKit.present(from: window)` and
+`FeedbackKit.showFloatingTriggerButton { ... }` are the macOS equivalents of
+the iOS calls above, minus a shake trigger (no motion sensor on a Mac).
 
 ### Run the web dashboard
 

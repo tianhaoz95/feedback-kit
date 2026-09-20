@@ -1,3 +1,4 @@
+#if os(iOS)
 import UIKit
 
 /// An optional floating, draggable trigger button FeedbackKit can install into
@@ -62,3 +63,4 @@ final class FeedbackTriggerButton: UIButton {
         }
     }
 }
+#endif

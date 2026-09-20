@@ -1,3 +1,4 @@
+#if os(iOS)
 import UIKit
 
 enum EnvironmentInfo {
@@ -69,3 +70,45 @@ enum TopViewControllerResolver {
         return viewController
     }
 }
+#elseif os(macOS)
+import AppKit
+
+enum EnvironmentInfo {
+    static func current(screenName: String?) -> FeedbackEnvironment {
+        let bundle = Bundle.main
+        let screen = NSScreen.main
+        let osVersion = ProcessInfo.processInfo.operatingSystemVersion
+
+        return FeedbackEnvironment(
+            osName: "macOS",
+            osVersion: "\(osVersion.majorVersion).\(osVersion.minorVersion).\(osVersion.patchVersion)",
+            deviceModel: hardwareModelIdentifier(),
+            appVersion: bundle.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
+            appBuild: bundle.infoDictionary?["CFBundleVersion"] as? String ?? "unknown",
+            bundleIdentifier: bundle.bundleIdentifier ?? "unknown",
+            // No UIKit-style view-controller stack to walk on macOS, so
+            // there's no auto-detection fallback here — the key window's
+            // title is the closest analog, but titles are often generic
+            // ("Untitled") or blank for utility windows, so it's not worth
+            // pretending it's reliable the way the iOS fallback at least
+            // tries to be. Set `FeedbackKit.currentScreen` explicitly.
+            screenName: screenName,
+            locale: Locale.current.identifier,
+            screenWidthPoints: Double(screen?.frame.width ?? 0),
+            screenHeightPoints: Double(screen?.frame.height ?? 0),
+            screenScale: Double(screen?.backingScaleFactor ?? 1)
+        )
+    }
+
+    /// Returns the raw hardware identifier (e.g. "MacBookPro18,1" / "Mac14,2"),
+    /// mirroring the iOS side's `deviceModelIdentifier()`.
+    private static func hardwareModelIdentifier() -> String {
+        var size = 0
+        sysctlbyname("hw.model", nil, &size, nil, 0)
+        guard size > 0 else { return "unknown" }
+        var machine = [CChar](repeating: 0, count: size)
+        sysctlbyname("hw.model", &machine, &size, nil, 0)
+        return String(cString: machine)
+    }
+}
+#endif

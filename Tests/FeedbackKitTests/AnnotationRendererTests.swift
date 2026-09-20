@@ -1,4 +1,4 @@
-import UIKit
+import CoreGraphics
 import XCTest
 @testable import FeedbackKit
 
@@ -17,13 +17,19 @@ final class AnnotationRendererTests: XCTestCase {
             rotation: 0
         )
 
-        let expected: Set<CGPoint> = [
+        // Order-independent comparison via `contains` rather than `Set`:
+        // `CGPoint`'s `Hashable` conformance needs macOS 15+, newer than
+        // this package's macOS 12 minimum.
+        let expected: [CGPoint] = [
             CGPoint(x: 260, y: 480),
             CGPoint(x: 340, y: 480),
             CGPoint(x: 340, y: 520),
             CGPoint(x: 260, y: 520)
         ]
-        XCTAssertEqual(Set(corners), expected)
+        XCTAssertEqual(corners.count, expected.count)
+        for point in expected {
+            XCTAssertTrue(corners.contains(point), "missing expected corner \(point)")
+        }
 
         // The bug's signature: every corner ends up near the origin instead
         // of near `center`, so also assert corners are actually close to it.

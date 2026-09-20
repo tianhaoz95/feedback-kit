@@ -1,3 +1,4 @@
+#if os(iOS)
 import UIKit
 
 /// Detects device shake gestures app-wide by swizzling `UIWindow.motionEnded`.
@@ -34,3 +35,4 @@ extension UIWindow {
         feedbackKit_motionEnded(motion, with: event)
     }
 }
+#endif

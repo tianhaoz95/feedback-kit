@@ -6,10 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 FeedbackKit is three things sharing one JSON contract / one Postgres schema:
 
-1. **An iOS SDK** (`Sources/FeedbackKit`, Swift Package) — a drop-in library that
-   captures a screenshot, lets the user annotate it and describe a problem, and
-   hands the developer a structured `FeedbackReport`. The SDK never requires the
-   dashboard; delivery is entirely up to the integrating app.
+1. **An iOS + macOS SDK** (`Sources/FeedbackKit`, one Swift Package) — a drop-in
+   library that captures a screenshot, lets the user annotate it and describe
+   a problem, and hands the developer a structured `FeedbackReport`. The SDK
+   never requires the dashboard; delivery is entirely up to the integrating
+   app. The two platforms share the data model and the drawing/geometry core
+   (`AnnotationRenderer`) but have separate UIKit/AppKit UI implementations —
+   see the architecture notes below before touching either.
 2. **An optional hosted dashboard** (`web/` + `supabase/`) — one way to consume
    that report: receive it, organize it by project, and turn it into a prompt
    for a coding agent.
@@ -29,7 +32,7 @@ file is about how to build/test/run things day to day.
 
 | Path | What |
 |---|---|
-| `Sources/FeedbackKit/` | The iOS SDK (Swift Package) |
+| `Sources/FeedbackKit/` | The iOS + macOS SDK (Swift Package) |
 | `Tests/FeedbackKitTests/` | SDK unit tests |
 | `DemoApp/` | Sample app exercising the SDK (XcodeGen project, generated — not committed) |
 | `web/` | Static SPA dashboard (Vite + React + React Router), deployed to GitHub Pages |
@@ -46,11 +49,18 @@ file is about how to build/test/run things day to day.
 ./scripts/setup.sh      # installs xcodegen + Supabase CLI via brew, npm install for web/
 ```
 
-### iOS SDK (`Sources/FeedbackKit`)
+### SDK (`Sources/FeedbackKit`)
 
-Build/test directly with `xcodebuild` against the Swift Package — `swift build`
-on macOS won't work here since the SDK imports UIKit, which requires an iOS
-SDK target:
+The macOS side builds and tests natively — no simulator, no `xcodebuild`:
+
+```bash
+swift build
+swift test
+swift test --filter FeedbackReportTests/testHexColorRoundTrip   # a single test
+```
+
+The iOS side needs `xcodebuild` against a simulator destination instead,
+since `swift build`/`swift test` always resolve to *this* Mac's platform:
 
 ```bash
 # Find a simulator id: xcrun simctl list devices available
@@ -61,6 +71,10 @@ xcodebuild test  -scheme FeedbackKit -destination 'id=<SIMULATOR_UDID>'
 xcodebuild test -scheme FeedbackKit -destination 'id=<SIMULATOR_UDID>' \
   -only-testing:FeedbackKitTests/FeedbackReportTests/testFeedbackReportRoundTripsThroughJSON
 ```
+
+`Tests/FeedbackKitTests/` runs on both platforms unchanged — it only exercises
+the shared model/geometry code, not either platform's UI layer, which has no
+automated tests on either side (see the architecture note on why below).
 
 ### Demo app (`DemoApp/`)
 
@@ -212,7 +226,47 @@ a local `./scripts/start-web.sh` stack instead of the hosted dashboard.
 - **Screenshot capture is window-level** (`ScreenshotCapture.captureKeyWindow`),
   not view-controller-level — this is why it works for both UIKit and SwiftUI
   screens without the SDK needing to know which one built the screen. Don't
-  reintroduce a `UIViewController`-specific capture path.
+  reintroduce a `UIViewController`-specific capture path. The macOS
+  implementation is the same idea one level down the stack: `NSView.cacheDisplay(in:to:)`
+  renders the window's content view hierarchy directly (like
+  `drawHierarchy(in:afterScreenUpdates:)` does on iOS) rather than compositing
+  the real screen buffer, so neither platform needs Screen Recording/screen-
+  capture permission for this.
+- **Every existing iOS file is wrapped in `#if os(iOS)` around its entire
+  contents; every macOS file is a same-named-concept `+macOS.swift` sibling
+  wrapped in `#if os(macOS)`.** SPM compiles every file in the target
+  regardless of which platform you're building for, so without this an iOS
+  build fails immediately on `import AppKit` (and vice versa). If you add a
+  new platform-specific type, it needs this wrapper — there's no per-file
+  platform exclusion at the package-manifest level to lean on instead.
+- **`AnnotationRenderer` and `PlatformTypes.swift` are the only files with no
+  `#if os()` split** — deliberately. `AnnotationRenderer` draws with raw
+  `CGContext` path/color calls instead of `UIBezierPath`/`NSBezierPath`
+  (whose method names genuinely diverge — `addLine(to:)` vs `line(to:)`,
+  different rounded-rect initializers), so the exact same file runs on both
+  platforms. `PlatformTypes.swift` typealiases `PlatformColor`/`PlatformFont`
+  to `UIColor`/`UIFont` or `NSColor`/`NSFont` and holds one hex↔color
+  extension shared by both, since `UIColor`/`NSColor` happen to expose
+  identical `init(red:green:blue:alpha:)`/`getRed(_:green:blue:alpha:)`
+  signatures. Keep new cross-platform drawing/color code going through these
+  rather than reaching for `UIBezierPath` again on the iOS side only.
+- **macOS's `AnnotationCanvasView` sets `isFlipped = true`.** AppKit views
+  default to a bottom-left-origin coordinate system; UIKit's is top-left.
+  Flipping is what lets every bit of the (0...1)-normalized annotation
+  coordinate math stay byte-for-byte identical to the iOS implementation
+  instead of needing a parallel, Y-inverted copy of it.
+- **The macOS flow is presented as a sheet** (`FeedbackWindowController.show(on:)`),
+  not a full-screen scene — `FeedbackKit.present(from:)` takes an `NSWindow?`
+  on macOS (an iOS call site passes a `UIViewController`). There's
+  deliberately no macOS equivalent of `enableShakeToReport` — no motion
+  sensor and no real analogous gesture to hang it off of; `showFloatingTriggerButton`
+  is the recommended default trigger there instead.
+- **Scaling/rotating an existing annotation is trackpad-only on macOS**
+  (`NSMagnificationGestureRecognizer`/`NSRotationGestureRecognizer`, the
+  direct AppKit analogs of the iOS two-finger pinch/twist) — there's no mouse
+  equivalent for a two-finger gesture, so a mouse-only user can draw/move
+  shapes but not resize/rotate one after the fact. Known, accepted gap
+  rather than an oversight.
 - **The CLI authenticates by receiving a real Supabase session, not a
   separate token type.** `feedbackkit login` opens `/cli-auth` in the
   browser (`CliAuthPage.tsx`), which — once the user is signed in — hands
