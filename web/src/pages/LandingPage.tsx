@@ -70,9 +70,11 @@ FeedbackKit.currentScreen = "Checkout"`;
 
 export function LandingPage() {
   const { user, loading } = useAuth();
+  // shortLabel is what the compact header nav shows on narrow screens — the
+  // hero's own CTA button (full-width, its own line) always uses `label`.
   const primaryCta = !loading && user
-    ? { to: "/projects", label: "Go to your projects" }
-    : { to: "/login", label: "Sign in" };
+    ? { to: "/projects", label: "Go to your projects", shortLabel: "Projects" }
+    : { to: "/login", label: "Sign in", shortLabel: "Sign in" };
 
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -89,12 +91,14 @@ export function LandingPage() {
           scrolled ? "border-neutral-200 shadow-sm" : "border-transparent"
         }`}
       >
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <Link to="/" className="flex items-center gap-2">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-4 sm:px-4">
+          <Link to="/" className="flex shrink-0 items-center gap-2">
             <Logomark size={26} />
-            <span className="text-sm font-semibold tracking-tight text-neutral-900">FeedbackKit</span>
+            <span className="hidden text-sm font-semibold tracking-tight text-neutral-900 min-[380px]:inline">
+              FeedbackKit
+            </span>
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             <Link
               to="/docs"
               className="link-underline text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900"
@@ -105,15 +109,16 @@ export function LandingPage() {
               href="https://github.com/tianhaoz95/feedback-kit"
               target="_blank"
               rel="noreferrer"
-              className="link-underline text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900"
+              className="link-underline hidden text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900 sm:inline"
             >
               GitHub
             </a>
             <Link
               to={primaryCta.to}
-              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-all duration-150 hover:-translate-y-0.5 hover:bg-neutral-800 active:translate-y-0 active:scale-95"
+              className="shrink-0 whitespace-nowrap rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-all duration-150 hover:-translate-y-0.5 hover:bg-neutral-800 active:translate-y-0 active:scale-95"
             >
-              {primaryCta.label}
+              <span className="sm:hidden">{primaryCta.shortLabel}</span>
+              <span className="hidden sm:inline">{primaryCta.label}</span>
             </Link>
           </div>
         </div>

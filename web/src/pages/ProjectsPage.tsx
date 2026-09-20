@@ -113,7 +113,10 @@ export function ProjectsPage() {
           {projects === null ? (
             <div className="grid gap-3 sm:grid-cols-2">
               {[0, 1].map((i) => (
-                <div key={i} className="h-[76px] animate-pulse rounded-xl border border-neutral-200 bg-white p-4">
+                <div
+                  key={i}
+                  className="h-[76px] min-w-0 animate-pulse rounded-xl border border-neutral-200 bg-white p-4"
+                >
                   <div className="h-4 w-2/3 rounded bg-neutral-100" />
                   <div className="mt-2 h-3 w-1/2 rounded bg-neutral-100" />
                 </div>
@@ -131,7 +134,7 @@ export function ProjectsPage() {
                 <Link
                   key={project.id}
                   to={`/projects/${project.id}`}
-                  className="group flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-md"
+                  className="group flex min-w-0 items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-md"
                 >
                   <div
                     className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-semibold ${tintFor(project.id)}`}
