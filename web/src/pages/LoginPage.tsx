@@ -1,6 +1,8 @@
 import { useState, useTransition } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { Logomark } from "@/components/Logomark";
+import { Button } from "@/components/Button";
 
 export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
@@ -24,31 +26,31 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-50 px-4 py-12">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <Link to="/" className="text-2xl font-semibold tracking-tight text-neutral-900">
-            FeedbackKit
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-neutral-50 px-4 py-12">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-0 h-[420px] w-[720px] -translate-x-1/2 -translate-y-1/3 rounded-full bg-gradient-to-b from-violet-200/40 to-transparent blur-3xl"
+      />
+      <div className="relative w-full max-w-md space-y-8">
+        <div className="flex flex-col items-center text-center">
+          <Link to="/" className="flex items-center gap-2">
+            <Logomark size={32} />
+            <span className="text-2xl font-semibold tracking-tight text-neutral-900">FeedbackKit</span>
           </Link>
-          <p className="mt-1 text-sm text-neutral-500">
+          <p className="mt-2 text-sm text-neutral-500">
             The dashboard for feedback captured by your iOS app.
           </p>
         </div>
 
         {error ? (
-          <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+          <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
         ) : null}
 
-        <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={signInWithGitHub}
-            className="flex w-full items-center justify-center gap-2 rounded-md bg-neutral-900 px-3 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
-          >
+        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+          <Button disabled={isPending} onClick={signInWithGitHub} className="w-full">
             <GitHubMark className="h-4 w-4" />
-            {isPending ? "Redirecting to GitHub..." : "Continue with GitHub"}
-          </button>
+            {isPending ? "Redirecting to GitHub…" : "Continue with GitHub"}
+          </Button>
           <p className="mt-3 text-center text-xs text-neutral-400">
             First time here? Signing in creates your account automatically.
           </p>

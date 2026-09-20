@@ -1,6 +1,8 @@
 import { useState, useTransition } from "react";
 import { PROMPT_TEMPLATE_PLACEHOLDERS } from "@/lib/prompt-template";
 import { getErrorMessage } from "@/lib/errors";
+import { Button } from "@/components/Button";
+import { CheckIcon } from "@/components/icons";
 
 export function TemplateEditorForm({
   action,
@@ -20,14 +22,14 @@ export function TemplateEditorForm({
         value={value}
         onChange={(event) => setValue(event.target.value)}
         rows={10}
-        className="w-full rounded-md border border-neutral-300 p-3 font-mono text-xs leading-relaxed focus:border-neutral-500 focus:outline-none"
+        className="w-full rounded-lg border border-neutral-200 p-3 font-mono text-xs leading-relaxed transition-colors focus:border-neutral-400 focus:outline-none"
       />
       <p className="text-xs text-neutral-400">
         Placeholders: {PROMPT_TEMPLATE_PLACEHOLDERS.map((p) => `{{${p}}}`).join(", ")}
       </p>
       <div className="flex items-center gap-3">
-        <button
-          type="button"
+        <Button
+          size="sm"
           disabled={isPending}
           onClick={() => {
             const formData = new FormData();
@@ -42,11 +44,14 @@ export function TemplateEditorForm({
               }
             });
           }}
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
         >
-          {isPending ? "Saving..." : "Save template"}
-        </button>
-        {savedAt ? <span className="text-xs text-green-600">Saved</span> : null}
+          {isPending ? "Saving…" : "Save template"}
+        </Button>
+        {savedAt ? (
+          <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
+            <CheckIcon className="h-3.5 w-3.5" /> Saved
+          </span>
+        ) : null}
         {error ? <span className="text-xs text-red-600">{error}</span> : null}
       </div>
     </div>

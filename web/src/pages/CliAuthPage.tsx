@@ -3,6 +3,9 @@ import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/supabase";
 import { decodeJwtSessionId, isValidCliAuthParams, stashPendingCliAuth } from "@/lib/cliAuth";
+import { Logomark } from "@/components/Logomark";
+import { Button } from "@/components/Button";
+import { KeyIcon } from "@/components/icons";
 
 /**
  * Where `feedbackkit login` sends the user's browser. Hands the CLI the
@@ -92,15 +95,21 @@ export function CliAuthPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-50 px-4 py-12">
       <div className="w-full max-w-md space-y-6">
-        <div className="text-center">
-          <Link to="/" className="text-2xl font-semibold tracking-tight text-neutral-900">
-            FeedbackKit
+        <div className="flex flex-col items-center text-center">
+          <Link to="/" className="flex items-center gap-2">
+            <Logomark size={28} />
+            <span className="text-xl font-semibold tracking-tight text-neutral-900">FeedbackKit</span>
           </Link>
         </div>
 
-        <div className="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
-          <h1 className="text-base font-semibold text-neutral-900">Authorize CLI access</h1>
-          <p className="mt-2 text-sm text-neutral-600">
+        <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-100 text-neutral-500">
+              <KeyIcon className="h-4 w-4" />
+            </span>
+            <h1 className="text-base font-semibold text-neutral-900">Authorize CLI access</h1>
+          </div>
+          <p className="mt-3 text-sm text-neutral-600">
             <span className="font-medium text-neutral-900">{label}</span> wants to access your
             FeedbackKit account — signed in as{" "}
             <span className="font-medium text-neutral-900">{user.email}</span>. It'll be able to
@@ -112,21 +121,20 @@ export function CliAuthPage() {
           </p>
 
           {error ? (
-            <div className="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+            <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
           ) : null}
 
           <div className="mt-5 flex gap-3">
-            <button
-              type="button"
+            <Button
               disabled={status === "authorizing" || status === "done"}
               onClick={authorize}
-              className="flex-1 rounded-md bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+              className="flex-1"
             >
               {status === "authorizing" || status === "done" ? "Authorizing…" : "Authorize"}
-            </button>
+            </Button>
             <Link
               to="/projects"
-              className="flex-1 rounded-md border border-neutral-300 px-4 py-2.5 text-center text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+              className="flex flex-1 items-center justify-center rounded-lg border border-neutral-200 px-4 py-2 text-center text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-50"
             >
               Cancel
             </Link>

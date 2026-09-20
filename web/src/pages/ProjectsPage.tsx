@@ -4,6 +4,24 @@ import { supabase } from "@/lib/supabase";
 import { getCurrentOrganizationId } from "@/lib/organization";
 import { getErrorMessage } from "@/lib/errors";
 import type { Project } from "@/lib/types";
+import { Button } from "@/components/Button";
+import { EmptyState } from "@/components/EmptyState";
+import { ArrowRightIcon, FolderIcon, PlusIcon } from "@/components/icons";
+
+const CARD_TINTS = [
+  "bg-violet-100 text-violet-600",
+  "bg-blue-100 text-blue-600",
+  "bg-emerald-100 text-emerald-600",
+  "bg-amber-100 text-amber-600",
+  "bg-rose-100 text-rose-600",
+  "bg-cyan-100 text-cyan-600",
+];
+
+function tintFor(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return CARD_TINTS[hash % CARD_TINTS.length];
+}
 
 export function ProjectsPage() {
   const navigate = useNavigate();
@@ -87,29 +105,51 @@ export function ProjectsPage() {
       </div>
 
       {orgLoadError ? (
-        <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
           Couldn't load your organization: {orgLoadError}
         </div>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {(projects ?? []).map((project) => (
-              <Link
-                key={project.id}
-                to={`/projects/${project.id}`}
-                className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm transition hover:border-neutral-300"
-              >
-                <h2 className="font-medium">{project.name}</h2>
-                <p className="mt-1 truncate font-mono text-xs text-neutral-400">{project.project_key}</p>
-              </Link>
-            ))}
-            {projects !== null && projects.length === 0 ? (
-              <p className="text-sm text-neutral-500">No projects yet — create your first one.</p>
-            ) : null}
-          </div>
+          {projects === null ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[0, 1].map((i) => (
+                <div key={i} className="h-[76px] animate-pulse rounded-xl border border-neutral-200 bg-white p-4">
+                  <div className="h-4 w-2/3 rounded bg-neutral-100" />
+                  <div className="mt-2 h-3 w-1/2 rounded bg-neutral-100" />
+                </div>
+              ))}
+            </div>
+          ) : projects.length === 0 ? (
+            <EmptyState
+              icon={<FolderIcon className="h-6 w-6" />}
+              title="No projects yet"
+              description="Create your first project to get a key you can drop into an iOS app — feedback from it will show up here."
+            />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {projects.map((project) => (
+                <Link
+                  key={project.id}
+                  to={`/projects/${project.id}`}
+                  className="group flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-md"
+                >
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-semibold ${tintFor(project.id)}`}
+                  >
+                    {project.name.slice(0, 1).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="truncate font-medium text-neutral-900">{project.name}</h2>
+                    <p className="mt-0.5 truncate font-mono text-xs text-neutral-400">{project.project_key}</p>
+                  </div>
+                  <ArrowRightIcon className="h-4 w-4 shrink-0 text-neutral-300 transition-all group-hover:translate-x-0.5 group-hover:text-neutral-500" />
+                </Link>
+              ))}
+            </div>
+          )}
 
-          <div className="max-w-sm rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-medium">New project</h2>
+          <div className="max-w-sm rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+            <h2 className="text-sm font-medium text-neutral-900">New project</h2>
             {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
             <form
               onSubmit={(event) => {
@@ -122,15 +162,18 @@ export function ProjectsPage() {
                 name="name"
                 required
                 placeholder="e.g. Consumer App"
-                className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+                className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm transition-colors focus:border-neutral-400 focus:outline-none"
               />
-              <button
-                type="submit"
-                disabled={isPending}
-                className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
-              >
-                {isPending ? "Creating..." : "Create"}
-              </button>
+              <Button type="submit" disabled={isPending}>
+                {isPending ? (
+                  "Creating…"
+                ) : (
+                  <>
+                    <PlusIcon className="h-4 w-4" />
+                    Create
+                  </>
+                )}
+              </Button>
             </form>
           </div>
         </>

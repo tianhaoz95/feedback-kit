@@ -1,27 +1,32 @@
 import { useState } from "react";
+import { Button } from "@/components/Button";
+import { CheckIcon, CopyIcon } from "@/components/icons";
 
 export function CopyButton({
   text,
   label = "Copy",
-  className = "rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50",
+  size = "sm",
+  variant = "secondary",
 }: {
   text: string;
   label?: string;
-  className?: string;
+  size?: "sm" | "md";
+  variant?: "secondary" | "dark";
 }) {
   const [copied, setCopied] = useState(false);
 
   return (
-    <button
-      type="button"
+    <Button
+      variant={variant}
+      size={size}
       onClick={async () => {
         await navigator.clipboard.writeText(text);
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
-      className={className}
     >
+      {copied ? <CheckIcon className="h-3.5 w-3.5 text-emerald-600" /> : <CopyIcon className="h-3.5 w-3.5" />}
       {copied ? "Copied!" : label}
-    </button>
+    </Button>
   );
 }

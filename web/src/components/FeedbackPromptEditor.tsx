@@ -1,5 +1,7 @@
 import { useState, useTransition } from "react";
 import { getErrorMessage } from "@/lib/errors";
+import { Button } from "@/components/Button";
+import { CheckIcon, CopyIcon } from "@/components/icons";
 
 export function FeedbackPromptEditor({
   initialValue,
@@ -23,22 +25,23 @@ export function FeedbackPromptEditor({
         value={value}
         onChange={(event) => setValue(event.target.value)}
         rows={16}
-        className="w-full rounded-md border border-neutral-300 p-3 font-mono text-xs leading-relaxed focus:border-neutral-500 focus:outline-none"
+        className="w-full rounded-lg border border-neutral-200 p-3 font-mono text-xs leading-relaxed transition-colors focus:border-neutral-400 focus:outline-none"
       />
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
+        <Button
+          size="sm"
           onClick={async () => {
             await navigator.clipboard.writeText(value);
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
           }}
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800"
         >
+          {copied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
           {copied ? "Copied!" : "Copy for coding agent"}
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           disabled={isPending}
           onClick={() => {
             const formData = new FormData();
@@ -52,10 +55,9 @@ export function FeedbackPromptEditor({
               }
             });
           }}
-          className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
         >
-          {isPending ? "Saving..." : "Save edits"}
-        </button>
+          {isPending ? "Saving…" : "Save edits"}
+        </Button>
         {isEdited ? (
           <button
             type="button"
@@ -70,7 +72,7 @@ export function FeedbackPromptEditor({
                 }
               });
             }}
-            className="text-xs text-neutral-400 hover:text-neutral-700"
+            className="text-xs text-neutral-400 transition-colors hover:text-neutral-700"
           >
             Reset to project template
           </button>
