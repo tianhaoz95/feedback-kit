@@ -34,7 +34,10 @@ final class FeedbackViewController: UIViewController {
     private let attachmentNameLabel = UILabel()
     private let removeAttachmentButton = UIButton(type: .system)
     private let placeholderLabel = UILabel()
-    private let textView = UITextView()
+    // Not `private` — FeedbackViewControllerKeyboardTests drives first
+    // responder state on it directly (see the note on
+    // composerBottomConstraint above; same reasoning).
+    let textView = UITextView()
     private let attachButton = UIButton(type: .system)
     private let sendButton = UIButton(type: .system)
 
@@ -83,6 +86,20 @@ final class FeedbackViewController: UIViewController {
             name: UIResponder.keyboardWillChangeFrameNotification,
             object: nil
         )
+
+        // Nothing else dismisses the keyboard once the text view is
+        // focused — a UITextView (unlike a single-line UITextField) has no
+        // built-in "return to dismiss", and the standard iPhone keyboard
+        // has no dismiss key of its own the way the iPad one does. Tapping
+        // anywhere outside the composer (the screenshot, the toolbar, empty
+        // space) resigns it, same as Messages/Mail. `cancelsTouchesInView =
+        // false` + the delegate below let taps still reach whatever's
+        // actually underneath (a toolbar button, a canvas draw gesture) —
+        // this only ever adds a dismiss, never blocks anything.
+        let dismissKeyboardTap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        dismissKeyboardTap.cancelsTouchesInView = false
+        dismissKeyboardTap.delegate = self
+        view.addGestureRecognizer(dismissKeyboardTap)
     }
 
     override func viewDidLayoutSubviews() {
@@ -333,6 +350,10 @@ final class FeedbackViewController: UIViewController {
         dismiss(animated: true) { [weak self] in self?.onComplete(nil) }
     }
 
+    @objc func dismissKeyboard() {
+        view.endEditing(true)
+    }
+
     private func attachTapped() {
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.item], asCopy: true)
         picker.delegate = self
@@ -431,6 +452,24 @@ extension FeedbackViewController: UIDocumentPickerDelegate {
         pickedAttachment = (filename: filename, mimeType: mimeType, data: data)
         attachmentNameLabel.text = filename
         attachmentChipView.isHidden = false
+    }
+}
+
+extension FeedbackViewController: UIGestureRecognizerDelegate {
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        shouldDismissKeyboard(forTouchedView: touch.view)
+    }
+
+    /// Lets the dismiss-keyboard tap coexist with the composer's own
+    /// controls: a tap that lands inside `composerContainer` (the text
+    /// view itself, the attach/screenshot-toggle/send row) is left to that
+    /// control alone, so typing, tapping the toggle, or hitting send all
+    /// still behave exactly as they did before this gesture existed. A
+    /// plain function taking a `UIView?` rather than living inline in the
+    /// delegate method above — `UITouch` has no public initializer, so
+    /// FeedbackViewControllerKeyboardTests exercises this decision directly.
+    func shouldDismissKeyboard(forTouchedView touchedView: UIView?) -> Bool {
+        !(touchedView?.isDescendant(of: composerContainer) ?? false)
     }
 }
 #endif

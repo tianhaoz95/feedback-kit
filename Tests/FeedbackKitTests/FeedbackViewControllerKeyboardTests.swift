@@ -47,6 +47,40 @@ final class FeedbackViewControllerKeyboardTests: XCTestCase {
         XCTAssertEqual(viewController.composerBottomConstraint.constant, -12, accuracy: 0.001)
     }
 
+    /// Regression test for a real bug: once the text view became first
+    /// responder there was no way to dismiss the keyboard at all — a
+    /// UITextView has no "return to dismiss" the way a single-line
+    /// UITextField can, and the standard iPhone keyboard has no dismiss key
+    /// of its own. `dismissKeyboard()`/`shouldDismissKeyboard(forTouchedView:)`
+    /// are what a tap outside the composer now drives (see the tap gesture
+    /// added in `viewDidLoad`) — this exercises both directly, since
+    /// `UITouch` has no public initializer to simulate a real tap with.
+    func testTapOutsideComposerDismissesKeyboardButTapInsideDoesNot() {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 100, height: 200))
+        let screenshot = renderer.image { _ in UIColor.white.setFill() }
+        let viewController = FeedbackViewController(rawScreenshot: screenshot, screenNameOverride: nil) { _ in }
+
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = viewController
+        window.makeKeyAndVisible()
+        self.window = window
+        viewController.view.layoutIfNeeded()
+
+        XCTAssertTrue(viewController.textView.becomeFirstResponder())
+
+        XCTAssertFalse(
+            viewController.shouldDismissKeyboard(forTouchedView: viewController.textView),
+            "tapping inside the text view itself shouldn't dismiss the keyboard it just opened"
+        )
+        XCTAssertTrue(
+            viewController.shouldDismissKeyboard(forTouchedView: viewController.view),
+            "tapping anywhere outside the composer should dismiss it"
+        )
+
+        viewController.dismissKeyboard()
+        XCTAssertFalse(viewController.textView.isFirstResponder)
+    }
+
     private func postKeyboardFrame(_ endFrame: CGRect) {
         NotificationCenter.default.post(
             name: UIResponder.keyboardWillChangeFrameNotification,
