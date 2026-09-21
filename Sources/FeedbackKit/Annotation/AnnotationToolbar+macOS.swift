@@ -39,7 +39,7 @@ final class AnnotationToolbar: NSView {
         let toolStack = NSStackView()
         toolStack.orientation = .vertical
         toolStack.alignment = .centerX
-        toolStack.spacing = 14
+        toolStack.spacing = 10
         toolStack.translatesAutoresizingMaskIntoConstraints = false
 
         for (index, entry) in Self.tools.enumerated() {
@@ -55,7 +55,7 @@ final class AnnotationToolbar: NSView {
         let colorStack = NSStackView()
         colorStack.orientation = .vertical
         colorStack.alignment = .centerX
-        colorStack.spacing = 8
+        colorStack.spacing = 6
         colorStack.translatesAutoresizingMaskIntoConstraints = false
 
         for color in Self.colors {
@@ -63,12 +63,12 @@ final class AnnotationToolbar: NSView {
             swatch.isBordered = false
             swatch.wantsLayer = true
             swatch.layer?.backgroundColor = color.cgColor
-            swatch.layer?.cornerRadius = 12
+            swatch.layer?.cornerRadius = 11
             swatch.layer?.borderWidth = 1
             swatch.layer?.borderColor = NSColor.separatorColor.cgColor
             swatch.identifier = NSUserInterfaceItemIdentifier(color.hexString)
-            swatch.widthAnchor.constraint(equalToConstant: 24).isActive = true
-            swatch.heightAnchor.constraint(equalToConstant: 24).isActive = true
+            swatch.widthAnchor.constraint(equalToConstant: 22).isActive = true
+            swatch.heightAnchor.constraint(equalToConstant: 22).isActive = true
             colorStack.addArrangedSubview(swatch)
         }
 

@@ -29,7 +29,7 @@ final class FeedbackWindowController: NSWindowController {
     private var composerTopToHeaderConstraint: NSLayoutConstraint!
     private var toolbarBottomConstraint: NSLayoutConstraint!
 
-    private let composerContainer = NSView()
+    private let composerContainer = FlippedView()
     private let attachmentChipView = NSView()
     private let attachmentNameLabel = NSTextField(labelWithString: "")
     private let placeholderLabel = NSTextField(labelWithString: "What's the problem?")
@@ -52,7 +52,7 @@ final class FeedbackWindowController: NSWindowController {
             defer: false
         )
         window.title = "Report Feedback"
-        window.minSize = NSSize(width: 560, height: 480)
+        window.minSize = NSSize(width: 600, height: 520)
         super.init(window: window)
 
         buildContent()
@@ -121,15 +121,17 @@ final class FeedbackWindowController: NSWindowController {
 
     private func buildComposer(in root: NSView) {
         composerContainer.wantsLayer = true
+        composerContainer.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
         composerContainer.layer?.borderColor = NSColor.separatorColor.cgColor
         composerContainer.layer?.borderWidth = 1
-        composerContainer.layer?.cornerRadius = 16
+        composerContainer.layer?.cornerRadius = 14
 
         buildAttachmentChip()
 
         textView.delegate = self
         textView.isRichText = false
         textView.font = .systemFont(ofSize: NSFont.systemFontSize)
+        textView.textColor = .labelColor
         textView.drawsBackground = false
         textView.textContainerInset = .zero
         textView.textContainer?.lineFragmentPadding = 0
@@ -142,16 +144,21 @@ final class FeedbackWindowController: NSWindowController {
         scrollView.hasVerticalScroller = true
         scrollView.drawsBackground = false
         scrollView.borderType = .noBorder
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
         let heightConstraint = scrollView.heightAnchor.constraint(equalToConstant: 24)
+        heightConstraint.priority = .defaultHigh
         heightConstraint.isActive = true
         textViewHeightConstraint = heightConstraint
 
+        placeholderLabel.translatesAutoresizingMaskIntoConstraints = false
         placeholderLabel.textColor = .placeholderTextColor
+        placeholderLabel.font = .systemFont(ofSize: NSFont.systemFontSize)
         placeholderLabel.isBordered = false
         placeholderLabel.isEditable = false
         placeholderLabel.backgroundColor = .clear
 
         let iconConfig = NSImage.SymbolConfiguration(pointSize: 22, weight: .regular)
+        attachButton.translatesAutoresizingMaskIntoConstraints = false
         attachButton.image = NSImage(systemSymbolName: "plus.circle.fill", accessibilityDescription: "Attach")?
             .withSymbolConfiguration(iconConfig)
         attachButton.isBordered = false
@@ -159,7 +166,10 @@ final class FeedbackWindowController: NSWindowController {
         attachButton.contentTintColor = .secondaryLabelColor
         attachButton.target = self
         attachButton.action = #selector(attachTapped)
+        attachButton.widthAnchor.constraint(equalToConstant: 24).isActive = true
+        attachButton.heightAnchor.constraint(equalToConstant: 24).isActive = true
 
+        sendButton.translatesAutoresizingMaskIntoConstraints = false
         sendButton.image = NSImage(systemSymbolName: "arrow.up.circle.fill", accessibilityDescription: "Send")?
             .withSymbolConfiguration(iconConfig)
         sendButton.isBordered = false
@@ -167,11 +177,25 @@ final class FeedbackWindowController: NSWindowController {
         sendButton.contentTintColor = .controlAccentColor
         sendButton.target = self
         sendButton.action = #selector(submitTapped)
+        sendButton.widthAnchor.constraint(equalToConstant: 24).isActive = true
+        sendButton.heightAnchor.constraint(equalToConstant: 24).isActive = true
 
-        let spacer = NSView()
-        let buttonRow = NSStackView(views: [attachButton, spacer, sendButton])
-        buttonRow.orientation = .horizontal
-        buttonRow.alignment = .centerY
+        let buttonRow = NSView()
+        buttonRow.translatesAutoresizingMaskIntoConstraints = false
+        buttonRow.addSubview(attachButton)
+        buttonRow.addSubview(sendButton)
+
+        NSLayoutConstraint.activate([
+            attachButton.leadingAnchor.constraint(equalTo: buttonRow.leadingAnchor),
+            attachButton.topAnchor.constraint(equalTo: buttonRow.topAnchor),
+            attachButton.bottomAnchor.constraint(equalTo: buttonRow.bottomAnchor),
+
+            sendButton.trailingAnchor.constraint(equalTo: buttonRow.trailingAnchor),
+            sendButton.topAnchor.constraint(equalTo: buttonRow.topAnchor),
+            sendButton.bottomAnchor.constraint(equalTo: buttonRow.bottomAnchor),
+
+            buttonRow.heightAnchor.constraint(equalToConstant: 24)
+        ])
 
         let composerStack = NSStackView(views: [attachmentChipView, scrollView, buttonRow])
         composerStack.orientation = .vertical
@@ -180,14 +204,24 @@ final class FeedbackWindowController: NSWindowController {
         composerContainer.addSubview(composerStack)
         composerContainer.addSubview(placeholderLabel)
 
+        let minHeightConstraint = composerContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 78)
+        minHeightConstraint.priority = .required
+
         NSLayoutConstraint.activate([
-            composerStack.leadingAnchor.constraint(equalTo: composerContainer.leadingAnchor, constant: 12),
-            composerStack.trailingAnchor.constraint(equalTo: composerContainer.trailingAnchor, constant: -12),
+            minHeightConstraint,
+
+            composerStack.leadingAnchor.constraint(equalTo: composerContainer.leadingAnchor, constant: 14),
+            composerStack.trailingAnchor.constraint(equalTo: composerContainer.trailingAnchor, constant: -14),
             composerStack.topAnchor.constraint(equalTo: composerContainer.topAnchor, constant: 10),
             composerStack.bottomAnchor.constraint(equalTo: composerContainer.bottomAnchor, constant: -10),
-            placeholderLabel.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: 2),
-            placeholderLabel.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor, constant: 4)
+
+            placeholderLabel.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            placeholderLabel.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
+            placeholderLabel.trailingAnchor.constraint(lessThanOrEqualTo: scrollView.trailingAnchor)
         ])
+
+        composerContainer.setContentCompressionResistancePriority(.required, for: .vertical)
+        composerContainer.setContentHuggingPriority(.defaultHigh, for: .vertical)
 
         root.addSubview(composerContainer)
     }
@@ -238,8 +272,16 @@ final class FeedbackWindowController: NSWindowController {
         composerTopToHeaderConstraint = composerContainer.topAnchor.constraint(
             equalTo: cancelButton.bottomAnchor, constant: 12
         )
-        toolbarBottomConstraint = toolbar.bottomAnchor.constraint(equalTo: screenshotBoundsView.bottomAnchor)
+        toolbarBottomConstraint = toolbar.bottomAnchor.constraint(
+            lessThanOrEqualTo: composerContainer.topAnchor, constant: -12
+        )
         composerTopToHeaderConstraint.isActive = false
+
+        screenshotBoundsView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        screenshotBoundsView.setContentHuggingPriority(.defaultLow, for: .vertical)
+
+        let toolbarMatchScreenshot = toolbar.bottomAnchor.constraint(equalTo: screenshotBoundsView.bottomAnchor)
+        toolbarMatchScreenshot.priority = .defaultHigh
 
         NSLayoutConstraint.activate([
             cancelButton.topAnchor.constraint(equalTo: root.topAnchor, constant: 16),
@@ -266,6 +308,7 @@ final class FeedbackWindowController: NSWindowController {
             toolbar.topAnchor.constraint(equalTo: screenshotBoundsView.topAnchor),
             toolbar.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -16),
             toolbarBottomConstraint,
+            toolbarMatchScreenshot,
             toolbar.widthAnchor.constraint(equalToConstant: 64),
 
             composerContainer.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 16),
@@ -436,5 +479,9 @@ private extension NSImage {
         guard let tiff = tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff) else { return nil }
         return bitmap.representation(using: .png, properties: [:])
     }
+}
+
+private final class FlippedView: NSView {
+    override var isFlipped: Bool { true }
 }
 #endif
