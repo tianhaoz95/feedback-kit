@@ -28,6 +28,7 @@ on:
 
 permissions:
   contents: write
+  deployments: write
 
 concurrency:
   group: ${{ inputs.no_upload == true && format('release-macos-demo-validate-{0}', github.run_id) || format('release-macos-demo-{0}', github.event.release.tag_name || github.ref_name || inputs.tag || inputs.version || 'latest') }}
@@ -39,6 +40,9 @@ jobs:
     if: github.event_name != 'release' || (!startsWith(github.event.release.tag_name, 'cli-'))
     runs-on: macos-15
     timeout-minutes: 45
+    environment:
+      name: macos-demo
+      url: ${{ steps.version.outputs.tag && format('https://github.com/{0}/releases/tag/{1}', github.repository, steps.version.outputs.tag) || format('https://github.com/{0}/releases', github.repository) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

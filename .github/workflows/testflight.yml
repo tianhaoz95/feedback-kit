@@ -9,12 +9,23 @@ on:
     types: [published]
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: testflight-${{ github.event.release.tag_name || github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     name: Build & Upload to TestFlight
     if: github.event_name != 'release' || (!startsWith(github.event.release.tag_name, 'mac-demo-') && !startsWith(github.event.release.tag_name, 'cli-'))
     runs-on: macos-15
     timeout-minutes: 45
+    environment:
+      name: testflight
+      url: https://appstoreconnect.apple.com/apps
     steps:
       - name: Checkout
         uses: actions/checkout@v4

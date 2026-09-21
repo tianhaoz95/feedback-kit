@@ -25,6 +25,10 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      deployments: write
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/feedbackkit-cli
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
