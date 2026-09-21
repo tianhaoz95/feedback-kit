@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { slugify } from "@/lib/slugify";
 
 export function DocsTitle({
   eyebrow,
@@ -29,8 +30,9 @@ export function DocsSection({
   id?: string;
   children: ReactNode;
 }) {
+  const sectionId = id || slugify(title);
   return (
-    <section id={id} className="mt-10 scroll-mt-24 first:mt-0">
+    <section id={sectionId} className="mt-10 scroll-mt-24 first:mt-0">
       <h2 className="text-lg font-semibold text-neutral-900">{title}</h2>
       <div className="mt-3 space-y-4 text-sm leading-relaxed text-neutral-700">{children}</div>
     </section>
