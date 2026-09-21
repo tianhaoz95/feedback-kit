@@ -6,10 +6,14 @@ name: Release macOS Demo
 # Release instead of an .ipa to App Store Connect, since a demo app has no
 # App Store listing.
 #
-# Fires on pushing a tag like `mac-demo-v1.0.0` (creates/attaches to a
-# release for that tag automatically), or on demand from the Actions tab
-# with an explicit version.
+# Fires on:
+#   - Publishing a release with a tag like `mac-demo-v1.0.0`
+#   - Pushing a tag like `mac-demo-v1.0.0`
+#   - Manual trigger from the Actions tab (workflow_dispatch)
+
 on:
+  release:
+    types: [published]
   push:
     tags:
       - "mac-demo-v*.*.*"
@@ -17,15 +21,26 @@ on:
     inputs:
       version:
         description: "Version to release (X.Y.Z) — creates/attaches to tag mac-demo-vX.Y.Z"
-        required: true
+        required: false
+      tag:
+        description: "Release tag to attach to (e.g. mac-demo-v1.0.0)"
+        required: false
       no_upload:
-        description: "Build, sign and notarize only — don't create/attach to a release"
+        description: "Build, sign and notarize only — don't create/attach to a release (pipeline validation)"
         type: boolean
         default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ inputs.no_upload == true && format('release-macos-demo-validate-{0}', github.run_id) || format('release-macos-demo-{0}', github.event.release.tag_name || github.ref_name || inputs.tag || inputs.version || 'latest') }}
+  cancel-in-progress: false
 
 jobs:
   release:
     name: Build, Sign, Notarize & Publish
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'mac-demo-v')
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -42,8 +57,8 @@ jobs:
 
       - name: Write App Store Connect API key
         env:
-          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 || secrets.APPLE_API_KEY }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID || secrets.APPLE_API_KEY_ID }}
         run: |
           mkdir -p "$RUNNER_TEMP/private_keys"
           KEY_PATH="$RUNNER_TEMP/private_keys/AuthKey_${ASC_KEY_ID}.p8"
@@ -88,13 +103,32 @@ jobs:
 
       - name: Resolve version/tag
         id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+            VERSION="${TAG#mac-demo-v}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
             TAG="${GITHUB_REF_NAME}"
             VERSION="${TAG#mac-demo-v}"
           else
-            VERSION="${{ inputs.version }}"
-            TAG="mac-demo-v${VERSION}"
+            INPUT_TAG="${{ inputs.tag }}"
+            INPUT_VER="${{ inputs.version }}"
+            if [ -n "$INPUT_TAG" ]; then
+              TAG="$INPUT_TAG"
+              VERSION="${TAG#mac-demo-v}"
+            elif [ -n "$INPUT_VER" ]; then
+              VERSION="${INPUT_VER#v}"
+              TAG="mac-demo-v${VERSION}"
+            elif [ "${{ inputs.no_upload }}" = "true" ]; then
+              VERSION="0.0.0"
+              TAG="mac-demo-v0.0.0"
+            else
+              TAG="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName 2>/dev/null || true)"
+              [ -n "$TAG" ] || { echo "error: couldn't resolve release tag" >&2; exit 1; }
+              VERSION="${TAG#mac-demo-v}"
+            fi
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -102,11 +136,11 @@ jobs:
       - name: Build, sign, notarize and publish
         env:
           GH_TOKEN: ${{ github.token }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID || secrets.APPLE_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID || secrets.APPLE_API_ISSUER }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          ARGS=(--version "${{ steps.version.outputs.version }}")
+          ARGS=(--version "${{ steps.version.outputs.version }}" --tag "${{ steps.version.outputs.tag }}")
           [ "${{ inputs.no_upload }}" = "true" ] && ARGS+=(--no-upload)
           ./scripts/release_macos_demo.sh "${ARGS[@]}"
 

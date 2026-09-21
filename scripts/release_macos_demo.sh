@@ -38,23 +38,36 @@ APP_NAME="FeedbackKitDemoMac.app"
 VERSION=""
 TAG=""
 NO_UPLOAD=0
+CHECK_ONLY=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --version)   VERSION="${2:-}"; shift 2 ;;
     --tag)       TAG="${2:-}"; shift 2 ;;
     --no-upload) NO_UPLOAD=1; shift ;;
+    --check)     CHECK_ONLY=1; shift ;;
     -h|--help)   sed -n '2,29p' "$0"; exit 0 ;;
     *) echo "error: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
 
-if [[ -n "$TAG" ]]; then
-  VERSION="${VERSION:-${TAG#mac-demo-v}}"
-else
-  TAG="mac-demo-v${VERSION}"
+if [[ "$CHECK_ONLY" -eq 0 ]]; then
+  if [[ -n "$TAG" ]]; then
+    if [[ "$TAG" =~ ^mac-demo-v ]]; then
+      VERSION="${TAG#mac-demo-v}"
+    elif [[ "$TAG" =~ ^v ]]; then
+      VERSION="${TAG#v}"
+      TAG="mac-demo-v${VERSION}"
+    else
+      VERSION="$TAG"
+      TAG="mac-demo-v${VERSION}"
+    fi
+  elif [[ -n "$VERSION" ]]; then
+    VERSION="${VERSION#v}"
+    TAG="mac-demo-v${VERSION}"
+  fi
+  [[ -n "$VERSION" ]] || { echo "error: --version X.Y.Z or --tag mac-demo-vX.Y.Z is required" >&2; exit 1; }
+  echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "error: version must be X.Y.Z, got: $VERSION" >&2; exit 1; }
 fi
-[[ -n "$VERSION" ]] || { echo "error: --version X.Y.Z or --tag mac-demo-vX.Y.Z is required" >&2; exit 1; }
-echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "error: version must be X.Y.Z, got: $VERSION" >&2; exit 1; }
 
 ASC_KEY_ID="${ASC_KEY_ID:-${FA_ASC_KEY_ID:-}}"
 ASC_ISSUER_ID="${ASC_ISSUER_ID:-${FA_ASC_ISSUER_ID:-}}"
@@ -62,6 +75,20 @@ ASC_KEY_PATH="${ASC_KEY_PATH:-${FA_KEY_LOCATION:-}}"
 ASC_KEY_PATH="${ASC_KEY_PATH/#\~/$HOME}"
 APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
 MAC_IDENTITY="${MAC_IDENTITY:-}"
+
+if [[ -z "$MAC_IDENTITY" ]]; then
+  MAC_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
+    | grep "Developer ID Application" | head -1 | sed 's/.*"\(.*\)".*/\1/')"
+fi
+[[ -n "$MAC_IDENTITY" ]] || {
+  echo "error: no \"Developer ID Application\" certificate in the keychain." >&2
+  echo "  Import hejiteh-developer-id-application.p12, or set MAC_IDENTITY." >&2
+  exit 1
+}
+
+if [[ -z "$APPLE_TEAM_ID" && -n "$MAC_IDENTITY" ]]; then
+  APPLE_TEAM_ID="$(echo "$MAC_IDENTITY" | sed -E 's/.*\(([A-Z0-9]+)\).*/\1/')"
+fi
 
 # --- Validate credentials ---------------------------------------------------
 
@@ -77,16 +104,22 @@ if [[ ${#missing[@]} -gt 0 ]]; then
 fi
 [[ -f "$ASC_KEY_PATH" ]] || { echo "error: App Store Connect API key not found at: $ASC_KEY_PATH" >&2; exit 1; }
 
-if [[ -z "$MAC_IDENTITY" ]]; then
-  MAC_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null \
-    | grep "Developer ID Application" | head -1 | sed 's/.*"\(.*\)".*/\1/')"
-fi
-[[ -n "$MAC_IDENTITY" ]] || {
-  echo "error: no \"Developer ID Application\" certificate in the keychain." >&2
-  echo "  Import hejiteh-developer-id-application.p12, or set MAC_IDENTITY." >&2
-  exit 1
-}
 echo "-> identity: $MAC_IDENTITY"
+echo "-> team ID:  $APPLE_TEAM_ID"
+if [[ "$CHECK_ONLY" -eq 1 ]]; then
+  echo "-> ASC key:  $ASC_KEY_ID (issuer: $ASC_ISSUER_ID)"
+  echo "-> key path: $ASC_KEY_PATH"
+  command -v xcodegen >/dev/null 2>&1 || { echo "error: xcodegen not found" >&2; exit 1; }
+  command -v xcodebuild >/dev/null 2>&1 || { echo "error: xcodebuild not found" >&2; exit 1; }
+  command -v codesign >/dev/null 2>&1 || { echo "error: codesign not found" >&2; exit 1; }
+  command -v hdiutil >/dev/null 2>&1 || { echo "error: hdiutil not found" >&2; exit 1; }
+  command -v xcrun >/dev/null 2>&1 || { echo "error: xcrun not found" >&2; exit 1; }
+  command -v gh >/dev/null 2>&1 || { echo "error: gh CLI not found" >&2; exit 1; }
+  gh auth status >/dev/null 2>&1 || { echo "error: not logged in to gh" >&2; exit 1; }
+  echo
+  echo "✅ Preflight check passed: all macOS release credentials and tools are configured and ready."
+  exit 0
+fi
 echo "-> version:  $VERSION (tag $TAG)"
 
 if [[ "$NO_UPLOAD" -eq 0 ]]; then

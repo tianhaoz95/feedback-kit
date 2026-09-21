@@ -211,28 +211,35 @@ this; the script doesn't create one.
 
 ## Releasing the macOS demo app to GitHub Releases
 
+Cut a release using the release cutter script (or push a `mac-demo-vX.Y.Z` tag):
+
 ```bash
-git tag mac-demo-v1.0.0 && git push origin mac-demo-v1.0.0
+./scripts/cut_release.sh mac-demo-v1.0.0 --notes "macOS demo app release"
 ```
 
-Pushing a `mac-demo-vX.Y.Z` tag runs `.github/workflows/release-macos-demo.yml`
+This publishes the GitHub release and runs `.github/workflows/release-macos-demo.yml`
 on GitHub, which builds `FeedbackKitDemoMac`, signs it with a **Developer ID
-Application** certificate, notarizes the result with Apple, and publishes a
-signed, stapled DMG to a GitHub Release for that tag — no TestFlight, no App
-Store review, just a DMG anyone can download and run without a Gatekeeper
-warning. Unlike TestFlight signing (an "Apple Development" identity Xcode
-manages automatically), Developer ID distribution needs a real exported
-`.p12` in CI, so this workflow imports one into a throwaway keychain rather
-than relying on `-allowProvisioningUpdates`. You can also trigger it by hand
-from the Actions tab (`workflow_dispatch`, with a `version` input) — check
-"build, sign and notarize only" there to validate the pipeline without
-touching a real release.
+Application** certificate, notarizes the result with Apple, and attaches a
+signed, stapled DMG to the release — no TestFlight, no App Store review,
+just a DMG anyone can download and run without a Gatekeeper warning.
+Unlike TestFlight signing (an "Apple Development" identity Xcode manages
+automatically), Developer ID distribution needs a real exported `.p12` in CI,
+so this workflow imports one into a throwaway keychain rather than relying on
+`-allowProvisioningUpdates`. You can also trigger it by hand from the Actions tab
+(`workflow_dispatch`) — check "Pipeline validation (no-upload)" there to validate
+the full build, sign, and notarization pipeline without touching a real release.
 
-To do the same thing locally instead (e.g. to debug a notarization
+To verify your local credentials and tooling before releasing:
+
+```bash
+./scripts/release-mac.sh --check
+```
+
+To build, sign, and notarize locally instead (e.g. to debug a notarization
 rejection without spending a CI run):
 
 ```bash
-APPLE_TEAM_ID=68CTFST8W2 ./scripts/release_macos_demo.sh --version 1.0.0 --no-upload
+./scripts/release-mac.sh --version 1.0.0 --no-upload
 ```
 
 Needs a "Developer ID Application" certificate already in your keychain
@@ -251,4 +258,4 @@ API key with access to the team, the same one works for both.
 | `web/` | Static SPA dashboard (Vite + React), deployable to any static host |
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function, billing (Stripe) Edge Functions |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) |
-| `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `start-web.sh`, `deploy-functions.sh`, `release_testflight.sh`, `release_macos_demo.sh` |
+| `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `release_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh` |

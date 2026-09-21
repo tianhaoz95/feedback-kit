@@ -12,6 +12,7 @@ on:
 jobs:
   release:
     name: Build & Upload to TestFlight
+    if: github.event_name != 'release' || (!startsWith(github.event.release.tag_name, 'mac-demo-') && !startsWith(github.event.release.tag_name, 'cli-'))
     runs-on: macos-15
     timeout-minutes: 45
     steps:
