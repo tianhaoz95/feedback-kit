@@ -8,13 +8,29 @@ import UniformTypeIdentifiers
 final class FeedbackViewController: UIViewController {
     private let rawScreenshot: UIImage
     private let screenNameOverride: String?
+    private let theme: FeedbackTheme?
     private let onComplete: (FeedbackReport?) -> Void
+
+    /// `nil` whenever `theme` is `nil` or its hex string fails to parse —
+    /// callers fall back to the existing hardcoded default color in that
+    /// case, rather than this property itself picking the default, so each
+    /// call site's current default (which differs per control) stays
+    /// unchanged when no theme is set.
+    private var primaryColor: UIColor? {
+        theme.flatMap { UIColor(hex: $0.primaryColorHex) }
+    }
+    private var secondaryColor: UIColor? {
+        theme.flatMap { UIColor(hex: $0.secondaryColorHex) }
+    }
 
     private let headerView = UIView()
     private let titleLabel = UILabel()
-    private let cancelButton = UIButton(type: .system)
+    // Not `private` — see the comment on `attachButton`/`sendButton` below;
+    // FeedbackViewControllerThemeTests reads this too.
+    let cancelButton = UIButton(type: .system)
     private let includeScreenshotLabel = UILabel()
-    private let includeScreenshotToggle = UISwitch()
+    // Not `private` — same reasoning, for the toggle's `onTintColor`.
+    let includeScreenshotToggle = UISwitch()
 
     private let screenshotBoundsView = UIView()
     private let imageView = UIImageView()
@@ -22,7 +38,9 @@ final class FeedbackViewController: UIViewController {
     private let cameraIslandView = UIView()
     private let canvasView = AnnotationCanvasView()
 
-    private let toolbar = AnnotationToolbar()
+    // Not `private` — FeedbackViewControllerThemeTests reads
+    // `toolbar.accentColor` to verify the primary theme color reaches it.
+    let toolbar = AnnotationToolbar()
 
     // A compact, chat-style composer: an optional attachment chip, a
     // single-line-by-default text view that grows as the user types, and a
@@ -38,8 +56,12 @@ final class FeedbackViewController: UIViewController {
     // responder state on it directly (see the note on
     // composerBottomConstraint above; same reasoning).
     let textView = UITextView()
-    private let attachButton = UIButton(type: .system)
-    private let sendButton = UIButton(type: .system)
+    // Not `private` — FeedbackViewControllerThemeTests reads these tint
+    // colors directly to verify `FeedbackKit.theme` reaches the composer's
+    // controls (same reasoning as `textView`/`composerBottomConstraint`
+    // above).
+    let attachButton = UIButton(type: .system)
+    let sendButton = UIButton(type: .system)
 
     private var pickedAttachment: (filename: String, mimeType: String, data: Data)?
 
@@ -53,9 +75,15 @@ final class FeedbackViewController: UIViewController {
     // this doesn't widen anything actually exposed to consumers.
     var composerBottomConstraint: NSLayoutConstraint!
 
-    init(rawScreenshot: UIImage, screenNameOverride: String?, onComplete: @escaping (FeedbackReport?) -> Void) {
+    init(
+        rawScreenshot: UIImage,
+        screenNameOverride: String?,
+        theme: FeedbackTheme? = nil,
+        onComplete: @escaping (FeedbackReport?) -> Void
+    ) {
         self.rawScreenshot = rawScreenshot
         self.screenNameOverride = screenNameOverride
+        self.theme = theme
         self.onComplete = onComplete
         super.init(nibName: nil, bundle: nil)
         modalPresentationStyle = .fullScreen
@@ -147,6 +175,9 @@ final class FeedbackViewController: UIViewController {
         titleLabel.text = "Report Feedback"
         titleLabel.font = .preferredFont(forTextStyle: .headline)
         cancelButton.setTitle("Cancel", for: .normal)
+        // Left untouched (inherits the view's default tint) when no theme
+        // is set, matching this button's pre-theming behavior exactly.
+        if let secondaryColor { cancelButton.tintColor = secondaryColor }
         cancelButton.addAction(UIAction { [weak self] _ in self?.cancelTapped() }, for: .touchUpInside)
 
         headerView.addSubview(titleLabel)
@@ -185,6 +216,7 @@ final class FeedbackViewController: UIViewController {
     private func buildToolbar() {
         toolbar.layer.cornerRadius = 12
         toolbar.clipsToBounds = true
+        toolbar.accentColor = primaryColor ?? .systemBlue
         toolbar.onToolSelected = { [weak self] tool in self?.canvasView.tool = tool }
         toolbar.onColorSelected = { [weak self] color in self?.canvasView.strokeColor = color }
         toolbar.onUndo = { [weak self] in self?.canvasView.undoLast() }
@@ -214,18 +246,21 @@ final class FeedbackViewController: UIViewController {
         let iconConfig = UIImage.SymbolConfiguration(pointSize: 26)
         attachButton.setImage(UIImage(systemName: "plus.circle.fill"), for: .normal)
         attachButton.setPreferredSymbolConfiguration(iconConfig, forImageIn: .normal)
-        attachButton.tintColor = .secondaryLabel
+        attachButton.tintColor = secondaryColor ?? .secondaryLabel
         attachButton.addAction(UIAction { [weak self] _ in self?.attachTapped() }, for: .touchUpInside)
 
         sendButton.setImage(UIImage(systemName: "arrow.up.circle.fill"), for: .normal)
         sendButton.setPreferredSymbolConfiguration(iconConfig, forImageIn: .normal)
-        sendButton.tintColor = .systemBlue
+        sendButton.tintColor = primaryColor ?? .systemBlue
         sendButton.addAction(UIAction { [weak self] _ in self?.submitTapped() }, for: .touchUpInside)
 
         includeScreenshotLabel.text = "Screenshot"
         includeScreenshotLabel.font = .preferredFont(forTextStyle: .footnote)
         includeScreenshotLabel.textColor = .secondaryLabel
         includeScreenshotToggle.isOn = true
+        // Left `nil` (the system default green) when no theme is set, same
+        // as every other control here.
+        includeScreenshotToggle.onTintColor = primaryColor
         includeScreenshotToggle.addAction(UIAction { [weak self] _ in self?.toggleScreenshotChanged() }, for: .valueChanged)
 
         // Attach on the left, the screenshot toggle and send on the right —

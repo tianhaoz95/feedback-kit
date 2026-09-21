@@ -60,6 +60,11 @@ FeedbackKit.presentAndSubmit(from: self) { result in
 
 const spmPackage = `.package(url: "https://github.com/tianhaoz95/feedback-kit", branch: "main")`;
 
+const themeUsage = `FeedbackKit.theme = .init(
+    primaryColorHex: "#7C3AED",
+    secondaryColorHex: "#F97316"
+)`;
+
 const watchOSUsage = `import SwiftUI
 import FeedbackKit
 
@@ -186,6 +191,27 @@ export function DocsIosSdkPage() {
           annotate UI at all); it's simply discarded rather than included in the report if the
           switch is off, along with any annotations.
         </p>
+      </DocsSection>
+
+      <DocsSection title="Theming">
+        <p>
+          <InlineCode>FeedbackKit.theme</InlineCode> customizes the feedback screen's accent colors to match your
+          app's branding, instead of the system default (<InlineCode>.systemBlue</InlineCode> on iOS/watchOS,{" "}
+          <InlineCode>.controlAccentColor</InlineCode> on macOS):
+        </p>
+        <CodeBlock code={themeUsage} label="Swift" />
+        <p>
+          <strong>Primary</strong> drives the flow's main call-to-action controls — the send button, the selected
+          annotation tool, and the screenshot toggle's on-tint. <strong>Secondary</strong> drives less prominent
+          controls — Cancel and the attach button. Leave <InlineCode>theme</InlineCode> unset (the default) to keep
+          the system accent color exactly as before. Set it any time before{" "}
+          <InlineCode>present(from:)</InlineCode>/<InlineCode>presentAndSubmit(from:)</InlineCode> — or before
+          presenting <InlineCode>FeedbackQuickNoteView</InlineCode> on watchOS, which reads it directly.
+        </p>
+        <DocsCallout tone="warning">
+          <InlineCode>NSSwitch</InlineCode> has no tint/on-color API at all, unlike <InlineCode>UISwitch</InlineCode>
+          — the screenshot toggle's on-tint only picks up the primary color on iOS.
+        </DocsCallout>
       </DocsSection>
 
       <DocsSection title="Sending to the hosted dashboard">

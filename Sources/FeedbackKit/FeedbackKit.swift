@@ -54,6 +54,12 @@ public enum FeedbackKit {
     /// in particular.
     public static var currentScreen: String?
 
+    /// Customizes the feedback screen's primary/secondary accent colors to
+    /// match the host app's branding. Set any time before `present(from:)`/
+    /// `presentAndSubmit(from:)`; `nil` (the default) keeps the system
+    /// accent color exactly as before. See `FeedbackTheme`.
+    public static var theme: FeedbackTheme?
+
     private static var configuration: FeedbackKitConfiguration?
 
     /// Configures the optional built-in submission path to the hosted dashboard.
@@ -82,6 +88,7 @@ public enum FeedbackKit {
         let feedbackViewController = FeedbackViewController(
             rawScreenshot: screenshot,
             screenNameOverride: currentScreen,
+            theme: theme,
             onComplete: { report in completion?(report) }
         )
         viewController.present(feedbackViewController, animated: true)
@@ -173,6 +180,7 @@ public enum FeedbackKit {
         let windowController = FeedbackWindowController(
             rawScreenshot: screenshot,
             screenNameOverride: currentScreen,
+            theme: theme,
             onComplete: { [self] report in
                 activeWindowController = nil
                 completion?(report)

@@ -176,6 +176,16 @@ Four tools — freehand, rectangle, arrow, text — plus a drag tool for reposit
 
 A "Screenshot" switch in the composer's second row, next to the send button (on by default), lets the user exclude it entirely — useful for a report that's pure description, with nothing worth screenshotting. Turning it off dims the screenshot/annotation area and toolbar and disables drawing, rather than hiding them — the screen stays visible for context, it's just not editable or included anymore; \`FeedbackReport.screenshotRawPNG\`, \`screenshotAnnotatedPNG\`, and \`annotations\` all come back nil/empty in that case (see the field table below). This is purely a submission-time choice — the SDK still captures the screenshot up front (window-level capture is what lets it show the annotate UI at all), it just discards it rather than including it in the report if the switch is off.
 
+## Theming
+
+\`FeedbackKit.theme\` customizes the feedback screen's accent colors to match your app's branding instead of the system default (\`.systemBlue\` on iOS/watchOS, \`.controlAccentColor\` on macOS):
+
+\`\`\`swift
+FeedbackKit.theme = .init(primaryColorHex: "#7C3AED", secondaryColorHex: "#F97316")
+\`\`\`
+
+Primary drives the flow's main call-to-action controls — the send button, the selected annotation tool, and the screenshot toggle's on-tint. Secondary drives less prominent controls — Cancel and the attach button. Leave \`theme\` unset (the default) to keep the system accent color exactly as before. \`NSSwitch\` has no tint API at all, so the screenshot toggle's on-tint is iOS-only. Set it any time before \`present(from:)\`/\`presentAndSubmit(from:)\` — or before presenting \`FeedbackQuickNoteView\` on watchOS, which reads it directly.
+
 ## Sending to the hosted dashboard (optional)
 
 Skip this if you're handling delivery yourself via the completion handler. To have the SDK also submit to the dashboard, configure it once with the endpoint URL and project key from your dashboard project page, then use \`presentAndSubmit\` instead of \`present\` (iOS/macOS) or call \`FeedbackSubmitter.submit\` directly (watchOS):

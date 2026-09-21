@@ -10,6 +10,18 @@ final class AnnotationToolbar: UIView {
     var onColorSelected: ((UIColor) -> Void)?
     var onUndo: (() -> Void)?
 
+    /// The highlight color for whichever tool button is currently selected —
+    /// defaults to `.systemBlue`, overridden by `FeedbackViewController` when
+    /// `FeedbackKit.theme` sets a custom primary color.
+    var accentColor: UIColor = .systemBlue {
+        didSet { highlight(toolButton: selectedToolButton) }
+    }
+
+    // Not `private` — AnnotationToolbarThemeTests reads this to verify
+    // `accentColor` is applied to whichever tool is currently selected.
+    // AnnotationToolbar itself isn't part of the SDK's public API.
+    private(set) var selectedToolButton: UIButton?
+
     private static let colors: [UIColor] = [.systemRed, .systemYellow, .systemGreen, .systemBlue, .label]
     private static let tools: [(AnnotationCanvasView.Tool, String)] = [
         (.pen, "pencil.tip"),
@@ -94,8 +106,9 @@ final class AnnotationToolbar: UIView {
     }
 
     private func highlight(toolButton: UIButton?) {
+        selectedToolButton = toolButton
         for button in toolButtons {
-            button.tintColor = button === toolButton ? .systemBlue : .label
+            button.tintColor = button === toolButton ? accentColor : .label
         }
     }
 }

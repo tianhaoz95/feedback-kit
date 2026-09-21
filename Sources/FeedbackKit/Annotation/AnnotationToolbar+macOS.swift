@@ -22,6 +22,15 @@ final class AnnotationToolbar: NSView {
         isEnabled ? super.hitTest(point) : nil
     }
 
+    /// The highlight color for whichever tool button is currently selected —
+    /// defaults to `.systemBlue`, overridden by `FeedbackWindowController`
+    /// when `FeedbackKit.theme` sets a custom primary color.
+    var accentColor: NSColor = .systemBlue {
+        didSet { highlight(toolButton: selectedToolButton) }
+    }
+
+    private(set) var selectedToolButton: NSButton?
+
     private static let colors: [NSColor] = [.systemRed, .systemYellow, .systemGreen, .systemBlue, .labelColor]
     private static let tools: [(AnnotationCanvasView.Tool, String)] = [
         (.pen, "pencil.tip"),
@@ -130,8 +139,9 @@ final class AnnotationToolbar: NSView {
     }
 
     private func highlight(toolButton: NSButton?) {
+        selectedToolButton = toolButton
         for button in toolButtons {
-            button.contentTintColor = button === toolButton ? .systemBlue : .labelColor
+            button.contentTintColor = button === toolButton ? accentColor : .labelColor
         }
     }
 }

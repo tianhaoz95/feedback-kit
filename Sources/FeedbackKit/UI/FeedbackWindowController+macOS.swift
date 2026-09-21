@@ -13,7 +13,18 @@ import UniformTypeIdentifiers
 final class FeedbackWindowController: NSWindowController {
     private let rawScreenshot: NSImage
     private let screenNameOverride: String?
+    private let theme: FeedbackTheme?
     private let onComplete: (FeedbackReport?) -> Void
+
+    /// `nil` whenever `theme` is `nil` or its hex string fails to parse —
+    /// callers fall back to their existing hardcoded default in that case
+    /// (mirrors `FeedbackViewController`'s iOS counterpart).
+    private var primaryColor: NSColor? {
+        theme.flatMap { NSColor(hex: $0.primaryColorHex) }
+    }
+    private var secondaryColor: NSColor? {
+        theme.flatMap { NSColor(hex: $0.secondaryColorHex) }
+    }
 
     private let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
     private let includeScreenshotLabel = NSTextField(labelWithString: "Screenshot")
@@ -32,9 +43,15 @@ final class FeedbackWindowController: NSWindowController {
 
     private var pickedAttachment: (filename: String, mimeType: String, data: Data)?
 
-    init(rawScreenshot: NSImage, screenNameOverride: String?, onComplete: @escaping (FeedbackReport?) -> Void) {
+    init(
+        rawScreenshot: NSImage,
+        screenNameOverride: String?,
+        theme: FeedbackTheme? = nil,
+        onComplete: @escaping (FeedbackReport?) -> Void
+    ) {
         self.rawScreenshot = rawScreenshot
         self.screenNameOverride = screenNameOverride
+        self.theme = theme
         self.onComplete = onComplete
 
         let window = NSWindow(
@@ -72,7 +89,7 @@ final class FeedbackWindowController: NSWindowController {
     private func buildHeader(in root: NSView) {
         cancelButton.bezelStyle = .regularSquare
         cancelButton.isBordered = false
-        cancelButton.contentTintColor = .controlAccentColor
+        cancelButton.contentTintColor = secondaryColor ?? .controlAccentColor
         cancelButton.target = self
         cancelButton.action = #selector(cancelTapped)
         root.addSubview(cancelButton)
@@ -97,6 +114,7 @@ final class FeedbackWindowController: NSWindowController {
     private func buildToolbar(in root: NSView) {
         toolbar.wantsLayer = true
         toolbar.layer?.cornerRadius = 12
+        toolbar.accentColor = primaryColor ?? .systemBlue
         toolbar.onToolSelected = { [weak self] tool in self?.screenshotBoundsView.canvasView.tool = tool }
         toolbar.onColorSelected = { [weak self] color in self?.screenshotBoundsView.canvasView.strokeColor = color }
         toolbar.onUndo = { [weak self] in self?.screenshotBoundsView.canvasView.undoLast() }
@@ -147,7 +165,7 @@ final class FeedbackWindowController: NSWindowController {
             .withSymbolConfiguration(iconConfig)
         attachButton.isBordered = false
         attachButton.imagePosition = .imageOnly
-        attachButton.contentTintColor = .secondaryLabelColor
+        attachButton.contentTintColor = secondaryColor ?? .secondaryLabelColor
         attachButton.target = self
         attachButton.action = #selector(attachTapped)
         attachButton.widthAnchor.constraint(equalToConstant: 24).isActive = true
@@ -158,7 +176,7 @@ final class FeedbackWindowController: NSWindowController {
             .withSymbolConfiguration(iconConfig)
         sendButton.isBordered = false
         sendButton.imagePosition = .imageOnly
-        sendButton.contentTintColor = .controlAccentColor
+        sendButton.contentTintColor = primaryColor ?? .controlAccentColor
         sendButton.target = self
         sendButton.action = #selector(submitTapped)
         sendButton.widthAnchor.constraint(equalToConstant: 24).isActive = true
@@ -168,6 +186,9 @@ final class FeedbackWindowController: NSWindowController {
         includeScreenshotLabel.textColor = .secondaryLabelColor
         includeScreenshotLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         includeScreenshotToggle.translatesAutoresizingMaskIntoConstraints = false
+        // Unlike UISwitch, NSSwitch exposes no tint/on-color API at all, so
+        // `theme.primaryColorHex` can't reach this control on macOS — known,
+        // accepted platform gap, not an oversight.
         includeScreenshotToggle.state = .on
         includeScreenshotToggle.target = self
         includeScreenshotToggle.action = #selector(toggleScreenshotChanged)

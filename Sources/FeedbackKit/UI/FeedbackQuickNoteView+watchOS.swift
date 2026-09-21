@@ -60,6 +60,19 @@ public struct FeedbackQuickNoteView: View {
                 }
             }
         }
+        // `FeedbackKit.theme` is read directly here (same as
+        // `FeedbackKit.currentScreen` in `submit()` below) since this view
+        // has no `present(from:)` call site to thread it through — the
+        // developer embeds it themselves. `nil` (unset theme, or an
+        // unparseable hex string) falls back to `.tint(nil)`, i.e. the
+        // system accent color, unchanged from before theming existed.
+        .tint(themeColor)
+    }
+
+    private var themeColor: Color? {
+        FeedbackKit.theme
+            .flatMap { UIColor(hex: $0.primaryColorHex) }
+            .map { Color(uiColor: $0) }
     }
 
     private func submit() {

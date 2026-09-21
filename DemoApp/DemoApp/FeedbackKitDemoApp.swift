@@ -15,6 +15,13 @@ struct FeedbackKitDemoApp: App {
         // Left unconfigured, `FeedbackKit.present` still works fully — reports
         // are just handed back to this app's completion handler instead of
         // being sent anywhere (see HomeView / CartViewController).
+
+        // Showcases FeedbackKit.theme: brand this demo's feedback screen
+        // with its own accent colors instead of the system blue default —
+        // the send button, the selected annotation tool, and the
+        // screenshot toggle all pick up the primary color; Cancel and the
+        // attach button pick up the secondary one.
+        FeedbackKit.theme = .init(primaryColorHex: "#7C3AED", secondaryColorHex: "#F97316")
     }
 
     var body: some Scene {

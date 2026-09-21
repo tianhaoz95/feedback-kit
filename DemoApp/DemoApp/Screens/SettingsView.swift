@@ -28,6 +28,11 @@ struct SettingsView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+                Section("Custom branding") {
+                    Text("This demo sets FeedbackKit.theme in FeedbackKitDemoApp.swift, so the feedback screen's send button, selected annotation tool, and screenshot toggle use a custom purple instead of the system blue default, with Cancel/attach in a custom orange.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 Section("Triggers wired up in this demo") {
                     Label("Shake the device / simulator", systemImage: "iphone.gen3")
                     Label("Tap the floating blue button", systemImage: "hand.tap")

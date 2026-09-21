@@ -364,6 +364,22 @@ usable before `feedbackkit login`.
   site that creates a signed URL or fills the `{{screenshot_url}}` prompt
   placeholder from those paths — they all guard on the path being non-null
   now, the same pattern already used for the optional `attachment_path`.
+- **`FeedbackKit.theme` (`FeedbackTheme`) lets a host app brand the feedback
+  screen** with its own primary/secondary accent colors instead of the
+  system default (`.systemBlue` on iOS/watchOS, `.controlAccentColor` on
+  macOS). Colors are hex strings, not `UIColor`/`NSColor`, so the struct is
+  `Sendable` and works unmodified across all three platforms; the UI layer
+  converts via `PlatformColor.init(hex:)` (the same conversion the
+  annotation tool's color swatches already use). Primary drives the flow's
+  call-to-action controls (send button, selected annotation tool, the
+  screenshot toggle's on-tint); secondary drives Cancel and the attach
+  button. Every themed call site falls back to its *own* existing hardcoded
+  default when `theme` is `nil` or fails to parse, so leaving it unset is a
+  byte-for-byte no-op. `NSSwitch` has no tint API at all (unlike
+  `UISwitch`), so the screenshot toggle's on-tint is iOS-only — a known
+  platform gap. See `DemoApp`'s three app targets for a working example
+  (`FeedbackKit.theme = .init(primaryColorHex:secondaryColorHex:)` in each
+  target's `init()`).
 - **`AnnotationRenderer` and `PlatformTypes.swift` cover watchOS too**, via
   `#if os(iOS) || os(watchOS)` for the `UIColor`/`UIFont` typealiases —
   watchOS carries UIKit's plain data types (no `UIView`/`UIWindow`, but

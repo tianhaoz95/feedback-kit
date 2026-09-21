@@ -174,6 +174,28 @@ are (`AnnotationRenderer`'s malformed-hex fallback uses `.red` for exactly
 this reason). Don't assume the rest of watchOS's UIKit subset without
 checking — it's a real subset, not "UIKit minus views."
 
+**`FeedbackKit.theme` lets the host app brand the feedback screen** instead
+of always showing FeedbackKit's own system-blue accent. `FeedbackTheme`
+holds two hex strings (`primaryColorHex`/`secondaryColorHex`) rather than
+`UIColor`/`NSColor` values, for the same reason `FeedbackKitConfiguration`
+and the wire format use plain data types — one `Sendable` struct that works
+unmodified on all three platforms, converted to a platform color only at the
+point of use via `PlatformColor.init(hex:)` (already used by the annotation
+tool's color swatches). The mapping is deliberately asymmetric with how
+prominent each control is, not a literal "primary=this, secondary=that"
+pair: primary drives the flow's call-to-action affordances (the send
+button, the selected annotation tool, the screenshot toggle's on-tint);
+secondary drives the less prominent ones (Cancel, the attach button).
+Every themed call site falls back to its own *existing* hardcoded default
+(`.systemBlue`, `.controlAccentColor`, `.secondaryLabel`, …) when `theme` is
+`nil` or a hex string fails to parse, rather than the theme itself owning a
+single fallback color, specifically so a caller who never touches `theme`
+sees byte-for-byte the same UI as before theming existed — the diff that
+introduced this deliberately never changed a color constant, only made each
+one overridable. `NSSwitch` (macOS) has no tint/on-color API at all, unlike
+`UISwitch`, so the screenshot toggle's on-tint only ever reflects the
+primary color on iOS — a known, accepted platform gap, not an oversight.
+
 ## 2. Data model / multi-tenancy (`supabase/migrations`)
 
 ```

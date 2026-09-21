@@ -14,6 +14,11 @@ struct FeedbackKitDemoWatchApp: App {
         //
         // Left unconfigured, submitting in ContentView just prints the
         // resulting report instead of sending it anywhere.
+
+        // Showcases FeedbackKit.theme: FeedbackQuickNoteView reads this
+        // directly (see its doc comment) and tints itself with the
+        // primary color instead of the system accent default.
+        FeedbackKit.theme = .init(primaryColorHex: "#7C3AED", secondaryColorHex: "#F97316")
     }
 
     var body: some Scene {

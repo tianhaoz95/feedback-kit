@@ -16,6 +16,13 @@ struct FeedbackKitDemoMacApp: App {
         // Left unconfigured, `FeedbackKit.present` still works fully — reports
         // are just handed back to this app's completion handler instead of
         // being sent anywhere (see MacHomeView / MacCartView).
+
+        // Showcases FeedbackKit.theme: brand this demo's feedback screen
+        // with its own accent colors instead of the system accent default —
+        // the send button and the selected annotation tool pick up the
+        // primary color; Cancel and the attach button pick up the
+        // secondary one.
+        FeedbackKit.theme = .init(primaryColorHex: "#7C3AED", secondaryColorHex: "#F97316")
     }
 
     var body: some Scene {
