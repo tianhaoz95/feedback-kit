@@ -13,6 +13,37 @@ claude mcp add --scope project feedbackkit -- feedbackkit mcp
 # Available to you across every project
 claude mcp add --scope user feedbackkit -- feedbackkit mcp`;
 
+const codexCliAdd = `codex mcp add feedbackkit -- feedbackkit mcp
+
+# Or without a global install:
+codex mcp add feedbackkit -- npx -y feedbackkit-cli mcp`;
+
+const codexToml = `[mcp_servers.feedbackkit]
+command = "feedbackkit"
+args = ["mcp"]`;
+
+const codexTomlNpx = `[mcp_servers.feedbackkit]
+command = "npx"
+args = ["-y", "feedbackkit-cli", "mcp"]`;
+
+const antigravityJson = `{
+  "mcpServers": {
+    "feedbackkit": {
+      "command": "feedbackkit",
+      "args": ["mcp"]
+    }
+  }
+}`;
+
+const antigravityJsonNpx = `{
+  "mcpServers": {
+    "feedbackkit": {
+      "command": "npx",
+      "args": ["-y", "feedbackkit-cli", "mcp"]
+    }
+  }
+}`;
+
 const mcpJson = `{
   "mcpServers": {
     "feedbackkit": {
@@ -66,9 +97,43 @@ export function DocsMcpPage() {
         </p>
       </DocsSection>
 
+      <DocsSection title="Codex">
+        <p>Register via the Codex CLI:</p>
+        <CodeBlock code={codexCliAdd} label="Terminal" />
+        <p>
+          Or configure manually in <InlineCode>~/.codex/config.toml</InlineCode> (user-wide) or{" "}
+          <InlineCode>.codex/config.toml</InlineCode> (project-specific):
+        </p>
+        <CodeBlock code={codexToml} label="config.toml" />
+        <p>Or with <InlineCode>npx</InlineCode> if not installed globally:</p>
+        <CodeBlock code={codexTomlNpx} label="config.toml (npx)" />
+        <p>
+          Manage registered servers anytime with <InlineCode>codex mcp list</InlineCode>,{" "}
+          <InlineCode>codex mcp remove feedbackkit</InlineCode>, or via the Codex UI under{" "}
+          <span className="font-medium text-neutral-900">Settings &gt; MCP Settings</span>.
+        </p>
+      </DocsSection>
+
+      <DocsSection title="Antigravity">
+        <p>
+          Add FeedbackKit to your <InlineCode>mcp_config.json</InlineCode> — either globally in{" "}
+          <InlineCode>~/.gemini/config/mcp_config.json</InlineCode> or project-scoped in{" "}
+          <InlineCode>.agents/mcp_config.json</InlineCode>:
+        </p>
+        <CodeBlock code={antigravityJson} label="mcp_config.json" />
+        <p>Or with <InlineCode>npx</InlineCode> if not installed globally:</p>
+        <CodeBlock code={antigravityJsonNpx} label="mcp_config.json (npx)" />
+        <p>
+          In the Antigravity IDE, you can also open the agent panel, click the menu (
+          <InlineCode>...</InlineCode>), and select{" "}
+          <span className="font-medium text-neutral-900">MCP Servers &gt; Manage MCP Servers</span> to view raw config
+          or verify connected tools.
+        </p>
+      </DocsSection>
+
       <DocsSection title="Other agents">
         <p>
-          Most MCP-compatible tools (Cursor, Windsurf, and others) accept a similar JSON config,
+          Most other MCP-compatible tools (Cursor, Windsurf, and others) accept a similar JSON config,
           typically in a <InlineCode>mcp.json</InlineCode>-style file:
         </p>
         <CodeBlock code={mcpJson} label="mcp.json" />

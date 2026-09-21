@@ -338,7 +338,7 @@ Credentials live at \`~/.feedbackkit/credentials.json\` (owner-only permissions)
   {
     slug: "mcp",
     title: "MCP & coding agents",
-    summary: "Connect Claude Code (or another MCP-compatible agent) to fetch feedback directly.",
+    summary: "Connect Claude Code, Codex, Antigravity (or another MCP-compatible agent) to fetch feedback directly.",
     content: `# MCP & coding agents
 
 \`feedbackkit mcp\` runs an MCP (Model Context Protocol) server over stdio, so a coding agent can fetch a bug report and its generated prompt directly — the copy/paste step removed entirely. It uses the same stored credentials as the CLI, so log in first (see the \`cli\` doc topic).
@@ -366,9 +366,71 @@ claude mcp add --scope user feedbackkit -- feedbackkit mcp
 
 Manage registered servers with \`claude mcp list\`, \`claude mcp remove feedbackkit\`, or the in-session \`/mcp\` command.
 
+## Codex
+
+Register via the Codex CLI:
+
+\`\`\`bash
+codex mcp add feedbackkit -- feedbackkit mcp
+\`\`\`
+
+Or without a global install:
+
+\`\`\`bash
+codex mcp add feedbackkit -- npx -y feedbackkit-cli mcp
+\`\`\`
+
+Or configure manually in \`~/.codex/config.toml\` (user-wide) or \`.codex/config.toml\` (project-specific):
+
+\`\`\`toml
+[mcp_servers.feedbackkit]
+command = "feedbackkit"
+args = ["mcp"]
+\`\`\`
+
+Or with \`npx\` if not installed globally:
+
+\`\`\`toml
+[mcp_servers.feedbackkit]
+command = "npx"
+args = ["-y", "feedbackkit-cli", "mcp"]
+\`\`\`
+
+Manage registered servers with \`codex mcp list\`, \`codex mcp remove feedbackkit\`, or via Settings > MCP Settings.
+
+## Antigravity
+
+Add FeedbackKit to your \`mcp_config.json\` — either globally in \`~/.gemini/config/mcp_config.json\` or project-scoped in \`.agents/mcp_config.json\`:
+
+\`\`\`json
+{
+  "mcpServers": {
+    "feedbackkit": {
+      "command": "feedbackkit",
+      "args": ["mcp"]
+    }
+  }
+}
+\`\`\`
+
+Or with \`npx\` if not installed globally:
+
+\`\`\`json
+{
+  "mcpServers": {
+    "feedbackkit": {
+      "command": "npx",
+      "args": ["-y", "feedbackkit-cli", "mcp"]
+    }
+  }
+}
+\`\`\`
+
+In the Antigravity IDE, you can also open the agent panel, click the menu (...), and select MCP Servers > Manage MCP Servers to view raw config or verify connected tools.
+
 ## Other agents
 
-Most MCP-compatible tools accept a similar JSON config, typically in an \`mcp.json\`-style file:
+Most other MCP-compatible tools accept a similar JSON config, typically in an \`mcp.json\`-style file:
 
 \`\`\`json
 {

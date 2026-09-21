@@ -21,7 +21,7 @@ const pieces = [
   {
     to: "/docs/mcp",
     title: "MCP & coding agents",
-    description: "Let Claude Code, Cursor, or another agent fetch a prompt directly — no copy/paste.",
+    description: "Let Claude Code, Codex, Antigravity, or another agent fetch a prompt directly — no copy/paste.",
   },
 ];
 

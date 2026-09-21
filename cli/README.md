@@ -79,7 +79,34 @@ Or without a global install:
 claude mcp add feedbackkit -- npx -y feedbackkit-cli mcp
 ```
 
-Or configure via JSON (e.g. for Cursor, Windsurf, Claude Desktop):
+For Codex:
+
+```bash
+codex mcp add feedbackkit -- feedbackkit mcp
+```
+
+Or in `~/.codex/config.toml` (user-wide) or `.codex/config.toml` (project):
+
+```toml
+[mcp_servers.feedbackkit]
+command = "feedbackkit"
+args = ["mcp"]
+```
+
+For Antigravity (in `~/.gemini/config/mcp_config.json` or `.agents/mcp_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "feedbackkit": {
+      "command": "feedbackkit",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Or configure via JSON for other agents (e.g. Cursor, Windsurf, Claude Desktop):
 
 ```json
 {
