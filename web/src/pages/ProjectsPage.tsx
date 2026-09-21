@@ -165,7 +165,7 @@ export function ProjectsPage() {
                 name="name"
                 required
                 placeholder="e.g. Consumer App"
-                className="flex-1 rounded-lg border border-neutral-200 px-3 py-2 text-sm transition-colors focus:border-neutral-400 focus:outline-none"
+                className="flex-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 transition-colors placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none"
               />
               <Button type="submit" disabled={isPending}>
                 {isPending ? (

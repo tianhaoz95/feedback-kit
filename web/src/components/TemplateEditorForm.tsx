@@ -22,7 +22,7 @@ export function TemplateEditorForm({
         value={value}
         onChange={(event) => setValue(event.target.value)}
         rows={10}
-        className="w-full rounded-lg border border-neutral-200 p-3 font-mono text-xs leading-relaxed transition-colors focus:border-neutral-400 focus:outline-none"
+        className="w-full rounded-lg border border-neutral-200 bg-white p-3 font-mono text-xs text-neutral-800 leading-relaxed transition-colors placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none"
       />
       <p className="text-xs text-neutral-400">
         Placeholders: {PROMPT_TEMPLATE_PLACEHOLDERS.map((p) => `{{${p}}}`).join(", ")}
