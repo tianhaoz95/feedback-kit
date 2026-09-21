@@ -1,8 +1,12 @@
 import { Link } from "react-router-dom";
 import { CodeBlock } from "@/components/docs/CodeBlock";
-import { DocsCallout, DocsSection, DocsTable, DocsTitle, InlineCode } from "@/components/docs/DocsProse";
+import { DocsSection, DocsTable, DocsTitle, InlineCode } from "@/components/docs/DocsProse";
 
-const install = `git clone https://github.com/tianhaoz95/feedback-kit
+const installGlobal = `npm install -g feedbackkit-cli`;
+
+const runNpx = `npx feedbackkit-cli login`;
+
+const installSource = `git clone https://github.com/tianhaoz95/feedback-kit
 cd feedback-kit/cli
 npm install
 npm run build
@@ -22,12 +26,19 @@ export function DocsCliPage() {
           terminal, authenticated as your own account."
       />
 
-      <DocsCallout tone="warning">
-        Not published to npm yet — build it from the repo.
-      </DocsCallout>
-
       <DocsSection title="Install">
-        <CodeBlock code={install} label="Terminal" />
+        <p>
+          Install <InlineCode>feedbackkit-cli</InlineCode> globally via npm to get the{" "}
+          <InlineCode>feedbackkit</InlineCode> and <InlineCode>feedbackkit-cli</InlineCode> commands on
+          your <InlineCode>PATH</InlineCode>:
+        </p>
+        <CodeBlock code={installGlobal} label="Terminal" />
+        <p>
+          Or run commands directly without installing via <InlineCode>npx</InlineCode>:
+        </p>
+        <CodeBlock code={runNpx} label="Terminal" />
+        <p>You can also build and link from source if you're developing on the CLI locally:</p>
+        <CodeBlock code={installSource} label="Terminal" />
       </DocsSection>
 
       <DocsSection title="Log in">

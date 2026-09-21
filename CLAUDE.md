@@ -209,6 +209,10 @@ defaults, over whatever's actually live.
 
 ### CLI + MCP server (`cli/`)
 
+The CLI is published on npm as `feedbackkit-cli` (`npm install -g feedbackkit-cli` or `npx feedbackkit-cli`).
+
+For local development:
+
 ```bash
 cd cli
 npm install
@@ -216,10 +220,10 @@ npm run build      # tsc -b -> dist/
 node dist/index.js --help
 ```
 
-No published npm package yet — see `cli/README.md` for `npm link` /
-running from `dist/` directly, the full command list, and the MCP tool
-list. `feedbackkit login --dashboard-url http://localhost:3000` points it at
-a local `./scripts/start-web.sh` stack instead of the hosted dashboard.
+See `cli/README.md` for `npm link` / running from `dist/` directly, the full
+command list, and the MCP tool list. `feedbackkit login --dashboard-url http://localhost:3000`
+points it at a local `./scripts/start-web.sh` stack instead of the hosted
+dashboard.
 
 `feedbackkit docs [topic]` / the `get_docs` MCP tool (`cli/src/docs.ts`)
 print FeedbackKit's own reference docs — a condensed, hand-kept-in-sync copy

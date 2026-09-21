@@ -5,6 +5,22 @@ agent (Claude Code, Cursor, etc.) can pull a bug report and its generated
 prompt directly, instead of a human copying it out of the dashboard and
 pasting it in.
 
+## Installation
+
+Install globally from npm:
+
+```bash
+npm install -g feedbackkit-cli
+```
+
+This puts both `feedbackkit` and `feedbackkit-cli` on your `PATH`.
+
+Or run directly without installing via `npx`:
+
+```bash
+npx feedbackkit-cli <command>
+```
+
 ## How auth works
 
 `feedbackkit login` opens your browser to the dashboard, where you authorize
@@ -53,12 +69,37 @@ tool below.
 `feedbackkit mcp` runs an MCP server over stdio. Point your agent's MCP
 client config at it, e.g. for Claude Code:
 
+```bash
+claude mcp add feedbackkit -- feedbackkit mcp
+```
+
+Or without a global install:
+
+```bash
+claude mcp add feedbackkit -- npx -y feedbackkit-cli mcp
+```
+
+Or configure via JSON (e.g. for Cursor, Windsurf, Claude Desktop):
+
 ```json
 {
   "mcpServers": {
     "feedbackkit": {
       "command": "feedbackkit",
       "args": ["mcp"]
+    }
+  }
+}
+```
+
+Or using `npx`:
+
+```json
+{
+  "mcpServers": {
+    "feedbackkit": {
+      "command": "npx",
+      "args": ["-y", "feedbackkit-cli", "mcp"]
     }
   }
 }
@@ -87,8 +128,8 @@ npm run build   # tsc -b, outputs to dist/
 node dist/index.js --help
 ```
 
-There's no published npm package yet — run it from `dist/` directly, or
-`npm link` this directory to get a `feedbackkit` binary on your `PATH`.
+To test local development changes, run from `dist/` directly or `npm link`
+this directory to link the local `feedbackkit` binary to your `PATH`.
 
 `src/types.ts` and `src/promptTemplate.ts` are hand-kept-in-sync copies of
 `web/src/lib/types.ts` and `web/src/lib/prompt-template.ts` — same pattern

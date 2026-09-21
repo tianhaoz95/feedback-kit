@@ -2,7 +2,10 @@ import { Link } from "react-router-dom";
 import { CodeBlock } from "@/components/docs/CodeBlock";
 import { DocsCallout, DocsSection, DocsTable, DocsTitle, InlineCode } from "@/components/docs/DocsProse";
 
-const claudeCodeAdd = `claude mcp add feedbackkit -- feedbackkit mcp`;
+const claudeCodeAdd = `claude mcp add feedbackkit -- feedbackkit mcp
+
+# Or without a global install:
+claude mcp add feedbackkit -- npx -y feedbackkit-cli mcp`;
 
 const claudeCodeScoped = `# Available to just this project, checked into .claude/.mcp.json
 claude mcp add --scope project feedbackkit -- feedbackkit mcp
@@ -16,6 +19,16 @@ const mcpJson = `{
       "type": "stdio",
       "command": "feedbackkit",
       "args": ["mcp"]
+    }
+  }
+}`;
+
+const mcpJsonNpx = `{
+  "mcpServers": {
+    "feedbackkit": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "feedbackkit-cli", "mcp"]
     }
   }
 }`;
@@ -59,6 +72,8 @@ export function DocsMcpPage() {
           typically in a <InlineCode>mcp.json</InlineCode>-style file:
         </p>
         <CodeBlock code={mcpJson} label="mcp.json" />
+        <p>Or with <InlineCode>npx</InlineCode> if not installed globally:</p>
+        <CodeBlock code={mcpJsonNpx} label="mcp.json (npx)" />
         <DocsCallout>
           The exact file location and surrounding config shape varies by tool and changes over time —
           check that tool's own MCP documentation for where this block goes.

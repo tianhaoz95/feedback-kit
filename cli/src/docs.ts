@@ -278,7 +278,21 @@ The dashboard is a static site (Vite + React) backed by Supabase (Postgres, Auth
 
 A command-line client for the dashboard — read feedback and generated prompts from a terminal, authenticated as your own account.
 
-Not published to npm yet — build it from the repo:
+## Install
+
+Install globally from npm:
+
+\`\`\`bash
+npm install -g feedbackkit-cli
+\`\`\`
+
+This puts \`feedbackkit\` and \`feedbackkit-cli\` on your \`PATH\`. Or run directly without installing via \`npx\`:
+
+\`\`\`bash
+npx feedbackkit-cli <command>
+\`\`\`
+
+Or build from source:
 
 \`\`\`bash
 git clone https://github.com/tianhaoz95/feedback-kit
@@ -337,6 +351,12 @@ Register it as a local stdio server:
 claude mcp add feedbackkit -- feedbackkit mcp
 \`\`\`
 
+Or without a global install:
+
+\`\`\`bash
+claude mcp add feedbackkit -- npx -y feedbackkit-cli mcp
+\`\`\`
+
 Or scope it to just this project (checked into version control) or to yourself across all projects:
 
 \`\`\`bash
@@ -357,6 +377,20 @@ Most MCP-compatible tools accept a similar JSON config, typically in an \`mcp.js
       "type": "stdio",
       "command": "feedbackkit",
       "args": ["mcp"]
+    }
+  }
+}
+\`\`\`
+
+Or with \`npx\` if not installed globally:
+
+\`\`\`json
+{
+  "mcpServers": {
+    "feedbackkit": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "feedbackkit-cli", "mcp"]
     }
   }
 }

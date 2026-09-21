@@ -89,11 +89,18 @@ show up live.
 
 ### Use the CLI / MCP server
 
+Install globally from npm (or run directly with `npx feedbackkit-cli`):
+
 ```bash
-cd cli
-npm install && npm run build
-node dist/index.js login --dashboard-url http://localhost:3000   # against a local stack
-node dist/index.js list
+npm install -g feedbackkit-cli
+feedbackkit login   # sign in via browser
+feedbackkit list
+```
+
+Or connect it to your local dev stack:
+
+```bash
+feedbackkit login --dashboard-url http://localhost:3000
 ```
 
 Lets a coding agent fetch a feedback report's generated prompt directly
