@@ -30,8 +30,8 @@ export function DocsDashboardPage() {
       <DocsSection title="Create a project">
         <p>
           From <InlineCode>Projects</InlineCode>, create a new one and open it. Every project gets a unique{" "}
-          <InlineCode>project_key</InlineCode> and an ingestion endpoint URL, shown together as a Swift
-          snippet you can copy straight into your app — see{" "}
+          <InlineCode>project_key</InlineCode> and an ingestion endpoint URL, presented with both a ready-to-use
+          prompt for your AI coding agent and a Swift snippet for manual setup — see{" "}
           <Link to="/docs/ios-sdk#basic-usage" className="link-underline font-medium text-neutral-900">
             the iOS SDK page
           </Link>{" "}

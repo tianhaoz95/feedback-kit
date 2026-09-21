@@ -225,7 +225,7 @@ GitHub OAuth only — no email/password. Signing in for the first time creates y
 
 ## Create a project
 
-From **Projects**, create one and open it. Every project gets a unique \`project_key\` and an ingestion endpoint URL, shown as a Swift snippet you can paste into your app (see the \`sdk\` doc topic). Every project also gets a default prompt template automatically.
+From **Projects**, create one and open it. Every project gets a unique \`project_key\` and an ingestion endpoint URL, presented with both a ready-to-use prompt for your AI coding agent and a Swift snippet for manual setup (see the \`sdk\` doc topic). Every project also gets a default prompt template automatically.
 
 ## Review feedback
 

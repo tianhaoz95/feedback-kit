@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import type { FeedbackItem, Project, PromptTemplate } from "@/lib/types";
-import { CopyButton } from "@/components/CopyButton";
 import { TemplateEditorForm } from "@/components/TemplateEditorForm";
 import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
-import { ArrowLeftIcon, InboxIcon, SparkleIcon, TerminalIcon } from "@/components/icons";
+import { ArrowLeftIcon, InboxIcon, SparkleIcon } from "@/components/icons";
+import { SdkSetupCard } from "@/components/SdkSetupCard";
 
 export function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -78,7 +78,6 @@ export function ProjectPage() {
   }
 
   const ingestUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ingest-feedback`;
-  const swiftSnippet = `FeedbackKit.configure(.init(\n    endpointURL: URL(string: "${ingestUrl}")!,\n    projectKey: "${project.project_key}"\n))`;
 
   return (
     <div className="space-y-8">
@@ -92,21 +91,11 @@ export function ProjectPage() {
         <h1 className="mt-1 text-xl font-semibold text-neutral-900">{project.name}</h1>
       </div>
 
-      <section className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-2">
-          <TerminalIcon className="h-4 w-4 text-neutral-400" />
-          <h2 className="text-sm font-medium text-neutral-900">iOS SDK setup</h2>
-        </div>
-        <p className="mt-1 text-xs text-neutral-500">
-          Paste this where you configure FeedbackKit at app launch.
-        </p>
-        <pre className="mt-3 overflow-x-auto rounded-lg bg-neutral-900 p-3.5 text-xs leading-relaxed text-neutral-100">
-          {swiftSnippet}
-        </pre>
-        <div className="mt-3">
-          <CopyButton text={swiftSnippet} label="Copy snippet" />
-        </div>
-      </section>
+      <SdkSetupCard
+        projectKey={project.project_key}
+        endpointUrl={ingestUrl}
+        projectName={project.name}
+      />
 
       <section className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
         <div className="flex items-center gap-2">
