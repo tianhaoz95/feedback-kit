@@ -11,6 +11,17 @@ final class AnnotationToolbar: NSView {
     var onColorSelected: ((NSColor) -> Void)?
     var onUndo: (() -> Void)?
 
+    /// Mirrors UIKit's `isUserInteractionEnabled` (see the same property on
+    /// `AnnotationCanvasView`) — a `hitTest` override blocks clicks to every
+    /// button/swatch here in one place, rather than tracking each control
+    /// individually (color swatches and the undo button aren't stored as
+    /// properties the way `toolButtons` is).
+    var isEnabled: Bool = true
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        isEnabled ? super.hitTest(point) : nil
+    }
+
     private static let colors: [NSColor] = [.systemRed, .systemYellow, .systemGreen, .systemBlue, .labelColor]
     private static let tools: [(AnnotationCanvasView.Tool, String)] = [
         (.pen, "pencil.tip"),

@@ -27,6 +27,15 @@ final class AnnotationCanvasView: NSView {
         didSet { needsDisplay = true }
     }
 
+    /// AppKit has no `UIView.isUserInteractionEnabled` equivalent — disabling
+    /// every attached gesture recognizer directly is the standard
+    /// replacement, and correct here since this view has no mouseDown/etc.
+    /// overrides of its own that could bypass them (see the gesture
+    /// recognizers declared below).
+    var isEnabled: Bool = true {
+        didSet { gestureRecognizers.forEach { $0.isEnabled = isEnabled } }
+    }
+
     /// Called after a text-tool click so the host window controller can
     /// present a text-entry prompt (keeps NSAlert presentation out of this view).
     var onRequestTextInput: ((_ locationInView: CGPoint, _ completion: @escaping (String?) -> Void) -> Void)?

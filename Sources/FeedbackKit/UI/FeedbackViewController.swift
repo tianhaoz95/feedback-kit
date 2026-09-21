@@ -40,14 +40,6 @@ final class FeedbackViewController: UIViewController {
 
     private var pickedAttachment: (filename: String, mimeType: String, data: Data)?
 
-    // The composer's top edge either follows the screenshot area (screenshot
-    // included) or sits right under the header (screenshot excluded) —
-    // exactly one of these is active at a time, swapped in `toggleChanged()`.
-    private var composerTopToScreenshotConstraint: NSLayoutConstraint!
-    private var composerTopToHeaderConstraint: NSLayoutConstraint!
-    private var toolbarTopConstraint: NSLayoutConstraint!
-    private var toolbarBottomConstraint: NSLayoutConstraint!
-
     init(rawScreenshot: UIImage, screenNameOverride: String?, onComplete: @escaping (FeedbackReport?) -> Void) {
         self.rawScreenshot = rawScreenshot
         self.screenNameOverride = screenNameOverride
@@ -259,21 +251,6 @@ final class FeedbackViewController: UIViewController {
 
         let safe = view.safeAreaLayoutGuide
 
-        // Exactly one of these is active at a time (see `toggleScreenshotChanged`).
-        // `toolbarBottomConstraint` travels with the screenshot-included state
-        // too — without it, the toolbar's top (pinned to the header) would sit
-        // below its bottom (pinned to the composer) once the composer moves up
-        // to fill the excluded screenshot's space, an unsatisfiable constraint.
-        composerTopToScreenshotConstraint = composerContainer.topAnchor.constraint(
-            equalTo: screenshotBoundsView.bottomAnchor, constant: 8
-        )
-        composerTopToHeaderConstraint = composerContainer.topAnchor.constraint(
-            equalTo: headerView.bottomAnchor, constant: 8
-        )
-        toolbarTopConstraint = toolbar.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 8)
-        toolbarBottomConstraint = toolbar.bottomAnchor.constraint(equalTo: composerContainer.topAnchor, constant: -8)
-        composerTopToHeaderConstraint.isActive = false
-
         NSLayoutConstraint.activate([
             headerView.topAnchor.constraint(equalTo: safe.topAnchor),
             headerView.leadingAnchor.constraint(equalTo: safe.leadingAnchor),
@@ -292,11 +269,11 @@ final class FeedbackViewController: UIViewController {
             screenshotBoundsView.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 8),
             screenshotBoundsView.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 16),
             screenshotBoundsView.trailingAnchor.constraint(equalTo: toolbar.leadingAnchor, constant: -4),
-            composerTopToScreenshotConstraint,
+            composerContainer.topAnchor.constraint(equalTo: screenshotBoundsView.bottomAnchor, constant: 8),
 
-            toolbarTopConstraint,
+            toolbar.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 8),
             toolbar.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -4),
-            toolbarBottomConstraint,
+            toolbar.bottomAnchor.constraint(equalTo: composerContainer.topAnchor, constant: -8),
             toolbar.widthAnchor.constraint(equalToConstant: 56),
 
             // No fixed height here on purpose: the composer sizes itself from
@@ -345,16 +322,16 @@ final class FeedbackViewController: UIViewController {
     }
 
     private func toggleScreenshotChanged() {
+        // The screenshot stays visible either way — turning it off just dims
+        // it and disables drawing, rather than collapsing the layout, so the
+        // toggle can't be flipped back and forth mid-annotation without
+        // losing anything on screen.
         let included = includeScreenshotToggle.isOn
-        screenshotBoundsView.isHidden = !included
-        toolbar.isHidden = !included
-        composerTopToScreenshotConstraint.isActive = included
-        toolbarTopConstraint.isActive = included
-        toolbarBottomConstraint.isActive = included
-        composerTopToHeaderConstraint.isActive = !included
-
+        canvasView.isUserInteractionEnabled = included
+        toolbar.isUserInteractionEnabled = included
         UIView.animate(withDuration: 0.2) { [self] in
-            view.layoutIfNeeded()
+            screenshotBoundsView.alpha = included ? 1.0 : 0.4
+            toolbar.alpha = included ? 1.0 : 0.4
         }
     }
 

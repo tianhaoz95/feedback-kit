@@ -179,11 +179,12 @@ export function DocsIosSdkPage() {
         <p>
           A "Screenshot" switch in the composer's second row, next to the send button — on by
           default — lets the user exclude it entirely, for a report that's pure description with nothing worth
-          screenshotting. Turning it off hides the screenshot/annotation area and toolbar and
-          expands the description composer to fill the space. This is a submission-time choice
-          only — the SDK still captures the screenshot up front (window-level capture is what lets
-          it show the annotate UI at all); it's simply discarded rather than included in the
-          report if the switch is off, along with any annotations.
+          screenshotting. Turning it off dims the screenshot/annotation area and toolbar and
+          disables drawing, rather than hiding them — the screen stays visible for context, it's
+          just not editable or included anymore. This is a submission-time choice only — the SDK
+          still captures the screenshot up front (window-level capture is what lets it show the
+          annotate UI at all); it's simply discarded rather than included in the report if the
+          switch is off, along with any annotations.
         </p>
       </DocsSection>
 

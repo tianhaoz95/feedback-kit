@@ -21,14 +21,6 @@ final class FeedbackWindowController: NSWindowController {
     private let screenshotBoundsView = ScreenshotBoundsView()
     private let toolbar = AnnotationToolbar()
 
-    // Exactly one of the "ToScreenshot"/"ToHeader" pair is active at a time
-    // (see `toggleScreenshotChanged`); `toolbarBottomConstraint` travels with
-    // them since it also anchors to `screenshotBoundsView`, which otherwise
-    // goes unconstrained on the excluded side.
-    private var composerTopToScreenshotConstraint: NSLayoutConstraint!
-    private var composerTopToHeaderConstraint: NSLayoutConstraint!
-    private var toolbarBottomConstraint: NSLayoutConstraint!
-
     private let composerContainer = FlippedView()
     private let attachmentChipView = NSView()
     private let attachmentNameLabel = NSTextField(labelWithString: "")
@@ -276,16 +268,12 @@ final class FeedbackWindowController: NSWindowController {
             $0.translatesAutoresizingMaskIntoConstraints = false
         }
 
-        composerTopToScreenshotConstraint = composerContainer.topAnchor.constraint(
+        let composerTopToScreenshot = composerContainer.topAnchor.constraint(
             equalTo: screenshotBoundsView.bottomAnchor, constant: 12
         )
-        composerTopToHeaderConstraint = composerContainer.topAnchor.constraint(
-            equalTo: cancelButton.bottomAnchor, constant: 12
-        )
-        toolbarBottomConstraint = toolbar.bottomAnchor.constraint(
+        let toolbarBottomConstraint = toolbar.bottomAnchor.constraint(
             lessThanOrEqualTo: composerContainer.topAnchor, constant: -12
         )
-        composerTopToHeaderConstraint.isActive = false
 
         screenshotBoundsView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
         screenshotBoundsView.setContentHuggingPriority(.defaultLow, for: .vertical)
@@ -306,7 +294,7 @@ final class FeedbackWindowController: NSWindowController {
             screenshotBoundsView.topAnchor.constraint(equalTo: cancelButton.bottomAnchor, constant: 12),
             screenshotBoundsView.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 16),
             screenshotBoundsView.trailingAnchor.constraint(equalTo: toolbar.leadingAnchor, constant: -12),
-            composerTopToScreenshotConstraint,
+            composerTopToScreenshot,
 
             toolbar.topAnchor.constraint(equalTo: screenshotBoundsView.topAnchor),
             toolbar.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -16),
@@ -391,12 +379,15 @@ final class FeedbackWindowController: NSWindowController {
     }
 
     @objc private func toggleScreenshotChanged() {
+        // The screenshot stays visible either way — turning it off just
+        // dims it and disables drawing, rather than collapsing the layout,
+        // so the toggle can't be flipped back and forth mid-annotation
+        // without losing anything on screen.
         let included = includeScreenshotToggle.state == .on
-        screenshotBoundsView.isHidden = !included
-        toolbar.isHidden = !included
-        composerTopToScreenshotConstraint.isActive = included
-        toolbarBottomConstraint.isActive = included
-        composerTopToHeaderConstraint.isActive = !included
+        screenshotBoundsView.canvasView.isEnabled = included
+        toolbar.isEnabled = included
+        screenshotBoundsView.alphaValue = included ? 1.0 : 0.4
+        toolbar.alphaValue = included ? 1.0 : 0.4
     }
 
     @objc private func submitTapped() {
