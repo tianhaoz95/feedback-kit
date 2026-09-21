@@ -349,9 +349,9 @@ usable before `feedbackkit login`.
   watchOS has no user-facing toggle to leave the screenshot out (see the
   next bullet) — it always produces the placeholder.
 - **`FeedbackReport.screenshotRawPNG`/`screenshotAnnotatedPNG` are `Data?`,
-  not `Data`** — on iOS/macOS a "Screenshot" switch in the annotate flow's
-  header (on by default) lets the user exclude the screenshot for a
-  pure-description report; when off, `FeedbackViewController`/
+  not `Data`** — on iOS/macOS a "Screenshot" switch in the composer's second
+  row (next to the send button, on by default) lets the user exclude the
+  screenshot for a pure-description report; when off, `FeedbackViewController`/
   `FeedbackWindowController`'s `submitTapped()` sends `nil`/`nil`/`[]` for
   screenshot/annotations instead of encoding real PNG data. This is exactly
   the "should these fields be optional across the whole stack" question the

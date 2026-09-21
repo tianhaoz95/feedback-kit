@@ -150,8 +150,8 @@ report's environment fields are handled identically regardless of which
 platform produced them.
 
 That deferred rework became genuinely necessary once iOS/macOS themselves
-needed an optional screenshot (a header toggle for reports that are pure
-description, with nothing worth screenshotting) — at that point "optional
+needed an optional screenshot (a toggle in the composer, for reports that
+are pure description, with nothing worth screenshotting) — at that point "optional
 screenshot" was no longer a watchOS-only quirk to route around, it was the
 actual shape of the data everywhere, so the fields became real `Data?` end
 to end: the Postgres columns dropped `not null`

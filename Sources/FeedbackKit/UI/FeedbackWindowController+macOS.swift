@@ -84,14 +84,6 @@ final class FeedbackWindowController: NSWindowController {
         cancelButton.target = self
         cancelButton.action = #selector(cancelTapped)
         root.addSubview(cancelButton)
-
-        includeScreenshotLabel.textColor = .secondaryLabelColor
-        includeScreenshotLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-        includeScreenshotToggle.state = .on
-        includeScreenshotToggle.target = self
-        includeScreenshotToggle.action = #selector(toggleScreenshotChanged)
-        root.addSubview(includeScreenshotLabel)
-        root.addSubview(includeScreenshotToggle)
     }
 
     private func buildScreenshotArea(in root: NSView) {
@@ -180,9 +172,21 @@ final class FeedbackWindowController: NSWindowController {
         sendButton.widthAnchor.constraint(equalToConstant: 24).isActive = true
         sendButton.heightAnchor.constraint(equalToConstant: 24).isActive = true
 
+        includeScreenshotLabel.translatesAutoresizingMaskIntoConstraints = false
+        includeScreenshotLabel.textColor = .secondaryLabelColor
+        includeScreenshotLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        includeScreenshotToggle.translatesAutoresizingMaskIntoConstraints = false
+        includeScreenshotToggle.state = .on
+        includeScreenshotToggle.target = self
+        includeScreenshotToggle.action = #selector(toggleScreenshotChanged)
+
+        // Attach on the left, the screenshot toggle and send on the right —
+        // the composer's "second row", under the text input.
         let buttonRow = NSView()
         buttonRow.translatesAutoresizingMaskIntoConstraints = false
         buttonRow.addSubview(attachButton)
+        buttonRow.addSubview(includeScreenshotLabel)
+        buttonRow.addSubview(includeScreenshotToggle)
         buttonRow.addSubview(sendButton)
 
         NSLayoutConstraint.activate([
@@ -193,6 +197,13 @@ final class FeedbackWindowController: NSWindowController {
             sendButton.trailingAnchor.constraint(equalTo: buttonRow.trailingAnchor),
             sendButton.topAnchor.constraint(equalTo: buttonRow.topAnchor),
             sendButton.bottomAnchor.constraint(equalTo: buttonRow.bottomAnchor),
+
+            includeScreenshotToggle.trailingAnchor.constraint(equalTo: sendButton.leadingAnchor, constant: -10),
+            includeScreenshotToggle.centerYAnchor.constraint(equalTo: buttonRow.centerYAnchor),
+            includeScreenshotLabel.trailingAnchor.constraint(
+                equalTo: includeScreenshotToggle.leadingAnchor, constant: -6
+            ),
+            includeScreenshotLabel.centerYAnchor.constraint(equalTo: buttonRow.centerYAnchor),
 
             buttonRow.heightAnchor.constraint(equalToConstant: 24)
         ])
@@ -261,8 +272,7 @@ final class FeedbackWindowController: NSWindowController {
     }
 
     private func layoutAll(in root: NSView) {
-        [cancelButton, includeScreenshotLabel, includeScreenshotToggle,
-         screenshotBoundsView, toolbar, composerContainer].forEach {
+        [cancelButton, screenshotBoundsView, toolbar, composerContainer].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
         }
 
@@ -286,13 +296,6 @@ final class FeedbackWindowController: NSWindowController {
         NSLayoutConstraint.activate([
             cancelButton.topAnchor.constraint(equalTo: root.topAnchor, constant: 16),
             cancelButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 16),
-
-            includeScreenshotToggle.topAnchor.constraint(equalTo: root.topAnchor, constant: 16),
-            includeScreenshotToggle.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -16),
-            includeScreenshotLabel.centerYAnchor.constraint(equalTo: includeScreenshotToggle.centerYAnchor),
-            includeScreenshotLabel.trailingAnchor.constraint(
-                equalTo: includeScreenshotToggle.leadingAnchor, constant: -8
-            ),
 
             // screenshotBoundsView itself is Auto-Layout-positioned; the
             // image/canvas pair inside it are frame-based (see

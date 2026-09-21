@@ -84,8 +84,8 @@ export function DocsIosSdkPage() {
         title="iOS, macOS & watchOS SDK"
         description="One Swift Package. On iOS and macOS, it captures a screenshot, lets the user
           annotate it, and hands your app a structured report — works with UIKit, SwiftUI, or AppKit
-          without needing to know which one built the screen on top. A header toggle lets the user
-          exclude the screenshot for a pure-description report. watchOS gets a deliberately
+          without needing to know which one built the screen on top. A toggle in the composer lets
+          the user exclude the screenshot for a pure-description report. watchOS gets a deliberately
           smaller version of the same idea: no screenshot, no annotation tools, just a text
           description and device/app context — see the watchOS section below."
       />
@@ -177,8 +177,8 @@ export function DocsIosSdkPage() {
 
       <DocsSection title="Making the screenshot optional">
         <p>
-          A "Screenshot" switch in the annotate flow's header — on by default — lets the user
-          exclude it entirely, for a report that's pure description with nothing worth
+          A "Screenshot" switch in the composer's second row, next to the send button — on by
+          default — lets the user exclude it entirely, for a report that's pure description with nothing worth
           screenshotting. Turning it off hides the screenshot/annotation area and toolbar and
           expands the description composer to fill the space. This is a submission-time choice
           only — the SDK still captures the screenshot up front (window-level capture is what lets

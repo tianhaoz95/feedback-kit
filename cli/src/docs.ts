@@ -59,7 +59,7 @@ FeedbackKit is open source: https://github.com/tianhaoz95/feedback-kit`,
     summary: "How to add FeedbackKit to an iOS, macOS, or watchOS app — install, trigger, submit.",
     content: `# SDK — iOS, macOS, watchOS
 
-One Swift Package. On iOS and macOS it captures a screenshot, lets the user annotate it, and hands your app a structured report — a header toggle lets the user exclude the screenshot entirely for a pure-description report. watchOS gets a deliberately smaller version: no screenshot, no annotation tools, just a text description and device/app context.
+One Swift Package. On iOS and macOS it captures a screenshot, lets the user annotate it, and hands your app a structured report — a toggle in the composer (next to the send button) lets the user exclude the screenshot entirely for a pure-description report. watchOS gets a deliberately smaller version: no screenshot, no annotation tools, just a text description and device/app context.
 
 ## Requirements
 
@@ -174,7 +174,7 @@ Four tools — freehand, rectangle, arrow, text — plus a drag tool for reposit
 
 ## Making the screenshot optional (iOS/macOS only)
 
-A "Screenshot" switch in the annotate flow's header (on by default) lets the user exclude it entirely — useful for a report that's pure description, with nothing worth screenshotting. Turning it off hides the screenshot/annotation area and toolbar and expands the description composer to fill the space; \`FeedbackReport.screenshotRawPNG\`, \`screenshotAnnotatedPNG\`, and \`annotations\` all come back nil/empty in that case (see the field table below). This is purely a submission-time choice — the SDK still captures the screenshot up front (window-level capture is what lets it show the annotate UI at all), it just discards it rather than including it in the report if the switch is off.
+A "Screenshot" switch in the composer's second row, next to the send button (on by default), lets the user exclude it entirely — useful for a report that's pure description, with nothing worth screenshotting. Turning it off hides the screenshot/annotation area and toolbar and expands the description composer to fill the space; \`FeedbackReport.screenshotRawPNG\`, \`screenshotAnnotatedPNG\`, and \`annotations\` all come back nil/empty in that case (see the field table below). This is purely a submission-time choice — the SDK still captures the screenshot up front (window-level capture is what lets it show the annotate UI at all), it just discards it rather than including it in the report if the switch is off.
 
 ## Sending to the hosted dashboard (optional)
 

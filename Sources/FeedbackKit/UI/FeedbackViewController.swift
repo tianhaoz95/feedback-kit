@@ -119,16 +119,8 @@ final class FeedbackViewController: UIViewController {
         cancelButton.setTitle("Cancel", for: .normal)
         cancelButton.addAction(UIAction { [weak self] _ in self?.cancelTapped() }, for: .touchUpInside)
 
-        includeScreenshotLabel.text = "Screenshot"
-        includeScreenshotLabel.font = .preferredFont(forTextStyle: .footnote)
-        includeScreenshotLabel.textColor = .secondaryLabel
-        includeScreenshotToggle.isOn = true
-        includeScreenshotToggle.addAction(UIAction { [weak self] _ in self?.toggleScreenshotChanged() }, for: .valueChanged)
-
         headerView.addSubview(titleLabel)
         headerView.addSubview(cancelButton)
-        headerView.addSubview(includeScreenshotLabel)
-        headerView.addSubview(includeScreenshotToggle)
         view.addSubview(headerView)
     }
 
@@ -200,10 +192,20 @@ final class FeedbackViewController: UIViewController {
         sendButton.tintColor = .systemBlue
         sendButton.addAction(UIAction { [weak self] _ in self?.submitTapped() }, for: .touchUpInside)
 
-        // Attach on the left, send on the right — the composer's "second row".
-        let buttonRow = UIStackView(arrangedSubviews: [attachButton, UIView(), sendButton])
+        includeScreenshotLabel.text = "Screenshot"
+        includeScreenshotLabel.font = .preferredFont(forTextStyle: .footnote)
+        includeScreenshotLabel.textColor = .secondaryLabel
+        includeScreenshotToggle.isOn = true
+        includeScreenshotToggle.addAction(UIAction { [weak self] _ in self?.toggleScreenshotChanged() }, for: .valueChanged)
+
+        // Attach on the left, the screenshot toggle and send on the right —
+        // the composer's "second row", under the text input.
+        let buttonRow = UIStackView(arrangedSubviews: [
+            attachButton, UIView(), includeScreenshotLabel, includeScreenshotToggle, sendButton
+        ])
         buttonRow.axis = .horizontal
         buttonRow.alignment = .center
+        buttonRow.spacing = 6
 
         composerStack.axis = .vertical
         composerStack.spacing = 8
@@ -250,7 +252,7 @@ final class FeedbackViewController: UIViewController {
     }
 
     private func layoutAll() {
-        [headerView, titleLabel, cancelButton, includeScreenshotLabel, includeScreenshotToggle,
+        [headerView, titleLabel, cancelButton,
          screenshotBoundsView, toolbar, composerContainer, composerStack, textView, placeholderLabel].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
         }
@@ -282,13 +284,6 @@ final class FeedbackViewController: UIViewController {
             titleLabel.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
             cancelButton.leadingAnchor.constraint(equalTo: headerView.leadingAnchor, constant: 16),
             cancelButton.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
-
-            includeScreenshotToggle.trailingAnchor.constraint(equalTo: headerView.trailingAnchor, constant: -16),
-            includeScreenshotToggle.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
-            includeScreenshotLabel.trailingAnchor.constraint(
-                equalTo: includeScreenshotToggle.leadingAnchor, constant: -8
-            ),
-            includeScreenshotLabel.centerYAnchor.constraint(equalTo: headerView.centerYAnchor),
 
             // The toolbar sits beside the screenshot, not under it — a portrait
             // screenshot's aspect-fit frame rarely uses the full width, so this
