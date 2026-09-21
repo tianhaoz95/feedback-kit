@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
-# Cuts a GitHub Release, triggering CI release workflows:
-#   - vX.Y.Z (or X.Y.Z) -> Triggers both testflight.yml (TestFlight upload) AND
-#                          release-macos-demo.yml (builds, signs, notarizes DMG & attaches to release)
-#   - cli-vX.Y.Z        -> publish-cli.yml (publishes CLI to npm)
+# Cuts a GitHub Release, triggering all CI release pipelines:
+#   - TestFlight upload (.github/workflows/testflight.yml)
+#   - macOS Demo DMG build, sign, notarize & attach (.github/workflows/release-macos-demo.yml)
+#   - CLI package publish to npm (.github/workflows/publish-cli.yml)
 #
 # Usage:
 #   ./scripts/cut_release.sh 1.0.0
 #   ./scripts/cut_release.sh v1.0.0
-#   ./scripts/cut_release.sh cli-v0.1.0
 #   ./scripts/cut_release.sh 1.0.0 --notes "Initial release"
 #   ./scripts/cut_release.sh 1.0.0 --draft       # create but don't publish
 #   ./scripts/cut_release.sh 1.0.0 --allow-dirty  # skip clean working tree check
@@ -26,8 +25,7 @@ Usage:
   cut_release.sh <tag-or-version> [options]
 
 Tag examples:
-  1.0.0 (or v1.0.0)    Unified release (triggers both TestFlight upload + macOS notarized DMG attach)
-  cli-v0.1.0           FeedbackKit CLI (published to npm)
+  1.0.0 (or v1.0.0)    Unified release (triggers TestFlight + macOS DMG + npm CLI)
 
 Options:
   --notes "..."        Custom release notes (defaults to GitHub auto-generated notes)
@@ -176,9 +174,10 @@ if [[ "$DRAFT" == "true" ]]; then
   echo "✅ Draft release $TAG created. Publish it from GitHub Releases to trigger release workflows."
 else
   if [[ "$WORKFLOW" == "unified" ]]; then
-    echo "✅ Release $TAG published -- this triggers both:"
+    echo "✅ Release $TAG published -- this triggers all release pipelines:"
     echo "   1. TestFlight upload (.github/workflows/testflight.yml)"
     echo "   2. macOS Demo DMG build, sign, notarize & attach (.github/workflows/release-macos-demo.yml)"
+    echo "   3. FeedbackKit CLI npm publish (.github/workflows/publish-cli.yml)"
     echo
     echo "Check active runs with:"
     echo "   gh run list --repo $REPO_SLUG"

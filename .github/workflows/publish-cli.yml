@@ -1,23 +1,26 @@
 name: Publish CLI to npm
 
 on:
-  push:
-    tags:
-      - "cli-v*.*.*"
+  release:
+    types: [published]
   workflow_dispatch:
     inputs:
       dry_run:
         description: "Test packaging and publishing without writing to registry"
         type: boolean
         default: false
+      version:
+        description: "Explicit version to publish (defaults to release tag or package.json)"
+        required: false
 
 concurrency:
-  group: npm-publish-${{ github.ref }}
+  group: npm-publish-${{ github.event.release.tag_name || github.ref }}
   cancel-in-progress: false
 
 jobs:
   publish:
     name: Build & Publish to npm
+    if: github.event_name != 'release' || !startsWith(github.event.release.tag_name, 'mac-demo-')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -34,9 +37,31 @@ jobs:
           cache: npm
           cache-dependency-path: cli/package-lock.json
 
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+            VERSION="${TAG#cli-v}"
+            VERSION="${VERSION#mac-demo-v}"
+            VERSION="${VERSION#v}"
+          elif [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION="$(node -p 'require("./cli/package.json").version')"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VERSION"
+
       - name: Install dependencies
         working-directory: cli
         run: npm ci
+
+      - name: Set package version
+        working-directory: cli
+        run: |
+          npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
 
       - name: Lint and build
         working-directory: cli
@@ -49,6 +74,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          PKG_VERSION="${{ steps.version.outputs.version }}"
+          ALREADY_PUBLISHED="$(npm view feedbackkit-cli@"$PKG_VERSION" version 2>/dev/null || true)"
+          if [ "$ALREADY_PUBLISHED" = "$PKG_VERSION" ]; then
+            echo "feedbackkit-cli@$PKG_VERSION is already published on npm registry. Skipping."
+            exit 0
+          fi
+
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             echo "Running dry-run publish..."
             npm publish --dry-run --access public
