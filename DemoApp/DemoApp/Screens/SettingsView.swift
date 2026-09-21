@@ -2,6 +2,22 @@ import FeedbackKit
 import SwiftUI
 
 struct SettingsView: View {
+    @AppStorage(DemoBranding.storageKey) private var brandingRawValue = DemoBranding.sunset.rawValue
+
+    /// Wraps `brandingRawValue` so picking a row both persists the choice
+    /// (via `@AppStorage`) and applies it immediately — rather than an
+    /// `.onChange(of:)` doing the applying separately, which would apply
+    /// the *previous* selection for one extra render pass.
+    private var brandingSelection: Binding<String> {
+        Binding(
+            get: { brandingRawValue },
+            set: { newValue in
+                brandingRawValue = newValue
+                FeedbackKit.theme = DemoBranding(rawValue: newValue)?.theme
+            }
+        )
+    }
+
     var body: some View {
         NavigationView {
             Form {
@@ -28,10 +44,27 @@ struct SettingsView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                Section("Custom branding") {
-                    Text("This demo sets FeedbackKit.theme in FeedbackKitDemoApp.swift, so the feedback screen's send button, selected annotation tool, and screenshot toggle use a custom purple instead of the system blue default, with Cancel/attach in a custom orange.")
+                Section {
+                    Text("FeedbackKit.theme customizes the feedback screen's accent colors. Pick a brand below — the send button, selected annotation tool, and screenshot toggle switch to its primary color; Cancel and the attach button switch to its secondary color. Takes effect immediately, no restart needed.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                    Picker("Brand", selection: brandingSelection) {
+                        ForEach(DemoBranding.allCases) { branding in
+                            Label {
+                                Text(branding.displayName)
+                            } icon: {
+                                HStack(spacing: 4) {
+                                    Circle().fill(branding.primarySwatch).frame(width: 12, height: 12)
+                                    Circle().fill(branding.secondarySwatch).frame(width: 12, height: 12)
+                                }
+                            }
+                            .tag(branding.rawValue)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                } header: {
+                    Text("Branding")
                 }
                 Section("Triggers wired up in this demo") {
                     Label("Shake the device / simulator", systemImage: "iphone.gen3")

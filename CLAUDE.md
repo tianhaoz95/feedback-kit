@@ -379,7 +379,10 @@ usable before `feedbackkit login`.
   `UISwitch`), so the screenshot toggle's on-tint is iOS-only — a known
   platform gap. See `DemoApp`'s three app targets for a working example
   (`FeedbackKit.theme = .init(primaryColorHex:secondaryColorHex:)` in each
-  target's `init()`).
+  target's `init()`); the iOS target's Settings tab additionally has a live
+  "Branding" picker (`DemoBranding.swift`) that swaps `FeedbackKit.theme`
+  immediately on selection and persists the choice via `@AppStorage`, for a
+  developer to see the effect without editing code.
 - **`AnnotationRenderer` and `PlatformTypes.swift` cover watchOS too**, via
   `#if os(iOS) || os(watchOS)` for the `UIColor`/`UIFont` typealiases —
   watchOS carries UIKit's plain data types (no `UIView`/`UIWindow`, but

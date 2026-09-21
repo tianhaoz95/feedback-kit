@@ -16,12 +16,12 @@ struct FeedbackKitDemoApp: App {
         // are just handed back to this app's completion handler instead of
         // being sent anywhere (see HomeView / CartViewController).
 
-        // Showcases FeedbackKit.theme: brand this demo's feedback screen
-        // with its own accent colors instead of the system blue default —
-        // the send button, the selected annotation tool, and the
-        // screenshot toggle all pick up the primary color; Cancel and the
-        // attach button pick up the secondary one.
-        FeedbackKit.theme = .init(primaryColorHex: "#7C3AED", secondaryColorHex: "#F97316")
+        // Showcases FeedbackKit.theme: restores whichever brand was last
+        // picked in Settings > Branding (default: .sunset, this demo's own
+        // brand), so the feedback screen stays themed across launches.
+        // Settings itself re-applies FeedbackKit.theme immediately when the
+        // picker's selection changes — this line only covers app startup.
+        FeedbackKit.theme = DemoBranding.current.theme
     }
 
     var body: some Scene {
