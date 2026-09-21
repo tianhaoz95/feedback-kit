@@ -1,0 +1,57 @@
+name: Publish CLI to npm
+
+on:
+  push:
+    tags:
+      - "cli-v*.*.*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Test packaging and publishing without writing to registry"
+        type: boolean
+        default: false
+
+concurrency:
+  group: npm-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build & Publish to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+
+      - name: Install dependencies
+        working-directory: cli
+        run: npm ci
+
+      - name: Lint and build
+        working-directory: cli
+        run: |
+          npm run lint
+          npm run build
+
+      - name: Publish package
+        working-directory: cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "Running dry-run publish..."
+            npm publish --dry-run --access public
+          else
+            npm publish --access public --provenance
+          fi

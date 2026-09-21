@@ -1,20 +1,38 @@
 {
   "name": "feedbackkit-cli",
   "version": "0.1.0",
-  "private": true,
   "description": "CLI + MCP server for reading FeedbackKit dashboard feedback from a coding agent.",
   "type": "module",
   "bin": {
-    "feedbackkit": "dist/index.js"
+    "feedbackkit": "dist/index.js",
+    "feedbackkit-cli": "dist/index.js"
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && chmod +x dist/index.js",
+    "prepublishOnly": "npm run build",
     "dev": "tsc -b --watch",
     "lint": "tsc -b --noEmit"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tianhaoz95/feedback-kit.git",
+    "directory": "cli"
+  },
+  "homepage": "https://github.com/tianhaoz95/feedback-kit#readme",
+  "bugs": {
+    "url": "https://github.com/tianhaoz95/feedback-kit/issues"
+  },
+  "keywords": [
+    "feedback",
+    "ios",
+    "mcp",
+    "mcp-server",
+    "coding-agent",
+    "feedbackkit"
+  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@supabase/supabase-js": "^2.116.0",
