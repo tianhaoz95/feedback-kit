@@ -1,5 +1,10 @@
 # FeedbackKit
 
+[![Release to TestFlight](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight.yml)
+[![Release macOS Demo](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-macos-demo.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-macos-demo.yml)
+[![Publish CLI Package](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-cli.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-cli.yml)
+[![Deploy web dashboard](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-web.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-web.yml)
+
 An iOS + macOS + watchOS SDK for capturing in-app user feedback (screenshot +
 annotations + description + device/app/screen info on iOS/macOS; text +
 context only on watchOS), plus an optional Supabase-backed dashboard for
