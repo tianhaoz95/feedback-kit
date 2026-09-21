@@ -40,6 +40,11 @@ ASC_KEY_ID="${ASC_KEY_ID:-${FA_ASC_KEY_ID:-}}"
 ASC_ISSUER_ID="${ASC_ISSUER_ID:-${FA_ASC_ISSUER_ID:-}}"
 ASC_KEY_PATH="${ASC_KEY_PATH:-${FA_KEY_LOCATION:-}}"
 APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
+VERSION="${VERSION:-${1:-}}"
+if [[ "$VERSION" == "--version" ]]; then
+  VERSION="${2:-}"
+fi
+VERSION="${VERSION#v}"
 
 # --- Validate credentials ---------------------------------------------------
 
@@ -96,22 +101,29 @@ echo "-> Archiving FeedbackKitDemo (Release)..."
 # targets as development signing, so forcing Distribution project-wide conflicts with them.
 # The -exportArchive step below still re-signs the final app with a proper Distribution identity
 # for the App Store -- a distinct signing pass driven by ExportOptions.plist's `method: app-store`.
-xcodebuild archive \
-  -project "$REPO_ROOT/DemoApp/FeedbackKitDemo.xcodeproj" \
-  -scheme FeedbackKitDemo \
-  -configuration Release \
-  -archivePath "$ARCHIVE_PATH" \
-  -destination "generic/platform=iOS" \
-  -allowProvisioningUpdates \
-  -authenticationKeyPath "$ASC_KEY_PATH" \
-  -authenticationKeyID "$ASC_KEY_ID" \
-  -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-  CODE_SIGNING_ALLOWED=YES \
-  CODE_SIGNING_REQUIRED=YES \
-  CODE_SIGN_STYLE=Automatic \
-  CODE_SIGN_IDENTITY="Apple Development" \
-  DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+ARCHIVE_ARGS=(
+  -project "$REPO_ROOT/DemoApp/FeedbackKitDemo.xcodeproj"
+  -scheme FeedbackKitDemo
+  -configuration Release
+  -archivePath "$ARCHIVE_PATH"
+  -destination "generic/platform=iOS"
+  -allowProvisioningUpdates
+  -authenticationKeyPath "$ASC_KEY_PATH"
+  -authenticationKeyID "$ASC_KEY_ID"
+  -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+  CODE_SIGNING_ALLOWED=YES
+  CODE_SIGNING_REQUIRED=YES
+  CODE_SIGN_STYLE=Automatic
+  CODE_SIGN_IDENTITY="Apple Development"
+  DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
+)
+if [[ -n "$VERSION" ]]; then
+  echo "-> Setting MARKETING_VERSION to $VERSION"
+  ARCHIVE_ARGS+=(MARKETING_VERSION="$VERSION")
+fi
+
+xcodebuild archive "${ARCHIVE_ARGS[@]}"
 
 cat > "$EXPORT_OPTIONS_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

@@ -56,16 +56,15 @@ if [[ "$CHECK_ONLY" -eq 0 ]]; then
       VERSION="${TAG#mac-demo-v}"
     elif [[ "$TAG" =~ ^v ]]; then
       VERSION="${TAG#v}"
-      TAG="mac-demo-v${VERSION}"
     else
       VERSION="$TAG"
-      TAG="mac-demo-v${VERSION}"
+      TAG="v${VERSION}"
     fi
   elif [[ -n "$VERSION" ]]; then
     VERSION="${VERSION#v}"
-    TAG="mac-demo-v${VERSION}"
+    TAG="v${VERSION}"
   fi
-  [[ -n "$VERSION" ]] || { echo "error: --version X.Y.Z or --tag mac-demo-vX.Y.Z is required" >&2; exit 1; }
+  [[ -n "$VERSION" ]] || { echo "error: --version X.Y.Z or --tag vX.Y.Z is required" >&2; exit 1; }
   echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "error: version must be X.Y.Z, got: $VERSION" >&2; exit 1; }
 fi
 
@@ -238,7 +237,9 @@ open without a Gatekeeper warning."
 if gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
   echo "   release $TAG already exists — attaching to it"
 else
-  gh release create "$TAG" --repo "$GH_REPO" --title "macOS Demo $VERSION" --notes "$NOTES"
+  TITLE="FeedbackKit $VERSION"
+  [[ "$TAG" =~ ^mac-demo-v ]] && TITLE="macOS Demo $VERSION"
+  gh release create "$TAG" --repo "$GH_REPO" --title "$TITLE" --notes "$NOTES"
 fi
 gh release upload "$TAG" --repo "$GH_REPO" --clobber "$OUT_DMG#$DMG_NAME"
 

@@ -7,23 +7,19 @@ name: Release macOS Demo
 # App Store listing.
 #
 # Fires on:
-#   - Publishing a release with a tag like `mac-demo-v1.0.0`
-#   - Pushing a tag like `mac-demo-v1.0.0`
+#   - Publishing a release (attaches notarized DMG to the release)
 #   - Manual trigger from the Actions tab (workflow_dispatch)
 
 on:
   release:
     types: [published]
-  push:
-    tags:
-      - "mac-demo-v*.*.*"
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to release (X.Y.Z) — creates/attaches to tag mac-demo-vX.Y.Z"
+        description: "Version to release (X.Y.Z) — creates/attaches to tag vX.Y.Z"
         required: false
       tag:
-        description: "Release tag to attach to (e.g. mac-demo-v1.0.0)"
+        description: "Release tag to attach to (e.g. v1.0.0)"
         required: false
       no_upload:
         description: "Build, sign and notarize only — don't create/attach to a release (pipeline validation)"
@@ -40,7 +36,7 @@ concurrency:
 jobs:
   release:
     name: Build, Sign, Notarize & Publish
-    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'mac-demo-v')
+    if: github.event_name != 'release' || (!startsWith(github.event.release.tag_name, 'cli-'))
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -109,25 +105,25 @@ jobs:
           if [ "${{ github.event_name }}" = "release" ]; then
             TAG="${{ github.event.release.tag_name }}"
             VERSION="${TAG#mac-demo-v}"
-          elif [ "${{ github.event_name }}" = "push" ]; then
-            TAG="${GITHUB_REF_NAME}"
-            VERSION="${TAG#mac-demo-v}"
+            VERSION="${VERSION#v}"
           else
             INPUT_TAG="${{ inputs.tag }}"
             INPUT_VER="${{ inputs.version }}"
             if [ -n "$INPUT_TAG" ]; then
               TAG="$INPUT_TAG"
               VERSION="${TAG#mac-demo-v}"
+              VERSION="${VERSION#v}"
             elif [ -n "$INPUT_VER" ]; then
               VERSION="${INPUT_VER#v}"
-              TAG="mac-demo-v${VERSION}"
+              TAG="v${VERSION}"
             elif [ "${{ inputs.no_upload }}" = "true" ]; then
               VERSION="0.0.0"
-              TAG="mac-demo-v0.0.0"
+              TAG="v0.0.0"
             else
               TAG="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName 2>/dev/null || true)"
               [ -n "$TAG" ] || { echo "error: couldn't resolve release tag" >&2; exit 1; }
               VERSION="${TAG#mac-demo-v}"
+              VERSION="${VERSION#v}"
             fi
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"

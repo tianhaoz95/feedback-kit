@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-# Cuts a GitHub Release, triggering the appropriate CI release workflow:
-#   - mac-demo-vX.Y.Z  -> .github/workflows/release-macos-demo.yml (builds, signs, notarizes DMG)
-#   - vX.Y.Z           -> .github/workflows/testflight.yml (builds and uploads iOS to TestFlight)
-#   - cli-vX.Y.Z       -> .github/workflows/publish-cli.yml (publishes CLI to npm)
+# Cuts a GitHub Release, triggering CI release workflows:
+#   - vX.Y.Z (or X.Y.Z) -> Triggers both testflight.yml (TestFlight upload) AND
+#                          release-macos-demo.yml (builds, signs, notarizes DMG & attaches to release)
+#   - cli-vX.Y.Z        -> publish-cli.yml (publishes CLI to npm)
 #
 # Usage:
-#   ./scripts/cut_release.sh mac-demo-v1.0.0
+#   ./scripts/cut_release.sh 1.0.0
 #   ./scripts/cut_release.sh v1.0.0
 #   ./scripts/cut_release.sh cli-v0.1.0
-#   ./scripts/cut_release.sh 1.0.0 --mac-demo
 #   ./scripts/cut_release.sh 1.0.0 --notes "Initial release"
 #   ./scripts/cut_release.sh 1.0.0 --draft       # create but don't publish
 #   ./scripts/cut_release.sh 1.0.0 --allow-dirty  # skip clean working tree check
@@ -27,13 +26,10 @@ Usage:
   cut_release.sh <tag-or-version> [options]
 
 Tag examples:
-  mac-demo-v1.0.0      macOS Demo App (notarized DMG attached to GitHub Release)
-  v1.0.0               iOS/watchOS Demo App (uploaded to TestFlight)
+  1.0.0 (or v1.0.0)    Unified release (triggers both TestFlight upload + macOS notarized DMG attach)
   cli-v0.1.0           FeedbackKit CLI (published to npm)
 
 Options:
-  --mac-demo           Prefix numeric version with 'mac-demo-v'
-  --cli                Prefix numeric version with 'cli-v'
   --notes "..."        Custom release notes (defaults to GitHub auto-generated notes)
   --draft              Create draft release (won't trigger CI until published)
   --allow-dirty        Skip clean git working tree check
@@ -144,15 +140,15 @@ if git rev-parse "$TAG" >/dev/null 2>&1 || gh release view "$TAG" --repo "$REPO_
 fi
 
 # Determine title and target workflow
-if [[ "$TAG" =~ ^mac-demo-v(.*)$ ]]; then
-  TITLE="macOS Demo ${BASH_REMATCH[1]}"
-  WORKFLOW="release-macos-demo.yml"
-elif [[ "$TAG" =~ ^cli-v(.*)$ ]]; then
+if [[ "$TAG" =~ ^cli-v(.*)$ ]]; then
   TITLE="CLI v${BASH_REMATCH[1]}"
   WORKFLOW="publish-cli.yml"
+elif [[ "$TAG" =~ ^mac-demo-v(.*)$ ]]; then
+  TITLE="macOS Demo ${BASH_REMATCH[1]}"
+  WORKFLOW="release-macos-demo.yml"
 else
   TITLE="$TAG"
-  WORKFLOW="testflight.yml"
+  WORKFLOW="unified"
 fi
 
 # --- Create the release ------------------------------------------------------
@@ -177,11 +173,20 @@ gh "${RELEASE_ARGS[@]}"
 git fetch --tags origin >/dev/null 2>&1 || true
 
 if [[ "$DRAFT" == "true" ]]; then
-  echo "✅ Draft release $TAG created. Publish it from GitHub Releases to trigger $WORKFLOW."
+  echo "✅ Draft release $TAG created. Publish it from GitHub Releases to trigger release workflows."
 else
-  echo "✅ Release $TAG published -- this triggers $WORKFLOW."
-  RUN_ID="$(gh run list --repo "$REPO_SLUG" --workflow="$WORKFLOW" --limit 1 --json databaseId -q '.[0].databaseId' 2>/dev/null || true)"
-  if [[ -n "$RUN_ID" ]]; then
-    echo "   Watch it with: gh run watch --repo $REPO_SLUG $RUN_ID"
+  if [[ "$WORKFLOW" == "unified" ]]; then
+    echo "✅ Release $TAG published -- this triggers both:"
+    echo "   1. TestFlight upload (.github/workflows/testflight.yml)"
+    echo "   2. macOS Demo DMG build, sign, notarize & attach (.github/workflows/release-macos-demo.yml)"
+    echo
+    echo "Check active runs with:"
+    echo "   gh run list --repo $REPO_SLUG"
+  else
+    echo "✅ Release $TAG published -- this triggers $WORKFLOW."
+    RUN_ID="$(gh run list --repo "$REPO_SLUG" --workflow="$WORKFLOW" --limit 1 --json databaseId -q '.[0].databaseId' 2>/dev/null || true)"
+    if [[ -n "$RUN_ID" ]]; then
+      echo "   Watch it with: gh run watch --repo $REPO_SLUG $RUN_ID"
+    fi
   fi
 fi

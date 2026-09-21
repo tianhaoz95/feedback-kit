@@ -209,24 +209,23 @@ team that owns the `com.feedbackkit.demo` app record in App Store Connect.
 An app record with that bundle ID must already exist there before you run
 this; the script doesn't create one.
 
-## Releasing the macOS demo app to GitHub Releases
+## Cutting a release
 
-Cut a release using the release cutter script (or push a `mac-demo-vX.Y.Z` tag):
+Release both the iOS demo app (to TestFlight) and the macOS demo app (to GitHub Releases) with a single command:
 
 ```bash
-./scripts/cut_release.sh mac-demo-v1.0.0 --notes "macOS demo app release"
+./scripts/cut_release.sh 1.0.0 --notes "Version 1.0.0 release"
 ```
 
-This publishes the GitHub release and runs `.github/workflows/release-macos-demo.yml`
-on GitHub, which builds `FeedbackKitDemoMac`, signs it with a **Developer ID
-Application** certificate, notarizes the result with Apple, and attaches a
-signed, stapled DMG to the release — no TestFlight, no App Store review,
-just a DMG anyone can download and run without a Gatekeeper warning.
+This publishes the GitHub release and triggers both CI release workflows in parallel:
+1. **`.github/workflows/testflight.yml`**: Archives `FeedbackKitDemo` and uploads it to App Store Connect for TestFlight.
+2. **`.github/workflows/release-macos-demo.yml`**: Archives `FeedbackKitDemoMac`, signs it with a **Developer ID Application** certificate, notarizes with Apple, and attaches the notarized `FeedbackKitDemoMac-1.0.0.dmg` directly to the GitHub release.
+
 Unlike TestFlight signing (an "Apple Development" identity Xcode manages
 automatically), Developer ID distribution needs a real exported `.p12` in CI,
-so this workflow imports one into a throwaway keychain rather than relying on
-`-allowProvisioningUpdates`. You can also trigger it by hand from the Actions tab
-(`workflow_dispatch`) — check "Pipeline validation (no-upload)" there to validate
+so `release-macos-demo.yml` imports one into a throwaway keychain rather than relying on
+`-allowProvisioningUpdates`. You can also trigger either workflow by hand from the Actions tab
+(`workflow_dispatch`) — for macOS, check "Pipeline validation (no-upload)" there to validate
 the full build, sign, and notarization pipeline without touching a real release.
 
 To verify your local credentials and tooling before releasing:
