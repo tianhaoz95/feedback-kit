@@ -1,4 +1,4 @@
-name: Publish CLI to npm
+name: Publish CLI Package
 
 on:
   release:
@@ -18,8 +18,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
-    name: Build & Publish to npm
+  publish-npm:
+    name: Publish to npm
     if: github.event_name != 'release' || !startsWith(github.event.release.tag_name, 'mac-demo-')
     runs-on: ubuntu-latest
     permissions:
@@ -33,7 +33,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js for npm
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -73,7 +73,7 @@ jobs:
           npm run lint
           npm run build
 
-      - name: Publish package
+      - name: Publish package to npm
         working-directory: cli
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -86,8 +86,86 @@ jobs:
           fi
 
           if [ "${{ inputs.dry_run }}" = "true" ]; then
-            echo "Running dry-run publish..."
+            echo "Running dry-run publish to npm..."
             npm publish --dry-run --access public
           else
             npm publish --access public --provenance
+          fi
+
+  publish-github-packages:
+    name: Publish to GitHub Packages
+    if: github.event_name != 'release' || !startsWith(github.event.release.tag_name, 'mac-demo-')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      deployments: write
+    environment:
+      name: github-packages
+      url: https://github.com/${{ github.repository }}/packages
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js for GitHub Packages
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@${{ github.repository_owner }}"
+          cache: npm
+          cache-dependency-path: cli/package-lock.json
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+            VERSION="${TAG#cli-v}"
+            VERSION="${VERSION#mac-demo-v}"
+            VERSION="${VERSION#v}"
+          elif [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION="$(node -p 'require("./cli/package.json").version')"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VERSION"
+
+      - name: Install dependencies
+        working-directory: cli
+        run: npm ci
+
+      - name: Configure package scope and version
+        working-directory: cli
+        run: |
+          SCOPE_OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          npm pkg set name="@${SCOPE_OWNER}/feedbackkit-cli"
+          npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
+
+      - name: Lint and build
+        working-directory: cli
+        run: |
+          npm run lint
+          npm run build
+
+      - name: Publish package to GitHub Packages
+        working-directory: cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "Running dry-run publish to GitHub Packages..."
+            npm publish --dry-run --access public
+          else
+            OUTPUT="$(npm publish --access public 2>&1)" || {
+              if echo "$OUTPUT" | grep -qiE "already exists|previously published|409|400"; then
+                echo "Package is already published to GitHub Packages. Skipping."
+              else
+                echo "$OUTPUT" >&2
+                exit 1
+              fi
+            }
+            echo "$OUTPUT"
           fi

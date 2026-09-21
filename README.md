@@ -220,7 +220,7 @@ Release the entire suite with a single command:
 This publishes the GitHub release and triggers all release pipelines in parallel:
 1. **`.github/workflows/testflight.yml`**: Archives `FeedbackKitDemo` and uploads it to App Store Connect for TestFlight.
 2. **`.github/workflows/release-macos-demo.yml`**: Archives `FeedbackKitDemoMac`, signs it with a **Developer ID Application** certificate, notarizes with Apple, and attaches the notarized `FeedbackKitDemoMac-1.0.0.dmg` directly to the GitHub release.
-3. **`.github/workflows/publish-cli.yml`**: Builds, tests, and publishes `feedbackkit-cli` to the npm registry with provenance.
+3. **`.github/workflows/publish-cli.yml`**: Builds, tests, and publishes `feedbackkit-cli` to both the public npm registry (`feedbackkit-cli`) and GitHub Packages (`@tianhaoz95/feedbackkit-cli`).
 
 Unlike TestFlight signing (an "Apple Development" identity Xcode manages
 automatically), Developer ID distribution needs a real exported `.p12` in CI,

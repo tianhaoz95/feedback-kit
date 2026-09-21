@@ -2,7 +2,7 @@
 # Cuts a GitHub Release, triggering all CI release pipelines:
 #   - TestFlight upload (.github/workflows/testflight.yml)
 #   - macOS Demo DMG build, sign, notarize & attach (.github/workflows/release-macos-demo.yml)
-#   - CLI package publish to npm (.github/workflows/publish-cli.yml)
+#   - CLI package publish to npm & GitHub Packages (.github/workflows/publish-cli.yml)
 #
 # Usage:
 #   ./scripts/cut_release.sh 1.0.0
@@ -177,7 +177,7 @@ else
     echo "✅ Release $TAG published -- this triggers all release pipelines:"
     echo "   1. TestFlight upload (.github/workflows/testflight.yml)"
     echo "   2. macOS Demo DMG build, sign, notarize & attach (.github/workflows/release-macos-demo.yml)"
-    echo "   3. FeedbackKit CLI npm publish (.github/workflows/publish-cli.yml)"
+    echo "   3. FeedbackKit CLI publish to npm & GitHub Packages (.github/workflows/publish-cli.yml)"
     echo
     echo "Check active runs with:"
     echo "   gh run list --repo $REPO_SLUG"
