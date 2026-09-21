@@ -40,6 +40,16 @@ final class FeedbackViewController: UIViewController {
 
     private var pickedAttachment: (filename: String, mimeType: String, data: Data)?
 
+    /// Pinned to the safe area by default; `keyboardWillChangeFrame(_:)`
+    /// pushes it up by however much the keyboard overlaps the safe area, so
+    /// the composer's text input and second row (attach/screenshot/send)
+    /// stay above it instead of being covered.
+    // Not `private` — `@testable import` can't cross that boundary, and
+    // FeedbackViewControllerKeyboardTests reads this directly. The type
+    // itself is already internal-only (not part of the public SDK API), so
+    // this doesn't widen anything actually exposed to consumers.
+    var composerBottomConstraint: NSLayoutConstraint!
+
     init(rawScreenshot: UIImage, screenNameOverride: String?, onComplete: @escaping (FeedbackReport?) -> Void) {
         self.rawScreenshot = rawScreenshot
         self.screenNameOverride = screenNameOverride
@@ -52,6 +62,10 @@ final class FeedbackViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
@@ -62,6 +76,13 @@ final class FeedbackViewController: UIViewController {
         buildToolbar()
         buildComposer()
         layoutAll()
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillChangeFrame(_:)),
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
     }
 
     override func viewDidLayoutSubviews() {
@@ -251,6 +272,8 @@ final class FeedbackViewController: UIViewController {
 
         let safe = view.safeAreaLayoutGuide
 
+        composerBottomConstraint = composerContainer.bottomAnchor.constraint(equalTo: safe.bottomAnchor, constant: -12)
+
         NSLayoutConstraint.activate([
             headerView.topAnchor.constraint(equalTo: safe.topAnchor),
             headerView.leadingAnchor.constraint(equalTo: safe.leadingAnchor),
@@ -281,7 +304,7 @@ final class FeedbackViewController: UIViewController {
             // stays compact as a single line and only grows as the user types.
             composerContainer.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 16),
             composerContainer.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -16),
-            composerContainer.bottomAnchor.constraint(equalTo: safe.bottomAnchor, constant: -12),
+            composerBottomConstraint,
 
             composerStack.leadingAnchor.constraint(equalTo: composerContainer.leadingAnchor, constant: 12),
             composerStack.trailingAnchor.constraint(equalTo: composerContainer.trailingAnchor, constant: -12),
@@ -319,6 +342,29 @@ final class FeedbackViewController: UIViewController {
     private func clearAttachment() {
         pickedAttachment = nil
         attachmentChipView.isHidden = true
+    }
+
+    /// Keeps the composer above the on-screen keyboard. Uses
+    /// `keyboardWillChangeFrameNotification` (fires for show, hide, *and*
+    /// resize — e.g. switching to an emoji keyboard, or an iPad
+    /// floating/undocked keyboard) rather than separate show/hide
+    /// notifications, matching Apple's current guidance. The overlap is
+    /// computed from the keyboard's actual end frame instead of assuming a
+    /// fixed height, so a floating iPad keyboard (which doesn't reach the
+    /// bottom of the screen) correctly doesn't push the composer at all.
+    @objc private func keyboardWillChangeFrame(_ notification: Notification) {
+        guard
+            let endFrameValue = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue,
+            let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double
+        else { return }
+
+        let endFrame = view.convert(endFrameValue.cgRectValue, from: nil)
+        let overlap = max(0, view.bounds.maxY - endFrame.minY - view.safeAreaInsets.bottom)
+        composerBottomConstraint.constant = -12 - overlap
+
+        UIView.animate(withDuration: duration) { [self] in
+            view.layoutIfNeeded()
+        }
     }
 
     private func toggleScreenshotChanged() {
