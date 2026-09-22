@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import type { FeedbackItem, FeedbackStatus, Project, PromptTemplate } from "@/lib/types";
 import { renderPromptTemplate } from "@/lib/prompt-template";
@@ -8,8 +9,12 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { StatusSelect } from "@/components/StatusSelect";
 import { EmptyState } from "@/components/EmptyState";
 import { FeedbackPromptEditor } from "@/components/FeedbackPromptEditor";
+import { Button } from "@/components/Button";
 import {
+  AlertIcon,
   ArrowLeftIcon,
+  ExternalLinkIcon,
+  GitHubIcon,
   ImageOffIcon,
   InboxIcon,
   PaperclipIcon,
@@ -19,11 +24,13 @@ import {
 } from "@/components/icons";
 import { SdkSetupCard } from "@/components/SdkSetupCard";
 import { McpSetupCard } from "@/components/McpSetupCard";
+import { GitHubSetupCard } from "@/components/GitHubSetupCard";
 
-type TabKey = "feedback" | "sdk" | "agent" | "template";
+type TabKey = "feedback" | "github" | "sdk" | "agent" | "template";
 
-const TABS: { id: TabKey; label: string; icon: typeof InboxIcon }[] = [
+const TABS: { id: TabKey; label: string; icon: typeof InboxIcon | typeof GitHubIcon }[] = [
   { id: "feedback", label: "Feedback", icon: InboxIcon },
+  { id: "github", label: "GitHub", icon: GitHubIcon },
   { id: "sdk", label: "SDK setup", icon: TerminalIcon },
   { id: "agent", label: "Connect AI agent", icon: SparkleIcon },
   { id: "template", label: "Prompt template", icon: TemplateIcon },
@@ -41,13 +48,78 @@ export function ProjectPage() {
 
   const tabParam = searchParams.get("tab");
   const activeTab: TabKey =
-    tabParam === "sdk" || tabParam === "agent" || tabParam === "template"
+    tabParam === "github" || tabParam === "sdk" || tabParam === "agent" || tabParam === "template"
       ? tabParam
       : "feedback";
 
   const feedbackParam = searchParams.get("feedback");
   const selectedFeedback =
     feedbackItems.find((item) => item.id === feedbackParam) ?? feedbackItems[0] ?? null;
+
+  const [isCreatingIssue, setIsCreatingIssue] = useState(false);
+  const [issueError, setIssueError] = useState<{ message: string; installUrl?: string } | null>(null);
+
+  async function createIssue(feedbackId: string) {
+    if (!project) return;
+    setIssueError(null);
+
+    if (!project.github_repo) {
+      setIssueError({
+        message: "Please connect a GitHub repository in the GitHub tab first.",
+      });
+      return;
+    }
+
+    setIsCreatingIssue(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-github-issue", {
+        body: {
+          project_id: project.id,
+          feedback_id: feedbackId,
+        },
+      });
+
+      if (error) {
+        if (error instanceof FunctionsHttpError) {
+          const body = await error.context.json().catch(() => null);
+          if (body?.install_url) {
+            setIssueError({
+              message: body.message || "FeedbackKit GitHub App is not installed on this repository.",
+              installUrl: body.install_url,
+            });
+            return;
+          }
+          setIssueError({
+            message: body?.message || error.message || "Failed to create GitHub issue.",
+          });
+          return;
+        }
+        setIssueError({ message: error.message || "Failed to create GitHub issue." });
+        return;
+      }
+
+      if (data?.issue_url) {
+        setFeedbackItems((current) =>
+          current.map((item) =>
+            item.id === feedbackId
+              ? {
+                  ...item,
+                  github_issue_url: data.issue_url,
+                  github_issue_number: data.issue_number,
+                  status: item.status === "new" ? "in_progress" : item.status,
+                }
+              : item
+          )
+        );
+      }
+    } catch (err) {
+      setIssueError({
+        message: err instanceof Error ? err.message : "Failed to create GitHub issue.",
+      });
+    } finally {
+      setIsCreatingIssue(false);
+    }
+  }
 
   function handleTabChange(tab: TabKey) {
     setSearchParams(
@@ -333,7 +405,18 @@ export function ProjectPage() {
                           >
                             {item.text ? truncate(item.text, 80) : "(no description)"}
                           </p>
-                          <StatusBadge status={item.status} className="shrink-0" />
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {item.github_issue_number ? (
+                              <span
+                                title={`GitHub Issue #${item.github_issue_number}`}
+                                className="inline-flex items-center gap-1 rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600 border border-neutral-200/80"
+                              >
+                                <GitHubIcon className="h-2.5 w-2.5 text-neutral-500" />
+                                <span>#{item.github_issue_number}</span>
+                              </span>
+                            ) : null}
+                            <StatusBadge status={item.status} className="shrink-0" />
+                          </div>
                         </div>
                         <div className="mt-2.5 flex items-center justify-between text-xs text-neutral-400">
                           <span className="truncate max-w-[150px] font-medium text-neutral-500">
@@ -361,14 +444,71 @@ export function ProjectPage() {
                       Received {new Date(selectedFeedback.created_at).toLocaleString()}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-neutral-500">Status:</span>
-                    <StatusSelect
-                      value={selectedFeedback.status}
-                      onChange={(newStatus) => updateFeedbackStatus(selectedFeedback.id, newStatus)}
-                    />
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    {selectedFeedback.github_issue_url ? (
+                      <a
+                        href={selectedFeedback.github_issue_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50 px-2.5 py-1.5 text-xs font-medium text-neutral-900 hover:bg-neutral-100 hover:border-neutral-300 transition-colors"
+                      >
+                        <GitHubIcon className="h-3.5 w-3.5 text-neutral-700" />
+                        <span>Issue #{selectedFeedback.github_issue_number ?? ""}</span>
+                        <ExternalLinkIcon className="h-3 w-3 text-neutral-400" />
+                      </a>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={isCreatingIssue}
+                        onClick={() => createIssue(selectedFeedback.id)}
+                        className="inline-flex items-center gap-1.5"
+                      >
+                        <GitHubIcon className="h-3.5 w-3.5" />
+                        <span>{isCreatingIssue ? "Creating issue…" : "Create GitHub Issue"}</span>
+                      </Button>
+                    )}
+
+                    <div className="h-4 w-px bg-neutral-200" />
+
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-medium text-neutral-500">Status:</span>
+                      <StatusSelect
+                        value={selectedFeedback.status}
+                        onChange={(newStatus) => updateFeedbackStatus(selectedFeedback.id, newStatus)}
+                      />
+                    </div>
                   </div>
                 </div>
+
+                {issueError ? (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-red-50 px-4 py-2.5 text-xs text-red-700 border border-red-100">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <AlertIcon className="h-4 w-4 shrink-0 text-red-600" />
+                      <span>{issueError.message}</span>
+                    </div>
+                    {issueError.installUrl ? (
+                      <a
+                        href={issueError.installUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 font-medium text-red-800 underline hover:text-red-900"
+                      >
+                        <span>Install GitHub App</span>
+                        <ExternalLinkIcon className="h-3 w-3" />
+                      </a>
+                    ) : !project.github_repo ? (
+                      <button
+                        type="button"
+                        onClick={() => handleTabChange("github")}
+                        className="font-medium text-red-800 underline hover:text-red-900"
+                      >
+                        Go to GitHub settings
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 {/* Subgrid: Left = Screenshot/Desc/Env, Right = Prompt */}
                 <div className="grid gap-5 xl:grid-cols-2">
@@ -489,6 +629,15 @@ export function ProjectPage() {
             </div>
           ) : null}
         </section>
+      )}
+
+      {activeTab === "github" && (
+        <GitHubSetupCard
+          project={project}
+          onProjectUpdated={(updated) =>
+            setProject((prev) => (prev ? { ...prev, ...updated } : prev))
+          }
+        />
       )}
 
       {activeTab === "sdk" && (

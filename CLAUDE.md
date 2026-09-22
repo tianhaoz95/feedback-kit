@@ -201,9 +201,11 @@ GitHub integration (Dashboard → Project Settings → Integrations → GitHub �
 not a custom Actions workflow, deliberately: it's a GitHub App connection
 Supabase itself manages and scopes to this repo, so no Postgres password or
 account-wide access token needs to live in this repo's secrets). Edge
-Functions are deployed manually via `./scripts/deploy-functions.sh` — see
-README.md for why that one isn't automated. `supabase config push`
-(auth/MFA/pooler/storage settings) is never automated either; push those
+Functions deploy automatically to the hosted project via GitHub Actions
+(`.github/workflows/deploy-functions.yml`) using `SUPABASE_ACCESS_TOKEN` on
+every push to `main` touching `supabase/functions/**`, or manually via
+`./scripts/deploy-functions.sh`. `supabase config push`
+(auth/MFA/pooler/storage settings) is never automated; push those
 manually after reviewing `supabase config diff` — a blind push syncs
 config.toml's entire declared state, including its local-dev-oriented
 defaults, over whatever's actually live.

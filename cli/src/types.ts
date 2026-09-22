@@ -11,6 +11,8 @@ export interface Project {
   name: string;
   project_key: string;
   created_at: string;
+  github_repo?: string | null;
+  github_installation_id?: number | null;
 }
 
 export interface PromptTemplate {
@@ -48,4 +50,6 @@ export interface FeedbackItem {
   attachment_path: string | null;
   attachment_filename: string | null;
   attachment_mime_type: string | null;
+  github_issue_url?: string | null;
+  github_issue_number?: number | null;
 }

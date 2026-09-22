@@ -416,6 +416,11 @@ verify_jwt = false
 [functions.stripe-webhook]
 verify_jwt = false
 
+# GitHub calls this directly with webhooks, not a Supabase session.
+[functions.github-webhook]
+verify_jwt = false
+
+
 [analytics]
 enabled = true
 port = 54327

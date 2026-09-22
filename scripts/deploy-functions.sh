@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-# Deploys Supabase Edge Functions to the hosted project. Not automated in CI
-# on purpose — see README.md's "Deploying Supabase" section — since it needs
-# an account-wide personal access token (supabase functions deploy has no
-# project-scoped credential), which isn't worth storing in GitHub Secrets
-# for something that changes rarely.
+# Deploys Supabase Edge Functions to the hosted project.
+# Also automated in CI via .github/workflows/deploy-functions.yml on push to main.
 #
 # Usage:
 #   ./scripts/deploy-functions.sh              # deploy every function
 #   ./scripts/deploy-functions.sh ingest-feedback   # deploy just one
+
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

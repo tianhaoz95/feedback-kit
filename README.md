@@ -5,6 +5,7 @@
 [![Publish CLI Package](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-cli.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-cli.yml)
 [![Publish Skills Package](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-skills.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-skills.yml)
 [![Deploy web dashboard](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-web.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-web.yml)
+[![Deploy Supabase Functions](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-functions.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-functions.yml)
 
 An iOS + macOS + watchOS SDK for capturing in-app user feedback (screenshot +
 annotations + description + device/app/screen info on iOS/macOS; text +
@@ -206,21 +207,21 @@ integration page:
 - Working directory: `.` (repo root, since `supabase/` lives directly there)
 - Deploy to production: on, with production branch `main`
 
-**Edge Functions** (`ingest-feedback`, plus `create-checkout-session` /
-`create-portal-session` / `stripe-webhook` for billing — see below) are
-deployed manually:
+**Edge Functions** (`ingest-feedback`, `create-github-issue`, `github-webhook`,
+plus billing functions `create-checkout-session` / `create-portal-session` /
+`stripe-webhook`) are automatically deployed to production via GitHub Actions
+(`.github/workflows/deploy-functions.yml`) on every push to `main` touching
+`supabase/functions/**`.
+
+They can also be deployed manually from the command line:
 
 ```bash
-supabase login              # once per machine — interactive browser OAuth
 ./scripts/deploy-functions.sh                # deploy every function
 ./scripts/deploy-functions.sh ingest-feedback   # or just one
 ```
 
-This isn't automated because, unlike the database sync above, there's no
-project-scoped credential for it — `supabase functions deploy` needs a
-Supabase personal access token, which grants Management API access to
-every project on the account, not just this one. Not worth storing an
-account-wide secret in CI for a function that changes rarely.
+Requires `SUPABASE_ACCESS_TOKEN` set in your environment or running `supabase login` once per machine.
+
 
 ### Turning on real billing
 
