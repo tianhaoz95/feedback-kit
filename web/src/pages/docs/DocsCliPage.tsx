@@ -1,10 +1,23 @@
 import { Link } from "react-router-dom";
 import { CodeBlock } from "@/components/docs/CodeBlock";
-import { DocsSection, DocsTable, DocsTitle, InlineCode } from "@/components/docs/DocsProse";
+import { DocsCallout, DocsSection, DocsTable, DocsTitle, InlineCode } from "@/components/docs/DocsProse";
 
 const installGlobal = `npm install -g feedbackkit-cli`;
 
 const runNpx = `npx feedbackkit-cli login`;
+
+const installGithubCli = `# Configure npm for the @tianhaoz95 scope:
+npm config set @tianhaoz95:registry https://npm.pkg.github.com
+npm config set //npm.pkg.github.com/:_authToken YOUR_GITHUB_PAT
+
+# Install globally:
+npm install -g @tianhaoz95/feedbackkit-cli
+
+# Or run directly via npx:
+npx @tianhaoz95/feedbackkit-cli login`;
+
+const installGithubNpmrc = `@tianhaoz95:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT`;
 
 const installSource = `git clone https://github.com/tianhaoz95/feedback-kit
 cd feedback-kit/cli
@@ -39,6 +52,27 @@ export function DocsCliPage() {
         <CodeBlock code={runNpx} label="Terminal" />
         <p>You can also build and link from source if you're developing on the CLI locally:</p>
         <CodeBlock code={installSource} label="Terminal" />
+      </DocsSection>
+
+      <DocsSection title="Installing from GitHub Packages">
+        <p>
+          FeedbackKit CLI is also published to the GitHub npm package registry as{" "}
+          <InlineCode>@tianhaoz95/feedbackkit-cli</InlineCode>. Unlike the public npm registry, GitHub Packages
+          requires authentication to download packages even when they are public.
+        </p>
+        <DocsCallout>
+          You will need a GitHub Personal Access Token (PAT) with the{" "}
+          <InlineCode>read:packages</InlineCode> scope (or a fine-grained token with read permission for Packages).
+        </DocsCallout>
+        <p>
+          Configure npm to authenticate to <InlineCode>npm.pkg.github.com</InlineCode> for the{" "}
+          <InlineCode>@tianhaoz95</InlineCode> scope, then install:
+        </p>
+        <CodeBlock code={installGithubCli} label="Terminal" />
+        <p>
+          Alternatively, add the scope and auth token directly to your <InlineCode>~/.npmrc</InlineCode>:
+        </p>
+        <CodeBlock code={installGithubNpmrc} label="~/.npmrc" />
       </DocsSection>
 
       <DocsSection title="Log in">

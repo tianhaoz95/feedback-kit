@@ -21,6 +21,26 @@ Or run directly without installing via `npx`:
 npx feedbackkit-cli <command>
 ```
 
+### Installing from GitHub Packages
+
+FeedbackKit CLI is also published to the GitHub npm package registry as `@tianhaoz95/feedbackkit-cli`. Because GitHub Packages requires authentication even for public packages:
+
+1. Create a GitHub Personal Access Token (classic with `read:packages` scope, or fine-grained with read access to packages).
+2. Configure npm for the `@tianhaoz95` scope in `~/.npmrc`:
+
+```ini
+@tianhaoz95:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT
+```
+
+3. Install globally or run via `npx`:
+
+```bash
+npm install -g @tianhaoz95/feedbackkit-cli
+# Or run with npx:
+npx @tianhaoz95/feedbackkit-cli <command>
+```
+
 ## How auth works
 
 `feedbackkit login` opens your browser to the dashboard, where you authorize

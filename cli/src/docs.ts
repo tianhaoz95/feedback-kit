@@ -312,6 +312,33 @@ npm run build
 npm link   # puts \`feedbackkit\` on your PATH
 \`\`\`
 
+## Installing from GitHub Packages
+
+FeedbackKit CLI is also published to the GitHub npm package registry as \`@tianhaoz95/feedbackkit-cli\`. Unlike the public npm registry, GitHub Packages requires authentication to download packages even when they are public.
+
+You will need a GitHub Personal Access Token (PAT) with the \`read:packages\` scope (or a fine-grained token with read permission for Packages).
+
+Configure npm for the \`@tianhaoz95\` scope and install:
+
+\`\`\`bash
+# Configure npm:
+npm config set @tianhaoz95:registry https://npm.pkg.github.com
+npm config set //npm.pkg.github.com/:_authToken YOUR_GITHUB_PAT
+
+# Install globally:
+npm install -g @tianhaoz95/feedbackkit-cli
+
+# Or run directly via npx:
+npx @tianhaoz95/feedbackkit-cli login
+\`\`\`
+
+Alternatively, add the scope and auth token directly to your \`~/.npmrc\`:
+
+\`\`\`ini
+@tianhaoz95:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT
+\`\`\`
+
 ## Log in
 
 \`\`\`bash
