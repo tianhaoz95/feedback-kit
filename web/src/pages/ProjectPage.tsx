@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { getErrorMessage } from "@/lib/errors";
 import type { FeedbackItem, FeedbackStatus, Project, PromptTemplate } from "@/lib/types";
 import { renderPromptTemplate } from "@/lib/prompt-template";
 import { TemplateEditorForm } from "@/components/TemplateEditorForm";
@@ -12,7 +13,10 @@ import { FeedbackPromptEditor } from "@/components/FeedbackPromptEditor";
 import { Button } from "@/components/Button";
 import {
   AlertIcon,
+  ArchiveIcon,
+  ArchiveRestoreIcon,
   ArrowLeftIcon,
+  ChevronDownIcon,
   ExternalLinkIcon,
   GitHubIcon,
   ImageOffIcon,
@@ -22,6 +26,7 @@ import {
   SparkleIcon,
   TemplateIcon,
   TerminalIcon,
+  TrashIcon,
   XIcon,
 } from "@/components/icons";
 import { SdkSetupCard } from "@/components/SdkSetupCard";
@@ -50,6 +55,17 @@ export function ProjectPage() {
   >({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<"single" | "merged">("single");
+  const [isArchivedExpanded, setIsArchivedExpanded] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<
+    | { type: "single"; item: FeedbackItem }
+    | { type: "batch"; items: FeedbackItem[] }
+    | null
+  >(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const lastExpandedParamRef = useRef<string | null>(null);
+
+  const activeFeedbackItems = feedbackItems.filter((item) => !item.is_archived);
+  const archivedFeedbackItems = feedbackItems.filter((item) => !!item.is_archived);
 
   const tabParam = searchParams.get("tab");
   const activeTab: TabKey =
@@ -61,7 +77,10 @@ export function ProjectPage() {
 
   const feedbackParam = searchParams.get("feedback");
   const selectedFeedback =
-    feedbackItems.find((item) => item.id === feedbackParam) ?? feedbackItems[0] ?? null;
+    feedbackItems.find((item) => item.id === feedbackParam) ??
+    activeFeedbackItems[0] ??
+    archivedFeedbackItems[0] ??
+    null;
 
   const [isCreatingIssue, setIsCreatingIssue] = useState(false);
   const [issueError, setIssueError] = useState<{ message: string; installUrl?: string } | null>(null);
@@ -146,6 +165,9 @@ export function ProjectPage() {
   }
 
   function handleSelectFeedback(id: string) {
+    if (archivedFeedbackItems.some((item) => item.id === id)) {
+      setIsArchivedExpanded(true);
+    }
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -158,6 +180,27 @@ export function ProjectPage() {
       document.getElementById("feedback-detail")?.scrollIntoView({ behavior: "smooth" });
     }
   }
+
+  useEffect(() => {
+    if (
+      feedbackParam &&
+      feedbackParam !== lastExpandedParamRef.current &&
+      archivedFeedbackItems.some((item) => item.id === feedbackParam)
+    ) {
+      lastExpandedParamRef.current = feedbackParam;
+      setIsArchivedExpanded(true);
+    }
+  }, [feedbackParam, archivedFeedbackItems]);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && deleteTarget && !isDeleting) {
+        setDeleteTarget(null);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [deleteTarget, isDeleting]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -202,11 +245,14 @@ export function ProjectPage() {
   }
 
   function handleToggleSelectAll() {
-    if (selectedIds.size === feedbackItems.length) {
+    const candidateItems = isArchivedExpanded ? feedbackItems : activeFeedbackItems;
+    const allSelected =
+      candidateItems.length > 0 && candidateItems.every((item) => selectedIds.has(item.id));
+    if (allSelected) {
       setSelectedIds(new Set());
       setViewMode("single");
     } else {
-      setSelectedIds(new Set(feedbackItems.map((item) => item.id)));
+      setSelectedIds(new Set(candidateItems.map((item) => item.id)));
     }
   }
 
@@ -336,6 +382,155 @@ export function ProjectPage() {
     );
   }
 
+  async function handleArchiveFeedback(feedbackId: string) {
+    try {
+      const { error } = await supabase
+        .from("feedback_items")
+        .update({ is_archived: true })
+        .eq("id", feedbackId);
+
+      if (error) throw error;
+
+      setFeedbackItems((current) =>
+        current.map((item) => (item.id === feedbackId ? { ...item, is_archived: true } : item))
+      );
+
+      // If the currently selected item is being archived, advance selection to another active item if one exists
+      if (selectedFeedback?.id === feedbackId) {
+        const remainingActive = feedbackItems.filter(
+          (item) => !item.is_archived && item.id !== feedbackId
+        );
+        if (remainingActive.length > 0) {
+          handleSelectFeedback(remainingActive[0].id);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to archive feedback:", err);
+      alert(getErrorMessage(err, "Failed to archive feedback."));
+    }
+  }
+
+  async function handleUnarchiveFeedback(feedbackId: string) {
+    try {
+      const { error } = await supabase
+        .from("feedback_items")
+        .update({ is_archived: false })
+        .eq("id", feedbackId);
+
+      if (error) throw error;
+
+      setFeedbackItems((current) =>
+        current.map((item) => (item.id === feedbackId ? { ...item, is_archived: false } : item))
+      );
+    } catch (err) {
+      console.error("Failed to unarchive feedback:", err);
+      alert(getErrorMessage(err, "Failed to unarchive feedback."));
+    }
+  }
+
+  async function handleBatchArchive() {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    const selectedList = feedbackItems.filter((item) => selectedIds.has(item.id));
+    const allAreArchived = selectedList.every((item) => item.is_archived);
+    const targetArchived = !allAreArchived;
+
+    try {
+      const { error } = await supabase
+        .from("feedback_items")
+        .update({ is_archived: targetArchived })
+        .in("id", ids);
+
+      if (error) throw error;
+
+      setFeedbackItems((current) =>
+        current.map((item) =>
+          selectedIds.has(item.id) ? { ...item, is_archived: targetArchived } : item
+        )
+      );
+
+      if (targetArchived && selectedFeedback && selectedIds.has(selectedFeedback.id)) {
+        const remainingActive = feedbackItems.filter(
+          (item) => !item.is_archived && !selectedIds.has(item.id)
+        );
+        if (remainingActive.length > 0) {
+          handleSelectFeedback(remainingActive[0].id);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to batch update archive status:", err);
+      alert(getErrorMessage(err, "Failed to update archive status."));
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+
+    try {
+      const itemsToDelete =
+        deleteTarget.type === "single" ? [deleteTarget.item] : deleteTarget.items;
+      const idsToDelete = itemsToDelete.map((item) => item.id);
+
+      // Best effort cleanup of storage objects
+      const storagePaths: string[] = [];
+      for (const item of itemsToDelete) {
+        if (item.screenshot_raw_path) storagePaths.push(item.screenshot_raw_path);
+        if (item.screenshot_annotated_path) storagePaths.push(item.screenshot_annotated_path);
+        if (item.attachment_path) storagePaths.push(item.attachment_path);
+      }
+      if (storagePaths.length > 0) {
+        try {
+          await supabase.storage.from("feedback-screenshots").remove(storagePaths);
+        } catch (storageErr) {
+          console.warn("Could not delete some storage files:", storageErr);
+        }
+      }
+
+      // Delete database row(s)
+      const { error } = await supabase
+        .from("feedback_items")
+        .delete()
+        .in("id", idsToDelete);
+
+      if (error) throw error;
+
+      const deletedSet = new Set(idsToDelete);
+      const remainingItems = feedbackItems.filter((item) => !deletedSet.has(item.id));
+      setFeedbackItems(remainingItems);
+
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        for (const id of idsToDelete) next.delete(id);
+        return next;
+      });
+
+      if (selectedFeedback && deletedSet.has(selectedFeedback.id)) {
+        const nextActive = remainingItems.filter((item) => !item.is_archived);
+        const nextItem = nextActive[0] ?? remainingItems[0] ?? null;
+        if (nextItem) {
+          handleSelectFeedback(nextItem.id);
+        } else {
+          setSearchParams(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.delete("feedback");
+              return next;
+            },
+            { replace: true }
+          );
+        }
+      }
+
+      setDeleteTarget(null);
+    } catch (err) {
+      console.error("Failed to delete feedback:", err);
+      alert(getErrorMessage(err, "Failed to delete feedback."));
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   if (project === undefined) {
     return (
       <div className="space-y-3">
@@ -373,6 +568,90 @@ export function ProjectPage() {
       )
     : "";
   const env = selectedFeedback?.environment;
+
+  function renderFeedbackCard(item: FeedbackItem, isArchivedSection: boolean) {
+    const isSelected = selectedFeedback?.id === item.id;
+    const isChecked = selectedIds.has(item.id);
+    return (
+      <div
+        key={item.id}
+        className={`group relative flex items-start gap-2.5 rounded-xl border p-3 transition-all ${
+          isSelected && viewMode === "single"
+            ? "border-neutral-900 bg-white shadow-sm ring-1 ring-neutral-900/10"
+            : isChecked
+            ? "border-neutral-400 bg-neutral-50/70"
+            : isArchivedSection
+            ? "border-neutral-200/60 bg-neutral-50/50 hover:border-neutral-300 hover:bg-white"
+            : "border-neutral-200/80 bg-white hover:border-neutral-300 hover:bg-neutral-50/70"
+        }`}
+      >
+        <div className="pt-0.5 shrink-0">
+          <input
+            type="checkbox"
+            checked={isChecked}
+            onChange={(e) => {
+              e.stopPropagation();
+              toggleSelectItem(item.id);
+            }}
+            aria-label={`Select report ${item.environment?.screenName ?? item.id}`}
+            className="h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900 cursor-pointer accent-neutral-900"
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            handleSelectFeedback(item.id);
+            if (viewMode === "merged") {
+              setViewMode("single");
+            }
+          }}
+          className="flex-1 text-left min-w-0 cursor-pointer"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <p
+              className={`line-clamp-2 text-sm leading-snug ${
+                isSelected && viewMode === "single"
+                  ? "font-semibold text-neutral-900"
+                  : isArchivedSection
+                  ? "font-medium text-neutral-600"
+                  : "font-medium text-neutral-800"
+              }`}
+            >
+              {item.text ? truncate(item.text, 80) : "(no description)"}
+            </p>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {item.github_issue_number ? (
+                <span
+                  title={`GitHub Issue #${item.github_issue_number}`}
+                  className="inline-flex items-center gap-1 rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600 border border-neutral-200/80"
+                >
+                  <GitHubIcon className="h-2.5 w-2.5 text-neutral-500" />
+                  <span>#{item.github_issue_number}</span>
+                </span>
+              ) : null}
+              {item.is_archived && (
+                <span
+                  title="Archived"
+                  className="inline-flex items-center gap-1 rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500 border border-neutral-200"
+                >
+                  <ArchiveIcon className="h-2.5 w-2.5 text-neutral-400" />
+                  <span>Archived</span>
+                </span>
+              )}
+              <StatusBadge status={item.status} className="shrink-0" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-center justify-between text-xs text-neutral-400">
+            <span className="truncate max-w-[140px] font-medium text-neutral-500">
+              {item.environment?.screenName ?? "Unknown screen"}
+            </span>
+            <span className="shrink-0">{formatDate(item.created_at)}</span>
+          </div>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -418,7 +697,7 @@ export function ProjectPage() {
                           : "bg-neutral-100 text-neutral-600 group-hover:bg-neutral-200"
                       }`}
                     >
-                      {feedbackItems.length}
+                      {activeFeedbackItems.length}
                     </span>
                   ) : null}
                 </button>
@@ -452,7 +731,9 @@ export function ProjectPage() {
               <div className="w-full lg:w-80 xl:w-96 shrink-0 space-y-2.5 lg:sticky lg:top-20">
                 <div className="flex items-center justify-between px-1 pb-0.5">
                   <span className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-                    Reports ({feedbackItems.length})
+                    {archivedFeedbackItems.length > 0
+                      ? `Active Reports (${activeFeedbackItems.length})`
+                      : `Reports (${activeFeedbackItems.length})`}
                   </span>
                   {feedbackItems.length > 0 && (
                     <button
@@ -460,18 +741,23 @@ export function ProjectPage() {
                       onClick={handleToggleSelectAll}
                       className="text-xs font-medium text-neutral-500 hover:text-neutral-900 transition-colors cursor-pointer"
                     >
-                      {selectedIds.size === feedbackItems.length ? "Deselect all" : "Select all"}
+                      {(isArchivedExpanded ? feedbackItems : activeFeedbackItems).length > 0 &&
+                      (isArchivedExpanded ? feedbackItems : activeFeedbackItems).every((item) =>
+                        selectedIds.has(item.id)
+                      )
+                        ? "Deselect all"
+                        : "Select all"}
                     </button>
                   )}
                 </div>
 
                 {/* Multi-selection action pill */}
                 {selectedIds.size > 0 && (
-                  <div className="flex items-center justify-between gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-2 text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-2 text-xs">
                     <span className="font-semibold text-neutral-700 pl-1">
                       {selectedIds.size} selected
                     </span>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       {viewMode === "single" ? (
                         <button
                           type="button"
@@ -492,6 +778,35 @@ export function ProjectPage() {
                       )}
                       <button
                         type="button"
+                        onClick={handleBatchArchive}
+                        className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
+                        title="Archive or unarchive selected reports"
+                      >
+                        <ArchiveIcon className="h-3 w-3 text-neutral-500" />
+                        <span>
+                          {Array.from(selectedIds).every(
+                            (id) => feedbackItems.find((i) => i.id === id)?.is_archived
+                          )
+                            ? "Unarchive"
+                            : "Archive"}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDeleteTarget({
+                            type: "batch",
+                            items: feedbackItems.filter((i) => selectedIds.has(i.id)),
+                          })
+                        }
+                        className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
+                        title="Delete selected reports"
+                      >
+                        <TrashIcon className="h-3 w-3 text-red-500" />
+                        <span>Delete</span>
+                      </button>
+                      <button
+                        type="button"
                         onClick={handleClearSelection}
                         className="p-1 text-neutral-400 hover:text-neutral-700 rounded transition-colors cursor-pointer"
                         title="Clear selection"
@@ -503,78 +818,46 @@ export function ProjectPage() {
                 )}
 
                 <div className="space-y-2 max-h-[420px] lg:max-h-[calc(100vh-12rem)] overflow-y-auto pr-1">
-                  {feedbackItems.map((item) => {
-                    const isSelected = selectedFeedback.id === item.id;
-                    const isChecked = selectedIds.has(item.id);
-                    return (
-                      <div
-                        key={item.id}
-                        className={`group relative flex items-start gap-2.5 rounded-xl border p-3 transition-all ${
-                          isSelected && viewMode === "single"
-                            ? "border-neutral-900 bg-white shadow-sm ring-1 ring-neutral-900/10"
-                            : isChecked
-                            ? "border-neutral-400 bg-neutral-50/70"
-                            : "border-neutral-200/80 bg-white hover:border-neutral-300 hover:bg-neutral-50/70"
-                        }`}
-                      >
-                        <div className="pt-0.5 shrink-0">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              toggleSelectItem(item.id);
-                            }}
-                            aria-label={`Select report ${item.environment?.screenName ?? item.id}`}
-                            className="h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900 cursor-pointer accent-neutral-900"
-                          />
-                        </div>
+                  {activeFeedbackItems.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50/50 p-6 text-center">
+                      <InboxIcon className="mx-auto h-5 w-5 text-neutral-400" />
+                      <p className="mt-1.5 text-xs font-medium text-neutral-600">No active reports</p>
+                      <p className="mt-0.5 text-[11px] text-neutral-400">
+                        {archivedFeedbackItems.length > 0
+                          ? "All reports in this project are archived."
+                          : "Reports from your app will show up here."}
+                      </p>
+                    </div>
+                  ) : (
+                    activeFeedbackItems.map((item) => renderFeedbackCard(item, false))
+                  )}
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleSelectFeedback(item.id);
-                            if (viewMode === "merged") {
-                              setViewMode("single");
-                            }
-                          }}
-                          className="flex-1 text-left min-w-0 cursor-pointer"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <p
-                              className={`line-clamp-2 text-sm leading-snug ${
-                                isSelected && viewMode === "single"
-                                  ? "font-semibold text-neutral-900"
-                                  : "font-medium text-neutral-800"
-                              }`}
-                            >
-                              {item.text ? truncate(item.text, 80) : "(no description)"}
-                            </p>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              {item.github_issue_number ? (
-                                <span
-                                  title={`GitHub Issue #${item.github_issue_number}`}
-                                  className="inline-flex items-center gap-1 rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600 border border-neutral-200/80"
-                                >
-                                  <GitHubIcon className="h-2.5 w-2.5 text-neutral-500" />
-                                  <span>#{item.github_issue_number}</span>
-                                </span>
-                              ) : null}
-                              <StatusBadge status={item.status} className="shrink-0" />
-                            </div>
-                          </div>
-                          <div className="mt-2 flex items-center justify-between text-xs text-neutral-400">
-                            <span className="truncate max-w-[140px] font-medium text-neutral-500">
-                              {item.environment?.screenName ?? "Unknown screen"}
-                            </span>
-                            <span className="shrink-0">
-                              {formatDate(item.created_at)}
-                            </span>
-                          </div>
-                        </button>
-                      </div>
-                    );
-                  })}
+                  {/* Archived section - collapsed by default so it does not take user attention */}
+                  {archivedFeedbackItems.length > 0 && (
+                    <div className="pt-2 border-t border-neutral-200/80">
+                      <button
+                        type="button"
+                        onClick={() => setIsArchivedExpanded((prev) => !prev)}
+                        className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 transition-colors cursor-pointer border border-dashed border-neutral-200 bg-neutral-50/50"
+                      >
+                        <div className="flex items-center gap-2">
+                          <ArchiveIcon className="h-3.5 w-3.5 text-neutral-400" />
+                          <span>Archived ({archivedFeedbackItems.length})</span>
+                        </div>
+                        <ChevronDownIcon
+                          className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-200 ${
+                            isArchivedExpanded ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
+
+                      {isArchivedExpanded && (
+                        <div className="mt-2 space-y-2">
+                          {archivedFeedbackItems.map((item) => renderFeedbackCard(item, true))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -591,6 +874,13 @@ export function ProjectPage() {
                       setViewMode("single");
                     }}
                     onBatchUpdateStatus={handleBatchUpdateStatus}
+                    onBatchArchive={handleBatchArchive}
+                    onBatchDelete={() =>
+                      setDeleteTarget({
+                        type: "batch",
+                        items: feedbackItems.filter((item) => selectedIds.has(item.id)),
+                      })
+                    }
                     onClearSelection={handleClearSelection}
                     onBackToSingleView={() => setViewMode("single")}
                   />
@@ -617,9 +907,17 @@ export function ProjectPage() {
                     {/* Detail Header */}
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-white px-5 py-3.5 shadow-xs">
                   <div className="min-w-0">
-                    <h2 className="truncate text-base font-semibold text-neutral-900">
-                      {env?.screenName ? `${env.screenName} screen` : "Feedback report"}
-                    </h2>
+                    <div className="flex items-center gap-2">
+                      <h2 className="truncate text-base font-semibold text-neutral-900">
+                        {env?.screenName ? `${env.screenName} screen` : "Feedback report"}
+                      </h2>
+                      {selectedFeedback.is_archived && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600 border border-neutral-200">
+                          <ArchiveIcon className="h-3 w-3 text-neutral-400" />
+                          <span>Archived</span>
+                        </span>
+                      )}
+                    </div>
                     <p className="mt-0.5 text-xs text-neutral-400">
                       Received {new Date(selectedFeedback.created_at).toLocaleString()}
                     </p>
@@ -659,8 +957,64 @@ export function ProjectPage() {
                         onChange={(newStatus) => updateFeedbackStatus(selectedFeedback.id, newStatus)}
                       />
                     </div>
+
+                    <div className="h-4 w-px bg-neutral-200" />
+
+                    {selectedFeedback.is_archived ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleUnarchiveFeedback(selectedFeedback.id)}
+                        className="inline-flex items-center gap-1.5 text-neutral-700 hover:text-neutral-900"
+                        title="Unarchive report"
+                      >
+                        <ArchiveRestoreIcon className="h-3.5 w-3.5 text-neutral-500" />
+                        <span>Unarchive</span>
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleArchiveFeedback(selectedFeedback.id)}
+                        className="inline-flex items-center gap-1.5 text-neutral-600 hover:text-neutral-900"
+                        title="Archive this report to reduce list clutter"
+                      >
+                        <ArchiveIcon className="h-3.5 w-3.5 text-neutral-400" />
+                        <span>Archive</span>
+                      </Button>
+                    )}
+
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setDeleteTarget({ type: "single", item: selectedFeedback })}
+                      className="inline-flex items-center gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-200"
+                      title="Delete this report permanently"
+                    >
+                      <TrashIcon className="h-3.5 w-3.5" />
+                      <span>Delete</span>
+                    </Button>
                   </div>
                 </div>
+
+                {selectedFeedback.is_archived && (
+                  <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-2.5 text-xs text-amber-800">
+                    <div className="flex items-center gap-2">
+                      <ArchiveIcon className="h-4 w-4 text-amber-600 shrink-0" />
+                      <span>This report is archived and hidden from the active list.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleUnarchiveFeedback(selectedFeedback.id)}
+                      className="font-semibold text-amber-900 underline hover:text-amber-950 cursor-pointer"
+                    >
+                      Restore to active
+                    </button>
+                  </div>
+                )}
 
                 {issueError ? (
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-red-50 px-4 py-2.5 text-xs text-red-700 border border-red-100">
@@ -853,6 +1207,59 @@ export function ProjectPage() {
             <TemplateEditorForm action={updatePromptTemplate} initialValue={template?.template_text ?? ""} />
           </div>
         </section>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 backdrop-blur-xs p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-dialog-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isDeleting) setDeleteTarget(null);
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-6 shadow-xl space-y-4">
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600 border border-red-100">
+                <TrashIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 id="delete-dialog-title" className="text-base font-semibold text-neutral-900">
+                  {deleteTarget.type === "single"
+                    ? "Delete feedback report?"
+                    : `Delete ${deleteTarget.items.length} feedback reports?`}
+                </h3>
+                <p className="mt-1 text-xs text-neutral-500 leading-relaxed">
+                  {deleteTarget.type === "single"
+                    ? "This action cannot be undone. The feedback report, annotated screenshot, and any attachments will be permanently deleted."
+                    : `This action cannot be undone. All ${deleteTarget.items.length} selected reports, annotated screenshots, and any attachments will be permanently deleted.`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={isDeleting}
+                className="inline-flex cursor-pointer items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting ? "Deleting…" : "Delete permanently"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

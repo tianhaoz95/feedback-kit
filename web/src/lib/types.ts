@@ -55,6 +55,7 @@ export interface FeedbackItem {
   annotations: FeedbackAnnotation[];
   environment: FeedbackEnvironment;
   status: FeedbackStatus;
+  is_archived?: boolean;
   edited_prompt: string | null;
   created_at: string;
   attachment_path: string | null;

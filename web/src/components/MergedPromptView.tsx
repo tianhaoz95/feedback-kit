@@ -5,9 +5,11 @@ import { Button } from "@/components/Button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusSelect } from "@/components/StatusSelect";
 import {
+  ArchiveIcon,
   CheckIcon,
   CopyIcon,
   SparkleIcon,
+  TrashIcon,
   XIcon,
 } from "@/components/icons";
 
@@ -18,6 +20,8 @@ interface MergedPromptViewProps {
   onDeselectItem: (id: string) => void;
   onSelectSingleItem: (id: string) => void;
   onBatchUpdateStatus: (status: FeedbackStatus) => Promise<void>;
+  onBatchArchive?: () => Promise<void> | void;
+  onBatchDelete?: () => void;
   onClearSelection: () => void;
   onBackToSingleView?: () => void;
 }
@@ -29,6 +33,8 @@ export function MergedPromptView({
   onDeselectItem,
   onSelectSingleItem,
   onBatchUpdateStatus,
+  onBatchArchive,
+  onBatchDelete,
   onClearSelection,
   onBackToSingleView,
 }: MergedPromptViewProps) {
@@ -93,6 +99,34 @@ export function MergedPromptView({
               }}
             />
           </div>
+
+          {onBatchArchive ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={onBatchArchive}
+              className="inline-flex items-center gap-1.5"
+              title="Archive or unarchive selected reports"
+            >
+              <ArchiveIcon className="h-3.5 w-3.5 text-neutral-500" />
+              <span>{selectedItems.every((i) => i.is_archived) ? "Unarchive" : "Archive"}</span>
+            </Button>
+          ) : null}
+
+          {onBatchDelete ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={onBatchDelete}
+              className="inline-flex items-center gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-200"
+              title="Delete selected reports"
+            >
+              <TrashIcon className="h-3.5 w-3.5" />
+              <span>Delete</span>
+            </Button>
+          ) : null}
 
           <div className="h-4 w-px bg-neutral-200" />
 

@@ -45,6 +45,7 @@ export interface FeedbackItem {
   screenshot_annotated_path: string | null;
   environment: FeedbackEnvironment;
   status: FeedbackStatus;
+  is_archived?: boolean;
   edited_prompt: string | null;
   created_at: string;
   attachment_path: string | null;
