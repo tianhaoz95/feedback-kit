@@ -291,6 +291,9 @@ export function GitHubSetupCard({
                   id="github-repo"
                   type="text"
                   autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   placeholder={
                     inputMode === "repo_id"
                       ? githubUsername
