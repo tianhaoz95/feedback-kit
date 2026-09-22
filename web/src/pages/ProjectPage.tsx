@@ -87,21 +87,23 @@ export function ProjectPage() {
       });
 
       if (error) {
-        if (error instanceof FunctionsHttpError) {
-          const body = await error.context.json().catch(() => null);
-          if (body?.install_url) {
-            setIssueError({
-              message: body.message || "FeedbackKit GitHub App is not installed on this repository.",
-              installUrl: body.install_url,
-            });
-            return;
-          }
+        let body: { message?: string; install_url?: string; error?: string } | null = null;
+        if (
+          error instanceof FunctionsHttpError ||
+          (error && typeof error === "object" && "context" in error && (error as { context?: unknown }).context instanceof Response)
+        ) {
+          body = await (error as FunctionsHttpError).context.json().catch(() => null);
+        }
+        if (body?.install_url) {
           setIssueError({
-            message: body?.message || error.message || "Failed to create GitHub issue.",
+            message: body.message || "FeedbackKit GitHub App is not installed on this repository.",
+            installUrl: body.install_url,
           });
           return;
         }
-        setIssueError({ message: error.message || "Failed to create GitHub issue." });
+        setIssueError({
+          message: body?.message || error.message || "Failed to create GitHub issue.",
+        });
         return;
       }
 

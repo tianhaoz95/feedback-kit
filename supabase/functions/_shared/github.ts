@@ -9,9 +9,11 @@ export function getGitHubAuth() {
     return null;
   }
 
+  const normalizedKey = privateKey.trim().replace(/^"|"$/g, "").replace(/\\n/g, "\n");
+
   return createAppAuth({
     appId,
-    privateKey: privateKey.replace(/\\n/g, "\n"),
+    privateKey: normalizedKey,
     clientId,
   });
 }
@@ -20,35 +22,45 @@ export async function getInstallationIdForRepo(
   owner: string,
   repo: string,
 ): Promise<number | null> {
-  const auth = getGitHubAuth();
-  if (!auth) return null;
-  const appAuth = await auth({ type: "app" });
+  try {
+    const auth = getGitHubAuth();
+    if (!auth) return null;
+    const appAuth = await auth({ type: "app" });
 
-  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/installation`, {
-    headers: {
-      Authorization: `Bearer ${appAuth.token}`,
-      Accept: "application/vnd.github+json",
-      "User-Agent": "FeedbackKit",
-    },
-  });
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/installation`, {
+      headers: {
+        Authorization: `Bearer ${appAuth.token}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "FeedbackKit",
+      },
+    });
 
-  if (!res.ok) {
+    if (!res.ok) {
+      return null;
+    }
+    const data = await res.json();
+    return data.id ?? null;
+  } catch (err) {
+    console.warn("Failed to get installation ID for repo:", err);
     return null;
   }
-  const data = await res.json();
-  return data.id ?? null;
 }
 
 export async function getInstallationToken(
   installationId: number,
 ): Promise<string | null> {
-  const auth = getGitHubAuth();
-  if (!auth) return null;
-  const installationAuth = await auth({
-    type: "installation",
-    installationId,
-  });
-  return installationAuth.token;
+  try {
+    const auth = getGitHubAuth();
+    if (!auth) return null;
+    const installationAuth = await auth({
+      type: "installation",
+      installationId,
+    });
+    return installationAuth.token;
+  } catch (err) {
+    console.warn("Failed to get installation token:", err);
+    return null;
+  }
 }
 
 export async function uploadScreenshotToRepo(
@@ -61,9 +73,9 @@ export async function uploadScreenshotToRepo(
   try {
     const path = `.feedback/screenshots/${feedbackId}.png`;
     let binary = "";
-    const len = imageBytes.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(imageBytes[i]);
+    const chunkSize = 8192;
+    for (let i = 0; i < imageBytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...imageBytes.subarray(i, i + chunkSize));
     }
     const content = btoa(binary);
 
