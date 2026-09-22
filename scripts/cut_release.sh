@@ -150,6 +150,9 @@ if [[ "$TAG" =~ ^cli-v(.*)$ ]]; then
 elif [[ "$TAG" =~ ^mac-demo-v(.*)$ ]]; then
   TITLE="macOS Demo ${BASH_REMATCH[1]}"
   WORKFLOW="release-macos-demo.yml"
+elif [[ "$TAG" =~ ^skills-v(.*)$ ]]; then
+  TITLE="Skills v${BASH_REMATCH[1]}"
+  WORKFLOW="publish-skills.yml"
 else
   TITLE="$TAG"
   WORKFLOW="unified"
@@ -184,6 +187,7 @@ else
     echo "   1. TestFlight upload (.github/workflows/testflight.yml)"
     echo "   2. macOS Demo DMG build, sign, notarize & attach (.github/workflows/release-macos-demo.yml)"
     echo "   3. FeedbackKit CLI publish to npm & GitHub Packages (.github/workflows/publish-cli.yml)"
+    echo "   4. FeedbackKit Skills publish to npm & GitHub Packages (.github/workflows/publish-skills.yml)"
     echo
     echo "Check active runs with:"
     echo "   gh run list --repo $REPO_SLUG"
