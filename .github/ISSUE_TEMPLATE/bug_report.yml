@@ -1,0 +1,88 @@
+name: Bug Report
+description: Report a defect, unexpected behavior, or crash in FeedbackKit
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue!
+        Before filing, please search existing issues to avoid duplicates.
+        **For security vulnerabilities**, do not open a public issue — please see our [Security Policy](https://github.com/tianhaoz95/feedback-kit/blob/main/SECURITY.md).
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which part of FeedbackKit is affected?
+      options:
+        - SDK (iOS)
+        - SDK (macOS)
+        - SDK (watchOS)
+        - Demo App (DemoApp/)
+        - Web Dashboard (web/)
+        - Supabase Backend / Edge Functions (supabase/)
+        - CLI & MCP Server (feedbackkit-cli)
+        - Agent Skills (feedback-kit-skills)
+        - Documentation / Scripts
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: FeedbackKit Version / Git Commit
+      description: What version of FeedbackKit or git commit hash are you using?
+      placeholder: "e.g., v1.0.12 or commit 3b867b2"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: OS & Environment
+      description: Operating system, Xcode version, simulator or physical device model, Node version, etc.
+      placeholder: "e.g., macOS 14.5, Xcode 16.0, iPhone 16 Simulator (iOS 18.0), Node 20.11"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the problem.
+      placeholder: |
+        1. In an iOS SwiftUI app, call FeedbackKit.present(from: ...)
+        2. Tap the annotation draw tool
+        3. Observe crash / error ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Screenshots, Logs, or Diagnostic Info
+      description: Paste crash reports, stack traces, console output, or attach screenshots if applicable.
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have searched existing issues to ensure this is not a duplicate.
+          required: true
+        - label: I have verified that this issue occurs on the latest release or main branch.
+          required: true
+        - label: I have reviewed the [Contributing Guidelines](https://github.com/tianhaoz95/feedback-kit/blob/main/CONTRIBUTING.md).
+          required: true

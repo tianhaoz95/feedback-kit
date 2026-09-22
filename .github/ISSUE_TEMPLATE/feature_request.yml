@@ -1,0 +1,64 @@
+name: Feature Request
+description: Propose a new feature, enhancement, or improvement for FeedbackKit
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a feature! Please provide details to help us understand the motivation, use cases, and design.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Target Component
+      description: Which part of FeedbackKit would this feature enhance?
+      options:
+        - SDK (iOS)
+        - SDK (macOS)
+        - SDK (watchOS)
+        - Demo App (DemoApp/)
+        - Web Dashboard (web/)
+        - Supabase Backend / Edge Functions (supabase/)
+        - CLI & MCP Server (feedbackkit-cli)
+        - Agent Skills (feedback-kit-skills)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement / Motivation
+      description: Is your feature request related to a problem or unmet workflow need?
+      placeholder: "I am always frustrated when..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution or API Design
+      description: Describe what you would like to see implemented, including sample code, API shapes, or UI mockups where possible.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative solutions, workarounds, or libraries you have considered.
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other context, references, or links.
+    validations:
+      required: false
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have searched existing issues to ensure this has not already been proposed.
+          required: true
+        - label: I am willing to contribute a pull request implementing this feature if approved.
+          required: false
