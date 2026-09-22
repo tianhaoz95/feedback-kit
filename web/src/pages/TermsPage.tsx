@@ -37,9 +37,9 @@ export function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="Open source SDK">
+      <LegalSection title="SDK License">
         <p>
-          The iOS SDK is open source — see its repository for the applicable license.
+          The SDK is source-available under the PolyForm Perimeter License — see its repository for the applicable license.
           These terms govern use of the hosted dashboard, not the SDK itself.
         </p>
       </LegalSection>

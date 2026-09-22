@@ -146,7 +146,7 @@ export function LandingPage() {
           <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 sm:py-24 lg:grid-cols-2">
             <div className="animate-fade-up">
               <span className="inline-flex items-center rounded-full border border-neutral-200 bg-white/70 px-3 py-1 text-xs font-medium text-neutral-600 backdrop-blur">
-                Open source &middot; MIT licensed
+                Source available &middot; PolyForm Perimeter
               </span>
               <h1 className="mt-5 text-4xl font-semibold tracking-tight text-neutral-900 sm:text-5xl">
                 In-app feedback for iOS, turned into prompts your coding agent can act on.

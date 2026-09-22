@@ -321,3 +321,11 @@ API key with access to the team, the same one works for both.
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) |
 | `skills/` | Agent Skills catalog (`vercel-labs/skills`) for automated setup via AI coding agents |
 | `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `release_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh` |
+
+## License
+
+This project is licensed under the [PolyForm Perimeter License 1.0.1](LICENSE).
+
+- **Permitted**: Self-hosting, internal use, contributing back, making modifications, and building larger/derivative works on top of the software.
+- **Prohibited**: Using the software to market or provide a product or paid service that serves as a direct substitute or competitor to the software.
+
