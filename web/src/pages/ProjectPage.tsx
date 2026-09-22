@@ -18,6 +18,7 @@ import {
   ImageOffIcon,
   InboxIcon,
   PaperclipIcon,
+  SettingsIcon,
   SparkleIcon,
   TemplateIcon,
   TerminalIcon,
@@ -26,11 +27,11 @@ import { SdkSetupCard } from "@/components/SdkSetupCard";
 import { McpSetupCard } from "@/components/McpSetupCard";
 import { GitHubSetupCard } from "@/components/GitHubSetupCard";
 
-type TabKey = "feedback" | "github" | "sdk" | "agent" | "template";
+type TabKey = "feedback" | "settings" | "sdk" | "agent" | "template";
 
-const TABS: { id: TabKey; label: string; icon: typeof InboxIcon | typeof GitHubIcon }[] = [
+const TABS: { id: TabKey; label: string; icon: typeof InboxIcon | typeof SettingsIcon }[] = [
   { id: "feedback", label: "Feedback", icon: InboxIcon },
-  { id: "github", label: "GitHub", icon: GitHubIcon },
+  { id: "settings", label: "Settings", icon: SettingsIcon },
   { id: "sdk", label: "SDK setup", icon: TerminalIcon },
   { id: "agent", label: "Connect AI agent", icon: SparkleIcon },
   { id: "template", label: "Prompt template", icon: TemplateIcon },
@@ -48,7 +49,9 @@ export function ProjectPage() {
 
   const tabParam = searchParams.get("tab");
   const activeTab: TabKey =
-    tabParam === "github" || tabParam === "sdk" || tabParam === "agent" || tabParam === "template"
+    tabParam === "settings" || tabParam === "github"
+      ? "settings"
+      : tabParam === "sdk" || tabParam === "agent" || tabParam === "template"
       ? tabParam
       : "feedback";
 
@@ -65,7 +68,7 @@ export function ProjectPage() {
 
     if (!project.github_repo) {
       setIssueError({
-        message: "Please connect a GitHub repository in the GitHub tab first.",
+        message: "Please connect a GitHub repository in the Settings tab first.",
       });
       return;
     }
@@ -501,10 +504,10 @@ export function ProjectPage() {
                     ) : !project.github_repo ? (
                       <button
                         type="button"
-                        onClick={() => handleTabChange("github")}
+                        onClick={() => handleTabChange("settings")}
                         className="font-medium text-red-800 underline hover:text-red-900"
                       >
-                        Go to GitHub settings
+                        Go to Settings
                       </button>
                     ) : null}
                   </div>
@@ -631,13 +634,15 @@ export function ProjectPage() {
         </section>
       )}
 
-      {activeTab === "github" && (
-        <GitHubSetupCard
-          project={project}
-          onProjectUpdated={(updated) =>
-            setProject((prev) => (prev ? { ...prev, ...updated } : prev))
-          }
-        />
+      {activeTab === "settings" && (
+        <div className="space-y-6">
+          <GitHubSetupCard
+            project={project}
+            onProjectUpdated={(updated) =>
+              setProject((prev) => (prev ? { ...prev, ...updated } : prev))
+            }
+          />
+        </div>
       )}
 
       {activeTab === "sdk" && (
