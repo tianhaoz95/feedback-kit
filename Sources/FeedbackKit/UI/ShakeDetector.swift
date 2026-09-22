@@ -9,12 +9,14 @@ import UIKit
 enum ShakeDetector {
     static let shakeNotification = Notification.Name("FeedbackKitDeviceShake")
     private static var isInstalled = false
+    typealias MotionEndedIMP = @convention(c) (AnyObject, Selector, UIEvent.EventSubtype, UIEvent?) -> Void
+    static var originalMotionEndedIMP: MotionEndedIMP?
 
     static func install() {
         guard !isInstalled else { return }
         isInstalled = true
 
-        let originalSelector = #selector(UIWindow.motionEnded(_:with:))
+        let originalSelector = #selector(UIResponder.motionEnded(_:with:))
         let swizzledSelector = #selector(UIWindow.feedbackKit_motionEnded(_:with:))
 
         guard
@@ -22,7 +24,22 @@ enum ShakeDetector {
             let swizzledMethod = class_getInstanceMethod(UIWindow.self, swizzledSelector)
         else { return }
 
-        method_exchangeImplementations(originalMethod, swizzledMethod)
+        let originalImp = method_getImplementation(originalMethod)
+        originalMotionEndedIMP = unsafeBitCast(originalImp, to: MotionEndedIMP.self)
+
+        let swizzledImp = method_getImplementation(swizzledMethod)
+        let swizzledTypes = method_getTypeEncoding(swizzledMethod)
+
+        let didAddMethod = class_addMethod(
+            UIWindow.self,
+            originalSelector,
+            swizzledImp,
+            swizzledTypes
+        )
+
+        if !didAddMethod {
+            method_setImplementation(originalMethod, swizzledImp)
+        }
     }
 }
 
@@ -31,8 +48,7 @@ extension UIWindow {
         if motion == .motionShake {
             NotificationCenter.default.post(name: ShakeDetector.shakeNotification, object: nil)
         }
-        // After swizzling, this call actually invokes the original motionEnded implementation.
-        feedbackKit_motionEnded(motion, with: event)
+        ShakeDetector.originalMotionEndedIMP?(self, #selector(UIResponder.motionEnded(_:with:)), motion, event)
     }
 }
 #endif
