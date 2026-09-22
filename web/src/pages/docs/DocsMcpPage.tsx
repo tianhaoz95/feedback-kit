@@ -10,17 +10,28 @@ claude mcp add feedbackkit -- npx -y feedbackkit-cli mcp`;
 const claudeCodeScoped = `# Available to just this project, checked into .claude/.mcp.json (scoped to project ID)
 claude mcp add --scope project feedbackkit -- feedbackkit mcp --project <project-id>
 
+# Or with npx:
+claude mcp add --scope project feedbackkit -- npx -y feedbackkit-cli mcp --project <project-id>
+
 # Available to you across every project
 claude mcp add --scope user feedbackkit -- feedbackkit mcp`;
 
 const codexCliAdd = `codex mcp add feedbackkit -- feedbackkit mcp
 
+# Or scoped to a specific project:
+codex mcp add feedbackkit -- feedbackkit mcp --project <project-id>
+
 # Or without a global install:
-codex mcp add feedbackkit -- npx -y feedbackkit-cli mcp`;
+codex mcp add feedbackkit -- npx -y feedbackkit-cli mcp --project <project-id>`;
 
 const codexToml = `[mcp_servers.feedbackkit]
 command = "feedbackkit"
 args = ["mcp"]`;
+
+const codexTomlScoped = `# In .codex/config.toml (scoped to this project):
+[mcp_servers.feedbackkit]
+command = "feedbackkit"
+args = ["mcp", "--project", "<project-id>"]`;
 
 const codexTomlNpx = `[mcp_servers.feedbackkit]
 command = "npx"
@@ -31,6 +42,16 @@ const antigravityJson = `{
     "feedbackkit": {
       "command": "feedbackkit",
       "args": ["mcp"]
+    }
+  }
+}`;
+
+const antigravityJsonScoped = `// In .agents/mcp_config.json (scoped to this project):
+{
+  "mcpServers": {
+    "feedbackkit": {
+      "command": "feedbackkit",
+      "args": ["mcp", "--project", "<project-id>"]
     }
   }
 }`;
@@ -54,21 +75,23 @@ const mcpJson = `{
   }
 }`;
 
+const mcpJsonScoped = `// In mcp.json (scoped to this project):
+{
+  "mcpServers": {
+    "feedbackkit": {
+      "type": "stdio",
+      "command": "feedbackkit",
+      "args": ["mcp", "--project", "<project-id>"]
+    }
+  }
+}`;
+
 const mcpJsonNpx = `{
   "mcpServers": {
     "feedbackkit": {
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "feedbackkit-cli", "mcp"]
-    }
-  }
-}`;
-
-const projectScopedJson = `{
-  "mcpServers": {
-    "feedbackkit": {
-      "command": "feedbackkit",
-      "args": ["mcp", "--project", "<project-id>"]
     }
   }
 }`;
@@ -126,6 +149,8 @@ export function DocsMcpPage() {
           <InlineCode>.codex/config.toml</InlineCode> (project-specific):
         </p>
         <CodeBlock code={codexToml} label="config.toml" />
+        <p>To scope Codex to a specific project, pass <InlineCode>--project &lt;project-id&gt;</InlineCode>:</p>
+        <CodeBlock code={codexTomlScoped} label=".codex/config.toml (project-scoped)" />
         <p>Or with <InlineCode>npx</InlineCode> if not installed globally:</p>
         <CodeBlock code={codexTomlNpx} label="config.toml (npx)" />
         <p>
@@ -142,6 +167,8 @@ export function DocsMcpPage() {
           <InlineCode>.agents/mcp_config.json</InlineCode>:
         </p>
         <CodeBlock code={antigravityJson} label="mcp_config.json" />
+        <p>To scope Antigravity to a specific project, pass <InlineCode>--project &lt;project-id&gt;</InlineCode>:</p>
+        <CodeBlock code={antigravityJsonScoped} label=".agents/mcp_config.json (project-scoped)" />
         <p>Or with <InlineCode>npx</InlineCode> if not installed globally:</p>
         <CodeBlock code={antigravityJsonNpx} label="mcp_config.json (npx)" />
         <p>
@@ -154,10 +181,12 @@ export function DocsMcpPage() {
 
       <DocsSection title="Other agents">
         <p>
-          Most other MCP-compatible tools (Cursor, Windsurf, and others) accept a similar JSON config,
+          Most other MCP-compatible tools (Cursor, Windsurf, Claude Desktop, and others) accept a similar JSON config,
           typically in a <InlineCode>mcp.json</InlineCode>-style file:
         </p>
         <CodeBlock code={mcpJson} label="mcp.json" />
+        <p>To scope to a specific project, pass <InlineCode>--project &lt;project-id&gt;</InlineCode>:</p>
+        <CodeBlock code={mcpJsonScoped} label="mcp.json (project-scoped)" />
         <p>Or with <InlineCode>npx</InlineCode> if not installed globally:</p>
         <CodeBlock code={mcpJsonNpx} label="mcp.json (npx)" />
         <DocsCallout>
@@ -168,16 +197,61 @@ export function DocsMcpPage() {
 
       <DocsSection title="Scoping to a single project">
         <p>
-          By default, the MCP server can access all projects your account has permissions for. If you are developing a specific repository or app and want to prevent the agent from pulling from other projects or wasting tokens, you can scope the server to a specific project ID via <InlineCode>--project &lt;id&gt;</InlineCode> (or <InlineCode>--project-id &lt;id&gt;</InlineCode>):
+          By default, the MCP server can access all projects your account has permissions for. When developing a specific repository or app, scoping the MCP server to that project ID prevents the agent from pulling from other projects or wasting context tokens on them.
         </p>
-        <CodeBlock code={projectScopedJson} label="mcp_config.json" />
         <p>
-          Alternatively, pass the project ID via the <InlineCode>FEEDBACKKIT_PROJECT_ID</InlineCode> environment variable:
+          Pass <InlineCode>--project &lt;id&gt;</InlineCode> (or <InlineCode>--project-id &lt;id&gt;</InlineCode>) in the server arguments for your agent:
         </p>
-        <CodeBlock code={projectScopedEnvJson} label="mcp_config.json (env)" />
-        <p>
-          When scoped to a project, <InlineCode>list_feedback</InlineCode> automatically filters to that project, and queries for other projects or items outside that project are rejected.
+
+        <div className="space-y-4 pt-2">
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Claude Code</h4>
+            <div className="mt-1">
+              <CodeBlock code={`claude mcp add --scope project feedbackkit -- feedbackkit mcp --project <project-id>`} label="Terminal" />
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Codex</h4>
+            <div className="mt-1">
+              <CodeBlock code={codexTomlScoped} label=".codex/config.toml" />
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Antigravity</h4>
+            <div className="mt-1">
+              <CodeBlock code={antigravityJsonScoped} label=".agents/mcp_config.json" />
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Cursor, Windsurf, Claude Desktop & Other Agents</h4>
+            <div className="mt-1">
+              <CodeBlock code={mcpJsonScoped} label="mcp.json" />
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Environment Variable Alternative</h4>
+            <p className="mt-1 text-xs text-neutral-600">
+              Any agent that supports environment variables can also pass the project ID via <InlineCode>FEEDBACKKIT_PROJECT_ID</InlineCode>:
+            </p>
+            <div className="mt-1">
+              <CodeBlock code={projectScopedEnvJson} label="mcp.json (env)" />
+            </div>
+          </div>
+        </div>
+
+        <p className="pt-2">
+          When scoped to a project:
         </p>
+        <ul className="list-disc space-y-1 pl-5 text-sm text-neutral-600">
+          <li><InlineCode>list_projects</InlineCode> only returns that specific project.</li>
+          <li><InlineCode>list_feedback</InlineCode> automatically defaults to that project and rejects queries for other project IDs.</li>
+          <li><InlineCode>get_feedback</InlineCode> and <InlineCode>get_prompt</InlineCode> only return reports belonging to that project.</li>
+          <li><InlineCode>update_feedback_status</InlineCode> only allows modifying items belonging to that project.</li>
+        </ul>
       </DocsSection>
 
       <DocsSection title="Tools it exposes">

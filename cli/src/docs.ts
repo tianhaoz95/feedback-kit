@@ -398,6 +398,15 @@ command = "feedbackkit"
 args = ["mcp"]
 \`\`\`
 
+To scope Codex to a specific project, pass \`--project <project-id>\`:
+
+\`\`\`toml
+# In .codex/config.toml (scoped to this project):
+[mcp_servers.feedbackkit]
+command = "feedbackkit"
+args = ["mcp", "--project", "<project-id>"]
+\`\`\`
+
 Or with \`npx\` if not installed globally:
 
 \`\`\`toml
@@ -418,6 +427,20 @@ Add FeedbackKit to your \`mcp_config.json\` — either globally in \`~/.gemini/c
     "feedbackkit": {
       "command": "feedbackkit",
       "args": ["mcp"]
+    }
+  }
+}
+\`\`\`
+
+To scope Antigravity to a specific project, pass \`--project <project-id>\`:
+
+\`\`\`json
+// In .agents/mcp_config.json (scoped to this project):
+{
+  "mcpServers": {
+    "feedbackkit": {
+      "command": "feedbackkit",
+      "args": ["mcp", "--project", "<project-id>"]
     }
   }
 }
@@ -454,6 +477,21 @@ Most other MCP-compatible tools accept a similar JSON config, typically in an \`
 }
 \`\`\`
 
+To scope to a specific project, pass \`--project <project-id>\`:
+
+\`\`\`json
+// In mcp.json (scoped to this project):
+{
+  "mcpServers": {
+    "feedbackkit": {
+      "type": "stdio",
+      "command": "feedbackkit",
+      "args": ["mcp", "--project", "<project-id>"]
+    }
+  }
+}
+\`\`\`
+
 Or with \`npx\` if not installed globally:
 
 \`\`\`json
@@ -474,7 +512,25 @@ The exact file location and surrounding config shape varies by tool — check th
 
 By default, the MCP server can access all projects your account has permissions for. If you are developing a specific repository or app and want to prevent the agent from pulling from other projects or wasting context tokens on them, you can scope the server to a specific project ID via \`--project <id>\` (or \`--project-id <id>\`):
 
+### Claude Code
+
+\`\`\`bash
+claude mcp add --scope project feedbackkit -- feedbackkit mcp --project <project-id>
+\`\`\`
+
+### Codex
+
+\`\`\`toml
+# In .codex/config.toml (scoped to this project):
+[mcp_servers.feedbackkit]
+command = "feedbackkit"
+args = ["mcp", "--project", "<project-id>"]
+\`\`\`
+
+### Antigravity
+
 \`\`\`json
+// In .agents/mcp_config.json (scoped to this project):
 {
   "mcpServers": {
     "feedbackkit": {
@@ -485,7 +541,24 @@ By default, the MCP server can access all projects your account has permissions 
 }
 \`\`\`
 
-Or via the \`FEEDBACKKIT_PROJECT_ID\` environment variable:
+### Cursor, Windsurf, Claude Desktop & Other Agents
+
+\`\`\`json
+// In mcp.json (scoped to this project):
+{
+  "mcpServers": {
+    "feedbackkit": {
+      "type": "stdio",
+      "command": "feedbackkit",
+      "args": ["mcp", "--project", "<project-id>"]
+    }
+  }
+}
+\`\`\`
+
+### Environment Variable Alternative
+
+Any agent that supports environment variables can also pass the project ID via \`FEEDBACKKIT_PROJECT_ID\`:
 
 \`\`\`json
 {

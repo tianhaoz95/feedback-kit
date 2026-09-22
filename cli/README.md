@@ -134,7 +134,27 @@ Or using `npx`:
 
 ### Scoping to a specific project
 
-To limit the MCP server to a single project so the coding agent only pulls feedback and prompts for that specific project (preventing it from pulling from other projects or spending tokens on them), add `--project <id>` or `--project-id <id>` to `args`, or set the `FEEDBACKKIT_PROJECT_ID` environment variable:
+To limit the MCP server to a single project so the coding agent only pulls feedback and prompts for that specific project (preventing it from pulling from other projects or spending tokens on them), add `--project <id>` or `--project-id <id>` to `args`, or set the `FEEDBACKKIT_PROJECT_ID` environment variable.
+
+#### Claude Code
+
+```bash
+claude mcp add --scope project feedbackkit -- feedbackkit mcp --project YOUR_PROJECT_ID
+```
+
+#### Codex
+
+In `.codex/config.toml`:
+
+```toml
+[mcp_servers.feedbackkit]
+command = "feedbackkit"
+args = ["mcp", "--project", "YOUR_PROJECT_ID"]
+```
+
+#### Antigravity
+
+In `.agents/mcp_config.json`:
 
 ```json
 {
@@ -147,7 +167,23 @@ To limit the MCP server to a single project so the coding agent only pulls feedb
 }
 ```
 
-Or via environment variable:
+#### Cursor, Windsurf, Claude Desktop & Other Agents
+
+In `mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "feedbackkit": {
+      "type": "stdio",
+      "command": "feedbackkit",
+      "args": ["mcp", "--project", "YOUR_PROJECT_ID"]
+    }
+  }
+}
+```
+
+#### Environment Variable Alternative
 
 ```json
 {

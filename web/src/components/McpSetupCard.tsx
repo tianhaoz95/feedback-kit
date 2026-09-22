@@ -10,7 +10,7 @@ export function McpSetupCard({
   projectId: string;
   projectName?: string;
 }) {
-  const [format, setFormat] = useState<"json" | "claude" | "npx">("json");
+  const [format, setFormat] = useState<"json" | "claude" | "codex" | "npx">("json");
 
   const jsonSnippet = JSON.stringify(
     {
@@ -38,10 +38,20 @@ export function McpSetupCard({
     2,
   );
 
-  const claudeSnippet = `claude mcp add feedbackkit -- feedbackkit mcp --project ${projectId}`;
+  const claudeSnippet = `claude mcp add --scope project feedbackkit -- feedbackkit mcp --project ${projectId}`;
+
+  const codexSnippet = `[mcp_servers.feedbackkit]
+command = "feedbackkit"
+args = ["mcp", "--project", "${projectId}"]`;
 
   const currentSnippet =
-    format === "json" ? jsonSnippet : format === "npx" ? npxSnippet : claudeSnippet;
+    format === "json"
+      ? jsonSnippet
+      : format === "claude"
+      ? claudeSnippet
+      : format === "codex"
+      ? codexSnippet
+      : npxSnippet;
 
   return (
     <section className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
@@ -52,7 +62,7 @@ export function McpSetupCard({
             <h2 className="text-sm font-medium text-neutral-900">Connect AI coding agent (MCP)</h2>
           </div>
           <p className="mt-1 text-xs text-neutral-500">
-            Let Claude Code, Cursor, Antigravity, or Codex pull feedback and prompts scoped directly to{" "}
+            Let Claude Code, Antigravity, Codex, Cursor, or Windsurf pull feedback and prompts scoped directly to{" "}
             {projectName ? `"${projectName}"` : "this project"}.
           </p>
         </div>
@@ -68,7 +78,29 @@ export function McpSetupCard({
                 : "text-neutral-500 hover:text-neutral-900"
             }`}
           >
-            mcp_config.json
+            Antigravity / JSON
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormat("claude")}
+            className={`rounded-md px-2.5 py-1 transition-colors ${
+              format === "claude"
+                ? "bg-white text-neutral-900 shadow-xs font-semibold"
+                : "text-neutral-500 hover:text-neutral-900"
+            }`}
+          >
+            Claude Code
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormat("codex")}
+            className={`rounded-md px-2.5 py-1 transition-colors ${
+              format === "codex"
+                ? "bg-white text-neutral-900 shadow-xs font-semibold"
+                : "text-neutral-500 hover:text-neutral-900"
+            }`}
+          >
+            Codex
           </button>
           <button
             type="button"
@@ -80,17 +112,6 @@ export function McpSetupCard({
             }`}
           >
             npx JSON
-          </button>
-          <button
-            type="button"
-            onClick={() => setFormat("claude")}
-            className={`rounded-md px-2.5 py-1 transition-colors ${
-              format === "claude"
-                ? "bg-white text-neutral-900 shadow-xs font-semibold"
-                : "text-neutral-500 hover:text-neutral-900"
-            }`}
-          >
-            Claude Code CLI
           </button>
         </div>
       </div>
