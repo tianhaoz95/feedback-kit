@@ -125,12 +125,20 @@ export function SdkSetupCard({
 
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
             <CopyButton text={agentPrompt} label="Copy prompt for agent" variant="primary" size="md" />
-            <Link
-              to="/docs/ios-sdk"
-              className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-900 hover:underline"
-            >
-              View SDK documentation →
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                to="/docs/skills"
+                className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-900 hover:underline"
+              >
+                Or install Agent Skills →
+              </Link>
+              <Link
+                to="/docs/ios-sdk"
+                className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-900 hover:underline"
+              >
+                View SDK documentation →
+              </Link>
+            </div>
           </div>
         </div>
       ) : (

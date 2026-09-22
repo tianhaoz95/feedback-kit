@@ -1,0 +1,161 @@
+name: Publish Skills Package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Test packaging and publishing without writing to registry"
+        type: boolean
+        default: false
+      version:
+        description: "Explicit version to publish (defaults to release tag or package.json)"
+        required: false
+
+concurrency:
+  group: skills-publish-${{ github.event.release.tag_name || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish-npm:
+    name: Publish to npm
+    if: github.event_name != 'release' || (!startsWith(github.event.release.tag_name, 'mac-demo-') && !startsWith(github.event.release.tag_name, 'cli-'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      deployments: write
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/feedback-kit-skills
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js for npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+            VERSION="${TAG#skills-v}"
+            VERSION="${VERSION#cli-v}"
+            VERSION="${VERSION#mac-demo-v}"
+            VERSION="${VERSION#v}"
+          elif [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION="$(node -p 'require("./package.json").version')"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VERSION"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set package version
+        run: |
+          npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
+
+      - name: Validate skills
+        run: npm run validate
+
+      - name: Publish package to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          PKG_VERSION="${{ steps.version.outputs.version }}"
+          ALREADY_PUBLISHED="$(npm view feedback-kit-skills@"$PKG_VERSION" version 2>/dev/null || true)"
+          if [ "$ALREADY_PUBLISHED" = "$PKG_VERSION" ]; then
+            echo "feedback-kit-skills@$PKG_VERSION is already published on npm registry. Skipping."
+            exit 0
+          fi
+
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "Running dry-run publish to npm..."
+            npm publish --dry-run --access public
+          else
+            npm publish --access public --provenance
+          fi
+
+  publish-github-packages:
+    name: Publish to GitHub Packages
+    if: github.event_name != 'release' || (!startsWith(github.event.release.tag_name, 'mac-demo-') && !startsWith(github.event.release.tag_name, 'cli-'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      deployments: write
+    environment:
+      name: github-packages
+      url: https://github.com/${{ github.repository }}/packages
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js for GitHub Packages
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@${{ github.repository_owner }}"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+            VERSION="${TAG#skills-v}"
+            VERSION="${VERSION#cli-v}"
+            VERSION="${VERSION#mac-demo-v}"
+            VERSION="${VERSION#v}"
+          elif [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION="$(node -p 'require("./package.json").version')"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VERSION"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure package scope and version
+        run: |
+          SCOPE_OWNER="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          npm pkg set name="@${SCOPE_OWNER}/feedback-kit-skills"
+          npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
+
+      - name: Validate skills
+        run: npm run validate
+
+      - name: Publish package to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "Running dry-run publish to GitHub Packages..."
+            npm publish --dry-run --access public
+          else
+            OUTPUT="$(npm publish --access public 2>&1)" || {
+              if echo "$OUTPUT" | grep -qiE "already exists|previously published|409|400"; then
+                echo "Package is already published to GitHub Packages. Skipping."
+              else
+                echo "$OUTPUT" >&2
+                exit 1
+              fi
+            }
+            echo "$OUTPUT"
+          fi

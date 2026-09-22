@@ -1,0 +1,47 @@
+{
+  "name": "feedback-kit-skills",
+  "version": "0.1.0",
+  "description": "Agent Skills for FeedbackKit — automated setup for iOS, macOS, watchOS, and MCP server",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tianhaoz95/feedback-kit.git"
+  },
+  "homepage": "https://github.com/tianhaoz95/feedback-kit#readme",
+  "bugs": {
+    "url": "https://github.com/tianhaoz95/feedback-kit/issues"
+  },
+  "keywords": [
+    "skills",
+    "agent-skills",
+    "feedbackkit",
+    "ios",
+    "macos",
+    "watchos",
+    "mcp",
+    "claude-code",
+    "cursor",
+    "antigravity",
+    "codex"
+  ],
+  "author": "Tianhao Zhao",
+  "license": "MIT",
+  "files": [
+    "skills",
+    "README.md"
+  ],
+  "scripts": {
+    "new": "node scripts/new-skill.mjs",
+    "validate": "node scripts/validate-skills.mjs",
+    "list": "npx skills add . --list",
+    "prepublishOnly": "npm run validate"
+  },
+  "devDependencies": {
+    "@clack/core": "^0.4.1",
+    "@clack/prompts": "^0.9.1",
+    "picocolors": "^1.1.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

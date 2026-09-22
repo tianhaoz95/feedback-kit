@@ -17,7 +17,7 @@ const RAW_NAV: RawNavItem[] = [
     label: "Overview",
     end: true,
     sections: [
-      "The four pieces",
+      "The building blocks",
       "The shortest path to a working report",
       "How the pieces fit together",
       "What gets collected",
@@ -76,6 +76,19 @@ const RAW_NAV: RawNavItem[] = [
       "Other agents",
       "Tools it exposes",
       "Example prompts",
+    ],
+  },
+  {
+    to: "/docs/skills",
+    label: "Agent Skills",
+    sections: [
+      "What are Agent Skills?",
+      "Available skills",
+      "Install with npx skills",
+      "Using with Claude Code",
+      "Using with Cursor & Antigravity",
+      "Setting up the MCP server via skill",
+      "Developing new skills",
     ],
   },
 ];

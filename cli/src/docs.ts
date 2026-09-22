@@ -30,6 +30,7 @@ FeedbackKit is an iOS/macOS/watchOS SDK for capturing in-app feedback, plus thre
 2. **Web dashboard** (optional) — receives reports, organizes them by project, turns them into coding-agent prompts via an editable template.
 3. **CLI** — reads feedback/prompts from a terminal, authenticated as a real dashboard user.
 4. **MCP server** (\`feedbackkit mcp\`) — lets a coding agent fetch a report's generated prompt directly, no copy/paste.
+5. **Agent Skills** (\`skills/\`) — packages recipes for AI coding agents to automate SDK setup and MCP integration (\`npx skills add tianhaoz95/feedback-kit\`).
 
 ## The shortest path to a working report (iOS)
 
@@ -629,6 +630,57 @@ Once connected, just ask your agent to use it:
 > How do I add FeedbackKit to my iOS app? Check its own docs.
 
 The agent calls \`get_prompt\` for the first, \`get_docs\` for the second — real, current documentation and templates rather than a guess from training data.`,
+  },
+  {
+    slug: "skills",
+    title: "Agent Skills",
+    summary: "Agent Skills for AI coding agents to automate SDK setup, triggers, and MCP configuration.",
+    content: `# Agent Skills for FeedbackKit
+
+FeedbackKit packages Agent Skills compliant with the vercel-labs/skills open standard (npx skills add). AI coding agents (Claude Code, Cursor, Antigravity, Codex) use these skills to autonomously inspect a project, add package dependencies, configure credentials, wire UI triggers, and set up MCP.
+
+## Available skills
+
+- \`setup-ios-sdk\` — Integrates FeedbackKit into an iOS project (SwiftUI or UIKit, XcodeGen or Xcode project). Adds package dependency, initializes credentials at app launch, sets up shake or floating triggers, and configures screen tracking.
+- \`setup-macos-sdk\` — Integrates FeedbackKit into a macOS desktop app (SwiftUI or AppKit). Configures credentials, sets up floating button or menu item triggers, and configures screen tracking.
+- \`setup-watchos-sdk\` — Integrates FeedbackKit into a watchOS app using \`FeedbackQuickNoteView\` embedded in a SwiftUI sheet for text and context feedback.
+- \`setup-mcp-server\` — Configures the FeedbackKit CLI and MCP server for Claude Code, Cursor, Antigravity, or Codex.
+
+## Installing skills
+
+Install into your project or agent environment via \`feedback-kit-skills\`:
+
+\`\`\`bash
+# List discoverable skills:
+npx skills add feedback-kit-skills --list
+
+# Interactively choose skills to install:
+npx skills add feedback-kit-skills
+
+# Install a specific skill directly:
+npx skills add feedback-kit-skills --skill setup-ios-sdk --yes
+npx skills add feedback-kit-skills --skill setup-macos-sdk --yes
+npx skills add feedback-kit-skills --skill setup-watchos-sdk --yes
+npx skills add feedback-kit-skills --skill setup-mcp-server --yes
+
+# Or via GitHub repository shorthand:
+npx skills add tianhaoz95/feedback-kit --skill setup-ios-sdk --yes
+\`\`\`
+
+## Using with AI Coding Agents
+
+Once a skill is installed, simply ask your agent:
+
+> Please add FeedbackKit to this iOS app, configure it with my project key and endpoint URL, and enable shake to report.
+
+The agent reads the skill instructions, inspects the codebase, adds the package, configures the entry point, and verifies the build with xcodebuild.
+
+## Authoring and Contributing Skills
+
+In this repository:
+- \`npm run new\` — Interactively scaffold a new skill with @clack/prompts
+- \`npm run validate\` — Verify frontmatter across all skills
+- \`npm run list\` — List all discoverable skills via npx skills`,
   },
 ];
 

@@ -128,6 +128,13 @@ export function DocsMcpPage() {
           . The MCP server uses the same stored credentials, so once <InlineCode>feedbackkit whoami</InlineCode> shows
           you're signed in, it's ready to connect.
         </p>
+        <DocsCallout>
+          Want an AI coding agent to configure MCP for you automatically? You can use the{" "}
+          <Link to="/docs/skills" className="font-semibold underline">
+            setup-mcp-server Agent Skill
+          </Link>
+          : <InlineCode>npx skills add feedback-kit-skills --skill setup-mcp-server --yes</InlineCode>.
+        </DocsCallout>
       </DocsSection>
 
       <DocsSection title="Claude Code">

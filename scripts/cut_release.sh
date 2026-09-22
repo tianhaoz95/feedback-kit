@@ -3,6 +3,7 @@
 #   - TestFlight upload (.github/workflows/testflight.yml)
 #   - macOS Demo DMG build, sign, notarize & attach (.github/workflows/release-macos-demo.yml)
 #   - CLI package publish to npm & GitHub Packages (.github/workflows/publish-cli.yml)
+#   - Skills package publish to npm & GitHub Packages (.github/workflows/publish-skills.yml)
 #
 # Usage:
 #   ./scripts/cut_release.sh 1.0.0
@@ -52,6 +53,10 @@ while [[ $# -gt 0 ]]; do
       PREFIX_TYPE="cli"
       shift
       ;;
+    --skills)
+      PREFIX_TYPE="skills"
+      shift
+      ;;
     --notes)
       NOTES="${2:-}"
       [[ -z "$NOTES" ]] && usage 1
@@ -68,7 +73,7 @@ while [[ $# -gt 0 ]]; do
     -h|--help)
       usage 0
       ;;
-    mac-demo-v*|cli-v*|v*)
+    mac-demo-v*|cli-v*|skills-v*|v*)
       [[ -n "$VERSION" ]] && usage
       VERSION="$1"
       shift
@@ -87,17 +92,18 @@ done
 [[ -z "$VERSION" ]] && usage
 
 # Normalize version according to prefix type if not already prefixed
-if [[ "$VERSION" =~ ^(mac-demo-v|cli-v|v)[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+if [[ "$VERSION" =~ ^(mac-demo-v|cli-v|skills-v|v)[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   TAG="$VERSION"
 elif [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   case "$PREFIX_TYPE" in
     mac-demo) TAG="mac-demo-v$VERSION" ;;
     cli)      TAG="cli-v$VERSION" ;;
+    skills)   TAG="skills-v$VERSION" ;;
     *)        TAG="v$VERSION" ;;
   esac
 else
   echo "error: invalid version format: $VERSION" >&2
-  echo "expected X.Y.Z, vX.Y.Z, mac-demo-vX.Y.Z, or cli-vX.Y.Z" >&2
+  echo "expected X.Y.Z, vX.Y.Z, mac-demo-vX.Y.Z, cli-vX.Y.Z, or skills-vX.Y.Z" >&2
   exit 1
 fi
 

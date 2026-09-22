@@ -41,6 +41,7 @@ file is about how to build/test/run things day to day.
 | `web/` | Static SPA dashboard (Vite + React + React Router), deployed to GitHub Pages |
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function, billing (Stripe) Edge Functions |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) — reads feedback/prompts as a logged-in user |
+| `skills/` | Agent Skills catalog (`vercel-labs/skills`) for automated setup via AI coding agents |
 | `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `release_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh` |
 | `branding/` | FeedbackKit logo assets (SVG source + PNG exports) — reused for the iOS app icon and the GitHub OAuth App's logo |
 
@@ -232,6 +233,23 @@ coding agent can answer "how do I add this to an iOS app" from real
 documentation. Unlike every other CLI command/MCP tool, this one doesn't
 call `getAuthenticatedClient()` — it's static local content, deliberately
 usable before `feedbackkit login`.
+
+### Agent Skills (`skills/`)
+
+Skills follow the [`vercel-labs/skills`](https://github.com/vercel-labs/skills) specification for discovery (`npx skills add . --list`).
+
+```bash
+npm run validate       # Validate all SKILL.md frontmatter in skills/
+npm run list           # List all discoverable skills via npx skills
+npm run new            # Interactively scaffold a new skill with @clack/prompts
+npm run new -- <cat>/<name> "description"  # Non-interactive scaffolder
+```
+
+Rules for skills:
+- Always run `npm run validate` after creating or modifying skills.
+- Keep `name` in frontmatter identical to directory basename (`skills/<category>/<skill-name>/SKILL.md`).
+- Keep `## Skills Catalog` in `README.md` synchronized with `skills/`.
+- Multi-file skills can include templates in a `templates/` subdirectory.
 
 ## Architecture notes worth knowing before editing
 

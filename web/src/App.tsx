@@ -17,6 +17,7 @@ import { DocsIosSdkPage } from "@/pages/docs/DocsIosSdkPage";
 import { DocsDashboardPage } from "@/pages/docs/DocsDashboardPage";
 import { DocsCliPage } from "@/pages/docs/DocsCliPage";
 import { DocsMcpPage } from "@/pages/docs/DocsMcpPage";
+import { DocsSkillsPage } from "@/pages/docs/DocsSkillsPage";
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="dashboard" element={<DocsDashboardPage />} />
           <Route path="cli" element={<DocsCliPage />} />
           <Route path="mcp" element={<DocsMcpPage />} />
+          <Route path="skills" element={<DocsSkillsPage />} />
         </Route>
         <Route
           path="/login"

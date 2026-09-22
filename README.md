@@ -3,6 +3,7 @@
 [![Release to TestFlight](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight.yml)
 [![Release macOS Demo](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-macos-demo.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-macos-demo.yml)
 [![Publish CLI Package](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-cli.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-cli.yml)
+[![Publish Skills Package](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-skills.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-skills.yml)
 [![Deploy web dashboard](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-web.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-web.yml)
 
 An iOS + macOS + watchOS SDK for capturing in-app user feedback (screenshot +
@@ -112,6 +113,60 @@ Lets a coding agent fetch a feedback report's generated prompt directly
 (`feedbackkit mcp`) instead of a human copying it out of the dashboard —
 see [cli/README.md](cli/README.md) for the full command/tool list and how
 its browser-based login works.
+
+### Agent Skills
+
+FeedbackKit provides a catalog of [Agent Skills](https://github.com/vercel-labs/skills) compatible with
+Claude Code, Cursor, Antigravity, Gemini CLI, and other AI coding assistants to automate SDK setup and MCP integration.
+
+## Skills Catalog
+
+| Category | Skill | Description |
+|---|---|---|
+| [`setup/`](skills/setup/README.md) | [`setup-ios-sdk`](skills/setup/setup-ios-sdk/SKILL.md) | Integrate FeedbackKit SDK into an iOS project (SwiftUI or UIKit). |
+| [`setup/`](skills/setup/README.md) | [`setup-macos-sdk`](skills/setup/setup-macos-sdk/SKILL.md) | Integrate FeedbackKit SDK into a macOS desktop app (SwiftUI or AppKit). |
+| [`setup/`](skills/setup/README.md) | [`setup-watchos-sdk`](skills/setup/setup-watchos-sdk/SKILL.md) | Integrate FeedbackKit SDK into a watchOS app using FeedbackQuickNoteView. |
+| [`setup/`](skills/setup/README.md) | [`setup-mcp-server`](skills/setup/setup-mcp-server/SKILL.md) | Configure FeedbackKit CLI and MCP server for AI coding agents. |
+
+#### Layout
+
+```
+skills/
+  <category>/
+    <skill-name>/
+      SKILL.md        # required: frontmatter (name, description) + agent instructions
+      templates/      # optional: code/config template files (.template)
+```
+
+#### Commands
+
+```bash
+npm run new            # Interactively scaffold a new skill with @clack/prompts
+npm run validate       # Validate all SKILL.md frontmatter
+npm run list           # List all discoverable skills via npx skills
+```
+
+You can also pass arguments directly to scaffold non-interactively:
+```bash
+npm run new -- <category>/<skill-name> "one-line description"
+```
+
+#### Installing into an Agent
+
+From within your agent CLI or another project's working directory, install using the dedicated npm package name:
+```bash
+npx skills add feedback-kit-skills
+```
+
+To install a specific skill directly:
+```bash
+npx skills add feedback-kit-skills --skill setup-ios-sdk --yes
+```
+
+You can also install directly using the GitHub repository shorthand:
+```bash
+npx skills add tianhaoz95/feedback-kit --skill setup-ios-sdk --yes
+```
 
 ## Deploying the web dashboard to GitHub Pages
 
@@ -226,6 +281,7 @@ This publishes the GitHub release and triggers all release pipelines in parallel
 1. **`.github/workflows/testflight.yml`**: Archives `FeedbackKitDemo` and uploads it to App Store Connect for TestFlight.
 2. **`.github/workflows/release-macos-demo.yml`**: Archives `FeedbackKitDemoMac`, signs it with a **Developer ID Application** certificate, notarizes with Apple, and attaches the notarized `FeedbackKitDemoMac-1.0.0.dmg` directly to the GitHub release.
 3. **`.github/workflows/publish-cli.yml`**: Builds, tests, and publishes `feedbackkit-cli` to both the public npm registry (`feedbackkit-cli`) and GitHub Packages (`@tianhaoz95/feedbackkit-cli`).
+4. **`.github/workflows/publish-skills.yml`**: Validates and publishes `feedback-kit-skills` to both the public npm registry (`feedback-kit-skills`) and GitHub Packages (`@tianhaoz95/feedback-kit-skills`).
 
 Unlike TestFlight signing (an "Apple Development" identity Xcode manages
 automatically), Developer ID distribution needs a real exported `.p12` in CI,
@@ -263,4 +319,5 @@ API key with access to the team, the same one works for both.
 | `web/` | Static SPA dashboard (Vite + React), deployable to any static host |
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function, billing (Stripe) Edge Functions |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) |
+| `skills/` | Agent Skills catalog (`vercel-labs/skills`) for automated setup via AI coding agents |
 | `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `release_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh` |

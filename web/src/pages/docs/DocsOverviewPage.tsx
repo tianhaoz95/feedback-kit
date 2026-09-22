@@ -23,6 +23,11 @@ const pieces = [
     title: "MCP & coding agents",
     description: "Let Claude Code, Codex, Antigravity, or another agent fetch a prompt directly — no copy/paste.",
   },
+  {
+    to: "/docs/skills",
+    title: "Agent Skills",
+    description: "Automate SDK setup, triggers, and MCP integration with Claude Code, Cursor, Antigravity, and Codex.",
+  },
 ];
 
 const quickStart = `FeedbackKit.enableShakeToReport {
@@ -35,12 +40,10 @@ export function DocsOverviewPage() {
       <DocsTitle
         eyebrow="Documentation"
         title="FeedbackKit documentation"
-        description="FeedbackKit is an iOS SDK for capturing in-app feedback, plus three optional ways to
-          consume it: a hosted dashboard, a CLI, and an MCP server for coding agents. Pick the pages
-          you need — each piece works without the others."
+        description="FeedbackKit is an iOS, macOS, and watchOS SDK for capturing in-app feedback, plus tools to consume it: a hosted dashboard, a CLI, an MCP server, and Agent Skills for coding agents. Pick the pages you need — each piece works without the others."
       />
 
-      <DocsSection title="The four pieces">
+      <DocsSection title="The building blocks">
         <div className="grid gap-4 sm:grid-cols-2">
           {pieces.map((piece) => (
             <Link

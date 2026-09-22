@@ -33,7 +33,8 @@ fi
 echo "==> Generating the iOS demo app's Xcode project"
 (cd DemoApp && xcodegen generate)
 
-echo "==> Installing web dashboard dependencies"
+echo "==> Installing root and web dashboard dependencies"
+npm install
 (cd web && npm install)
 
 cat <<'EOF'
