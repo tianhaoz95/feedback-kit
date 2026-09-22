@@ -337,7 +337,7 @@ feedbackkit login --dashboard-url http://localhost:3000
 | \`feedbackkit list [--project <id>] [--status <status>]\` | List feedback reports, optionally filtered. |
 | \`feedbackkit prompt <feedbackId>\` | Print the generated coding-agent prompt for one report. |
 | \`feedbackkit docs [topic]\` | Print this documentation (no topic = list topics). |
-| \`feedbackkit mcp\` | Run an MCP server over stdio — see the \`mcp\` doc topic. |
+| \`feedbackkit mcp [--project <id>]\` | Run an MCP server over stdio, optionally scoped to one project — see the \`mcp\` doc topic. |
 
 \`--status\` accepts \`new\`, \`in_progress\`, \`resolved\`, or \`wont_fix\`.
 
@@ -367,10 +367,10 @@ Or without a global install:
 claude mcp add feedbackkit -- npx -y feedbackkit-cli mcp
 \`\`\`
 
-Or scope it to just this project (checked into version control) or to yourself across all projects:
+Or scope it to just this project (checked into version control) with an optional project ID, or to yourself across all projects:
 
 \`\`\`bash
-claude mcp add --scope project feedbackkit -- feedbackkit mcp
+claude mcp add --scope project feedbackkit -- feedbackkit mcp --project <project-id>
 claude mcp add --scope user feedbackkit -- feedbackkit mcp
 \`\`\`
 
@@ -470,12 +470,49 @@ Or with \`npx\` if not installed globally:
 
 The exact file location and surrounding config shape varies by tool — check that tool's own MCP documentation for where this block goes.
 
+## Scoping to a single project
+
+By default, the MCP server can access all projects your account has permissions for. If you are developing a specific repository or app and want to prevent the agent from pulling from other projects or wasting context tokens on them, you can scope the server to a specific project ID via \`--project <id>\` (or \`--project-id <id>\`):
+
+\`\`\`json
+{
+  "mcpServers": {
+    "feedbackkit": {
+      "command": "feedbackkit",
+      "args": ["mcp", "--project", "<project-id>"]
+    }
+  }
+}
+\`\`\`
+
+Or via the \`FEEDBACKKIT_PROJECT_ID\` environment variable:
+
+\`\`\`json
+{
+  "mcpServers": {
+    "feedbackkit": {
+      "command": "feedbackkit",
+      "args": ["mcp"],
+      "env": {
+        "FEEDBACKKIT_PROJECT_ID": "<project-id>"
+      }
+    }
+  }
+}
+\`\`\`
+
+When scoped to a project:
+- \`list_projects\` only lists that project.
+- \`list_feedback\` automatically defaults to that project and rejects queries for other projects.
+- \`get_feedback\` and \`get_prompt\` only return items belonging to that project.
+- \`update_feedback_status\` only updates items belonging to that project.
+
 ## Tools it exposes
 
 | Tool | What it does |
 |---|---|
-| \`list_projects\` | List projects the logged-in user is a member of. |
-| \`list_feedback\` | List feedback, optionally filtered by \`project_id\`/\`status\`. |
+| \`list_projects\` | List projects the logged-in user is a member of (or the scoped project). |
+| \`list_feedback\` | List feedback, optionally filtered by \`project_id\`/\`status\` (scoped project enforced). |
 | \`get_feedback\` | Full detail for one report, including a signed screenshot URL (null if the reporter left the screenshot out). |
 | \`get_prompt\` | The generated (or developer-edited) coding-agent prompt for one report — the whole point. |
 | \`update_feedback_status\` | Mark a report's status, e.g. \`resolved\` after fixing it. |

@@ -7,8 +7,8 @@ const claudeCodeAdd = `claude mcp add feedbackkit -- feedbackkit mcp
 # Or without a global install:
 claude mcp add feedbackkit -- npx -y feedbackkit-cli mcp`;
 
-const claudeCodeScoped = `# Available to just this project, checked into .claude/.mcp.json
-claude mcp add --scope project feedbackkit -- feedbackkit mcp
+const claudeCodeScoped = `# Available to just this project, checked into .claude/.mcp.json (scoped to project ID)
+claude mcp add --scope project feedbackkit -- feedbackkit mcp --project <project-id>
 
 # Available to you across every project
 claude mcp add --scope user feedbackkit -- feedbackkit mcp`;
@@ -60,6 +60,27 @@ const mcpJsonNpx = `{
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "feedbackkit-cli", "mcp"]
+    }
+  }
+}`;
+
+const projectScopedJson = `{
+  "mcpServers": {
+    "feedbackkit": {
+      "command": "feedbackkit",
+      "args": ["mcp", "--project", "<project-id>"]
+    }
+  }
+}`;
+
+const projectScopedEnvJson = `{
+  "mcpServers": {
+    "feedbackkit": {
+      "command": "feedbackkit",
+      "args": ["mcp"],
+      "env": {
+        "FEEDBACKKIT_PROJECT_ID": "<project-id>"
+      }
     }
   }
 }`;
@@ -145,12 +166,26 @@ export function DocsMcpPage() {
         </DocsCallout>
       </DocsSection>
 
+      <DocsSection title="Scoping to a single project">
+        <p>
+          By default, the MCP server can access all projects your account has permissions for. If you are developing a specific repository or app and want to prevent the agent from pulling from other projects or wasting tokens, you can scope the server to a specific project ID via <InlineCode>--project &lt;id&gt;</InlineCode> (or <InlineCode>--project-id &lt;id&gt;</InlineCode>):
+        </p>
+        <CodeBlock code={projectScopedJson} label="mcp_config.json" />
+        <p>
+          Alternatively, pass the project ID via the <InlineCode>FEEDBACKKIT_PROJECT_ID</InlineCode> environment variable:
+        </p>
+        <CodeBlock code={projectScopedEnvJson} label="mcp_config.json (env)" />
+        <p>
+          When scoped to a project, <InlineCode>list_feedback</InlineCode> automatically filters to that project, and queries for other projects or items outside that project are rejected.
+        </p>
+      </DocsSection>
+
       <DocsSection title="Tools it exposes">
         <DocsTable
           columns={["Tool", "What it does"]}
           rows={[
-            ["list_projects", "List projects the logged-in user is a member of."],
-            ["list_feedback", "List feedback, optionally filtered by project_id/status."],
+            ["list_projects", "List projects the logged-in user is a member of (or the scoped project)."],
+            ["list_feedback", "List feedback, optionally filtered by project_id/status (scoped project enforced)."],
             ["get_feedback", "Full detail for one report, including a signed screenshot URL (null if the reporter left the screenshot out)."],
             ["get_prompt", "The generated (or developer-edited) coding-agent prompt for one report — the whole point."],
             ["get_docs", "FeedbackKit's own documentation — e.g. how to add the SDK to an iOS app. Doesn't require being logged in."],

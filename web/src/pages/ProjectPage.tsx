@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { EmptyState } from "@/components/EmptyState";
 import { ArrowLeftIcon, InboxIcon, SparkleIcon } from "@/components/icons";
 import { SdkSetupCard } from "@/components/SdkSetupCard";
+import { McpSetupCard } from "@/components/McpSetupCard";
 
 export function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -94,6 +95,11 @@ export function ProjectPage() {
       <SdkSetupCard
         projectKey={project.project_key}
         endpointUrl={ingestUrl}
+        projectName={project.name}
+      />
+
+      <McpSetupCard
+        projectId={project.id}
         projectName={project.name}
       />
 

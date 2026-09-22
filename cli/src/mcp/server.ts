@@ -8,6 +8,10 @@ import type { FeedbackItem, PromptTemplate } from "../types.js";
 
 const STATUS_ENUM = z.enum(["new", "in_progress", "resolved", "wont_fix"]);
 
+export interface McpServerOptions {
+  projectId?: string;
+}
+
 /**
  * Read-mostly tools over the same tables/RLS the web dashboard uses — no
  * separate authorization logic here, see supabaseClient.ts. `list_feedback`
@@ -15,19 +19,30 @@ const STATUS_ENUM = z.enum(["new", "in_progress", "resolved", "wont_fix"]);
  * whole point (the thing a human used to copy/paste by hand);
  * `update_feedback_status` is the one write tool, scoped to a status flip
  * so an agent can close the loop after fixing something.
+ *
+ * When `projectId` is provided, all project queries and feedback queries
+ * are scoped strictly to that project so an agent only pulls data for the
+ * project it is working on.
  */
-export async function runMcpServer(): Promise<void> {
+export function createMcpServer(options: McpServerOptions = {}): McpServer {
+  const { projectId } = options;
   const server = new McpServer({ name: "feedbackkit", version: "0.1.0" });
 
   server.registerTool(
     "list_projects",
-    { description: "List the FeedbackKit projects you're a member of." },
+    {
+      description: projectId
+        ? `List the FeedbackKit projects you're a member of (filtered to scoped project ${projectId}).`
+        : "List the FeedbackKit projects you're a member of.",
+    },
     async () => {
       const client = await getAuthenticatedClient();
-      const { data, error } = await client
+      let query = client
         .from("projects")
         .select("id, name, created_at")
         .order("created_at", { ascending: false });
+      if (projectId) query = query.eq("id", projectId);
+      const { data, error } = await query;
       if (error) return errorResult(error.message);
       return jsonResult(data ?? []);
     },
@@ -36,21 +51,36 @@ export async function runMcpServer(): Promise<void> {
   server.registerTool(
     "list_feedback",
     {
-      description: "List feedback reports captured by the iOS app, optionally filtered by project and/or status.",
+      description: projectId
+        ? `List feedback reports for project ${projectId} (server is scoped to this project), optionally filtered by status.`
+        : "List feedback reports captured by the iOS app, optionally filtered by project and/or status.",
       inputSchema: {
-        project_id: z.string().describe("Only feedback for this project id.").optional(),
+        project_id: z
+          .string()
+          .describe(
+            projectId
+              ? `Project id to filter by (server is scoped to "${projectId}").`
+              : "Only feedback for this project id.",
+          )
+          .optional(),
         status: STATUS_ENUM.optional(),
         limit: z.number().int().min(1).max(100).default(20),
       },
     },
     async ({ project_id, status, limit }) => {
+      if (projectId && project_id && project_id !== projectId) {
+        return errorResult(
+          `Cannot query project "${project_id}": this MCP server is scoped to project "${projectId}".`,
+        );
+      }
+      const effectiveProjectId = projectId || project_id;
       const client = await getAuthenticatedClient();
       let query = client
         .from("feedback_items")
         .select("id, project_id, text, status, environment, created_at")
         .order("created_at", { ascending: false })
         .limit(limit);
-      if (project_id) query = query.eq("project_id", project_id);
+      if (effectiveProjectId) query = query.eq("project_id", effectiveProjectId);
       if (status) query = query.eq("status", status);
 
       const { data, error } = await query;
@@ -62,18 +92,25 @@ export async function runMcpServer(): Promise<void> {
   server.registerTool(
     "get_feedback",
     {
-      description: "Get full detail for one feedback report, including a time-limited screenshot URL.",
+      description: projectId
+        ? `Get full detail for one feedback report in project ${projectId}, including a time-limited screenshot URL.`
+        : "Get full detail for one feedback report, including a time-limited screenshot URL.",
       inputSchema: { feedback_id: z.string() },
     },
     async ({ feedback_id }) => {
       const client = await getAuthenticatedClient();
-      const { data: feedback, error } = await client
+      let query = client
         .from("feedback_items")
         .select("*")
-        .eq("id", feedback_id)
-        .single<FeedbackItem>();
+        .eq("id", feedback_id);
+      if (projectId) query = query.eq("project_id", projectId);
+      const { data: feedback, error } = await query.maybeSingle<FeedbackItem>();
       if (error || !feedback) {
-        return errorResult(`Feedback ${feedback_id} not found, or you don't have access to it.`);
+        return errorResult(
+          projectId
+            ? `Feedback ${feedback_id} not found in project ${projectId}, or you don't have access to it.`
+            : `Feedback ${feedback_id} not found, or you don't have access to it.`,
+        );
       }
 
       const signed = feedback.screenshot_annotated_path
@@ -97,13 +134,18 @@ export async function runMcpServer(): Promise<void> {
     },
     async ({ feedback_id }) => {
       const client = await getAuthenticatedClient();
-      const { data: feedback, error } = await client
+      let query = client
         .from("feedback_items")
         .select("*")
-        .eq("id", feedback_id)
-        .single<FeedbackItem>();
+        .eq("id", feedback_id);
+      if (projectId) query = query.eq("project_id", projectId);
+      const { data: feedback, error } = await query.maybeSingle<FeedbackItem>();
       if (error || !feedback) {
-        return errorResult(`Feedback ${feedback_id} not found, or you don't have access to it.`);
+        return errorResult(
+          projectId
+            ? `Feedback ${feedback_id} not found in project ${projectId}, or you don't have access to it.`
+            : `Feedback ${feedback_id} not found, or you don't have access to it.`,
+        );
       }
 
       if (feedback.edited_prompt) return textResult(feedback.edited_prompt);
@@ -163,17 +205,31 @@ export async function runMcpServer(): Promise<void> {
   server.registerTool(
     "update_feedback_status",
     {
-      description: "Mark a feedback report's status — e.g. to 'resolved' after fixing the bug it describes.",
+      description: projectId
+        ? `Mark a feedback report's status in project ${projectId} — e.g. to 'resolved' after fixing the bug it describes.`
+        : "Mark a feedback report's status — e.g. to 'resolved' after fixing the bug it describes.",
       inputSchema: { feedback_id: z.string(), status: STATUS_ENUM },
     },
     async ({ feedback_id, status }) => {
       const client = await getAuthenticatedClient();
-      const { error } = await client.from("feedback_items").update({ status }).eq("id", feedback_id);
+      let query = client.from("feedback_items").update({ status }).eq("id", feedback_id);
+      if (projectId) query = query.eq("project_id", projectId);
+      const { data, error } = await query.select("id");
       if (error) return errorResult(error.message);
+      if (projectId && (!data || data.length === 0)) {
+        return errorResult(
+          `Feedback ${feedback_id} not found in project ${projectId}, or you don't have access to update it.`,
+        );
+      }
       return textResult(`Marked ${feedback_id} as ${status}.`);
     },
   );
 
+  return server;
+}
+
+export async function runMcpServer(options: McpServerOptions = {}): Promise<void> {
+  const server = createMcpServer(options);
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

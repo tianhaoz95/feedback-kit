@@ -132,12 +132,49 @@ Or using `npx`:
 }
 ```
 
+### Scoping to a specific project
+
+To limit the MCP server to a single project so the coding agent only pulls feedback and prompts for that specific project (preventing it from pulling from other projects or spending tokens on them), add `--project <id>` or `--project-id <id>` to `args`, or set the `FEEDBACKKIT_PROJECT_ID` environment variable:
+
+```json
+{
+  "mcpServers": {
+    "feedbackkit": {
+      "command": "feedbackkit",
+      "args": ["mcp", "--project", "YOUR_PROJECT_ID"]
+    }
+  }
+}
+```
+
+Or via environment variable:
+
+```json
+{
+  "mcpServers": {
+    "feedbackkit": {
+      "command": "feedbackkit",
+      "args": ["mcp"],
+      "env": {
+        "FEEDBACKKIT_PROJECT_ID": "YOUR_PROJECT_ID"
+      }
+    }
+  }
+}
+```
+
+When scoped to a project:
+- `list_projects` only returns that project.
+- `list_feedback` defaults to that project and rejects queries for other project IDs.
+- `get_feedback` and `get_prompt` only return items belonging to that project.
+- `update_feedback_status` only updates items belonging to that project.
+
 Tools exposed:
 
 | Tool | What it does |
 |---|---|
-| `list_projects` | List projects you're a member of |
-| `list_feedback` | List feedback, optionally filtered by `project_id`/`status` |
+| `list_projects` | List projects you're a member of (or the scoped project) |
+| `list_feedback` | List feedback, optionally filtered by `project_id`/`status` (scoped project enforced) |
 | `get_feedback` | Full detail for one feedback item, with a signed screenshot URL |
 | `get_prompt` | The generated (or developer-edited) coding-agent prompt for one item |
 | `get_docs` | FeedbackKit's own documentation — no `topic` lists topics, e.g. `sdk`/`dashboard`/`cli`/`mcp`; with `topic` returns that topic's full content. Doesn't require being logged in. |

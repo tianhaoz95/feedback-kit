@@ -105,9 +105,12 @@ program
 program
   .command("mcp")
   .description("Run an MCP server over stdio, exposing your feedback to a coding agent.")
-  .action(async () => {
+  .option("--project <id>", "Only allow access to this project id.")
+  .option("--project-id <id>", "Alias for --project.")
+  .action(async (opts: { project?: string; projectId?: string }) => {
     try {
-      await runMcpServer();
+      const projectId = opts.project || opts.projectId || process.env.FEEDBACKKIT_PROJECT_ID;
+      await runMcpServer({ projectId });
     } catch (err) {
       handleError(err);
     }

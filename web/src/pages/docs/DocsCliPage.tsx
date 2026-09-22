@@ -69,7 +69,7 @@ export function DocsCliPage() {
               <InlineCode>feedbackkit docs [topic]</InlineCode>,
               "Print this documentation — no topic lists topics. Doesn't require being logged in.",
             ],
-            [<InlineCode>feedbackkit mcp</InlineCode>, "Run an MCP server over stdio — see the next page."],
+            [<InlineCode>feedbackkit mcp [--project &lt;id&gt;]</InlineCode>, "Run an MCP server over stdio, optionally scoped to one project — see the next page."],
           ]}
         />
         <p className="text-neutral-600">

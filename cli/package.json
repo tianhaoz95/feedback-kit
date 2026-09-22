@@ -14,7 +14,8 @@
     "build": "tsc -b && chmod +x dist/index.js",
     "prepublishOnly": "npm run build",
     "dev": "tsc -b --watch",
-    "lint": "tsc -b --noEmit"
+    "lint": "tsc -b --noEmit",
+    "test": "npm run build && node --test test/*.test.js"
   },
   "repository": {
     "type": "git",
