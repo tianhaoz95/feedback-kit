@@ -22,10 +22,12 @@ import {
   SparkleIcon,
   TemplateIcon,
   TerminalIcon,
+  XIcon,
 } from "@/components/icons";
 import { SdkSetupCard } from "@/components/SdkSetupCard";
 import { McpSetupCard } from "@/components/McpSetupCard";
 import { GitHubSetupCard } from "@/components/GitHubSetupCard";
+import { MergedPromptView } from "@/components/MergedPromptView";
 
 type TabKey = "feedback" | "settings" | "sdk" | "agent" | "template";
 
@@ -46,6 +48,8 @@ export function ProjectPage() {
   const [signedUrls, setSignedUrls] = useState<
     Record<string, { screenshot: string | null; attachment: string | null }>
   >({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<"single" | "merged">("single");
 
   const tabParam = searchParams.get("tab");
   const activeTab: TabKey =
@@ -180,42 +184,105 @@ export function ProjectPage() {
     };
   }, [projectId]);
 
-  // Fetch signed URLs for selected feedback item (cached per ID)
+  function toggleSelectItem(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      if (next.size === 0) {
+        setViewMode("single");
+      }
+      return next;
+    });
+  }
+
+  function handleToggleSelectAll() {
+    if (selectedIds.size === feedbackItems.length) {
+      setSelectedIds(new Set());
+      setViewMode("single");
+    } else {
+      setSelectedIds(new Set(feedbackItems.map((item) => item.id)));
+    }
+  }
+
+  function handleClearSelection() {
+    setSelectedIds(new Set());
+    setViewMode("single");
+  }
+
+  async function handleBatchUpdateStatus(status: FeedbackStatus) {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    const { error } = await supabase
+      .from("feedback_items")
+      .update({ status })
+      .in("id", ids);
+
+    if (error) throw new Error(error.message);
+    setFeedbackItems((current) =>
+      current.map((item) => (selectedIds.has(item.id) ? { ...item, status } : item))
+    );
+  }
+
+  // Fetch signed URLs for selected feedback item and selectedIds items (cached per ID)
   useEffect(() => {
-    if (!selectedFeedback) return;
-    const id = selectedFeedback.id;
-    if (signedUrls[id]) return;
+    const idsToFetch = new Set<string>();
+    if (selectedFeedback && !signedUrls[selectedFeedback.id]) {
+      idsToFetch.add(selectedFeedback.id);
+    }
+    for (const id of selectedIds) {
+      if (!signedUrls[id]) {
+        idsToFetch.add(id);
+      }
+    }
+    if (idsToFetch.size === 0) return;
 
     let cancelled = false;
 
     (async () => {
-      const [signedScreenshot, signedAttachment] = await Promise.all([
-        selectedFeedback.screenshot_annotated_path
-          ? supabase.storage
-              .from("feedback-screenshots")
-              .createSignedUrl(selectedFeedback.screenshot_annotated_path, 60 * 60)
-          : Promise.resolve(null),
-        selectedFeedback.attachment_path
-          ? supabase.storage
-              .from("feedback-screenshots")
-              .createSignedUrl(selectedFeedback.attachment_path, 60 * 60)
-          : Promise.resolve(null),
-      ]);
+      const itemsToFetch = feedbackItems.filter((item) => idsToFetch.has(item.id));
+      const results = await Promise.all(
+        itemsToFetch.map(async (item) => {
+          const [signedScreenshot, signedAttachment] = await Promise.all([
+            item.screenshot_annotated_path
+              ? supabase.storage
+                  .from("feedback-screenshots")
+                  .createSignedUrl(item.screenshot_annotated_path, 60 * 60)
+              : Promise.resolve(null),
+            item.attachment_path
+              ? supabase.storage
+                  .from("feedback-screenshots")
+                  .createSignedUrl(item.attachment_path, 60 * 60)
+              : Promise.resolve(null),
+          ]);
+          return {
+            id: item.id,
+            screenshot: signedScreenshot?.data?.signedUrl ?? null,
+            attachment: signedAttachment?.data?.signedUrl ?? null,
+          };
+        })
+      );
 
       if (cancelled) return;
-      setSignedUrls((prev) => ({
-        ...prev,
-        [id]: {
-          screenshot: signedScreenshot?.data?.signedUrl ?? null,
-          attachment: signedAttachment?.data?.signedUrl ?? null,
-        },
-      }));
+      setSignedUrls((prev) => {
+        const next = { ...prev };
+        for (const res of results) {
+          next[res.id] = {
+            screenshot: res.screenshot,
+            attachment: res.attachment,
+          };
+        }
+        return next;
+      });
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [selectedFeedback, signedUrls]);
+  }, [selectedFeedback, selectedIds, feedbackItems, signedUrls]);
 
   async function updatePromptTemplate(formData: FormData) {
     if (!projectId) return;
@@ -380,56 +447,130 @@ export function ProjectPage() {
           ) : selectedFeedback ? (
             <div className="flex flex-col lg:flex-row gap-6 items-start">
               {/* Left Sidebar List */}
-              <div className="w-full lg:w-80 xl:w-96 shrink-0 space-y-2 lg:sticky lg:top-20">
-                <div className="flex items-center justify-between px-1 pb-1">
+              <div className="w-full lg:w-80 xl:w-96 shrink-0 space-y-2.5 lg:sticky lg:top-20">
+                <div className="flex items-center justify-between px-1 pb-0.5">
                   <span className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
                     Reports ({feedbackItems.length})
                   </span>
+                  {feedbackItems.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleToggleSelectAll}
+                      className="text-xs font-medium text-neutral-500 hover:text-neutral-900 transition-colors cursor-pointer"
+                    >
+                      {selectedIds.size === feedbackItems.length ? "Deselect all" : "Select all"}
+                    </button>
+                  )}
                 </div>
+
+                {/* Multi-selection action pill */}
+                {selectedIds.size > 0 && (
+                  <div className="flex items-center justify-between gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-2 text-xs">
+                    <span className="font-semibold text-neutral-700 pl-1">
+                      {selectedIds.size} selected
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {viewMode === "single" ? (
+                        <button
+                          type="button"
+                          onClick={() => setViewMode("merged")}
+                          className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-neutral-900 px-2 py-1 text-xs font-medium text-white shadow-xs hover:bg-neutral-800 transition-colors"
+                        >
+                          <SparkleIcon className="h-3 w-3" />
+                          <span>Merged prompt</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setViewMode("single")}
+                          className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+                        >
+                          <span>Single view</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleClearSelection}
+                        className="p-1 text-neutral-400 hover:text-neutral-700 rounded transition-colors cursor-pointer"
+                        title="Clear selection"
+                      >
+                        <XIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2 max-h-[420px] lg:max-h-[calc(100vh-12rem)] overflow-y-auto pr-1">
                   {feedbackItems.map((item) => {
                     const isSelected = selectedFeedback.id === item.id;
+                    const isChecked = selectedIds.has(item.id);
                     return (
-                      <button
+                      <div
                         key={item.id}
-                        type="button"
-                        onClick={() => handleSelectFeedback(item.id)}
-                        className={`w-full text-left rounded-xl border p-3.5 transition-all cursor-pointer ${
-                          isSelected
+                        className={`group relative flex items-start gap-2.5 rounded-xl border p-3 transition-all ${
+                          isSelected && viewMode === "single"
                             ? "border-neutral-900 bg-white shadow-sm ring-1 ring-neutral-900/10"
+                            : isChecked
+                            ? "border-neutral-400 bg-neutral-50/70"
                             : "border-neutral-200/80 bg-white hover:border-neutral-300 hover:bg-neutral-50/70"
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <p
-                            className={`line-clamp-2 text-sm leading-snug ${
-                              isSelected ? "font-semibold text-neutral-900" : "font-medium text-neutral-800"
-                            }`}
-                          >
-                            {item.text ? truncate(item.text, 80) : "(no description)"}
-                          </p>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {item.github_issue_number ? (
-                              <span
-                                title={`GitHub Issue #${item.github_issue_number}`}
-                                className="inline-flex items-center gap-1 rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600 border border-neutral-200/80"
-                              >
-                                <GitHubIcon className="h-2.5 w-2.5 text-neutral-500" />
-                                <span>#{item.github_issue_number}</span>
-                              </span>
-                            ) : null}
-                            <StatusBadge status={item.status} className="shrink-0" />
+                        <div className="pt-0.5 shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              toggleSelectItem(item.id);
+                            }}
+                            aria-label={`Select report ${item.environment?.screenName ?? item.id}`}
+                            className="h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900 cursor-pointer accent-neutral-900"
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleSelectFeedback(item.id);
+                            if (viewMode === "merged") {
+                              setViewMode("single");
+                            }
+                          }}
+                          className="flex-1 text-left min-w-0 cursor-pointer"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p
+                              className={`line-clamp-2 text-sm leading-snug ${
+                                isSelected && viewMode === "single"
+                                  ? "font-semibold text-neutral-900"
+                                  : "font-medium text-neutral-800"
+                              }`}
+                            >
+                              {item.text ? truncate(item.text, 80) : "(no description)"}
+                            </p>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {item.github_issue_number ? (
+                                <span
+                                  title={`GitHub Issue #${item.github_issue_number}`}
+                                  className="inline-flex items-center gap-1 rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600 border border-neutral-200/80"
+                                >
+                                  <GitHubIcon className="h-2.5 w-2.5 text-neutral-500" />
+                                  <span>#{item.github_issue_number}</span>
+                                </span>
+                              ) : null}
+                              <StatusBadge status={item.status} className="shrink-0" />
+                            </div>
                           </div>
-                        </div>
-                        <div className="mt-2.5 flex items-center justify-between text-xs text-neutral-400">
-                          <span className="truncate max-w-[150px] font-medium text-neutral-500">
-                            {item.environment?.screenName ?? "Unknown screen"}
-                          </span>
-                          <span className="shrink-0">
-                            {formatDate(item.created_at)}
-                          </span>
-                        </div>
-                      </button>
+                          <div className="mt-2 flex items-center justify-between text-xs text-neutral-400">
+                            <span className="truncate max-w-[140px] font-medium text-neutral-500">
+                              {item.environment?.screenName ?? "Unknown screen"}
+                            </span>
+                            <span className="shrink-0">
+                              {formatDate(item.created_at)}
+                            </span>
+                          </div>
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -437,7 +578,41 @@ export function ProjectPage() {
 
               {/* Right Detail Pane */}
               <div id="feedback-detail" className="flex-1 min-w-0 w-full space-y-5">
-                {/* Detail Header */}
+                {viewMode === "merged" && selectedIds.size > 0 ? (
+                  <MergedPromptView
+                    selectedItems={feedbackItems.filter((item) => selectedIds.has(item.id))}
+                    signedUrls={signedUrls}
+                    templateText={template?.template_text}
+                    onDeselectItem={(id) => toggleSelectItem(id)}
+                    onSelectSingleItem={(id) => {
+                      handleSelectFeedback(id);
+                      setViewMode("single");
+                    }}
+                    onBatchUpdateStatus={handleBatchUpdateStatus}
+                    onClearSelection={handleClearSelection}
+                    onBackToSingleView={() => setViewMode("single")}
+                  />
+                ) : (
+                  <>
+                    {selectedIds.size >= 2 && (
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-900/10 bg-neutral-900 text-white px-4 py-2.5 shadow-sm">
+                        <div className="flex items-center gap-2 text-xs">
+                          <SparkleIcon className="h-4 w-4 text-amber-300 shrink-0" />
+                          <span>
+                            <strong>{selectedIds.size} reports selected.</strong> Merge them into a single prompt for your coding agent to solve together.
+                          </span>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => setViewMode("merged")}
+                          className="bg-white text-neutral-900 hover:bg-neutral-100 shrink-0 font-semibold text-xs py-1.5 px-3"
+                        >
+                          View Merged Prompt ({selectedIds.size}) →
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Detail Header */}
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-200 bg-white px-5 py-3.5 shadow-xs">
                   <div className="min-w-0">
                     <h2 className="truncate text-base font-semibold text-neutral-900">
@@ -628,8 +803,10 @@ export function ProjectPage() {
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              </>
+            )}
+          </div>
+        </div>
           ) : null}
         </section>
       )}

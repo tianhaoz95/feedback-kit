@@ -43,3 +43,106 @@ export const PROMPT_TEMPLATE_PLACEHOLDERS = [
   "screenshot_url",
   "attachment_url",
 ] as const;
+
+/**
+ * Merges multiple feedback items into a single unified prompt for a coding agent.
+ * This instructs the agent to solve all reported issues cohesively in a single pass,
+ * avoiding git merge conflicts or redundant code passes across screens.
+ */
+export function renderMergedPrompt(
+  items: FeedbackItem[],
+  signedUrls: Record<string, { screenshot: string | null; attachment: string | null }>,
+  templateText?: string,
+): string {
+  if (items.length === 0) return "";
+  if (items.length === 1) {
+    const item = items[0];
+    const urls = signedUrls[item.id];
+    return (
+      item.edited_prompt ??
+      renderPromptTemplate(
+        templateText ?? "",
+        item,
+        urls?.screenshot ?? null,
+        urls?.attachment ?? null
+      )
+    );
+  }
+
+  const header = `You are an expert software engineer addressing multiple user feedback reports for this app in a single pass.
+Resolve all ${items.length} reported issues described below in a coordinated manner. By solving them together, ensure changes are cohesive, avoid git merge conflicts, and prevent regressions across shared files, state, or navigation flows.`;
+
+  const summaryLines = items
+    .map((item, idx) => {
+      const screen = item.environment?.screenName ? `[${item.environment.screenName}] ` : "";
+      const textSnippet = item.text
+        ? item.text.length > 70
+          ? `${item.text.slice(0, 67)}…`
+          : item.text
+        : "(no description)";
+      return `${idx + 1}. ${screen}${textSnippet} (ID: \`${item.id}\`, Status: ${item.status})`;
+    })
+    .join("\n");
+
+  const detailSections = items
+    .map((item, idx) => {
+      const env = item.environment || ({} as Partial<typeof item.environment>);
+      const urls = signedUrls[item.id];
+      const screenshot = urls?.screenshot
+        ? urls.screenshot
+        : item.screenshot_annotated_path
+        ? "(Screenshot loading or available in dashboard)"
+        : "(No screenshot included)";
+      const attachment = urls?.attachment
+        ? `${item.attachment_filename || "Attachment"}: ${urls.attachment}`
+        : "(No attachment)";
+      const screen = env.screenName ? `[${env.screenName}] ` : "";
+      const titleSnippet = item.text
+        ? item.text.length > 60
+          ? `${item.text.slice(0, 57)}…`
+          : item.text
+        : "Issue report";
+
+      const customPromptSection = item.edited_prompt
+        ? `\n- **Custom Prompt / Developer Notes**:\n\`\`\`markdown\n${item.edited_prompt}\n\`\`\``
+        : "";
+
+      return `### Issue ${idx + 1}: ${screen}${titleSnippet}
+- **Report ID**: \`${item.id}\`
+- **Screen**: ${env.screenName || "(unknown)"}
+- **Status**: ${item.status}
+- **User Description**:
+${item.text ? `> ${item.text.split("\n").join("\n> ")}` : "*(No description provided)*"}
+- **Environment**:
+  - OS: ${env.osName || ""} ${env.osVersion || ""}
+  - Device: ${env.deviceModel || "Unknown"}
+  - App Version: ${env.appVersion || "—"} (${env.appBuild || "—"})
+  - Locale: ${env.locale || "—"}
+- **Screenshot URL**: ${screenshot}
+- **Attachment**: ${attachment}${customPromptSection}`;
+    })
+    .join("\n\n---\n\n");
+
+  const instructions = `## Coordinated Implementation Guidelines
+1. **Analyze Shared Dependencies**: Review all ${items.length} issues above before modifying code. Identify any shared files, view models, database models, or theme variables.
+2. **Coordinated Multi-Issue Fixes**: Implement the fixes cohesively so that resolving one issue does not cause conflicts, duplication, or regressions in another.
+3. **Architecture & Styling Conventions**: Maintain existing project idioms and code style across Swift/SwiftUI/UIKit/AppKit.
+4. **Verification**: Verify each modified screen or workflow and ensure all test suites pass.`;
+
+  return `${header}
+
+## Summary of Issues (${items.length} total)
+${summaryLines}
+
+---
+
+## Issue Details
+
+${detailSections}
+
+---
+
+${instructions}
+`;
+}
+
