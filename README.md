@@ -4,7 +4,7 @@
 [![Release macOS Demo](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-macos-demo.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-macos-demo.yml)
 [![Publish CLI Package](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-cli.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-cli.yml)
 [![Publish Skills Package](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-skills.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-skills.yml)
-[![Deploy web dashboard](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-web.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-web.yml)
+[![Deploy developer docs](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-docs.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-docs.yml)
 [![Deploy Supabase Functions](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-functions.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-functions.yml)
 
 An iOS + macOS + watchOS SDK for capturing in-app user feedback (screenshot +
@@ -169,28 +169,18 @@ You can also install directly using the GitHub repository shorthand:
 npx skills add tianhaoz95/feedback-kit --skill setup-ios-sdk --yes
 ```
 
-## Deploying the web dashboard to GitHub Pages
+## Web Dashboard & Cloudflare Deployment
 
-`.github/workflows/deploy-web.yml` builds `web/` and deploys it to GitHub
-Pages via GitHub Actions (`actions/deploy-pages` — no `gh-pages` branch)
-on every push to `main` that touches `web/`. One-time setup:
+The hosted web dashboard is deployed on **Cloudflare Workers Static Assets** at [`https://feedback-kit.tianhaozhou95.workers.dev`](https://feedback-kit.tianhaozhou95.workers.dev) via Git integration (see `wrangler.jsonc`).
 
-1. **Settings → Pages → Source: "GitHub Actions"** on the repo (not "Deploy
-   from a branch").
-2. **Settings → Secrets and variables → Actions → Variables**, add:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
+## Developer Documentation on GitHub Pages
 
-   These are the anon/publishable key and project URL — safe to expose in a
-   client bundle, so repo **variables** (not secrets) are the right place for
-   them, same as `web/.env.local`.
+The contributor developer documentation is hosted on GitHub Pages at [`https://tianhaoz95.github.io/feedback-kit/`](https://tianhaoz95.github.io/feedback-kit/).
 
-The workflow assumes the site is served from `https://<user>.github.io/feedback-kit/`
-(a project page, not a `<user>.github.io` user/org page) — see the `base` in
-`web/vite.config.ts` and `basename` in `web/src/main.tsx` if that ever
-changes. It also copies `dist/index.html` to `dist/404.html` after building
-so direct loads/refreshes of deep links (e.g. `/projects/abc`) still resolve
-client-side, since GitHub Pages has no server-side rewrites.
+`.github/workflows/deploy-docs.yml` builds `docs/` (powered by VitePress) and deploys it to GitHub Pages via GitHub Actions (`actions/deploy-pages`) on every push to `main` that touches `docs/**`. One-time setup:
+
+1. **Settings → Pages → Source: "GitHub Actions"** on the repository.
+2. The workflow automatically builds the documentation and deploys the static output to GitHub Pages.
 
 ## Deploying Supabase (migrations + edge functions)
 
@@ -314,10 +304,11 @@ API key with access to the team, the same one works for both.
 
 | Path | What |
 |---|---|
-| `Sources/FeedbackKit/` | The iOS SDK (Swift Package) |
+| `Sources/FeedbackKit/` | The iOS + macOS + watchOS SDK (Swift Package) |
 | `Tests/FeedbackKitTests/` | SDK unit tests |
 | `DemoApp/` | Sample apps exercising the SDK on iOS, macOS, and watchOS (one XcodeGen project, three targets) |
-| `web/` | Static SPA dashboard (Vite + React), deployable to any static host |
+| `web/` | Static SPA dashboard (Vite + React), deployed to Cloudflare Workers Static Assets |
+| `docs/` | Contributor developer documentation (VitePress), deployed to GitHub Pages |
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function, billing (Stripe) Edge Functions |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) |
 | `skills/` | Agent Skills catalog (`vercel-labs/skills`) for automated setup via AI coding agents |

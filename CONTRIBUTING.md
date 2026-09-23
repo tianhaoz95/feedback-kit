@@ -23,12 +23,14 @@ FeedbackKit is structured as a monorepo containing several interconnected compon
 | [`Sources/FeedbackKit/`](Sources/FeedbackKit/) | Cross-platform SDK (iOS, macOS, watchOS) | Swift (Swift Package Manager) |
 | [`Tests/FeedbackKitTests/`](Tests/FeedbackKitTests/) | SDK unit and integration tests | XCTest / Swift Testing |
 | [`DemoApp/`](DemoApp/) | Multi-platform sample applications | SwiftUI / UIKit / AppKit, XcodeGen (`project.yml`) |
-| [`web/`](web/) | Web dashboard for managing feedback & generating agent prompts | Vite + React + TypeScript + Tailwind CSS |
+| [`web/`](web/) | Web dashboard for managing feedback & generating agent prompts | Vite + React + TypeScript + Tailwind CSS (Cloudflare) |
+| [`docs/`](docs/) | Contributor developer documentation | VitePress (GitHub Pages) |
 | [`supabase/`](supabase/) | Database migrations, storage policies, and Edge Functions | PostgreSQL, Deno / TypeScript |
 | [`cli/`](cli/) | CLI and Model Context Protocol (MCP) server | Node.js, TypeScript (`feedbackkit-cli`) |
 | [`skills/`](skills/) | Agent Skills catalog for AI coding assistants | Markdown / YAML (`vercel-labs/skills`) |
 | [`scripts/`](scripts/) | Automation scripts for setup, testing, and releases | Shell / Python / Node.js |
 
+For interactive documentation, visit the [FeedbackKit Contributor Documentation](https://tianhaoz95.github.io/feedback-kit/).
 Before making non-trivial architectural changes, please read [DESIGN.md](DESIGN.md) for full context on design decisions and trade-offs.
 
 ---

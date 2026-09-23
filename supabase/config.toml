@@ -155,13 +155,14 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "https://tianhaoz95.github.io/feedback-kit/"
+site_url = "https://feedback-kit.tianhaozhou95.workers.dev/"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-# Includes both the deployed GitHub Pages site and local dev (`npm run dev`, port 3000).
+# Includes both the deployed Cloudflare site and local dev (`npm run dev`, port 3000).
 additional_redirect_urls = [
-  "https://tianhaoz95.github.io/feedback-kit/login",
+  "https://feedback-kit.tianhaozhou95.workers.dev/login",
+  "https://feedback-kit.tianhaozhou95.workers.dev/**",
   "http://localhost:3000/login",
   "http://127.0.0.1:3000/login"
 ]

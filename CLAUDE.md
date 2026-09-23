@@ -38,7 +38,8 @@ file is about how to build/test/run things day to day.
 | `Sources/FeedbackKit/` | The iOS + macOS + watchOS SDK (Swift Package) |
 | `Tests/FeedbackKitTests/` | SDK unit tests |
 | `DemoApp/` | Sample apps exercising the SDK on iOS, macOS, and watchOS (one XcodeGen project, three targets; the `.xcodeproj` is generated — not committed) |
-| `web/` | Static SPA dashboard (Vite + React + React Router), deployed to GitHub Pages |
+| `web/` | Static SPA dashboard (Vite + React + React Router), deployed to Cloudflare Workers Static Assets (`https://feedback-kit.tianhaozhou95.workers.dev`) |
+| `docs/` | Contributor developer documentation (VitePress), deployed to GitHub Pages (`https://tianhaoz95.github.io/feedback-kit/`) |
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function, billing (Stripe) Edge Functions |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) — reads feedback/prompts as a logged-in user |
 | `skills/` | Agent Skills catalog (`vercel-labs/skills`) for automated setup via AI coding agents |
@@ -158,13 +159,21 @@ static host (GitHub Pages, Vercel static, Netlify, S3, …); a host serving
 deep links (e.g. `/projects/abc`) needs SPA fallback routing to
 `index.html`, since there's no server to resolve those paths.
 
-`.github/workflows/deploy-web.yml` builds and deploys `web/` to GitHub Pages
-via `actions/deploy-pages` (not a `gh-pages` branch) on every push to `main`
-that touches `web/`. It assumes the site is served from
-`https://<user>.github.io/feedback-kit/` — see `base` in `web/vite.config.ts`
-and `basename` in `web/src/main.tsx` if that ever changes — and copies
-`dist/index.html` to `dist/404.html` post-build for the SPA-fallback reason
-above.
+The web dashboard is deployed to **Cloudflare Workers Static Assets**
+(`https://feedback-kit.tianhaozhou95.workers.dev`) via Git integration using
+`wrangler.jsonc`. `base` in `web/vite.config.ts` dynamically resolves to `"/"`
+for root-domain hosting.
+
+**Developer Documentation (`docs/`)** is built with VitePress and deployed to
+GitHub Pages (`https://tianhaoz95.github.io/feedback-kit/`) via
+`.github/workflows/deploy-docs.yml` (`actions/deploy-pages`) on every push to
+`main` touching `docs/**`. To develop contributor docs locally:
+```bash
+cd docs
+npm install
+npm run dev      # VitePress dev server (http://localhost:5173)
+npm run build    # type-check + production build to docs/.vitepress/dist/
+```
 
 **Auth is GitHub OAuth only** — `LoginPage.tsx` has no email/password form,
 just `supabase.auth.signInWithOAuth({ provider: "github" })`. This is

@@ -223,7 +223,7 @@ ${promptText}
 </details>
 
 ---
-*Logged via [FeedbackKit](https://tianhaoz95.github.io/feedback-kit/) from report \`${feedback.id}\`*`;
+*Logged via [FeedbackKit](https://feedback-kit.tianhaozhou95.workers.dev/) from report \`${feedback.id}\`*`;
 
     // 9. Create GitHub issue
     let issue: { number: number; html_url: string };

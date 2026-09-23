@@ -4,7 +4,7 @@ import { hostname } from "node:os";
 import open from "open";
 import { CREDENTIALS_PATH, saveCredentials } from "../config.js";
 
-const DEFAULT_DASHBOARD_URL = "https://tianhaoz95.github.io/feedback-kit";
+const DEFAULT_DASHBOARD_URL = "https://feedback-kit.tianhaozhou95.workers.dev";
 const AUTH_TIMEOUT_MS = 5 * 60_000;
 
 interface CallbackResult {
