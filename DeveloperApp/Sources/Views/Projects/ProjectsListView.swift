@@ -1,4 +1,5 @@
 import SwiftUI
+import FeedbackKit
 
 public struct ProjectsListView: View {
     @EnvironmentObject private var appState: AppState
@@ -56,6 +57,9 @@ public struct ProjectsListView: View {
             }
             .sheet(isPresented: $isNewProjectSheetPresented) {
                 NewProjectSheet()
+            }
+            .onAppear {
+                FeedbackKit.currentScreen = "Projects"
             }
         }
     }

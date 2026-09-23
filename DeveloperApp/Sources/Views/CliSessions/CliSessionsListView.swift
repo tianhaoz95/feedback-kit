@@ -1,4 +1,5 @@
 import SwiftUI
+import FeedbackKit
 
 public struct CliSessionsListView: View {
     @State private var sessions: [PortalCliSession] = []
@@ -63,6 +64,9 @@ public struct CliSessionsListView: View {
                 }
             } message: {
                 Text("The terminal or MCP server will immediately lose access until re-authenticated.")
+            }
+            .onAppear {
+                FeedbackKit.currentScreen = "CLI Sessions"
             }
         }
     }

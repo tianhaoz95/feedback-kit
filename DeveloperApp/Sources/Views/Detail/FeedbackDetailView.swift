@@ -116,6 +116,9 @@ public struct FeedbackDetailView: View {
                 }
             }
         }
+        .onAppear {
+            FeedbackKit.currentScreen = "Feedback Detail"
+        }
     }
 
     // MARK: - Subviews

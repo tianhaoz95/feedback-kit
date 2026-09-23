@@ -1,4 +1,5 @@
 import SwiftUI
+import FeedbackKit
 
 public struct SdkIntegrationGuideView: View {
     @EnvironmentObject private var appState: AppState
@@ -128,6 +129,9 @@ public struct SdkIntegrationGuideView: View {
                 .padding(16)
             }
             .navigationTitle("SDK Setup Guide")
+            .onAppear {
+                FeedbackKit.currentScreen = "SDK Guide"
+            }
         }
     }
 

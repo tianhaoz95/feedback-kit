@@ -1,5 +1,6 @@
 import SwiftUI
 import AuthenticationServices
+import FeedbackKit
 
 public struct LoginView: View {
     @ObservedObject private var client = SupabasePortalClient.shared
@@ -126,6 +127,9 @@ public struct LoginView: View {
                     }
                     .padding(.bottom, 16)
                 }
+            }
+            .onAppear {
+                FeedbackKit.currentScreen = "Login"
             }
             .sheet(isPresented: $isSetupHelpPresented) {
                 SupabaseSetupHelpSheet()

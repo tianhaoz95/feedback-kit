@@ -1,4 +1,5 @@
 import SwiftUI
+import FeedbackKit
 
 public struct SettingsView: View {
     @ObservedObject private var client = SupabasePortalClient.shared
@@ -134,6 +135,35 @@ public struct SettingsView: View {
                     }
                 }
 
+                // Portal App Feedback
+                Section(header: Text("Feedback")) {
+                    Button {
+                        if let presenter = UIApplication.shared.topMostViewController {
+                            FeedbackKit.presentAndSubmit(from: presenter)
+                        }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "bubble.left.and.exclamationmark.bubble.right.fill")
+                                .foregroundColor(.accentColor)
+                            Text("Send Feedback on Portal")
+                        }
+                    }
+
+                    Toggle("Floating Trigger Button", isOn: Binding(
+                        get: { UserDefaults.standard.bool(forKey: "show_floating_trigger") },
+                        set: { isEnabled in
+                            UserDefaults.standard.set(isEnabled, forKey: "show_floating_trigger")
+                            if isEnabled {
+                                FeedbackKit.showFloatingTriggerButton {
+                                    UIApplication.shared.topMostViewController
+                                }
+                            } else {
+                                FeedbackKit.hideFloatingTriggerButton()
+                            }
+                        }
+                    ))
+                }
+
                 // App Info
                 Section {
                     HStack(spacing: 12) {
@@ -150,6 +180,9 @@ public struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .onAppear {
+                FeedbackKit.currentScreen = "Settings"
+            }
             .sheet(isPresented: $isServerConfigPresented) {
                 ServerConfigSheet()
             }

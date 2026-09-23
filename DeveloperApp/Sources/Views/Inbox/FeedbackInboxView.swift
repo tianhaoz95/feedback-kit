@@ -197,6 +197,9 @@ public struct FeedbackInboxView: View {
             } message: {
                 Text("These items will be permanently removed.")
             }
+            .onAppear {
+                FeedbackKit.currentScreen = "Feedback Inbox"
+            }
         }
     }
 

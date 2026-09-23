@@ -1,9 +1,21 @@
 import SwiftUI
+import FeedbackKit
 
 @main
 struct FeedbackPortalApp: App {
     @StateObject private var client = SupabasePortalClient.shared
     @StateObject private var appState = AppState.shared
+
+    init() {
+        FeedbackKit.configure(.init(
+            endpointURL: URL(string: "https://gpucoladcyvijefdjudf.supabase.co/functions/v1/ingest-feedback")!,
+            projectKey: "pk_cde764e9b97ba261cdd084e7e3e4cf04ce31"
+        ))
+
+        UserDefaults.standard.register(defaults: [
+            "show_floating_trigger": true
+        ])
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -17,8 +29,21 @@ struct FeedbackPortalApp: App {
                 }
             }
             .tint(.blue)
+            .onAppear(perform: installTriggers)
             .onOpenURL { url in
                 handleIncomingURL(url)
+            }
+        }
+    }
+
+    private func installTriggers() {
+        FeedbackKit.enableShakeToReport {
+            UIApplication.shared.topMostViewController
+        }
+
+        if UserDefaults.standard.bool(forKey: "show_floating_trigger") {
+            FeedbackKit.showFloatingTriggerButton {
+                UIApplication.shared.topMostViewController
             }
         }
     }

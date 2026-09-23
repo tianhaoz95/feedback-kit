@@ -1,4 +1,5 @@
 import SwiftUI
+import FeedbackKit
 
 public struct ProjectDetailView: View {
     @EnvironmentObject private var appState: AppState
@@ -57,6 +58,9 @@ public struct ProjectDetailView: View {
             }
         } message: {
             Text("This will permanently delete the project and all of its feedback reports, screenshots, and prompt templates.")
+        }
+        .onAppear {
+            FeedbackKit.currentScreen = "Project Detail"
         }
     }
 
