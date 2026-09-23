@@ -5,10 +5,12 @@ import path from "node:path";
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
-  // GitHub Pages serves a project repo (not a *.github.io user/org page) at
-  // /<repo-name>/, so production asset URLs need that prefix. Dev server
-  // stays at root so `npm run dev` keeps working from http://localhost:3000.
-  base: command === "build" ? "/feedback-kit/" : "/",
+  // GitHub Pages serves a project repo at /<repo-name>/, so production builds
+  // in GitHub Actions need that prefix unless overridden. On Cloudflare or
+  // other root-domain hosts, base defaults to "/". Dev server stays at root "/".
+  base:
+    process.env.VITE_BASE_PATH ??
+    (command === "build" && process.env.GITHUB_ACTIONS ? "/feedback-kit/" : "/"),
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
