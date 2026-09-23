@@ -26,7 +26,13 @@ export function DashboardLayout() {
             </span>
           </Link>
           <div className="flex items-center gap-0.5 sm:gap-1">
-            <NavLink to="/docs" className={NAV_LINK_CLASS} aria-label="Docs">
+            <NavLink
+              to="/docs"
+              target="_blank"
+              rel="noreferrer"
+              className={NAV_LINK_CLASS}
+              aria-label="Docs"
+            >
               <BookIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Docs</span>
             </NavLink>
