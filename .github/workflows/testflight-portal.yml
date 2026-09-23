@@ -20,7 +20,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 45
     environment:
-      name: testflight
+      name: testflight-portal
       url: https://appstoreconnect.apple.com/apps
     steps:
       - name: Checkout

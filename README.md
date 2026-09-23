@@ -1,5 +1,6 @@
 # FeedbackKit
 
+[![Release Portal to TestFlight](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight-portal.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight-portal.yml)
 [![Release to TestFlight](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight.yml)
 [![Release macOS Demo](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-macos-demo.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-macos-demo.yml)
 [![Publish CLI Package](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-cli.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-cli.yml)
