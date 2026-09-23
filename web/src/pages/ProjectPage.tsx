@@ -978,6 +978,7 @@ export function ProjectPage() {
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-medium text-neutral-500">Status:</span>
                       <StatusSelect
+                        key={selectedFeedback.id}
                         value={selectedFeedback.status}
                         onChange={(newStatus) => updateFeedbackStatus(selectedFeedback.id, newStatus)}
                       />

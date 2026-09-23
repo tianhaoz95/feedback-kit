@@ -18,9 +18,17 @@ export function StatusSelect({
   value: FeedbackStatus;
   onChange: (status: FeedbackStatus) => Promise<void>;
 }) {
+  const [prevValue, setPrevValue] = useState(value);
   const [current, setCurrent] = useState(value);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setCurrent(value);
+    setError(null);
+  }
+
   const meta = STATUS_META[current];
 
   return (
