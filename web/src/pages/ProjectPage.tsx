@@ -894,9 +894,10 @@ export function ProjectPage() {
                           </span>
                         </div>
                         <Button
+                          variant="white"
                           size="sm"
                           onClick={() => setViewMode("merged")}
-                          className="bg-white text-neutral-900 hover:bg-neutral-100 shrink-0 font-semibold text-xs py-1.5 px-3"
+                          className="shrink-0 font-semibold"
                         >
                           View Merged Prompt ({selectedIds.size}) →
                         </Button>

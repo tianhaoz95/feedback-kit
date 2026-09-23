@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes } from "react";
 
-type Variant = "primary" | "secondary" | "danger" | "ghost" | "dark";
+type Variant = "primary" | "secondary" | "danger" | "ghost" | "dark" | "white" | "inverted";
 type Size = "sm" | "md";
 
 const VARIANT_CLASSES: Record<Variant, string> = {
@@ -14,6 +14,10 @@ const VARIANT_CLASSES: Record<Variant, string> = {
   // For a button sitting on a dark surface (e.g. a code block) rather than
   // the app's light background.
   dark: "border border-neutral-700 bg-transparent text-neutral-300 hover:bg-neutral-800 disabled:hover:bg-transparent",
+  white:
+    "bg-white text-neutral-900 hover:bg-neutral-100 shadow-sm disabled:hover:bg-white",
+  inverted:
+    "bg-white text-neutral-900 hover:bg-neutral-100 shadow-sm disabled:hover:bg-white",
 };
 
 const SIZE_CLASSES: Record<Size, string> = {
@@ -30,7 +34,7 @@ export function Button({
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center rounded-lg font-medium transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 disabled:cursor-not-allowed disabled:opacity-50 ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
+      className={`inline-flex cursor-pointer items-center justify-center rounded-lg font-medium transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 disabled:cursor-not-allowed disabled:opacity-50 ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
       {...props}
     />
   );
