@@ -14,7 +14,7 @@ hero:
       link: /architecture/overview
     - theme: alt
       text: View Live Dashboard
-      link: https://feedback-kit.tianhaozhou95.workers.dev
+      link: https://feedback-kit.hejitech.workers.dev
 
 features:
   - title: Swift SDK (iOS, macOS, watchOS)
@@ -43,5 +43,5 @@ FeedbackKit bridges the gap between in-app user feedback and AI-assisted enginee
 
 This documentation portal is hosted on GitHub Pages for open source contributors, maintainers, and integrators.
 
-- If you want to use the live web dashboard, visit [feedback-kit.tianhaozhou95.workers.dev](https://feedback-kit.tianhaozhou95.workers.dev).
+- If you want to use the live web dashboard, visit [feedback-kit.hejitech.workers.dev](https://feedback-kit.hejitech.workers.dev).
 - If you want to contribute code or understand the system design, start with the [Developer Quickstart](/getting-started) and [System Architecture](/architecture/overview).

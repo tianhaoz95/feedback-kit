@@ -30,7 +30,7 @@ FeedbackKit automates testing, packaging, and deployments through GitHub Actions
 
 - **Trigger**: Automatic on push to `main` via Cloudflare Git integration.
 - **Config**: Root `wrangler.jsonc` specifies `directory: "./web/dist"` with SPA fallback.
-- **Hosted At**: `https://feedback-kit.tianhaozhou95.workers.dev`
+- **Hosted At**: `https://feedback-kit.hejitech.workers.dev`
 
 ---
 

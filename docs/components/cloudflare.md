@@ -9,7 +9,7 @@ The FeedbackKit web dashboard is deployed globally using **Cloudflare Workers St
 Previously, the dashboard was deployed as a subpath on GitHub Pages (`https://tianhaoz95.github.io/feedback-kit/`). It has now been migrated to Cloudflare at:
 
 ```
-https://feedback-kit.tianhaozhou95.workers.dev
+https://feedback-kit.hejitech.workers.dev
 ```
 
 ### Why Cloudflare Workers Static Assets?

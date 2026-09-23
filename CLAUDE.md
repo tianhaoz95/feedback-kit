@@ -38,7 +38,7 @@ file is about how to build/test/run things day to day.
 | `Sources/FeedbackKit/` | The iOS + macOS + watchOS SDK (Swift Package) |
 | `Tests/FeedbackKitTests/` | SDK unit tests |
 | `DemoApp/` | Sample apps exercising the SDK on iOS, macOS, and watchOS (one XcodeGen project, three targets; the `.xcodeproj` is generated — not committed) |
-| `web/` | Static SPA dashboard (Vite + React + React Router), deployed to Cloudflare Workers Static Assets (`https://feedback-kit.tianhaozhou95.workers.dev`) |
+| `web/` | Static SPA dashboard (Vite + React + React Router), deployed to Cloudflare Workers Static Assets (`https://feedback-kit.hejitech.workers.dev`) |
 | `docs/` | Contributor developer documentation (VitePress), deployed to GitHub Pages (`https://tianhaoz95.github.io/feedback-kit/`) |
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function, billing (Stripe) Edge Functions |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) — reads feedback/prompts as a logged-in user |
@@ -160,7 +160,7 @@ deep links (e.g. `/projects/abc`) needs SPA fallback routing to
 `index.html`, since there's no server to resolve those paths.
 
 The web dashboard is deployed to **Cloudflare Workers Static Assets**
-(`https://feedback-kit.tianhaozhou95.workers.dev`) via Git integration using
+(`https://feedback-kit.hejitech.workers.dev`) via Git integration using
 `wrangler.jsonc`. `base` in `web/vite.config.ts` dynamically resolves to `"/"`
 for root-domain hosting.
 

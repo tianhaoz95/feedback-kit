@@ -17,7 +17,7 @@ The FeedbackKit CLI is published on npm as [`feedbackkit-cli`](https://www.npmjs
 2. The CLI starts a local HTTP server on a random port (e.g. `http://127.0.0.1:45123`).
 3. CLI opens the browser to:
    ```
-   https://feedback-kit.tianhaozhou95.workers.dev/cli-auth?port=45123&state=...
+   https://feedback-kit.hejitech.workers.dev/cli-auth?port=45123&state=...
    ```
 4. User clicks "Authorize".
 5. The web app sends the active Supabase session (access + refresh tokens) back to the local CLI listener.

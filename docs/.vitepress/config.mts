@@ -12,7 +12,7 @@ export default defineConfig({
       { text: "Architecture", link: "/architecture/overview" },
       { text: "Components", link: "/components/sdk" },
       { text: "Workflows", link: "/workflows/testing" },
-      { text: "Live Dashboard", link: "https://feedback-kit.tianhaozhou95.workers.dev" },
+      { text: "Live Dashboard", link: "https://feedback-kit.hejitech.workers.dev" },
       { text: "GitHub", link: "https://github.com/tianhaoz95/feedback-kit" },
     ],
     sidebar: [

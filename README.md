@@ -171,7 +171,7 @@ npx skills add tianhaoz95/feedback-kit --skill setup-ios-sdk --yes
 
 ## Web Dashboard & Cloudflare Deployment
 
-The hosted web dashboard is deployed on **Cloudflare Workers Static Assets** at [`https://feedback-kit.tianhaozhou95.workers.dev`](https://feedback-kit.tianhaozhou95.workers.dev) via Git integration (see `wrangler.jsonc`).
+The hosted web dashboard is deployed on **Cloudflare Workers Static Assets** at [`https://feedback-kit.hejitech.workers.dev`](https://feedback-kit.hejitech.workers.dev) via Git integration (see `wrangler.jsonc`).
 
 ## Developer Documentation on GitHub Pages
 
