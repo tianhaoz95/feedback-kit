@@ -1044,7 +1044,7 @@ export function ProjectPage() {
                 ) : null}
 
                 {/* Subgrid: Left = Screenshot/Desc/Env, Right = Prompt */}
-                <div className="grid gap-5 xl:grid-cols-2">
+                <div className="grid gap-5 xl:grid-cols-2 items-stretch">
                   <div className="space-y-4">
                     {/* Screenshot */}
                     {selectedScreenshotUrl ? (
@@ -1136,8 +1136,8 @@ export function ProjectPage() {
                   </div>
 
                   {/* Right Column: Prompt for coding agent */}
-                  <div className="space-y-4">
-                    <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-xs">
+                  <div className="flex flex-col h-full">
+                    <div className="flex flex-1 flex-col rounded-xl border border-neutral-200 bg-white p-5 shadow-xs">
                       <div className="flex items-center gap-2">
                         <SparkleIcon className="h-4 w-4 text-neutral-500" />
                         <h3 className="text-sm font-semibold text-neutral-900">Prompt for coding agent</h3>
@@ -1146,7 +1146,7 @@ export function ProjectPage() {
                         Generated from the project template. Edit as needed, then copy into Claude Code,
                         Cursor, Antigravity, or Codex.
                       </p>
-                      <div className="mt-3">
+                      <div className="mt-3 flex flex-1 flex-col min-h-0">
                         <FeedbackPromptEditor
                           key={`${selectedFeedback.id}-${promptValue}`}
                           initialValue={promptValue}

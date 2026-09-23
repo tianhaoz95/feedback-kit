@@ -8,11 +8,13 @@ export function FeedbackPromptEditor({
   isEdited,
   onSave,
   onReset,
+  className,
 }: {
   initialValue: string;
   isEdited: boolean;
   onSave: (formData: FormData) => Promise<void>;
   onReset: () => Promise<void>;
+  className?: string;
 }) {
   const [value, setValue] = useState(initialValue);
   const [isPending, startTransition] = useTransition();
@@ -20,14 +22,14 @@ export function FeedbackPromptEditor({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="space-y-2">
+    <div className={`flex flex-1 flex-col min-h-0 space-y-3 ${className ?? ""}`}>
       <textarea
         value={value}
         onChange={(event) => setValue(event.target.value)}
         rows={16}
-        className="w-full rounded-lg border border-neutral-200 bg-white p-3 font-mono text-xs text-neutral-800 leading-relaxed transition-colors placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none"
+        className="w-full flex-1 min-h-[300px] resize-y rounded-lg border border-neutral-200 bg-white p-3 font-mono text-xs text-neutral-800 leading-relaxed transition-colors placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none"
       />
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 pt-0.5 shrink-0">
         <Button
           size="sm"
           onClick={async () => {
