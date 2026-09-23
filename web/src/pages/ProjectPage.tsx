@@ -36,11 +36,16 @@ import { MergedPromptView } from "@/components/MergedPromptView";
 
 type TabKey = "feedback" | "settings" | "sdk" | "agent";
 
-const TABS: { id: TabKey; label: string; icon: typeof InboxIcon | typeof SettingsIcon }[] = [
+const TABS: {
+  id: TabKey;
+  label: string;
+  shortLabel?: string;
+  icon: typeof InboxIcon | typeof SettingsIcon;
+}[] = [
   { id: "feedback", label: "Feedback", icon: InboxIcon },
   { id: "settings", label: "Settings", icon: SettingsIcon },
-  { id: "sdk", label: "SDK setup", icon: TerminalIcon },
-  { id: "agent", label: "Connect AI agent", icon: SparkleIcon },
+  { id: "sdk", label: "SDK setup", shortLabel: "SDK", icon: TerminalIcon },
+  { id: "agent", label: "Connect AI agent", shortLabel: "AI Agent", icon: SparkleIcon },
 ];
 
 export function ProjectPage() {
@@ -532,9 +537,15 @@ export function ProjectPage() {
 
   if (project === undefined) {
     return (
-      <div className="space-y-3">
-        <div className="h-4 w-24 animate-pulse rounded bg-neutral-200" />
-        <div className="h-7 w-48 animate-pulse rounded bg-neutral-200" />
+      <div className="space-y-6">
+        <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between border-b border-neutral-200/80">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="h-7 w-20 animate-pulse rounded-lg bg-neutral-200" />
+            <div className="h-4 w-px bg-neutral-200" />
+            <div className="h-6 w-36 animate-pulse rounded bg-neutral-200" />
+          </div>
+          <div className="h-9 w-72 sm:w-96 animate-pulse rounded-xl bg-neutral-200" />
+        </div>
       </div>
     );
   }
@@ -654,57 +665,71 @@ export function ProjectPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-4">
-        <div>
+      {/* Header bar: Back button + Project title + Tabs on the same row */}
+      <header className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between border-b border-neutral-200/80">
+        {/* Left: Back button + Project title */}
+        <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
           <Link
             to="/projects"
-            className="inline-flex items-center gap-1 text-sm text-neutral-500 transition-colors hover:text-neutral-900"
+            className="group inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-600 shadow-2xs transition-all hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-900 shrink-0"
+            title="Back to projects"
           >
-            <ArrowLeftIcon className="h-3.5 w-3.5" /> Projects
+            <ArrowLeftIcon className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
+            <span className="hidden sm:inline">Projects</span>
           </Link>
-          <h1 className="mt-1 text-xl font-semibold text-neutral-900">{project.name}</h1>
+          <div className="h-4 w-px bg-neutral-200 shrink-0" aria-hidden="true" />
+          <h1
+            className="truncate text-lg sm:text-xl font-semibold tracking-tight text-neutral-900"
+            title={project.name}
+          >
+            {project.name}
+          </h1>
         </div>
 
-        {/* Tabs */}
-        <div className="border-b border-neutral-200">
-          <nav className="-mb-px flex space-x-6 overflow-x-auto" aria-label="Project tabs">
-            {TABS.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => handleTabChange(tab.id)}
-                  className={`group inline-flex cursor-pointer items-center gap-2 border-b-2 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
-                    isActive
-                      ? "border-neutral-900 text-neutral-900 font-semibold"
-                      : "border-transparent text-neutral-500 hover:border-neutral-300 hover:text-neutral-700"
+        {/* Right: Tabs */}
+        <nav
+          className="inline-flex max-w-full items-center rounded-xl bg-neutral-100/90 p-1 border border-neutral-200/80 shadow-2xs overflow-x-auto shrink-0"
+          aria-label="Project tabs"
+        >
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => handleTabChange(tab.id)}
+                className={`group inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-medium whitespace-nowrap transition-all ${
+                  isActive
+                    ? "bg-white text-neutral-900 font-semibold shadow-xs"
+                    : "text-neutral-600 hover:text-neutral-900 hover:bg-white/50"
+                }`}
+              >
+                <Icon
+                  className={`h-4 w-4 shrink-0 transition-colors ${
+                    isActive ? "text-neutral-900" : "text-neutral-400 group-hover:text-neutral-600"
                   }`}
-                >
-                  <Icon
-                    className={`h-4 w-4 transition-colors ${
-                      isActive ? "text-neutral-900" : "text-neutral-400 group-hover:text-neutral-500"
+                />
+                <span>
+                  <span className="hidden lg:inline">{tab.label}</span>
+                  <span className="lg:hidden">{tab.shortLabel ?? tab.label}</span>
+                </span>
+                {tab.id === "feedback" && feedbackItems.length > 0 ? (
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-none transition-colors ${
+                      isActive
+                        ? "bg-neutral-900 text-white"
+                        : "bg-neutral-200/90 text-neutral-600 group-hover:bg-neutral-300"
                     }`}
-                  />
-                  <span>{tab.label}</span>
-                  {tab.id === "feedback" && feedbackItems.length > 0 ? (
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${
-                        isActive
-                          ? "bg-neutral-900 text-white"
-                          : "bg-neutral-100 text-neutral-600 group-hover:bg-neutral-200"
-                      }`}
-                    >
-                      {activeFeedbackItems.length}
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-      </div>
+                  >
+                    {activeFeedbackItems.length}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </nav>
+      </header>
 
       {activeTab === "feedback" && (
         <section>
