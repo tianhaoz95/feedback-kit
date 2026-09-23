@@ -34,14 +34,13 @@ import { McpSetupCard } from "@/components/McpSetupCard";
 import { GitHubSetupCard } from "@/components/GitHubSetupCard";
 import { MergedPromptView } from "@/components/MergedPromptView";
 
-type TabKey = "feedback" | "settings" | "sdk" | "agent" | "template";
+type TabKey = "feedback" | "settings" | "sdk" | "agent";
 
 const TABS: { id: TabKey; label: string; icon: typeof InboxIcon | typeof SettingsIcon }[] = [
   { id: "feedback", label: "Feedback", icon: InboxIcon },
   { id: "settings", label: "Settings", icon: SettingsIcon },
   { id: "sdk", label: "SDK setup", icon: TerminalIcon },
   { id: "agent", label: "Connect AI agent", icon: SparkleIcon },
-  { id: "template", label: "Prompt template", icon: TemplateIcon },
 ];
 
 export function ProjectPage() {
@@ -69,9 +68,9 @@ export function ProjectPage() {
 
   const tabParam = searchParams.get("tab");
   const activeTab: TabKey =
-    tabParam === "settings" || tabParam === "github"
+    tabParam === "settings" || tabParam === "github" || tabParam === "template"
       ? "settings"
-      : tabParam === "sdk" || tabParam === "agent" || tabParam === "template"
+      : tabParam === "sdk" || tabParam === "agent"
       ? tabParam
       : "feedback";
 
@@ -1169,6 +1168,24 @@ export function ProjectPage() {
 
       {activeTab === "settings" && (
         <div className="space-y-6">
+          <section className="space-y-4 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+            <div>
+              <div className="flex items-center gap-2">
+                <TemplateIcon className="h-5 w-5 text-neutral-900" />
+                <h2 className="text-base font-semibold text-neutral-900">Default coding-agent prompt template</h2>
+              </div>
+              <p className="mt-1 text-xs text-neutral-500">
+                Used to pre-fill the prompt on every new feedback item in this project. Each item can still
+                be edited individually before copying.
+              </p>
+            </div>
+            <TemplateEditorForm
+              key={template?.id ?? "template"}
+              action={updatePromptTemplate}
+              initialValue={template?.template_text ?? ""}
+            />
+          </section>
+
           <GitHubSetupCard
             project={project}
             onProjectUpdated={(updated) =>
@@ -1191,22 +1208,6 @@ export function ProjectPage() {
           projectId={project.id}
           projectName={project.name}
         />
-      )}
-
-      {activeTab === "template" && (
-        <section className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2">
-            <TemplateIcon className="h-4 w-4 text-neutral-400" />
-            <h2 className="text-sm font-medium text-neutral-900">Default coding-agent prompt template</h2>
-          </div>
-          <p className="mt-1 text-xs text-neutral-500">
-            Used to pre-fill the prompt on every new feedback item in this project. Each item can still
-            be edited individually before copying.
-          </p>
-          <div className="mt-3">
-            <TemplateEditorForm action={updatePromptTemplate} initialValue={template?.template_text ?? ""} />
-          </div>
-        </section>
       )}
 
       {/* Delete Confirmation Modal */}

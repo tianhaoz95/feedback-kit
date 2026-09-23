@@ -71,7 +71,7 @@ export function DocsDashboardPage() {
           ]}
         />
         <p>
-          Edit the project's default template anytime — it applies to every new report. A single
+          Edit the project's default template anytime in the project's Settings tab — it applies to every new report. A single
           report can also get its own edited override (e.g. to add "also check the caching layer")
           without touching the shared template; reset it to fall back to the live template again. A
           "Copy for coding agent" button copies the rendered result to your clipboard.
