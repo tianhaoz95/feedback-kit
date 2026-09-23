@@ -38,12 +38,13 @@ file is about how to build/test/run things day to day.
 | `Sources/FeedbackKit/` | The iOS + macOS + watchOS SDK (Swift Package) |
 | `Tests/FeedbackKitTests/` | SDK unit tests |
 | `DemoApp/` | Sample apps exercising the SDK on iOS, macOS, and watchOS (one XcodeGen project, three targets; the `.xcodeproj` is generated — not committed) |
+| `DeveloperApp/` | Native iOS Developer Portal companion app (XcodeGen project `FeedbackPortal.xcodeproj`, SwiftUI, triages feedback, renders annotations, dispatches AI coding prompts) |
 | `web/` | Static SPA dashboard (Vite + React + React Router), deployed to Cloudflare Workers Static Assets (`https://feedback-kit.hejitech.workers.dev`) |
 | `docs/` | Contributor developer documentation (VitePress), deployed to GitHub Pages (`https://tianhaoz95.github.io/feedback-kit/`) |
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function, billing (Stripe) Edge Functions |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) — reads feedback/prompts as a logged-in user |
 | `skills/` | Agent Skills catalog (`vercel-labs/skills`) for automated setup via AI coding agents |
-| `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `generate_social_preview.py`, `release_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh` |
+| `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `run-portal-ios.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `generate_social_preview.py`, `release_testflight.sh`, `release_portal_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh` |
 | `branding/` | FeedbackKit logo assets (SVG source + PNG exports) — reused for the iOS app icon and the GitHub OAuth App's logo |
 
 ## Commands

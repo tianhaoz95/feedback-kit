@@ -185,9 +185,10 @@ else
   if [[ "$WORKFLOW" == "unified" ]]; then
     echo "✅ Release $TAG published -- this triggers all release pipelines:"
     echo "   1. TestFlight upload (.github/workflows/testflight.yml)"
-    echo "   2. macOS Demo DMG build, sign, notarize & attach (.github/workflows/release-macos-demo.yml)"
-    echo "   3. FeedbackKit CLI publish to npm & GitHub Packages (.github/workflows/publish-cli.yml)"
-    echo "   4. FeedbackKit Skills publish to npm & GitHub Packages (.github/workflows/publish-skills.yml)"
+    echo "   2. Portal TestFlight upload (.github/workflows/testflight-portal.yml)"
+    echo "   3. macOS Demo DMG build, sign, notarize & attach (.github/workflows/release-macos-demo.yml)"
+    echo "   4. FeedbackKit CLI publish to npm & GitHub Packages (.github/workflows/publish-cli.yml)"
+    echo "   5. FeedbackKit Skills publish to npm & GitHub Packages (.github/workflows/publish-skills.yml)"
     echo
     echo "Check active runs with:"
     echo "   gh run list --repo $REPO_SLUG"

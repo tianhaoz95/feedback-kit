@@ -34,3 +34,11 @@ RUN PI_INSTALL_DIR=/usr/local/bin curl -fsSL https://omp.sh/install | sh -s -- -
 
 # Default Ollama host configuration to listen across container boundaries
 ENV OLLAMA_HOST=0.0.0.0:11434
+
+# Configure convenient shell aliases for AI CLIs
+RUN echo 'alias ccyolo="claude --dangerously-skip-permissions"' >> /etc/bash.bashrc && \
+    echo 'alias agyyolo="agy --dangerously-skip-permissions"' >> /etc/bash.bashrc && \
+    mkdir -p /etc/profile.d && \
+    echo 'alias ccyolo="claude --dangerously-skip-permissions"' >> /etc/profile.d/00-aliases.sh && \
+    echo 'alias agyyolo="agy --dangerously-skip-permissions"' >> /etc/profile.d/00-aliases.sh
+

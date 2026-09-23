@@ -66,6 +66,12 @@ All requested AI coding agents are preinstalled:
   omp
   ```
 
+#### Preconfigured Convenience Aliases
+Configured in `~/.bashrc`, `~/.zshrc`, and `/etc/bash.bashrc`:
+- `ccyolo`: Runs `claude --dangerously-skip-permissions`
+- `agyyolo`: Runs `agy --dangerously-skip-permissions`
+
+
 ### 5. Rust & Tauri
 Tauri and its Linux build dependencies (`libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`, etc.) are preinstalled:
 ```bash

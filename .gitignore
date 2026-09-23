@@ -7,6 +7,10 @@ Package.resolved
 DemoApp/FeedbackKitDemo.xcodeproj/
 DemoApp/Generated/
 DemoApp/.build/
+DeveloperApp/FeedbackPortal.xcodeproj/
+DeveloperApp/Generated/
+DeveloperApp/.build/
+DeveloperApp/*.png
 *.xcuserstate
 xcuserdata/
 DerivedData/

@@ -1,0 +1,257 @@
+import Foundation
+import SwiftUI
+import FeedbackKit
+
+@MainActor
+public final class AppState: ObservableObject {
+    public static let shared = AppState()
+
+    // MARK: - Published Properties
+
+    @Published public var projects: [PortalProject] = []
+    @Published public var selectedProject: PortalProject? {
+        didSet {
+            selectedFeedbackIds.removeAll()
+            isMultiSelectActive = false
+            Task {
+                await loadFeedback()
+            }
+        }
+    }
+
+    @Published public var feedbackItems: [PortalFeedbackItem] = []
+    @Published public var promptTemplate: PortalPromptTemplate?
+
+    @Published public var statusFilter: PortalFeedbackStatus? = nil
+    @Published public var showArchived: Bool = false {
+        didSet {
+            Task {
+                await loadFeedback()
+            }
+        }
+    }
+    @Published public var searchQuery: String = ""
+
+    // Multi-select for batch triage & merged prompts
+    @Published public var isMultiSelectActive: Bool = false
+    @Published public var selectedFeedbackIds: Set<String> = []
+
+    @Published public var isLoading: Bool = false
+    @Published public var errorMessage: String? = nil
+
+    private let client = SupabasePortalClient.shared
+
+    // MARK: - Computed Filtered Items
+
+    public var filteredFeedbackItems: [PortalFeedbackItem] {
+        feedbackItems.filter { item in
+            // Status filter
+            if let filter = statusFilter, item.status != filter {
+                return false
+            }
+            // Archive filter
+            if item.isArchived != showArchived {
+                return false
+            }
+            // Search query
+            if !searchQuery.isEmpty {
+                let q = searchQuery.lowercased()
+                let matchesText = item.text.lowercased().contains(q)
+                let matchesScreen = item.environment.screenName?.lowercased().contains(q) ?? false
+                let matchesDevice = item.environment.deviceModel.lowercased().contains(q)
+                if !matchesText && !matchesScreen && !matchesDevice {
+                    return false
+                }
+            }
+            return true
+        }
+    }
+
+    public var selectedFeedbackItems: [PortalFeedbackItem] {
+        feedbackItems.filter { selectedFeedbackIds.contains($0.id) }
+    }
+
+    // MARK: - Actions
+
+    public func loadProjects() async {
+        isLoading = true
+        errorMessage = nil
+        do {
+            let loaded = try await client.fetchProjects()
+            self.projects = loaded
+            if selectedProject == nil || !loaded.contains(where: { $0.id == selectedProject?.id }) {
+                selectedProject = loaded.first
+            } else {
+                await loadFeedback()
+            }
+        } catch {
+            self.errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    public func loadFeedback() async {
+        guard let proj = selectedProject else {
+            self.feedbackItems = []
+            return
+        }
+        isLoading = true
+        do {
+            async let itemsTask = client.fetchFeedbackItems(projectId: proj.id, includeArchived: showArchived)
+            async let templateTask = client.fetchPromptTemplate(projectId: proj.id)
+
+            let (items, template) = try await (itemsTask, templateTask)
+            self.feedbackItems = items
+            self.promptTemplate = template
+        } catch {
+            self.errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    public func updateStatus(item: PortalFeedbackItem, to newStatus: PortalFeedbackStatus) async {
+        // Optimistic UI update
+        if let idx = feedbackItems.firstIndex(where: { $0.id == item.id }) {
+            feedbackItems[idx].status = newStatus
+        }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+
+        do {
+            try await client.updateFeedbackStatus(id: item.id, status: newStatus)
+            // Reload project counts in background
+            Task {
+                self.projects = (try? await client.fetchProjects()) ?? self.projects
+            }
+        } catch {
+            // Revert on error
+            if let idx = feedbackItems.firstIndex(where: { $0.id == item.id }) {
+                feedbackItems[idx].status = item.status
+            }
+            self.errorMessage = "Failed to update status: \(error.localizedDescription)"
+        }
+    }
+
+    public func toggleArchive(item: PortalFeedbackItem) async {
+        let newArchived = !item.isArchived
+        if let idx = feedbackItems.firstIndex(where: { $0.id == item.id }) {
+            feedbackItems[idx].isArchived = newArchived
+        }
+        UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
+
+        do {
+            try await client.updateFeedbackArchive(id: item.id, isArchived: newArchived)
+            Task {
+                self.projects = (try? await client.fetchProjects()) ?? self.projects
+            }
+        } catch {
+            if let idx = feedbackItems.firstIndex(where: { $0.id == item.id }) {
+                feedbackItems[idx].isArchived = item.isArchived
+            }
+            self.errorMessage = "Failed to toggle archive: \(error.localizedDescription)"
+        }
+    }
+
+    public func delete(item: PortalFeedbackItem) async {
+        feedbackItems.removeAll { $0.id == item.id }
+        selectedFeedbackIds.remove(item.id)
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+
+        do {
+            try await client.deleteFeedbackItem(id: item.id)
+            Task {
+                self.projects = (try? await client.fetchProjects()) ?? self.projects
+            }
+        } catch {
+            await loadFeedback()
+            self.errorMessage = "Failed to delete: \(error.localizedDescription)"
+        }
+    }
+
+    // MARK: - Batch Actions
+
+    public func batchUpdateStatus(status: PortalFeedbackStatus) async {
+        let ids = Array(selectedFeedbackIds)
+        guard !ids.isEmpty else { return }
+
+        for id in ids {
+            if let idx = feedbackItems.firstIndex(where: { $0.id == id }) {
+                feedbackItems[idx].status = status
+            }
+        }
+        selectedFeedbackIds.removeAll()
+        isMultiSelectActive = false
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+
+        do {
+            try await client.batchUpdateStatus(ids: ids, status: status)
+            Task {
+                self.projects = (try? await client.fetchProjects()) ?? self.projects
+            }
+        } catch {
+            await loadFeedback()
+            self.errorMessage = error.localizedDescription
+        }
+    }
+
+    public func batchArchive(isArchived: Bool) async {
+        let ids = Array(selectedFeedbackIds)
+        guard !ids.isEmpty else { return }
+
+        for id in ids {
+            if let idx = feedbackItems.firstIndex(where: { $0.id == id }) {
+                feedbackItems[idx].isArchived = isArchived
+            }
+        }
+        selectedFeedbackIds.removeAll()
+        isMultiSelectActive = false
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+
+        do {
+            try await client.batchArchive(ids: ids, isArchived: isArchived)
+            Task {
+                self.projects = (try? await client.fetchProjects()) ?? self.projects
+            }
+        } catch {
+            await loadFeedback()
+            self.errorMessage = error.localizedDescription
+        }
+    }
+
+    public func batchDelete() async {
+        let ids = Array(selectedFeedbackIds)
+        guard !ids.isEmpty else { return }
+
+        feedbackItems.removeAll { ids.contains($0.id) }
+        selectedFeedbackIds.removeAll()
+        isMultiSelectActive = false
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+
+        do {
+            try await client.batchDelete(ids: ids)
+            Task {
+                self.projects = (try? await client.fetchProjects()) ?? self.projects
+            }
+        } catch {
+            await loadFeedback()
+            self.errorMessage = error.localizedDescription
+        }
+    }
+
+    public func toggleSelect(id: String) {
+        if selectedFeedbackIds.contains(id) {
+            selectedFeedbackIds.remove(id)
+        } else {
+            selectedFeedbackIds.insert(id)
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    public func selectAll() {
+        let allIds = filteredFeedbackItems.map { $0.id }
+        selectedFeedbackIds = Set(allIds)
+    }
+
+    public func deselectAll() {
+        selectedFeedbackIds.removeAll()
+    }
+}

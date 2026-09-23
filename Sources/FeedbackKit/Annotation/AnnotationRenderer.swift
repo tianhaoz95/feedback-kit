@@ -11,10 +11,10 @@ import Foundation
 /// file is shared as-is between iOS and macOS with no `#if os()` branches
 /// except in the small text-label helper, which needs a real font/color type
 /// for `NSAttributedString` (see `PlatformTypes.swift`).
-enum AnnotationRenderer {
-    static let strokeWidth: CGFloat = 4
+public enum AnnotationRenderer {
+    public static let strokeWidth: CGFloat = 4
 
-    static func draw(_ annotation: FeedbackAnnotation, in ctx: CGContext, targetSize: CGSize) {
+    public static func draw(_ annotation: FeedbackAnnotation, in ctx: CGContext, targetSize: CGSize) {
         // `.red` rather than `.systemRed`: a plain literal color, not one of
         // the "dynamic system palette" colors, which watchOS's UIKit subset
         // doesn't carry. This only matters for a malformed stored hex string
@@ -36,6 +36,12 @@ enum AnnotationRenderer {
         case .text:
             guard let point = points.first, let label = annotation.label else { return }
             drawText(label, at: point, color: color, scale: scale, in: ctx)
+        }
+    }
+
+    public static func draw(all annotations: [FeedbackAnnotation], in ctx: CGContext, targetSize: CGSize) {
+        for annotation in annotations {
+            draw(annotation, in: ctx, targetSize: targetSize)
         }
     }
 

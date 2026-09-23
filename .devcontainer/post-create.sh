@@ -64,6 +64,20 @@ if [ -f "package.json" ]; then
   npm install --ignore-scripts
 fi
 
+# 7. Configure shell aliases (ccyolo, agyyolo) in user shell rc files
+echo "⚙️ Configuring shell aliases (ccyolo, agyyolo)..."
+for RC_FILE in "$HOME/.bashrc" "$HOME/.zshrc"; do
+  if [ -f "$RC_FILE" ]; then
+    if ! grep -q "ccyolo" "$RC_FILE" 2>/dev/null; then
+      echo 'alias ccyolo="claude --dangerously-skip-permissions"' >> "$RC_FILE"
+    fi
+    if ! grep -q "agyyolo" "$RC_FILE" 2>/dev/null; then
+      echo 'alias agyyolo="agy --dangerously-skip-permissions"' >> "$RC_FILE"
+    fi
+  fi
+done
+
+
 echo ""
 echo "=========================================="
 echo "✅ Environment Verification:"
