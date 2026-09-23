@@ -167,7 +167,7 @@ export function CreditCardIcon(props: IconProps) {
 export function SparkleIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
-      <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2" />
+      <path d="M12 2C12 7.5 16.5 12 22 12C16.5 12 12 16.5 12 22C12 16.5 7.5 12 2 12C7.5 12 12 7.5 12 2Z" />
     </svg>
   );
 }
