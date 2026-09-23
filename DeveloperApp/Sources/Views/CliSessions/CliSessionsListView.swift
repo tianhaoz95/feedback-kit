@@ -8,66 +8,65 @@ public struct CliSessionsListView: View {
     @State private var sessionToRevoke: PortalCliSession? = nil
 
     public var body: some View {
-        NavigationStack {
-            Group {
-                if sessions.isEmpty && !isLoading {
-                    EmptyStateCard(
-                        iconName: "terminal",
-                        title: "No CLI Sessions",
-                        message: "Sessions authorized via `feedbackkit login` on your local machines or coding agent terminals will appear here."
-                    )
-                } else {
-                    List {
-                        Section {
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "terminal.fill")
-                                        .foregroundColor(.accentColor)
-                                    Text("FeedbackKit CLI & MCP Server")
-                                        .font(.subheadline.weight(.semibold))
-                                }
-                                Text("Manage active machine tokens used by AI coding agents (`feedbackkit mcp`) to pull bug reports and context directly into their context window.")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+        Group {
+            if sessions.isEmpty && !isLoading {
+                EmptyStateCard(
+                    iconName: "terminal",
+                    title: "No CLI Sessions",
+                    message: "Sessions authorized via `feedbackkit login` on your local machines or coding agent terminals will appear here."
+                )
+            } else {
+                List {
+                    Section {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "terminal.fill")
+                                    .foregroundColor(.accentColor)
+                                Text("FeedbackKit CLI & MCP Server")
+                                    .font(.subheadline.weight(.semibold))
                             }
-                            .padding(.vertical, 4)
+                            Text("Manage active machine tokens used by AI coding agents (`feedbackkit mcp`) to pull bug reports and context directly into their context window.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
+                        .padding(.vertical, 4)
+                    }
 
-                        Section(header: Text("Authorized Machines")) {
-                            ForEach(sessions) { session in
-                                sessionRow(session: session)
-                            }
+                    Section(header: Text("Authorized Machines")) {
+                        ForEach(sessions) { session in
+                            sessionRow(session: session)
                         }
                     }
-                    .listStyle(.insetGrouped)
-                    .refreshable {
-                        await loadSessions()
-                    }
+                }
+                .listStyle(.insetGrouped)
+                .refreshable {
+                    await loadSessions()
                 }
             }
-            .navigationTitle("CLI Sessions")
-            .task {
-                await loadSessions()
-            }
-            .confirmationDialog(
-                "Revoke session for \(sessionToRevoke?.label ?? "this machine")?",
-                isPresented: Binding(
-                    get: { sessionToRevoke != nil },
-                    set: { if !$0 { sessionToRevoke = nil } }
-                ),
-                titleVisibility: .visible
-            ) {
-                Button("Revoke Token", role: .destructive) {
-                    if let s = sessionToRevoke {
-                        revoke(session: s)
-                    }
+        }
+        .navigationTitle("CLI Sessions")
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await loadSessions()
+        }
+        .confirmationDialog(
+            "Revoke session for \(sessionToRevoke?.label ?? "this machine")?",
+            isPresented: Binding(
+                get: { sessionToRevoke != nil },
+                set: { if !$0 { sessionToRevoke = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Revoke Token", role: .destructive) {
+                if let s = sessionToRevoke {
+                    revoke(session: s)
                 }
-            } message: {
-                Text("The terminal or MCP server will immediately lose access until re-authenticated.")
             }
-            .onAppear {
-                FeedbackKit.currentScreen = "CLI Sessions"
-            }
+        } message: {
+            Text("The terminal or MCP server will immediately lose access until re-authenticated.")
+        }
+        .onAppear {
+            FeedbackKit.currentScreen = "CLI Sessions"
         }
     }
 

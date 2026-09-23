@@ -20,16 +20,6 @@ public struct MainTabView: View {
                     Label("Projects", systemImage: "folder.fill")
                 }
 
-            CliSessionsListView()
-                .tabItem {
-                    Label("CLI Sessions", systemImage: "terminal.fill")
-                }
-
-            SdkIntegrationGuideView()
-                .tabItem {
-                    Label("SDK Guide", systemImage: "cube.transparent.fill")
-                }
-
             SettingsView()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape.fill")

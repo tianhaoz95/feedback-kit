@@ -24,6 +24,9 @@ public struct ProjectDetailView: View {
                 // Project Key Card
                 projectKeyCard
 
+                // SDK Integration Guide Card
+                sdkGuideCard
+
                 // Project Stats
                 projectStatsCard
 
@@ -120,6 +123,35 @@ public struct ProjectDetailView: View {
         .padding(14)
         .background(Color(UIColor.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private var sdkGuideCard: some View {
+        NavigationLink(destination: SdkIntegrationGuideView(project: project)) {
+            HStack(spacing: 12) {
+                Image(systemName: "cube.transparent.fill")
+                    .font(.title2)
+                    .foregroundColor(.accentColor)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("SDK Integration Guide")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.primary)
+
+                    Text("Drop-in code snippets and AI agent setup prompt for \(project.name)")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(.secondary)
+            }
+            .padding(14)
+            .background(Color(UIColor.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
     }
 
     private var projectStatsCard: some View {

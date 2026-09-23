@@ -86,6 +86,23 @@ public struct SettingsView: View {
                     }
                 }
 
+                // CLI & AI Coding Agents
+                Section(header: Text("CLI & Coding Agents")) {
+                    NavigationLink(destination: CliSessionsListView()) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "terminal.fill")
+                                .foregroundColor(.accentColor)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("CLI Sessions")
+                                    .font(.body)
+                                Text("Authorized machine tokens for feedbackkit mcp")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+
                 // Cache & Diagnostics
                 Section(header: Text("Data & Cache")) {
                     Button("Reset Demo Data") {
