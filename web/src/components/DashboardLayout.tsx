@@ -2,7 +2,7 @@ import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { Logomark } from "@/components/Logomark";
-import { BookIcon, CreditCardIcon, KeyIcon, LogOutIcon } from "@/components/icons";
+import { BookIcon, CreditCardIcon, FolderIcon, KeyIcon, LogOutIcon } from "@/components/icons";
 
 const NAV_LINK_CLASS = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium transition-colors sm:px-2.5 ${
@@ -26,6 +26,10 @@ export function DashboardLayout() {
             </span>
           </Link>
           <div className="flex items-center gap-0.5 sm:gap-1">
+            <NavLink to="/projects" className={NAV_LINK_CLASS} aria-label="Projects">
+              <FolderIcon className="h-4 w-4" />
+              <span className="hidden sm:inline">Projects</span>
+            </NavLink>
             <NavLink
               to="/docs"
               target="_blank"
