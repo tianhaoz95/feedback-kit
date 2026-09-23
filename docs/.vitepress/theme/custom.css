@@ -1,0 +1,247 @@
+/*
+ * FeedbackKit VitePress Theme Overrides
+ *
+ * Matches the web dashboard's visual language:
+ *   - Neutral/monochrome palette (#171717 primary, white bg)
+ *   - System font stack (Inter → system-ui fallback)
+ *   - Clean borders, subtle shadows, minimal decoration
+ *   - Blue/violet accent for interactive elements (matching aurora blobs)
+ */
+
+/* ---------- Font ---------- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --vp-font-family-base: 'Inter', ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --vp-font-family-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo,
+    Consolas, 'Liberation Mono', monospace;
+}
+
+/* ---------- Color palette (light mode) ---------- */
+:root {
+  /* Brand — neutral-900 black, same as dashboard CTA buttons */
+  --vp-c-brand-1: #171717;
+  --vp-c-brand-2: #262626;
+  --vp-c-brand-3: #404040;
+  --vp-c-brand-soft: rgba(23, 23, 23, 0.08);
+
+  /* Accent blue — the first aurora blob color in LandingPage */
+  --vp-c-tip-1: #60a5fa;
+  --vp-c-tip-2: #3b82f6;
+  --vp-c-tip-3: #2563eb;
+  --vp-c-tip-soft: rgba(59, 130, 246, 0.1);
+
+  /* Background — white / neutral-50 */
+  --vp-c-bg: #ffffff;
+  --vp-c-bg-alt: #fafafa;
+  --vp-c-bg-elv: #ffffff;
+  --vp-c-bg-soft: #f5f5f5;
+
+  /* Text — neutral-900 / neutral-600 / neutral-400 */
+  --vp-c-text-1: #171717;
+  --vp-c-text-2: #525252;
+  --vp-c-text-3: #a3a3a3;
+
+  /* Borders — neutral-200 / neutral-100 */
+  --vp-c-border: #e5e5e5;
+  --vp-c-divider: #f5f5f5;
+  --vp-c-gutter: #f5f5f5;
+
+  /* Button brand (dark fill, matching dashboard's bg-neutral-900 buttons) */
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-bg: #171717;
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: #ffffff;
+  --vp-button-brand-hover-bg: #262626;
+  --vp-button-brand-active-border: transparent;
+  --vp-button-brand-active-text: #ffffff;
+  --vp-button-brand-active-bg: #404040;
+
+  /* Button alt (outlined, matching dashboard's border-neutral-300 buttons) */
+  --vp-button-alt-border: #d4d4d4;
+  --vp-button-alt-text: #171717;
+  --vp-button-alt-bg: #ffffff;
+  --vp-button-alt-hover-border: #a3a3a3;
+  --vp-button-alt-hover-text: #171717;
+  --vp-button-alt-hover-bg: #fafafa;
+  --vp-button-alt-active-border: #a3a3a3;
+  --vp-button-alt-active-text: #171717;
+  --vp-button-alt-active-bg: #f5f5f5;
+
+  /* Home hero gradient — subtle, to match the soft aurora in the dashboard */
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(
+    135deg,
+    #171717 30%,
+    #60a5fa 70%,
+    #a78bfa 100%
+  );
+  --vp-home-hero-image-background-image: linear-gradient(
+    135deg,
+    rgba(96, 165, 250, 0.25) 0%,
+    rgba(167, 139, 250, 0.20) 50%,
+    rgba(251, 191, 36, 0.12) 100%
+  );
+  --vp-home-hero-image-filter: blur(56px);
+
+  /* Sidebar active — dark indicator instead of blue */
+  --vp-c-brand-1: #171717;
+  --vp-c-brand-2: #262626;
+
+  /* Custom properties for the nav */
+  --vp-nav-height: 64px;
+}
+
+/* ---------- Dark mode ---------- */
+.dark {
+  --vp-c-brand-1: #e5e5e5;
+  --vp-c-brand-2: #d4d4d4;
+  --vp-c-brand-3: #a3a3a3;
+  --vp-c-brand-soft: rgba(229, 229, 229, 0.08);
+
+  --vp-c-bg: #0a0a0a;
+  --vp-c-bg-alt: #111111;
+  --vp-c-bg-elv: #171717;
+  --vp-c-bg-soft: #1a1a1a;
+
+  --vp-c-text-1: #f5f5f5;
+  --vp-c-text-2: #a3a3a3;
+  --vp-c-text-3: #525252;
+
+  --vp-c-border: #262626;
+  --vp-c-divider: #1a1a1a;
+  --vp-c-gutter: #1a1a1a;
+
+  --vp-button-brand-bg: #f5f5f5;
+  --vp-button-brand-text: #171717;
+  --vp-button-brand-hover-bg: #e5e5e5;
+  --vp-button-brand-hover-text: #171717;
+  --vp-button-brand-active-bg: #d4d4d4;
+  --vp-button-brand-active-text: #171717;
+
+  --vp-button-alt-border: #404040;
+  --vp-button-alt-text: #f5f5f5;
+  --vp-button-alt-bg: #171717;
+  --vp-button-alt-hover-border: #525252;
+  --vp-button-alt-hover-text: #ffffff;
+  --vp-button-alt-hover-bg: #262626;
+
+  --vp-home-hero-name-background: linear-gradient(
+    135deg,
+    #f5f5f5 30%,
+    #60a5fa 70%,
+    #a78bfa 100%
+  );
+}
+
+/* ---------- Layout refinements ---------- */
+
+/* Tighter letter-spacing on headings to match dashboard's tracking-tight */
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3,
+.VPHero .name,
+.VPHero .text {
+  letter-spacing: -0.025em;
+  font-weight: 600;
+}
+
+.VPHero .tagline {
+  color: var(--vp-c-text-2);
+  font-weight: 400;
+}
+
+/* Rounded buttons matching dashboard's rounded-md */
+.VPButton {
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  transition: all 0.15s ease !important;
+}
+
+.VPButton:hover {
+  transform: translateY(-1px);
+}
+
+.VPButton:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Feature cards — clean bordered cards matching dashboard's card style */
+.VPFeature {
+  border: 1px solid var(--vp-c-border) !important;
+  border-radius: 8px !important;
+  background: var(--vp-c-bg) !important;
+  transition: all 0.3s ease !important;
+}
+
+.VPFeature:hover {
+  transform: translateY(-2px);
+  border-color: var(--vp-c-text-3) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 2px 4px -2px rgba(0, 0, 0, 0.03) !important;
+}
+
+.VPFeature .title {
+  font-weight: 600 !important;
+  color: var(--vp-c-text-1) !important;
+}
+
+.VPFeature .details {
+  color: var(--vp-c-text-2) !important;
+  font-size: 14px !important;
+}
+
+/* Nav bar — clean white bar matching dashboard's sticky nav */
+.VPNav {
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+.VPNavBar {
+  background: rgba(255, 255, 255, 0.8) !important;
+  border-bottom: 1px solid var(--vp-c-border) !important;
+}
+
+.dark .VPNavBar {
+  background: rgba(10, 10, 10, 0.8) !important;
+}
+
+/* Sidebar links — subtle hover matching dashboard's link styles */
+.VPSidebar .link {
+  transition: color 0.15s ease !important;
+}
+
+/* Code blocks — dark theme matching dashboard's code preview */
+.vp-doc div[class*='language-'] {
+  border-radius: 12px !important;
+  border: 1px solid var(--vp-c-border) !important;
+}
+
+.dark .vp-doc div[class*='language-'] {
+  border-color: #262626 !important;
+}
+
+/* Inline code — matching dashboard's rounded bg-neutral-100 style */
+.vp-doc :not(pre) > code {
+  border-radius: 4px !important;
+  padding: 2px 6px !important;
+  background: var(--vp-c-bg-soft) !important;
+  font-size: 13px !important;
+}
+
+/* Footer — subtle */
+.VPFooter {
+  border-top: 1px solid var(--vp-c-border) !important;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Content max-width */
+.VPDoc .container {
+  max-width: 100% !important;
+}

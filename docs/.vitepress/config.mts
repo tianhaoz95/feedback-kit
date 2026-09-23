@@ -1,19 +1,27 @@
 import { defineConfig } from "vitepress";
 
 export default defineConfig({
-  title: "FeedbackKit Contributor Docs",
+  title: "FeedbackKit",
   description: "Developer guide, architecture notes, and contributor documentation for FeedbackKit",
   base: "/feedback-kit/",
   lastUpdated: true,
+  head: [
+    ["link", { rel: "icon", type: "image/svg+xml", href: "/feedback-kit/logo.svg" }],
+    ["link", { rel: "icon", type: "image/png", href: "/feedback-kit/logo.png" }],
+    ["meta", { name: "theme-color", content: "#171717" }],
+    ["meta", { property: "og:type", content: "website" }],
+    ["meta", { property: "og:title", content: "FeedbackKit — Contributor Docs" }],
+    ["meta", { property: "og:description", content: "Architecture, component guides, and development workflows for contributing to FeedbackKit" }],
+  ],
   themeConfig: {
-    siteTitle: "FeedbackKit Docs",
+    siteTitle: "FeedbackKit",
+    logo: "/logo.svg",
     nav: [
       { text: "Guide", link: "/getting-started" },
       { text: "Architecture", link: "/architecture/overview" },
       { text: "Components", link: "/components/sdk" },
       { text: "Workflows", link: "/workflows/testing" },
       { text: "Live Dashboard", link: "https://feedback-kit.hejitech.workers.dev/" },
-      { text: "GitHub", link: "https://github.com/tianhaoz95/feedback-kit" },
     ],
     sidebar: [
       {
@@ -60,7 +68,7 @@ export default defineConfig({
       provider: "local",
     },
     footer: {
-      message: "FeedbackKit Contributor & Developer Documentation",
+      message: "Built with VitePress · FeedbackKit is open source",
       copyright: "Copyright © 2026 FeedbackKit Contributors",
     },
     editLink: {
