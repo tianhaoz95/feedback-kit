@@ -58,9 +58,14 @@ struct MacHomeView: View {
     }
 
     private func reportProblem() {
-        FeedbackKit.present(from: NSApplication.shared.keyWindow) { report in
-            guard let report else { return }
-            print("[FeedbackKit demo] captured report \(report.id) — \"\(report.text)\"")
+        FeedbackKit.presentAndSubmitIfConfigured(from: NSApplication.shared.keyWindow) { result in
+            guard let result else { return }
+            switch result {
+            case .success(let report):
+                print("[FeedbackKit demo] captured report \(report.id) — \"\(report.text)\"")
+            case .failure(let error):
+                print("[FeedbackKit demo] report failed: \(error)")
+            }
         }
     }
 

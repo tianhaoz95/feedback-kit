@@ -1,10 +1,26 @@
 import Foundation
 
-public enum FeedbackSubmissionError: Error, Sendable {
+public enum FeedbackSubmissionError: Error, Sendable, LocalizedError {
     case notConfigured
     case encodingFailed
     case network(Error)
     case server(statusCode: Int)
+
+    public var errorDescription: String? {
+        switch self {
+        case .notConfigured:
+            return "FeedbackKit is not configured with an API key and endpoint."
+        case .encodingFailed:
+            return "Failed to encode feedback payload."
+        case .network(let error):
+            return "Network error: \(error.localizedDescription)"
+        case .server(let statusCode):
+            if statusCode == 401 || statusCode == 403 {
+                return "Server rejected project key (HTTP \(statusCode)). Please verify your API key."
+            }
+            return "Server returned error (HTTP \(statusCode))."
+        }
+    }
 }
 
 /// Optional built-in transport that POSTs a `FeedbackReport` to the FeedbackKit

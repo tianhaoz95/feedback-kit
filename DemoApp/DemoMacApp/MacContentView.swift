@@ -6,12 +6,14 @@ struct MacContentView: View {
     private enum Screen: String, Identifiable, CaseIterable {
         case home = "Home"
         case cart = "Cart"
+        case settings = "Settings"
 
         var id: String { rawValue }
         var systemImage: String {
             switch self {
             case .home: "house"
             case .cart: "cart"
+            case .settings: "gearshape"
             }
         }
     }
@@ -31,6 +33,8 @@ struct MacContentView: View {
             switch selection {
             case .cart:
                 MacCartView()
+            case .settings:
+                MacSettingsView()
             default:
                 MacHomeView()
             }

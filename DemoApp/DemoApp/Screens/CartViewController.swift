@@ -126,9 +126,14 @@ final class CartViewController: UIViewController {
     }
 
     @objc private func reportTapped() {
-        FeedbackKit.present(from: self) { report in
-            guard let report else { return }
-            print("[FeedbackKit demo] captured report \(report.id) — \"\(report.text)\"")
+        FeedbackKit.presentAndSubmitIfConfigured(from: self) { result in
+            guard let result else { return }
+            switch result {
+            case .success(let report):
+                print("[FeedbackKit demo] captured report \(report.id) — \"\(report.text)\"")
+            case .failure(let error):
+                print("[FeedbackKit demo] report failed: \(error)")
+            }
         }
     }
 }

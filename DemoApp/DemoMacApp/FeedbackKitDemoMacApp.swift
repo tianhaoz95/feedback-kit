@@ -5,24 +5,30 @@ import SwiftUI
 @main
 struct FeedbackKitDemoMacApp: App {
     init() {
-        // Point this at your own FeedbackKit dashboard deployment (see /web and
-        // /supabase) to test the hosted-submission path end to end:
-        //
-        // FeedbackKit.configure(.init(
-        //     endpointURL: URL(string: "https://YOUR_PROJECT.supabase.co/functions/v1/ingest-feedback")!,
-        //     projectKey: "pk_live_..."
-        // ))
-        //
-        // Left unconfigured, `FeedbackKit.present` still works fully — reports
-        // are just handed back to this app's completion handler instead of
-        // being sent anywhere (see MacHomeView / MacCartView).
+        // Restores whichever API key and endpoint were saved in Settings,
+        // configuring FeedbackKit if a key is present:
+        DemoSettings.shared.applyConfiguration()
 
-        // Showcases FeedbackKit.theme: brand this demo's feedback screen
-        // with its own accent colors instead of the system accent default —
-        // the send button and the selected annotation tool pick up the
-        // primary color; Cancel and the attach button pick up the
-        // secondary one.
-        FeedbackKit.theme = .init(primaryColorHex: "#7C3AED", secondaryColorHex: "#F97316")
+        // Showcases FeedbackKit.onSubmissionResult: alerts the user when a report
+        // has been delivered to their dashboard or if an error occurred.
+        FeedbackKit.onSubmissionResult = { result in
+            switch result {
+            case .success(let report):
+                DemoNotifier.notify(
+                    title: "Feedback Submitted",
+                    message: "Your feedback was sent to your web dashboard project (ID: \(report.id.uuidString.prefix(8)))."
+                )
+            case .failure(let error):
+                DemoNotifier.notify(
+                    title: "Submission Failed",
+                    message: "\(error.localizedDescription)\n\nPlease verify your API key in Settings."
+                )
+            }
+        }
+
+        // Showcases FeedbackKit.theme: restores whichever brand was last picked
+        // in Settings (default: .sunset) so the feedback screen stays themed.
+        FeedbackKit.theme = DemoBranding.current.theme
     }
 
     var body: some Scene {
@@ -40,6 +46,10 @@ struct FeedbackKitDemoMacApp: App {
                     .keyboardShortcut("r", modifiers: [.command, .shift])
             }
         }
+
+        Settings {
+            MacSettingsView()
+        }
     }
 
     private func installTriggers() {
@@ -52,9 +62,14 @@ struct FeedbackKitDemoMacApp: App {
     }
 
     private func reportProblem() {
-        FeedbackKit.present(from: NSApplication.shared.keyWindow) { report in
-            guard let report else { return }
-            print("[FeedbackKit demo] captured report \(report.id) — \"\(report.text)\"")
+        FeedbackKit.presentAndSubmitIfConfigured(from: NSApplication.shared.keyWindow) { result in
+            guard let result else { return }
+            switch result {
+            case .success(let report):
+                print("[FeedbackKit demo] captured report \(report.id) — \"\(report.text)\"")
+            case .failure(let error):
+                print("[FeedbackKit demo] report failed: \(error)")
+            }
         }
     }
 }

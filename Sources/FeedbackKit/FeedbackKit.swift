@@ -62,10 +62,23 @@ public enum FeedbackKit {
 
     private static var configuration: FeedbackKitConfiguration?
 
+    /// Whether FeedbackKit is configured with an endpoint URL and project key.
+    public static var isConfigured: Bool {
+        configuration != nil
+    }
+
+    /// The active configuration, if configured.
+    public static var currentConfiguration: FeedbackKitConfiguration? {
+        configuration
+    }
+
+    /// Optional global callback notified whenever a submission to the hosted dashboard
+    /// finishes (via `presentAndSubmit` or triggers). Dispatched on the main queue.
+    public static var onSubmissionResult: (@Sendable (Result<FeedbackReport, FeedbackSubmissionError>) -> Void)?
+
     /// Configures the optional built-in submission path to the hosted dashboard.
-    /// Skip this entirely if you're handling delivery yourself via the
-    /// `present(from:completion:)` callback.
-    public static func configure(_ configuration: FeedbackKitConfiguration) {
+    /// Pass `nil` to clear configuration and return to local-only delivery.
+    public static func configure(_ configuration: FeedbackKitConfiguration?) {
         self.configuration = configuration
     }
 
@@ -107,6 +120,9 @@ public enum FeedbackKit {
                 return
             }
             FeedbackSubmitter.submit(report, configuration: configuration) { result in
+                DispatchQueue.main.async {
+                    onSubmissionResult?(result.map { report })
+                }
                 switch result {
                 case .success:
                     completion?(.success(report))
@@ -151,11 +167,21 @@ public enum FeedbackKit {
         }
     }
 
-    private static func presentAndSubmitIfConfigured(from viewController: UIViewController) {
+    /// Presents the feedback flow modally and, if FeedbackKit is configured with
+    /// an endpoint and project key, submits the report to the hosted dashboard.
+    /// If not configured, hands back the report locally without submitting.
+    public static func presentAndSubmitIfConfigured(
+        from viewController: UIViewController,
+        completion: ((Result<FeedbackReport, FeedbackSubmissionError>?) -> Void)? = nil
+    ) {
         if configuration != nil {
-            presentAndSubmit(from: viewController)
+            presentAndSubmit(from: viewController) { result in
+                completion?(result)
+            }
         } else {
-            present(from: viewController)
+            present(from: viewController) { report in
+                completion?(report.map { .success($0) })
+            }
         }
     }
 
@@ -203,6 +229,9 @@ public enum FeedbackKit {
                 return
             }
             FeedbackSubmitter.submit(report, configuration: configuration) { result in
+                DispatchQueue.main.async {
+                    onSubmissionResult?(result.map { report })
+                }
                 switch result {
                 case .success:
                     completion?(.success(report))
@@ -228,11 +257,21 @@ public enum FeedbackKit {
         triggerButton = nil
     }
 
-    private static func presentAndSubmitIfConfigured(from window: NSWindow?) {
+    /// Presents the feedback flow as a sheet and, if FeedbackKit is configured with
+    /// an endpoint and project key, submits the report to the hosted dashboard.
+    /// If not configured, hands back the report locally without submitting.
+    public static func presentAndSubmitIfConfigured(
+        from window: NSWindow?,
+        completion: ((Result<FeedbackReport, FeedbackSubmissionError>?) -> Void)? = nil
+    ) {
         if configuration != nil {
-            presentAndSubmit(from: window)
+            presentAndSubmit(from: window) { result in
+                completion?(result)
+            }
         } else {
-            present(from: window)
+            present(from: window) { report in
+                completion?(report.map { .success($0) })
+            }
         }
     }
     #endif

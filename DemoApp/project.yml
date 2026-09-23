@@ -62,6 +62,9 @@ targets:
     sources:
       - path: DemoMacApp
       - path: DemoApp/Support/CartStore.swift
+      - path: DemoApp/Support/DemoSettings.swift
+      - path: DemoApp/Support/DemoBranding.swift
+      - path: DemoApp/Support/DemoNotifier.swift
     info:
       path: Generated/Info-Mac.plist
       properties:

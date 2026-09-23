@@ -4,17 +4,26 @@ import SwiftUI
 @main
 struct FeedbackKitDemoApp: App {
     init() {
-        // Point this at your own FeedbackKit dashboard deployment (see /web and
-        // /supabase) to test the hosted-submission path end to end:
-        //
-        // FeedbackKit.configure(.init(
-        //     endpointURL: URL(string: "https://YOUR_PROJECT.supabase.co/functions/v1/ingest-feedback")!,
-        //     projectKey: "pk_live_..."
-        // ))
-        //
-        // Left unconfigured, `FeedbackKit.present` still works fully — reports
-        // are just handed back to this app's completion handler instead of
-        // being sent anywhere (see HomeView / CartViewController).
+        // Restores whichever API key and endpoint were saved in Settings,
+        // configuring FeedbackKit if a key is present:
+        DemoSettings.shared.applyConfiguration()
+
+        // Showcases FeedbackKit.onSubmissionResult: alerts the user when a report
+        // has been delivered to their dashboard or if an error occurred.
+        FeedbackKit.onSubmissionResult = { result in
+            switch result {
+            case .success(let report):
+                DemoNotifier.notify(
+                    title: "Feedback Submitted",
+                    message: "Your feedback was sent to your web dashboard project (ID: \(report.id.uuidString.prefix(8)))."
+                )
+            case .failure(let error):
+                DemoNotifier.notify(
+                    title: "Submission Failed",
+                    message: "\(error.localizedDescription)\n\nPlease verify your API key in Settings."
+                )
+            }
+        }
 
         // Showcases FeedbackKit.theme: restores whichever brand was last
         // picked in Settings > Branding (default: .sunset, this demo's own
