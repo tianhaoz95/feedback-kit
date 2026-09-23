@@ -6,7 +6,7 @@ import { getErrorMessage } from "@/lib/errors";
 import type { Project } from "@/lib/types";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
-import { ArrowRightIcon, FolderIcon, PlusIcon } from "@/components/icons";
+import { ArrowRightIcon, FolderIcon, GitHubIcon, PlusIcon } from "@/components/icons";
 
 const CARD_TINTS = [
   "bg-violet-100 text-violet-600",
@@ -21,6 +21,18 @@ function tintFor(id: string) {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
   return CARD_TINTS[hash % CARD_TINTS.length];
+}
+
+function formatCreatedDate(dateStr: string): string {
+  try {
+    return new Date(dateStr).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return "";
+  }
 }
 
 export function ProjectsPage() {
@@ -98,7 +110,7 @@ export function ProjectsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl font-semibold">Projects</h1>
+        <h1 className="text-xl font-semibold text-neutral-900">Projects</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Each project gets its own key to embed in an iOS app so feedback routes here.
         </p>
@@ -111,14 +123,20 @@ export function ProjectsPage() {
       ) : (
         <>
           {projects === null ? (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-3">
               {[0, 1].map((i) => (
                 <div
                   key={i}
-                  className="h-[76px] min-w-0 animate-pulse rounded-xl border border-neutral-200 bg-white p-4"
+                  className="flex min-w-0 animate-pulse items-center justify-between rounded-xl border border-neutral-200 bg-white p-4 sm:p-5"
                 >
-                  <div className="h-4 w-2/3 rounded bg-neutral-100" />
-                  <div className="mt-2 h-3 w-1/2 rounded bg-neutral-100" />
+                  <div className="flex flex-1 items-center gap-3.5 sm:gap-4">
+                    <div className="h-11 w-11 shrink-0 rounded-xl bg-neutral-100" />
+                    <div className="flex-1 max-w-sm space-y-2">
+                      <div className="h-4 w-1/2 rounded bg-neutral-100" />
+                      <div className="h-3 w-2/3 rounded bg-neutral-100" />
+                    </div>
+                  </div>
+                  <div className="hidden h-4 w-20 rounded bg-neutral-100 sm:block" />
                 </div>
               ))}
             </div>
@@ -129,37 +147,69 @@ export function ProjectsPage() {
               description="Create your first project to get a key you can drop into an iOS app — feedback from it will show up here."
             />
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-3">
               {projects.map((project) => (
                 <Link
                   key={project.id}
                   to={`/projects/${project.id}`}
-                  className="group flex min-w-0 items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-md"
+                  className="group flex flex-col justify-between gap-4 rounded-xl border border-neutral-200 bg-white p-4 shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-md sm:flex-row sm:items-center sm:p-5"
                 >
-                  <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-semibold ${tintFor(project.id)}`}
-                  >
-                    {project.name.slice(0, 1).toUpperCase()}
+                  <div className="flex min-w-0 items-center gap-3.5 sm:gap-4">
+                    <div
+                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-base font-semibold shadow-2xs ${tintFor(project.id)}`}
+                    >
+                      {project.name.slice(0, 1).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="truncate font-semibold text-neutral-900 transition-colors group-hover:text-blue-600 sm:text-base">
+                          {project.name}
+                        </h2>
+                        {project.github_repo ? (
+                          <span className="inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-medium text-neutral-600">
+                            <GitHubIcon className="h-3 w-3 text-neutral-700" />
+                            <span className="max-w-[200px] truncate">{project.github_repo}</span>
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+                        <code className="rounded bg-neutral-100 px-1.5 py-0.5 font-mono text-[11px] text-neutral-500">
+                          {project.project_key}
+                        </code>
+                        <span className="hidden text-neutral-300 sm:inline">·</span>
+                        <span className="hidden text-neutral-400 sm:inline">
+                          Created {formatCreatedDate(project.created_at)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <h2 className="truncate font-medium text-neutral-900">{project.name}</h2>
-                    <p className="mt-0.5 truncate font-mono text-xs text-neutral-400">{project.project_key}</p>
+
+                  <div className="flex shrink-0 items-center justify-between gap-3 border-t border-neutral-100 pt-2 sm:border-0 sm:pt-0 sm:justify-end">
+                    <span className="text-xs text-neutral-400 sm:hidden">
+                      Created {formatCreatedDate(project.created_at)}
+                    </span>
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-neutral-500 transition-colors group-hover:text-neutral-900">
+                      <span>View project</span>
+                      <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </div>
                   </div>
-                  <ArrowRightIcon className="h-4 w-4 shrink-0 text-neutral-300 transition-all group-hover:translate-x-0.5 group-hover:text-neutral-500" />
                 </Link>
               ))}
             </div>
           )}
 
-          <div className="max-w-sm rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-medium text-neutral-900">New project</h2>
+          <div className="max-w-md rounded-xl border border-neutral-200 bg-white p-5 shadow-xs">
+            <h2 className="text-sm font-semibold text-neutral-900">Create a new project</h2>
+            <p className="mt-0.5 text-xs text-neutral-500">
+              Give your project a name to generate an API key.
+            </p>
             {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
             <form
               onSubmit={(event) => {
                 event.preventDefault();
                 createProject(new FormData(event.currentTarget));
               }}
-              className="mt-3 flex gap-2"
+              className="mt-3.5 flex gap-2"
             >
               <input
                 name="name"
