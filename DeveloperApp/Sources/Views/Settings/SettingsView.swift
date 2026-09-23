@@ -136,7 +136,24 @@ public struct SettingsView: View {
                 }
 
                 // Portal App Feedback
-                Section(header: Text("Feedback")) {
+                Section(
+                    header: Text("Feedback"),
+                    footer: Text("Shake your device anywhere in the app to capture a screenshot, annotate it, and share feedback.")
+                ) {
+                    Toggle("Shake to Share Feedback", isOn: Binding(
+                        get: { UserDefaults.standard.bool(forKey: "shake_to_feedback_enabled") },
+                        set: { isEnabled in
+                            UserDefaults.standard.set(isEnabled, forKey: "shake_to_feedback_enabled")
+                            if isEnabled {
+                                FeedbackKit.enableShakeToReport {
+                                    UIApplication.shared.topMostViewController
+                                }
+                            } else {
+                                FeedbackKit.disableShakeToReport()
+                            }
+                        }
+                    ))
+
                     Button {
                         if let presenter = UIApplication.shared.topMostViewController {
                             FeedbackKit.presentAndSubmit(from: presenter)
@@ -148,20 +165,6 @@ public struct SettingsView: View {
                             Text("Send Feedback on Portal")
                         }
                     }
-
-                    Toggle("Floating Trigger Button", isOn: Binding(
-                        get: { UserDefaults.standard.bool(forKey: "show_floating_trigger") },
-                        set: { isEnabled in
-                            UserDefaults.standard.set(isEnabled, forKey: "show_floating_trigger")
-                            if isEnabled {
-                                FeedbackKit.showFloatingTriggerButton {
-                                    UIApplication.shared.topMostViewController
-                                }
-                            } else {
-                                FeedbackKit.hideFloatingTriggerButton()
-                            }
-                        }
-                    ))
                 }
 
                 // App Info

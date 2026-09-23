@@ -76,5 +76,20 @@ final class ShakeDetectorTests: XCTestCase {
 
         XCTAssertFalse(receivedNotification)
     }
+
+    func testDisableShakeToReportStopsHandlingShakes() {
+        var presenterCalled = false
+        let dummyVC = UIViewController()
+        FeedbackKit.enableShakeToReport {
+            presenterCalled = true
+            return dummyVC
+        }
+        FeedbackKit.disableShakeToReport()
+
+        let window = UIWindow()
+        window.motionEnded(.motionShake, with: nil)
+
+        XCTAssertFalse(presenterCalled)
+    }
 }
 #endif

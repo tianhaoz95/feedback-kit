@@ -13,7 +13,7 @@ struct FeedbackPortalApp: App {
         ))
 
         UserDefaults.standard.register(defaults: [
-            "show_floating_trigger": true
+            "shake_to_feedback_enabled": true
         ])
     }
 
@@ -37,14 +37,14 @@ struct FeedbackPortalApp: App {
     }
 
     private func installTriggers() {
-        FeedbackKit.enableShakeToReport {
-            UIApplication.shared.topMostViewController
-        }
+        FeedbackKit.hideFloatingTriggerButton()
 
-        if UserDefaults.standard.bool(forKey: "show_floating_trigger") {
-            FeedbackKit.showFloatingTriggerButton {
+        if UserDefaults.standard.bool(forKey: "shake_to_feedback_enabled") {
+            FeedbackKit.enableShakeToReport {
                 UIApplication.shared.topMostViewController
             }
+        } else {
+            FeedbackKit.disableShakeToReport()
         }
     }
 

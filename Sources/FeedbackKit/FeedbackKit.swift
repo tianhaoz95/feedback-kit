@@ -167,6 +167,14 @@ public enum FeedbackKit {
         }
     }
 
+    /// Disables the shake to report trigger.
+    public static func disableShakeToReport() {
+        if let shakeObserver {
+            NotificationCenter.default.removeObserver(shakeObserver)
+            self.shakeObserver = nil
+        }
+    }
+
     /// Presents the feedback flow modally and, if FeedbackKit is configured with
     /// an endpoint and project key, submits the report to the hosted dashboard.
     /// If not configured, hands back the report locally without submitting.
