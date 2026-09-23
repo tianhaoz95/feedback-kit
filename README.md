@@ -12,6 +12,9 @@ annotations + description + device/app/screen info on iOS/macOS; text +
 context only on watchOS), plus an optional Supabase-backed dashboard for
 collecting it and turning it into prompts for a coding agent.
 
+> 📖 **Developer Documentation & Contributor Guide**: [https://tianhaoz95.github.io/feedback-kit/](https://tianhaoz95.github.io/feedback-kit/)  
+> 🚀 **Live Web Dashboard**: [https://feedback-kit.hejitech.workers.dev](https://feedback-kit.hejitech.workers.dev)
+
 See [DESIGN.md](DESIGN.md) for how it's put together and why.
 
 ## Quickstart
