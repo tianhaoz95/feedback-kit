@@ -79,6 +79,26 @@ public struct ProjectsListView: View {
                         NavigationLink(destination: ProjectDetailView(project: project)) {
                             projectRow(project: project)
                         }
+                        .swipeActions(edge: .leading) {
+                            if project.id != appState.selectedProject?.id {
+                                Button {
+                                    appState.selectedProject = project
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                } label: {
+                                    Label("Set Active", systemImage: "checkmark.circle")
+                                }
+                                .tint(.accentColor)
+                            }
+                        }
+                        .contextMenu {
+                            if project.id != appState.selectedProject?.id {
+                                Button {
+                                    appState.selectedProject = project
+                                } label: {
+                                    Label("Set as Active Project", systemImage: "checkmark.circle")
+                                }
+                            }
+                        }
                     }
                 }
             }

@@ -6,11 +6,24 @@ import FeedbackKit
 public final class AppState: ObservableObject {
     public static let shared = AppState()
 
+    public static let lastSelectedProjectIdKey = "portal_last_selected_project_id"
+    public static let lastSelectedProjectDataKey = "portal_last_selected_project_data"
+
     // MARK: - Published Properties
 
     @Published public var projects: [PortalProject] = []
     @Published public var selectedProject: PortalProject? {
         didSet {
+            if let project = selectedProject {
+                UserDefaults.standard.set(project.id, forKey: Self.lastSelectedProjectIdKey)
+                if let data = try? JSONEncoder().encode(project) {
+                    UserDefaults.standard.set(data, forKey: Self.lastSelectedProjectDataKey)
+                }
+            } else {
+                UserDefaults.standard.removeObject(forKey: Self.lastSelectedProjectIdKey)
+                UserDefaults.standard.removeObject(forKey: Self.lastSelectedProjectDataKey)
+                UserDefaults.standard.removeObject(forKey: "last_selected_project_id")
+            }
             guard oldValue?.id != selectedProject?.id else { return }
             inFlightFeedbackTask?.cancel()
             inFlightFeedbackTask = nil
@@ -21,6 +34,13 @@ public final class AppState: ObservableObject {
                     await loadFeedback()
                 }
             }
+        }
+    }
+
+    public init() {
+        if let data = UserDefaults.standard.data(forKey: Self.lastSelectedProjectDataKey),
+           let cached = try? JSONDecoder().decode(PortalProject.self, from: data) {
+            self._selectedProject = Published(initialValue: cached)
         }
     }
 
@@ -95,8 +115,15 @@ public final class AppState: ObservableObject {
         do {
             let loaded = try await client.fetchProjects()
             self.projects = loaded
-            if selectedProject == nil || !loaded.contains(where: { $0.id == selectedProject?.id }) {
+            let savedId = UserDefaults.standard.string(forKey: Self.lastSelectedProjectIdKey)
+                ?? UserDefaults.standard.string(forKey: "last_selected_project_id")
+
+            if let savedId = savedId, let matched = loaded.first(where: { $0.id == savedId }) {
+                self.selectedProject = matched
+            } else if selectedProject == nil || !loaded.contains(where: { $0.id == selectedProject?.id }) {
                 self.selectedProject = loaded.first
+            } else if let currentId = selectedProject?.id, let refreshed = loaded.first(where: { $0.id == currentId }) {
+                self.selectedProject = refreshed
             }
             if selectedProject != nil {
                 await loadFeedback()

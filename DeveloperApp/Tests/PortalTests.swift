@@ -302,4 +302,46 @@ final class PortalTests: XCTestCase {
         XCTAssertEqual(pillView.archivedCount, 1)
         XCTAssertEqual(pillView.counts[.new], 3)
     }
+
+    @MainActor
+    func testAppStateSelectedProjectPersistentAcrossSessions() async {
+        let appState = AppState.shared
+        SupabasePortalClient.shared.enableDemoMode()
+        await appState.loadProjects()
+
+        XCTAssertGreaterThanOrEqual(appState.projects.count, 2)
+        let secondProject = appState.projects[1]
+
+        // User switches project to the second project
+        appState.selectedProject = secondProject
+        XCTAssertEqual(appState.selectedProject?.id, secondProject.id)
+
+        // Verify it was stored in local preferences
+        let savedId = UserDefaults.standard.string(forKey: AppState.lastSelectedProjectIdKey)
+        XCTAssertEqual(savedId, secondProject.id)
+
+        // Simulate app reopening: calling loadProjects should restore secondProject, not reset to loaded.first
+        await appState.loadProjects()
+        XCTAssertEqual(appState.selectedProject?.id, secondProject.id)
+        XCTAssertNotEqual(appState.selectedProject?.id, appState.projects.first?.id)
+
+        // Cleanup: reset back to first project
+        appState.selectedProject = appState.projects.first
+    }
+
+    @MainActor
+    func testAppStateSelectedProjectPersistenceFallbackWhenSavedProjectNotFound() async {
+        let appState = AppState.shared
+        SupabasePortalClient.shared.enableDemoMode()
+
+        // Set a non-existent saved project ID in local preferences
+        UserDefaults.standard.set("non-existent-project-id", forKey: AppState.lastSelectedProjectIdKey)
+
+        await appState.loadProjects()
+
+        // Should gracefully fallback to loaded.first
+        XCTAssertFalse(appState.projects.isEmpty)
+        XCTAssertEqual(appState.selectedProject?.id, appState.projects.first?.id)
+        XCTAssertEqual(UserDefaults.standard.string(forKey: AppState.lastSelectedProjectIdKey), appState.projects.first?.id)
+    }
 }
