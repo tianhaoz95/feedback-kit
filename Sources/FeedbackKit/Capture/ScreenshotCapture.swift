@@ -8,22 +8,41 @@ import UIKit
 /// with UIKit, SwiftUI (hosted in a `UIHostingController`), or a mix of both —
 /// FeedbackKit never needs to know.
 enum ScreenshotCapture {
-    static func captureKeyWindow() -> UIImage? {
+    private static func findCaptureWindow() -> UIWindow? {
         let activeScenes = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .filter { $0.activationState == .foregroundActive || $0.activationState == .foregroundInactive }
-        let allWindows = activeScenes.flatMap { $0.windows }
+        let allWindows: [UIWindow] = activeScenes.flatMap { $0.windows }
 
-        guard let window = allWindows.first(where: { $0.isKeyWindow && $0.bounds.width > 0 && $0.bounds.height > 0 && $0.rootViewController != nil })
-            ?? allWindows.first(where: { $0.isKeyWindow && $0.bounds.width > 0 && $0.bounds.height > 0 })
-            ?? allWindows.filter({ !$0.isHidden && $0.bounds.width > 0 && $0.bounds.height > 0 && $0.rootViewController != nil })
-                .sorted(by: { $0.windowLevel.rawValue > $1.windowLevel.rawValue }).first
-            ?? allWindows.first(where: { $0.bounds.width > 0 && $0.bounds.height > 0 })
-            ?? UIApplication.shared.connectedScenes
-                .compactMap({ $0 as? UIWindowScene })
-                .flatMap({ $0.windows })
-                .first(where: { $0.isKeyWindow })
-        else {
+        // 1. Key window with valid bounds and a root view controller
+        if let keyWindow = allWindows.first(where: { $0.isKeyWindow && $0.bounds.width > 0 && $0.bounds.height > 0 && $0.rootViewController != nil }) {
+            return keyWindow
+        }
+        // 2. Any key window with valid bounds
+        if let keyWindow = allWindows.first(where: { $0.isKeyWindow && $0.bounds.width > 0 && $0.bounds.height > 0 }) {
+            return keyWindow
+        }
+        // 3. Highest-level visible window with root view controller and valid bounds
+        let validWindows = allWindows.filter { !$0.isHidden && $0.bounds.width > 0 && $0.bounds.height > 0 && $0.rootViewController != nil }
+        if let highest = validWindows.sorted(by: { $0.windowLevel.rawValue > $1.windowLevel.rawValue }).first {
+            return highest
+        }
+        // 4. Any window with valid bounds
+        if let anyWindow = allWindows.first(where: { $0.bounds.width > 0 && $0.bounds.height > 0 }) {
+            return anyWindow
+        }
+        // 5. Fallback across all scenes
+        for scene in UIApplication.shared.connectedScenes {
+            if let windowScene = scene as? UIWindowScene,
+               let key = windowScene.windows.first(where: { $0.isKeyWindow }) {
+                return key
+            }
+        }
+        return nil
+    }
+
+    static func captureKeyWindow() -> UIImage? {
+        guard let window = findCaptureWindow() else {
             return nil
         }
 

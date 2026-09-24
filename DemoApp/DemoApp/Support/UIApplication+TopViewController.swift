@@ -10,16 +10,22 @@ extension UIApplication {
             .filter { $0.activationState == .foregroundActive || $0.activationState == .foregroundInactive }
         let allWindows = activeScenes.flatMap { $0.windows }
 
-        let targetWindow = allWindows.first { $0.isKeyWindow && $0.rootViewController != nil }
-            ?? allWindows
-                .filter { $0.rootViewController != nil && !$0.isHidden && $0.alpha > 0 }
-                .sorted(by: { $0.windowLevel.rawValue > $1.windowLevel.rawValue })
-                .first
-            ?? allWindows.first { $0.rootViewController != nil }
-            ?? connectedScenes
+        let targetWindow: UIWindow?
+        if let key = allWindows.first(where: { $0.isKeyWindow && $0.rootViewController != nil }) {
+            targetWindow = key
+        } else if let highest = allWindows
+            .filter({ $0.rootViewController != nil && !$0.isHidden && $0.alpha > 0 })
+            .sorted(by: { $0.windowLevel.rawValue > $1.windowLevel.rawValue })
+            .first {
+            targetWindow = highest
+        } else if let anyWithRoot = allWindows.first(where: { $0.rootViewController != nil }) {
+            targetWindow = anyWithRoot
+        } else {
+            targetWindow = connectedScenes
                 .compactMap { $0 as? UIWindowScene }
                 .flatMap { $0.windows }
                 .first { $0.rootViewController != nil }
+        }
 
         let root = targetWindow?.rootViewController
         return root?.topMost() ?? root
