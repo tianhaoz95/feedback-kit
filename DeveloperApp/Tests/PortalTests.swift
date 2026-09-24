@@ -221,4 +221,34 @@ final class PortalTests: XCTestCase {
         XCTAssertFalse(merged.contains("Screenshot URL"))
         XCTAssertTrue(merged.contains("Report ID"))
     }
+
+    @MainActor
+    func testFetchFeedbackItemsResolveSignedUrls() async throws {
+        let client = SupabasePortalClient.shared
+        client.enableDemoMode()
+
+        let withoutUrls = try await client.fetchFeedbackItems(projectId: "proj-1", includeArchived: false, resolveSignedUrls: false)
+        XCTAssertFalse(withoutUrls.isEmpty)
+
+        let withUrls = try await client.fetchFeedbackItems(projectId: "proj-1", includeArchived: false, resolveSignedUrls: true)
+        XCTAssertFalse(withUrls.isEmpty)
+        let itemWithScreenshot = withUrls.first(where: { $0.screenshotAnnotatedPath != nil || $0.screenshotRawPath != nil })
+        XCTAssertNotNil(itemWithScreenshot?.signedScreenshotUrl)
+    }
+
+    @MainActor
+    func testAppStateLoadProjectsPopulatesSelectedProject() async {
+        let appState = AppState.shared
+        SupabasePortalClient.shared.enableDemoMode()
+        appState.projects = []
+        appState.selectedProject = nil
+
+        await appState.loadProjects()
+
+        XCTAssertFalse(appState.projects.isEmpty)
+        XCTAssertNotNil(appState.selectedProject)
+        XCTAssertEqual(appState.selectedProject?.id, appState.projects.first?.id)
+        XCTAssertFalse(appState.feedbackItems.isEmpty)
+        XCTAssertNil(appState.errorMessage)
+    }
 }

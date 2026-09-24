@@ -205,15 +205,20 @@ public struct SettingsView: View {
             .sheet(isPresented: $isServerConfigPresented) {
                 ServerConfigSheet()
             }
-            .confirmationDialog(
-                "Sign out of Developer Portal?",
-                isPresented: $showSignOutConfirmation,
-                titleVisibility: .visible
+            .alert(
+                client.isDemoMode ? "Exit Demo Mode?" : "Sign out of Developer Portal?",
+                isPresented: $showSignOutConfirmation
             ) {
-                Button("Sign Out", role: .destructive) {
+                Button("Cancel", role: .cancel) {}
+                Button(client.isDemoMode ? "Exit Demo Mode" : "Sign Out", role: .destructive) {
                     client.signOut()
                     client.isDemoMode = false
+                    appState.projects = []
+                    appState.selectedProject = nil
+                    appState.feedbackItems = []
                 }
+            } message: {
+                Text(client.isDemoMode ? "You will return to the sign-in screen." : "Are you sure you want to sign out?")
             }
         }
     }

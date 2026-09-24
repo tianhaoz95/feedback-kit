@@ -92,11 +92,11 @@ public struct FeedbackDetailView: View {
                 }
             }
         }
-        .confirmationDialog(
+        .alert(
             "Delete this feedback report?",
-            isPresented: $showDeleteConfirmation,
-            titleVisibility: .visible
+            isPresented: $showDeleteConfirmation
         ) {
+            Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
                 Task {
                     await appState.delete(item: currentItem)

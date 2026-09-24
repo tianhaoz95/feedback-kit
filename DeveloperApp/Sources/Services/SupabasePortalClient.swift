@@ -225,6 +225,66 @@ public final class SupabasePortalClient: ObservableObject {
         return request
     }
 
+    public func refreshSession() async throws -> Bool {
+        guard let refresh = currentSession?.refreshToken, !refresh.isEmpty, !isDemoMode else {
+            return false
+        }
+        guard var components = URLComponents(string: supabaseUrl) else { return false }
+        components.path = (components.path == "/" ? "" : components.path) + "/auth/v1/token"
+        components.queryItems = [URLQueryItem(name: "grant_type", value: "refresh_token")]
+        guard let url = components.url else { return false }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(anonKey, forHTTPHeaderField: "apikey")
+        let bodyData = try JSONSerialization.data(withJSONObject: ["refresh_token": refresh])
+        request.httpBody = bodyData
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            return false
+        }
+
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let newAccessToken = json["access_token"] as? String {
+            let newRefreshToken = (json["refresh_token"] as? String) ?? refresh
+            let existing = self.currentSession
+            let updated = PortalUserSession(
+                accessToken: newAccessToken,
+                refreshToken: newRefreshToken,
+                userId: existing?.userId ?? "",
+                email: existing?.email ?? "",
+                avatarUrl: existing?.avatarUrl,
+                githubUsername: existing?.githubUsername
+            )
+            self.signIn(session: updated)
+            return true
+        }
+        return false
+    }
+
+    private func executeRequest(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+
+        if httpResponse.statusCode == 401 && !isDemoMode && currentSession?.refreshToken.isEmpty == false {
+            if let refreshed = try? await refreshSession(), refreshed {
+                var retryRequest = request
+                let newToken = currentSession?.accessToken ?? anonKey
+                retryRequest.setValue("Bearer \(newToken)", forHTTPHeaderField: "Authorization")
+                let (retryData, retryResponse) = try await URLSession.shared.data(for: retryRequest)
+                if let retryHttp = retryResponse as? HTTPURLResponse {
+                    return (retryData, retryHttp)
+                }
+            }
+        }
+
+        return (data, httpResponse)
+    }
+
     // MARK: - Projects
 
     public func fetchProjects() async throws -> [PortalProject] {
@@ -244,19 +304,31 @@ public final class SupabasePortalClient: ObservableObject {
             URLQueryItem(name: "order", value: "created_at.desc")
         ])
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        let (data, httpResponse) = try await executeRequest(request)
+        guard (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
 
         let decoder = JSONDecoder()
         var projects = try decoder.decode([PortalProject].self, from: data)
 
-        // Query feedback counts per project
-        for i in 0..<projects.count {
-            if let items = try? await fetchFeedbackItems(projectId: projects[i].id, includeArchived: false) {
-                projects[i].feedbackCount = items.count
-                projects[i].unresolvedCount = items.filter { $0.status == .new || $0.status == .inProgress }.count
+        // Query feedback counts per project concurrently without resolving signed URLs
+        await withTaskGroup(of: (Int, Int, Int).self) { group in
+            for i in 0..<projects.count {
+                let pid = projects[i].id
+                group.addTask {
+                    if let items = try? await self.fetchFeedbackItems(projectId: pid, includeArchived: false, resolveSignedUrls: false) {
+                        let total = items.count
+                        let unresolved = items.filter { $0.status == .new || $0.status == .inProgress }.count
+                        return (i, total, unresolved)
+                    }
+                    return (i, 0, 0)
+                }
+            }
+
+            for await (idx, total, unresolved) in group {
+                projects[idx].feedbackCount = total
+                projects[idx].unresolvedCount = unresolved
             }
         }
         return projects
@@ -295,8 +367,8 @@ public final class SupabasePortalClient: ObservableObject {
             preferReturn: "return=representation"
         )
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        let (data, httpResponse) = try await executeRequest(request)
+        guard (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
 
@@ -320,8 +392,8 @@ public final class SupabasePortalClient: ObservableObject {
             method: "DELETE",
             queryItems: [URLQueryItem(name: "id", value: "eq.\(id)")]
         )
-        let (_, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        let (_, httpResponse) = try await executeRequest(request)
+        guard (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
     }
@@ -367,8 +439,8 @@ public final class SupabasePortalClient: ObservableObject {
             preferReturn: "return=representation"
         )
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        let (data, httpResponse) = try await executeRequest(request)
+        guard (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
 
@@ -405,8 +477,8 @@ public final class SupabasePortalClient: ObservableObject {
             ]
         )
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        let (data, httpResponse) = try await executeRequest(request)
+        guard (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
 
@@ -446,15 +518,19 @@ public final class SupabasePortalClient: ObservableObject {
             queryItems: [URLQueryItem(name: "project_id", value: "eq.\(projectId)")],
             body: bodyData
         )
-        let (_, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        let (_, httpResponse) = try await executeRequest(request)
+        guard (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
     }
 
     // MARK: - Feedback Items
 
-    public func fetchFeedbackItems(projectId: String? = nil, includeArchived: Bool = false) async throws -> [PortalFeedbackItem] {
+    public func fetchFeedbackItems(
+        projectId: String? = nil,
+        includeArchived: Bool = false,
+        resolveSignedUrls: Bool = true
+    ) async throws -> [PortalFeedbackItem] {
         if isDemoMode {
             var items = demoFeedback
             if let pid = projectId {
@@ -463,15 +539,17 @@ public final class SupabasePortalClient: ObservableObject {
             if !includeArchived {
                 items = items.filter { !$0.isArchived }
             }
-            for i in 0..<items.count {
-                if items[i].signedScreenshotUrl == nil && (items[i].screenshotAnnotatedPath != nil || items[i].screenshotRawPath != nil) {
-                    items[i].signedScreenshotUrl = try? await getSignedUrl(path: items[i].screenshotAnnotatedPath ?? items[i].screenshotRawPath!)
-                }
-                if items[i].signedRawScreenshotUrl == nil && items[i].screenshotRawPath != nil {
-                    items[i].signedRawScreenshotUrl = try? await getSignedUrl(path: items[i].screenshotRawPath!)
-                }
-                if items[i].signedAttachmentUrl == nil && items[i].attachmentPath != nil {
-                    items[i].signedAttachmentUrl = try? await getSignedUrl(path: items[i].attachmentPath!)
+            if resolveSignedUrls {
+                for i in 0..<items.count {
+                    if items[i].signedScreenshotUrl == nil && (items[i].screenshotAnnotatedPath != nil || items[i].screenshotRawPath != nil) {
+                        items[i].signedScreenshotUrl = try? await getSignedUrl(path: items[i].screenshotAnnotatedPath ?? items[i].screenshotRawPath!)
+                    }
+                    if items[i].signedRawScreenshotUrl == nil && items[i].screenshotRawPath != nil {
+                        items[i].signedRawScreenshotUrl = try? await getSignedUrl(path: items[i].screenshotRawPath!)
+                    }
+                    if items[i].signedAttachmentUrl == nil && items[i].attachmentPath != nil {
+                        items[i].signedAttachmentUrl = try? await getSignedUrl(path: items[i].attachmentPath!)
+                    }
                 }
             }
             return items.sorted(by: { $0.createdAt > $1.createdAt })
@@ -489,35 +567,37 @@ public final class SupabasePortalClient: ObservableObject {
         }
 
         let request = try makeRequest(path: "/rest/v1/feedback_items", queryItems: queryItems)
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        let (data, httpResponse) = try await executeRequest(request)
+        guard (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
 
         let decoder = JSONDecoder()
         var items = try decoder.decode([PortalFeedbackItem].self, from: data)
 
-        // Resolve signed URLs for items that have screenshots or attachments in parallel
-        await withTaskGroup(of: (Int, String?, String?, String?).self) { group in
-            for i in 0..<items.count {
-                let shotPath = items[i].screenshotAnnotatedPath ?? items[i].screenshotRawPath
-                let rawPath = items[i].screenshotRawPath
-                let attachPath = items[i].attachmentPath
+        if resolveSignedUrls {
+            // Resolve signed URLs for items that have screenshots or attachments in parallel
+            await withTaskGroup(of: (Int, String?, String?, String?).self) { group in
+                for i in 0..<items.count {
+                    let shotPath = items[i].screenshotAnnotatedPath ?? items[i].screenshotRawPath
+                    let rawPath = items[i].screenshotRawPath
+                    let attachPath = items[i].attachmentPath
 
-                if shotPath != nil || rawPath != nil || attachPath != nil {
-                    group.addTask {
-                        let shotUrl = if let sp = shotPath { try? await self.getSignedUrl(path: sp) } else { String?.none }
-                        let rawUrl = if let rp = rawPath { try? await self.getSignedUrl(path: rp) } else { String?.none }
-                        let attachUrl = if let ap = attachPath { try? await self.getSignedUrl(path: ap) } else { String?.none }
-                        return (i, shotUrl, rawUrl, attachUrl)
+                    if shotPath != nil || rawPath != nil || attachPath != nil {
+                        group.addTask {
+                            let shotUrl = if let sp = shotPath { try? await self.getSignedUrl(path: sp) } else { String?.none }
+                            let rawUrl = if let rp = rawPath { try? await self.getSignedUrl(path: rp) } else { String?.none }
+                            let attachUrl = if let ap = attachPath { try? await self.getSignedUrl(path: ap) } else { String?.none }
+                            return (i, shotUrl, rawUrl, attachUrl)
+                        }
                     }
                 }
-            }
 
-            for await (idx, shotUrl, rawUrl, attachUrl) in group {
-                items[idx].signedScreenshotUrl = shotUrl
-                items[idx].signedRawScreenshotUrl = rawUrl
-                items[idx].signedAttachmentUrl = attachUrl
+                for await (idx, shotUrl, rawUrl, attachUrl) in group {
+                    items[idx].signedScreenshotUrl = shotUrl
+                    items[idx].signedRawScreenshotUrl = rawUrl
+                    items[idx].signedAttachmentUrl = attachUrl
+                }
             }
         }
         return items
@@ -540,8 +620,8 @@ public final class SupabasePortalClient: ObservableObject {
             queryItems: [URLQueryItem(name: "id", value: "eq.\(id)")],
             body: bodyData
         )
-        let (_, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        let (_, httpResponse) = try await executeRequest(request)
+        guard (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
     }
@@ -563,8 +643,8 @@ public final class SupabasePortalClient: ObservableObject {
             queryItems: [URLQueryItem(name: "id", value: "eq.\(id)")],
             body: bodyData
         )
-        let (_, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        let (_, httpResponse) = try await executeRequest(request)
+        guard (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
     }
@@ -586,8 +666,8 @@ public final class SupabasePortalClient: ObservableObject {
             queryItems: [URLQueryItem(name: "id", value: "eq.\(id)")],
             body: bodyData
         )
-        let (_, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        let (_, httpResponse) = try await executeRequest(request)
+        guard (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
     }
@@ -603,8 +683,8 @@ public final class SupabasePortalClient: ObservableObject {
             method: "DELETE",
             queryItems: [URLQueryItem(name: "id", value: "eq.\(id)")]
         )
-        let (_, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        let (_, httpResponse) = try await executeRequest(request)
+        guard (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
     }
@@ -652,8 +732,8 @@ public final class SupabasePortalClient: ObservableObject {
             body: bodyData
         )
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        let (data, httpResponse) = try await executeRequest(request)
+        guard (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
 
@@ -700,8 +780,8 @@ public final class SupabasePortalClient: ObservableObject {
             body: bodyData
         )
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        let (data, httpResponse) = try await executeRequest(request)
+        guard (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
 
@@ -728,8 +808,8 @@ public final class SupabasePortalClient: ObservableObject {
             ]
         )
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        let (data, httpResponse) = try await executeRequest(request)
+        guard (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
 
@@ -754,8 +834,8 @@ public final class SupabasePortalClient: ObservableObject {
             queryItems: [URLQueryItem(name: "id", value: "eq.\(id)")],
             body: bodyData
         )
-        let (_, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+        let (_, httpResponse) = try await executeRequest(request)
+        guard (200...299).contains(httpResponse.statusCode) else {
             throw URLError(.badServerResponse)
         }
     }

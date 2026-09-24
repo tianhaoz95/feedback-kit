@@ -18,30 +18,73 @@ public struct ProjectsListView: View {
 
     public var body: some View {
         NavigationStack {
-            Group {
-                if filteredProjects.isEmpty && !appState.isLoading {
-                    EmptyStateCard(
-                        iconName: "folder.badge.plus",
-                        title: "No Projects",
-                        message: "Create your first project to start receiving bug reports and annotations from your apps.",
-                        actionTitle: "New Project",
-                        action: {
-                            isNewProjectSheetPresented = true
-                        }
-                    )
-                } else {
-                    List {
-                        ForEach(filteredProjects) { project in
-                            NavigationLink(destination: ProjectDetailView(project: project)) {
-                                projectRow(project: project)
-                            }
-                        }
+            List {
+                if appState.isLoading && appState.projects.isEmpty {
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                        Text("Loading projects…")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
-                    .listStyle(.insetGrouped)
-                    .refreshable {
-                        await appState.loadProjects()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 60)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                } else if filteredProjects.isEmpty {
+                    if let error = appState.errorMessage, appState.projects.isEmpty {
+                        EmptyStateCard(
+                            iconName: "exclamationmark.triangle",
+                            title: "Failed to Load Projects",
+                            message: error,
+                            actionTitle: "Retry",
+                            action: {
+                                Task {
+                                    await appState.loadProjects()
+                                }
+                            }
+                        )
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .padding(.vertical, 40)
+                    } else if !searchText.isEmpty {
+                        EmptyStateCard(
+                            iconName: "magnifyingglass",
+                            title: "No Matching Projects",
+                            message: "No projects match '\(searchText)'.",
+                            actionTitle: "Clear Search",
+                            action: {
+                                searchText = ""
+                            }
+                        )
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .padding(.vertical, 40)
+                    } else {
+                        EmptyStateCard(
+                            iconName: "folder.badge.plus",
+                            title: "No Projects",
+                            message: "Create your first project to start receiving bug reports and annotations from your apps.",
+                            actionTitle: "New Project",
+                            action: {
+                                isNewProjectSheetPresented = true
+                            }
+                        )
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .padding(.vertical, 40)
+                    }
+                } else {
+                    ForEach(filteredProjects) { project in
+                        NavigationLink(destination: ProjectDetailView(project: project)) {
+                            projectRow(project: project)
+                        }
                     }
                 }
+            }
+            .listStyle(.insetGrouped)
+            .refreshable {
+                await appState.loadProjects()
             }
             .navigationTitle("Projects")
             .searchable(text: $searchText, prompt: "Search projects...")

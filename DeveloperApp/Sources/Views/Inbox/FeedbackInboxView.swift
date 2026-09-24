@@ -27,7 +27,17 @@ public struct FeedbackInboxView: View {
                 .background(Color(UIColor.systemBackground))
 
                 List {
-                    if appState.isLoading && appState.feedbackItems.isEmpty {
+                    if appState.isLoading && appState.feedbackItems.isEmpty && appState.projects.isEmpty {
+                        loadingView
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                    } else if appState.projects.isEmpty {
+                        noProjectsView
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                    } else if appState.isLoading && appState.feedbackItems.isEmpty {
                         loadingView
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
@@ -103,11 +113,15 @@ public struct FeedbackInboxView: View {
                 }
                 .listStyle(.plain)
                 .refreshable {
-                    await Task {
-                        async let loadWork: Void = appState.loadFeedback()
-                        async let minDelay: Void = Task.sleep(nanoseconds: 300_000_000)
-                        _ = await (loadWork, try? minDelay)
-                    }.value
+                    if appState.projects.isEmpty || appState.selectedProject == nil {
+                        await appState.loadProjects()
+                    } else {
+                        await Task {
+                            async let loadWork: Void = appState.loadFeedback()
+                            async let minDelay: Void = Task.sleep(nanoseconds: 300_000_000)
+                            _ = await (loadWork, try? minDelay)
+                        }.value
+                    }
                 }
 
                 // Bottom Action Bar when Multi-Select is Active
@@ -121,14 +135,24 @@ public struct FeedbackInboxView: View {
                 // Leading: Project Switcher Menu
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
-                        ForEach(appState.projects) { project in
+                        if appState.projects.isEmpty {
                             Button {
-                                appState.selectedProject = project
+                                Task {
+                                    await appState.loadProjects()
+                                }
                             } label: {
-                                HStack {
-                                    Text(project.name)
-                                    if project.id == appState.selectedProject?.id {
-                                        Image(systemName: "checkmark")
+                                Label("Reload Projects", systemImage: "arrow.clockwise")
+                            }
+                        } else {
+                            ForEach(appState.projects) { project in
+                                Button {
+                                    appState.selectedProject = project
+                                } label: {
+                                    HStack {
+                                        Text(project.name)
+                                        if project.id == appState.selectedProject?.id {
+                                            Image(systemName: "checkmark")
+                                        }
                                     }
                                 }
                             }
@@ -137,7 +161,7 @@ public struct FeedbackInboxView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "folder.fill")
                                 .foregroundColor(.accentColor)
-                            Text(appState.selectedProject?.name ?? (appState.isLoading ? "Loading…" : "Select Project"))
+                            Text(appState.selectedProject?.name ?? (appState.isLoading ? "Loading…" : (appState.projects.isEmpty ? "No Projects" : "Select Project")))
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundColor(.primary)
                             Image(systemName: "chevron.down")
@@ -210,6 +234,38 @@ public struct FeedbackInboxView: View {
     }
 
     // MARK: - Subviews
+
+    private var noProjectsView: some View {
+        Group {
+            if let error = appState.errorMessage {
+                EmptyStateCard(
+                    iconName: "exclamationmark.triangle",
+                    title: "Failed to Load Projects",
+                    message: error,
+                    actionTitle: "Retry",
+                    action: {
+                        Task {
+                            await appState.loadProjects()
+                        }
+                    }
+                )
+            } else {
+                EmptyStateCard(
+                    iconName: "folder.badge.questionmark",
+                    title: "No Projects Found",
+                    message: "No projects are available. Pull down to refresh or manage projects in the Projects tab.",
+                    actionTitle: "Reload Projects",
+                    action: {
+                        Task {
+                            await appState.loadProjects()
+                        }
+                    }
+                )
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+    }
 
     private var loadingView: some View {
         VStack(spacing: 12) {
