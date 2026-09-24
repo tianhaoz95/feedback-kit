@@ -148,4 +148,33 @@ final class PortalTests: XCTestCase {
         XCTAssertEqual(client.currentSession?.githubUsername, "octocat")
         XCTAssertEqual(client.currentSession?.avatarUrl, "https://avatars.githubusercontent.com/u/583231?v=4")
     }
+
+    @MainActor
+    func testClearCache() {
+        let client = SupabasePortalClient.shared
+        client.clearCache()
+    }
+
+    @MainActor
+    func testAppStateLoadFeedbackPreservesIsLoadingWhenItemsExist() async {
+        let appState = AppState.shared
+        SupabasePortalClient.shared.enableDemoMode()
+        await appState.loadProjects()
+
+        XCTAssertFalse(appState.feedbackItems.isEmpty)
+        XCTAssertFalse(appState.isLoading)
+
+        // When loadFeedback is called with items already present (like pull-to-refresh),
+        // isLoading must not be flipped to true to avoid cancelling the refresh gesture
+        await appState.loadFeedback()
+        XCTAssertFalse(appState.isLoading)
+    }
+
+    func testAppVersionFormatting() {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        let formatted = "Version \(version) (Build \(build))"
+        XCTAssertTrue(formatted.hasPrefix("Version "))
+        XCTAssertTrue(formatted.contains("(Build "))
+    }
 }

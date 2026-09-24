@@ -12,6 +12,8 @@ public final class AppState: ObservableObject {
     @Published public var selectedProject: PortalProject? {
         didSet {
             guard oldValue?.id != selectedProject?.id else { return }
+            inFlightFeedbackTask?.cancel()
+            inFlightFeedbackTask = nil
             selectedFeedbackIds.removeAll()
             isMultiSelectActive = false
             if !isSyncingProjects {
@@ -28,6 +30,8 @@ public final class AppState: ObservableObject {
     @Published public var statusFilter: PortalFeedbackStatus? = nil
     @Published public var showArchived: Bool = false {
         didSet {
+            inFlightFeedbackTask?.cancel()
+            inFlightFeedbackTask = nil
             Task {
                 await loadFeedback()
             }
@@ -43,6 +47,7 @@ public final class AppState: ObservableObject {
     @Published public var errorMessage: String? = nil
 
     private var isSyncingProjects: Bool = false
+    private var inFlightFeedbackTask: Task<Void, Never>? = nil
     private let client = SupabasePortalClient.shared
 
     // MARK: - Computed Filtered Items
@@ -100,22 +105,49 @@ public final class AppState: ObservableObject {
     }
 
     public func loadFeedback() async {
-        guard let proj = selectedProject else {
-            self.feedbackItems = []
+        if let existing = inFlightFeedbackTask {
+            await existing.value
             return
         }
-        isLoading = true
-        do {
-            async let itemsTask = client.fetchFeedbackItems(projectId: proj.id, includeArchived: showArchived)
-            async let templateTask = client.fetchPromptTemplate(projectId: proj.id)
 
-            let (items, template) = try await (itemsTask, templateTask)
-            self.feedbackItems = items
-            self.promptTemplate = template
-        } catch {
-            self.errorMessage = error.localizedDescription
+        let task = Task { @MainActor in
+            guard let proj = selectedProject else {
+                self.feedbackItems = []
+                self.isLoading = false
+                return
+            }
+
+            // Only flip isLoading when items are empty (initial load).
+            // Avoid mutating isLoading on pull-to-refresh or background refreshes
+            // because mutating @Published properties observed by the list causes
+            // SwiftUI to invalidate the view hierarchy mid-gesture, cancelling the
+            // refreshable task and causing the loading spinner to get stuck.
+            if self.feedbackItems.isEmpty {
+                self.isLoading = true
+            }
+
+            defer {
+                self.isLoading = false
+            }
+
+            do {
+                async let itemsTask = client.fetchFeedbackItems(projectId: proj.id, includeArchived: showArchived)
+                async let templateTask = client.fetchPromptTemplate(projectId: proj.id)
+
+                let (items, template) = try await (itemsTask, templateTask)
+                self.feedbackItems = items
+                self.promptTemplate = template
+            } catch is CancellationError {
+                // Task was cancelled, ignore
+                return
+            } catch {
+                self.errorMessage = error.localizedDescription
+            }
         }
-        isLoading = false
+
+        inFlightFeedbackTask = task
+        await task.value
+        inFlightFeedbackTask = nil
     }
 
     public func updateStatus(item: PortalFeedbackItem, to newStatus: PortalFeedbackStatus) async {

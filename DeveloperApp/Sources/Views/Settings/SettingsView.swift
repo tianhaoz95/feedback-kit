@@ -19,6 +19,12 @@ public struct SettingsView: View {
         }
     }
 
+    private var appVersionText: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "Version \(version) (Build \(build))"
+    }
+
     public var body: some View {
         NavigationStack {
             List {
@@ -126,15 +132,18 @@ public struct SettingsView: View {
 
                 // Cache & Diagnostics
                 Section(header: Text("Data & Cache")) {
-                    Button("Reset Demo Data") {
-                        client.enableDemoMode()
-                        Task {
-                            await appState.loadProjects()
+                    if client.isDemoMode {
+                        Button("Reset Demo Data") {
+                            client.enableDemoMode()
+                            Task {
+                                await appState.loadProjects()
+                            }
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
                         }
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
                     }
 
                     Button("Clear Image & Network Cache") {
+                        client.clearCache()
                         URLCache.shared.removeAllCachedResponses()
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
                     }
@@ -167,7 +176,7 @@ public struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("FeedbackKit Developer Portal")
                                 .font(.subheadline.weight(.semibold))
-                            Text("Version 1.0.0 (Build 1)")
+                            Text(appVersionText)
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                         }

@@ -105,7 +105,11 @@ public struct FeedbackInboxView: View {
                 }
                 .listStyle(.plain)
                 .refreshable {
-                    await appState.loadFeedback()
+                    await Task {
+                        async let loadWork: Void = appState.loadFeedback()
+                        async let minDelay: Void = Task.sleep(nanoseconds: 400_000_000)
+                        _ = await (loadWork, try? minDelay)
+                    }.value
                 }
 
                 // Bottom Action Bar when Multi-Select is Active

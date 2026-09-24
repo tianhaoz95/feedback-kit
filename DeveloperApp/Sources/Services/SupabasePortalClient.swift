@@ -38,6 +38,13 @@ public final class SupabasePortalClient: ObservableObject {
     private var demoTemplates: [String: PortalPromptTemplate] = DemoData.samplePromptTemplates
     private var demoSessions: [PortalCliSession] = DemoData.sampleCliSessions
 
+    // In-memory cache for resolved signed URLs to accelerate pull-to-refresh & list loading
+    private var signedUrlCache: [String: (url: String, expiresAt: Date)] = [:]
+
+    public func clearCache() {
+        signedUrlCache.removeAll()
+    }
+
     // MARK: - Init
 
     public init() {
@@ -436,16 +443,27 @@ public final class SupabasePortalClient: ObservableObject {
         let decoder = JSONDecoder()
         var items = try decoder.decode([PortalFeedbackItem].self, from: data)
 
-        // Resolve signed URLs for items that have screenshots or attachments
-        for i in 0..<items.count {
-            if let shotPath = items[i].screenshotAnnotatedPath ?? items[i].screenshotRawPath {
-                items[i].signedScreenshotUrl = try? await getSignedUrl(path: shotPath)
+        // Resolve signed URLs for items that have screenshots or attachments in parallel
+        await withTaskGroup(of: (Int, String?, String?, String?).self) { group in
+            for i in 0..<items.count {
+                let shotPath = items[i].screenshotAnnotatedPath ?? items[i].screenshotRawPath
+                let rawPath = items[i].screenshotRawPath
+                let attachPath = items[i].attachmentPath
+
+                if shotPath != nil || rawPath != nil || attachPath != nil {
+                    group.addTask {
+                        let shotUrl = if let sp = shotPath { try? await self.getSignedUrl(path: sp) } else { String?.none }
+                        let rawUrl = if let rp = rawPath { try? await self.getSignedUrl(path: rp) } else { String?.none }
+                        let attachUrl = if let ap = attachPath { try? await self.getSignedUrl(path: ap) } else { String?.none }
+                        return (i, shotUrl, rawUrl, attachUrl)
+                    }
+                }
             }
-            if let rawPath = items[i].screenshotRawPath {
-                items[i].signedRawScreenshotUrl = try? await getSignedUrl(path: rawPath)
-            }
-            if let attachPath = items[i].attachmentPath {
-                items[i].signedAttachmentUrl = try? await getSignedUrl(path: attachPath)
+
+            for await (idx, shotUrl, rawUrl, attachUrl) in group {
+                items[idx].signedScreenshotUrl = shotUrl
+                items[idx].signedRawScreenshotUrl = rawUrl
+                items[idx].signedAttachmentUrl = attachUrl
             }
         }
         return items
@@ -567,6 +585,10 @@ public final class SupabasePortalClient: ObservableObject {
             cleanPath = String(cleanPath.dropFirst("feedback-screenshots/".count))
         }
 
+        if let cached = signedUrlCache[cleanPath], cached.expiresAt > Date() {
+            return cached.url
+        }
+
         let payload = ["expiresIn": expiresIn]
         let bodyData = try JSONSerialization.data(withJSONObject: payload)
 
@@ -583,14 +605,17 @@ public final class SupabasePortalClient: ObservableObject {
 
         if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let signedUrl = json["signedURL"] as? String {
+            let fullUrl: String
             if signedUrl.hasPrefix("http") {
-                return signedUrl
+                fullUrl = signedUrl
+            } else if signedUrl.hasPrefix("/storage/v1") {
+                fullUrl = "\(supabaseUrl)\(signedUrl)"
+            } else {
+                let normalized = signedUrl.hasPrefix("/") ? signedUrl : "/\(signedUrl)"
+                fullUrl = "\(supabaseUrl)/storage/v1\(normalized)"
             }
-            if signedUrl.hasPrefix("/storage/v1") {
-                return "\(supabaseUrl)\(signedUrl)"
-            }
-            let normalized = signedUrl.hasPrefix("/") ? signedUrl : "/\(signedUrl)"
-            return "\(supabaseUrl)/storage/v1\(normalized)"
+            signedUrlCache[cleanPath] = (url: fullUrl, expiresAt: Date().addingTimeInterval(TimeInterval(max(60, expiresIn - 300))))
+            return fullUrl
         }
         throw URLError(.cannotParseResponse)
     }

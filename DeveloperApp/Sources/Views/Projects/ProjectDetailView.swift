@@ -21,12 +21,6 @@ public struct ProjectDetailView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Project Key Card
-                projectKeyCard
-
-                // SDK Integration Guide Card
-                sdkGuideCard
-
                 // Project Stats
                 projectStatsCard
 
@@ -35,6 +29,12 @@ public struct ProjectDetailView: View {
 
                 // GitHub Integration Card
                 gitHubCard
+
+                // Project Key Card
+                projectKeyCard
+
+                // SDK Integration Guide Card
+                sdkGuideCard
 
                 // Danger Zone: Delete Project
                 deleteProjectSection
