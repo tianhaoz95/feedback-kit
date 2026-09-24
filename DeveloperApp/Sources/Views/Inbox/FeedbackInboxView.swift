@@ -20,109 +20,94 @@ public struct FeedbackInboxView: View {
     public var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                ScrollViewReader { proxy in
-                    List {
-                        Section {
-                            Color.clear
-                                .frame(height: 0.001)
-                                .id("inbox_top")
-                                .listRowInsets(EdgeInsets())
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
-                        }
+                PillFilterView(
+                    selectedStatus: $appState.statusFilter,
+                    counts: statusCounts
+                )
+                .background(Color(UIColor.systemBackground))
 
-                        if appState.isLoading && appState.feedbackItems.isEmpty {
-                            loadingView
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
-                                .listRowInsets(EdgeInsets())
-                        } else if appState.filteredFeedbackItems.isEmpty {
-                            emptyView
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
-                                .listRowInsets(EdgeInsets())
-                        } else {
-                            ForEach(appState.filteredFeedbackItems) { item in
-                                FeedbackRowView(
-                                    item: item,
-                                    isSelected: appState.selectedFeedbackIds.contains(item.id),
-                                    isSelectionMode: appState.isMultiSelectActive,
-                                    onSelectToggle: {
-                                        appState.toggleSelect(id: item.id)
-                                    }
-                                )
-                                .listRowSeparator(.hidden)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    if appState.isMultiSelectActive {
-                                        appState.toggleSelect(id: item.id)
-                                    } else {
-                                        selectedFeedback = item
-                                    }
+                List {
+                    if appState.isLoading && appState.feedbackItems.isEmpty {
+                        loadingView
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                    } else if appState.filteredFeedbackItems.isEmpty {
+                        emptyView
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                    } else {
+                        ForEach(appState.filteredFeedbackItems) { item in
+                            FeedbackRowView(
+                                item: item,
+                                isSelected: appState.selectedFeedbackIds.contains(item.id),
+                                isSelectionMode: appState.isMultiSelectActive,
+                                onSelectToggle: {
+                                    appState.toggleSelect(id: item.id)
                                 }
-                                // Leading swipe: Mark Resolved
-                                .swipeActions(edge: .leading) {
-                                    if item.status != .resolved {
-                                        Button {
-                                            Task {
-                                                await appState.updateStatus(item: item, to: .resolved)
-                                            }
-                                        } label: {
-                                            Label("Resolve", systemImage: "checkmark.circle.fill")
-                                        }
-                                        .tint(.green)
-                                    } else {
-                                        Button {
-                                            Task {
-                                                await appState.updateStatus(item: item, to: .inProgress)
-                                            }
-                                        } label: {
-                                            Label("In Progress", systemImage: "arrow.triangle.2.circlepath")
-                                        }
-                                        .tint(.orange)
-                                    }
+                            )
+                            .listRowSeparator(.hidden)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                if appState.isMultiSelectActive {
+                                    appState.toggleSelect(id: item.id)
+                                } else {
+                                    selectedFeedback = item
                                 }
-                                // Trailing swipe: Archive & Delete
-                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                    Button(role: .destructive) {
-                                        Task {
-                                            await appState.delete(item: item)
-                                        }
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-                                    .tint(.red)
-
+                            }
+                            // Leading swipe: Mark Resolved
+                            .swipeActions(edge: .leading) {
+                                if item.status != .resolved {
                                     Button {
                                         Task {
-                                            await appState.toggleArchive(item: item)
+                                            await appState.updateStatus(item: item, to: .resolved)
                                         }
                                     } label: {
-                                        Label(item.isArchived ? "Unarchive" : "Archive", systemImage: item.isArchived ? "tray.and.arrow.up" : "archivebox")
+                                        Label("Resolve", systemImage: "checkmark.circle.fill")
                                     }
-                                    .tint(.purple)
+                                    .tint(.green)
+                                } else {
+                                    Button {
+                                        Task {
+                                            await appState.updateStatus(item: item, to: .inProgress)
+                                        }
+                                    } label: {
+                                        Label("In Progress", systemImage: "arrow.triangle.2.circlepath")
+                                    }
+                                    .tint(.orange)
                                 }
+                            }
+                            // Trailing swipe: Archive & Delete
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    Task {
+                                        await appState.delete(item: item)
+                                    }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                                .tint(.red)
+
+                                Button {
+                                    Task {
+                                        await appState.toggleArchive(item: item)
+                                    }
+                                } label: {
+                                    Label(item.isArchived ? "Unarchive" : "Archive", systemImage: item.isArchived ? "tray.and.arrow.up" : "archivebox")
+                                }
+                                .tint(.purple)
                             }
                         }
                     }
-                    .listStyle(.plain)
-                    .safeAreaInset(edge: .top, spacing: 0) {
-                        PillFilterView(
-                            selectedStatus: $appState.statusFilter,
-                            counts: statusCounts
-                        )
-                        .background(Color(UIColor.systemBackground))
-                    }
-                    .refreshable {
-                        await Task {
-                            async let loadWork: Void = appState.loadFeedback()
-                            async let minDelay: Void = Task.sleep(nanoseconds: 300_000_000)
-                            _ = await (loadWork, try? minDelay)
-                        }.value
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            proxy.scrollTo("inbox_top", anchor: .top)
-                        }
-                    }
+                }
+                .listStyle(.plain)
+                .refreshable {
+                    await Task {
+                        async let loadWork: Void = appState.loadFeedback()
+                        async let minDelay: Void = Task.sleep(nanoseconds: 300_000_000)
+                        _ = await (loadWork, try? minDelay)
+                    }.value
                 }
 
                 // Bottom Action Bar when Multi-Select is Active
@@ -131,7 +116,7 @@ public struct FeedbackInboxView: View {
                 }
             }
             .navigationTitle("Feedback")
-            .searchable(text: $appState.searchQuery, prompt: "Search reports, screens, devices...")
+            .searchable(text: $appState.searchQuery, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search reports, screens, devices...")
             .toolbar {
                 // Leading: Project Switcher Menu
                 ToolbarItem(placement: .topBarLeading) {
