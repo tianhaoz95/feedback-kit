@@ -343,6 +343,54 @@ public struct PortalUserSession: Codable, Sendable {
         self.avatarUrl = avatarUrl
         self.githubUsername = githubUsername
     }
+
+    public static func fromJWT(accessToken: String, refreshToken: String = "") -> PortalUserSession {
+        let parts = accessToken.components(separatedBy: ".")
+        guard parts.count >= 2 else {
+            return PortalUserSession(
+                accessToken: accessToken,
+                refreshToken: refreshToken,
+                userId: UUID().uuidString,
+                email: "github-user@feedbackkit.dev"
+            )
+        }
+
+        var base64 = parts[1]
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        while base64.count % 4 != 0 {
+            base64.append("=")
+        }
+
+        guard let data = Data(base64Encoded: base64),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return PortalUserSession(
+                accessToken: accessToken,
+                refreshToken: refreshToken,
+                userId: UUID().uuidString,
+                email: "github-user@feedbackkit.dev"
+            )
+        }
+
+        let userId = (json["sub"] as? String) ?? UUID().uuidString
+        let email = (json["email"] as? String) ?? "github-user@feedbackkit.dev"
+        let userMetadata = json["user_metadata"] as? [String: Any]
+
+        let avatarUrl = (userMetadata?["avatar_url"] as? String) ?? (userMetadata?["avatarUrl"] as? String)
+        let username = (userMetadata?["user_name"] as? String)
+            ?? (userMetadata?["preferred_username"] as? String)
+            ?? (userMetadata?["name"] as? String)
+            ?? email.components(separatedBy: "@").first
+
+        return PortalUserSession(
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            userId: userId,
+            email: email,
+            avatarUrl: avatarUrl,
+            githubUsername: username
+        )
+    }
 }
 
 // MARK: - Date Formatter Helper

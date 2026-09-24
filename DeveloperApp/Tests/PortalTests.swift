@@ -99,4 +99,53 @@ final class PortalTests: XCTestCase {
             XCTAssertTrue(item.signedScreenshotUrl?.hasPrefix("http") ?? false)
         }
     }
+
+    func testSwiftSyntaxHighlighter() {
+        let snippet = """
+        import SwiftUI
+        import FeedbackKit
+
+        @main
+        struct MyApp: App {
+            var body: some Scene {
+                Text("Hello")
+            }
+        }
+        """
+        let highlighted = SwiftSyntaxHighlighter.highlight(snippet)
+        XCTAssertEqual(String(highlighted.characters), snippet)
+    }
+
+    func testPortalUserSessionFromJWT() {
+        // Construct a sample JWT payload
+        let payload: [String: Any] = [
+            "sub": "user-12345",
+            "email": "developer@example.com",
+            "user_metadata": [
+                "avatar_url": "https://avatars.githubusercontent.com/u/12345?v=4",
+                "user_name": "developer"
+            ]
+        ]
+        let data = try! JSONSerialization.data(withJSONObject: payload)
+        let base64 = data.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+        let fakeToken = "header.\(base64).signature"
+
+        let session = PortalUserSession.fromJWT(accessToken: fakeToken, refreshToken: "refresh-123")
+        XCTAssertEqual(session.userId, "user-12345")
+        XCTAssertEqual(session.email, "developer@example.com")
+        XCTAssertEqual(session.avatarUrl, "https://avatars.githubusercontent.com/u/12345?v=4")
+        XCTAssertEqual(session.githubUsername, "developer")
+    }
+
+    @MainActor
+    func testDemoModeSetsGitHubProfile() {
+        let client = SupabasePortalClient.shared
+        client.enableDemoMode()
+        XCTAssertNotNil(client.currentSession)
+        XCTAssertEqual(client.currentSession?.githubUsername, "octocat")
+        XCTAssertEqual(client.currentSession?.avatarUrl, "https://avatars.githubusercontent.com/u/583231?v=4")
+    }
 }

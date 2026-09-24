@@ -27,13 +27,19 @@ public struct FeedbackInboxView: View {
                 )
                 .background(Color(UIColor.systemBackground))
 
-                Divider()
-
                 // List of feedback items
-                if appState.filteredFeedbackItems.isEmpty && !appState.isLoading {
-                    emptyView
-                } else {
-                    List {
+                List {
+                    if appState.isLoading && appState.feedbackItems.isEmpty {
+                        loadingView
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                    } else if appState.filteredFeedbackItems.isEmpty {
+                        emptyView
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
+                    } else {
                         ForEach(appState.filteredFeedbackItems) { item in
                             FeedbackRowView(
                                 item: item,
@@ -43,6 +49,7 @@ public struct FeedbackInboxView: View {
                                     appState.toggleSelect(id: item.id)
                                 }
                             )
+                            .listRowSeparator(.hidden)
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 if appState.isMultiSelectActive {
@@ -82,6 +89,7 @@ public struct FeedbackInboxView: View {
                                 } label: {
                                     Label("Delete", systemImage: "trash")
                                 }
+                                .tint(.red)
 
                                 Button {
                                     Task {
@@ -94,10 +102,10 @@ public struct FeedbackInboxView: View {
                             }
                         }
                     }
-                    .listStyle(.plain)
-                    .refreshable {
-                        await appState.loadFeedback()
-                    }
+                }
+                .listStyle(.plain)
+                .refreshable {
+                    await appState.loadFeedback()
                 }
 
                 // Bottom Action Bar when Multi-Select is Active
@@ -127,17 +135,13 @@ public struct FeedbackInboxView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "folder.fill")
                                 .foregroundColor(.accentColor)
-                            Text(appState.selectedProject?.name ?? "Select Project")
+                            Text(appState.selectedProject?.name ?? (appState.isLoading ? "Loading…" : "Select Project"))
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundColor(.primary)
                             Image(systemName: "chevron.down")
                                 .font(.caption2.weight(.bold))
                                 .foregroundColor(.secondary)
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color(UIColor.secondarySystemFill))
-                        .clipShape(Capsule())
                     }
                 }
 
@@ -205,6 +209,18 @@ public struct FeedbackInboxView: View {
 
     // MARK: - Subviews
 
+    private var loadingView: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .scaleEffect(1.2)
+            Text("Loading feedback…")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 60)
+    }
+
     private var emptyView: some View {
         EmptyStateCard(
             iconName: appState.showArchived ? "archivebox" : "tray",
@@ -217,6 +233,8 @@ public struct FeedbackInboxView: View {
                 appState.statusFilter = nil
             }
         )
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
     }
 
     private var bottomBatchBar: some View {

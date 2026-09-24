@@ -11,10 +11,13 @@ public final class AppState: ObservableObject {
     @Published public var projects: [PortalProject] = []
     @Published public var selectedProject: PortalProject? {
         didSet {
+            guard oldValue?.id != selectedProject?.id else { return }
             selectedFeedbackIds.removeAll()
             isMultiSelectActive = false
-            Task {
-                await loadFeedback()
+            if !isSyncingProjects {
+                Task {
+                    await loadFeedback()
+                }
             }
         }
     }
@@ -36,9 +39,10 @@ public final class AppState: ObservableObject {
     @Published public var isMultiSelectActive: Bool = false
     @Published public var selectedFeedbackIds: Set<String> = []
 
-    @Published public var isLoading: Bool = false
+    @Published public var isLoading: Bool = true
     @Published public var errorMessage: String? = nil
 
+    private var isSyncingProjects: Bool = false
     private let client = SupabasePortalClient.shared
 
     // MARK: - Computed Filtered Items
@@ -75,18 +79,23 @@ public final class AppState: ObservableObject {
 
     public func loadProjects() async {
         isLoading = true
+        isSyncingProjects = true
         errorMessage = nil
         do {
             let loaded = try await client.fetchProjects()
             self.projects = loaded
             if selectedProject == nil || !loaded.contains(where: { $0.id == selectedProject?.id }) {
-                selectedProject = loaded.first
-            } else {
+                self.selectedProject = loaded.first
+            }
+            if selectedProject != nil {
                 await loadFeedback()
+            } else {
+                self.feedbackItems = []
             }
         } catch {
             self.errorMessage = error.localizedDescription
         }
+        isSyncingProjects = false
         isLoading = false
     }
 

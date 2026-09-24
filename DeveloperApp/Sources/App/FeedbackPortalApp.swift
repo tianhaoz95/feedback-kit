@@ -66,11 +66,9 @@ struct FeedbackPortalApp: App {
             }
 
             if let token = token {
-                let userSession = PortalUserSession(
+                let userSession = PortalUserSession.fromJWT(
                     accessToken: token,
-                    refreshToken: refresh ?? "",
-                    userId: UUID().uuidString,
-                    email: "developer@feedbackkit.dev"
+                    refreshToken: refresh ?? ""
                 )
                 client.signIn(session: userSession)
                 UINotificationFeedbackGenerator().notificationOccurred(.success)

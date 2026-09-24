@@ -236,11 +236,9 @@ public struct LoginView: View {
         }
 
         if let token = token {
-            let userSession = PortalUserSession(
+            let userSession = PortalUserSession.fromJWT(
                 accessToken: token,
-                refreshToken: refresh ?? "",
-                userId: UUID().uuidString,
-                email: "github-user@feedbackkit.dev"
+                refreshToken: refresh ?? ""
             )
             client.signIn(session: userSession)
             UINotificationFeedbackGenerator().notificationOccurred(.success)

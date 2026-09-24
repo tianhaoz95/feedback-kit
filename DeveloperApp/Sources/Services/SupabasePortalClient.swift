@@ -102,18 +102,24 @@ public final class SupabasePortalClient: ObservableObject {
         if let username = session.githubUsername {
             KeychainHelper.saveString(key: "github_username", value: username)
         }
+
+        // Asynchronously fetch and refresh latest profile details from Supabase auth
+        Task {
+            await fetchUserProfile()
+        }
     }
 
     public func signInWithManualToken(token: String, email: String = "developer@example.com") {
-        let session = PortalUserSession(
+        let session = PortalUserSession.fromJWT(accessToken: token)
+        let resolved = PortalUserSession(
             accessToken: token,
             refreshToken: "",
-            userId: UUID().uuidString,
+            userId: session.userId,
             email: email,
-            avatarUrl: nil,
-            githubUsername: email.components(separatedBy: "@").first
+            avatarUrl: session.avatarUrl,
+            githubUsername: session.githubUsername ?? email.components(separatedBy: "@").first
         )
-        signIn(session: session)
+        signIn(session: resolved)
     }
 
     public func signOut() {
@@ -127,6 +133,53 @@ public final class SupabasePortalClient: ObservableObject {
         self.demoFeedback = DemoData.sampleFeedbackItems
         self.demoTemplates = DemoData.samplePromptTemplates
         self.demoSessions = DemoData.sampleCliSessions
+        self.currentSession = PortalUserSession(
+            accessToken: "demo_access_token",
+            refreshToken: "demo_refresh_token",
+            userId: "demo_user",
+            email: "octocat@github.com",
+            avatarUrl: "https://avatars.githubusercontent.com/u/583231?v=4",
+            githubUsername: "octocat"
+        )
+    }
+
+    public func fetchUserProfile() async {
+        guard let token = currentSession?.accessToken, !isDemoMode else { return }
+        do {
+            let request = try makeRequest(path: "/auth/v1/user")
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                return
+            }
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                let email = (json["email"] as? String) ?? self.currentSession?.email ?? ""
+                let userId = (json["id"] as? String) ?? self.currentSession?.userId ?? ""
+                let userMeta = json["user_metadata"] as? [String: Any]
+                let avatarUrl = (userMeta?["avatar_url"] as? String) ?? (userMeta?["avatarUrl"] as? String) ?? self.currentSession?.avatarUrl
+                let username = (userMeta?["user_name"] as? String)
+                    ?? (userMeta?["preferred_username"] as? String)
+                    ?? (userMeta?["name"] as? String)
+                    ?? self.currentSession?.githubUsername
+
+                let updated = PortalUserSession(
+                    accessToken: token,
+                    refreshToken: self.currentSession?.refreshToken ?? "",
+                    userId: userId,
+                    email: email,
+                    avatarUrl: avatarUrl,
+                    githubUsername: username
+                )
+                self.currentSession = updated
+                if let avatar = avatarUrl {
+                    KeychainHelper.saveString(key: "avatar_url", value: avatar)
+                }
+                if let u = username {
+                    KeychainHelper.saveString(key: "github_username", value: u)
+                }
+            }
+        } catch {
+            // Retain existing session on network failure
+        }
     }
 
     // MARK: - HTTP Helpers

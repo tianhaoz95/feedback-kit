@@ -25,31 +25,52 @@ public struct SettingsView: View {
                 // Account Section
                 Section(header: Text("Account & Session")) {
                     HStack(spacing: 12) {
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(.accentColor)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(client.currentSession?.email ?? (client.isDemoMode ? "Demo Developer" : "Authenticated User"))
-                                .font(.headline)
-
-                            Text(client.isDemoMode ? "Offline Demo Environment" : "Connected to Supabase")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+                        if let avatarUrl = client.currentSession?.avatarUrl, let url = URL(string: avatarUrl) {
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                case .empty:
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                case .failure:
+                                    Image(systemName: "person.crop.circle.fill")
+                                        .resizable()
+                                        .foregroundColor(.accentColor)
+                                @unknown default:
+                                    Image(systemName: "person.crop.circle.fill")
+                                        .resizable()
+                                        .foregroundColor(.accentColor)
+                                }
+                            }
+                            .frame(width: 44, height: 44)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color(UIColor.separator), lineWidth: 0.5))
+                        } else {
+                            Image(systemName: "person.crop.circle.fill")
+                                .font(.system(size: 44))
+                                .foregroundColor(.accentColor)
                         }
-                    }
-                    .padding(.vertical, 4)
 
-                    if client.currentSession != nil || client.isDemoMode {
-                        Button(role: .destructive) {
-                            showSignOutConfirmation = true
-                        } label: {
-                            HStack {
-                                Image(systemName: "arrow.right.square")
-                                Text(client.isDemoMode ? "Exit Demo Mode / Sign In" : "Sign Out")
+                        VStack(alignment: .leading, spacing: 3) {
+                            if let username = client.currentSession?.githubUsername, !username.isEmpty {
+                                Text(username)
+                                    .font(.headline)
+                                Text(client.currentSession?.email ?? (client.isDemoMode ? "demo@feedbackkit.dev" : "Connected via GitHub"))
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text(client.currentSession?.email ?? (client.isDemoMode ? "Demo Developer" : "Authenticated User"))
+                                    .font(.headline)
+                                Text(client.isDemoMode ? "Offline Demo Environment" : "Connected to Supabase")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
                             }
                         }
                     }
+                    .padding(.vertical, 4)
                 }
 
                 // Backend Connection
@@ -119,39 +140,6 @@ public struct SettingsView: View {
                     }
                 }
 
-                // Links & Documentation
-                Section(header: Text("FeedbackKit Ecosystem")) {
-                    Link(destination: URL(string: "https://feedback-kit.hejitech.workers.dev")!) {
-                        HStack {
-                            Label("Web Developer Portal", systemImage: "safari")
-                            Spacer()
-                            Image(systemName: "arrow.up.right")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-
-                    Link(destination: URL(string: "https://tianhaoz95.github.io/feedback-kit/")!) {
-                        HStack {
-                            Label("Documentation", systemImage: "book")
-                            Spacer()
-                            Image(systemName: "arrow.up.right")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-
-                    Link(destination: URL(string: "https://github.com/tianhaoz95/feedback-kit")!) {
-                        HStack {
-                            Label("GitHub Repository", systemImage: "chevron.left.forwardslash.chevron.right")
-                            Spacer()
-                            Image(systemName: "arrow.up.right")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-
                 // Portal App Feedback
                 Section(
                     header: Text("Feedback"),
@@ -170,18 +158,6 @@ public struct SettingsView: View {
                             }
                         }
                     ))
-
-                    Button {
-                        if let presenter = UIApplication.shared.topMostViewController {
-                            FeedbackKit.presentAndSubmit(from: presenter)
-                        }
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "bubble.left.and.exclamationmark.bubble.right.fill")
-                                .foregroundColor(.accentColor)
-                            Text("Send Feedback on Portal")
-                        }
-                    }
                 }
 
                 // App Info
@@ -197,6 +173,20 @@ public struct SettingsView: View {
                         }
                     }
                     .padding(.vertical, 2)
+                }
+
+                // Danger Zone
+                if client.currentSession != nil || client.isDemoMode {
+                    Section(header: Text("Danger Zone")) {
+                        Button(role: .destructive) {
+                            showSignOutConfirmation = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "arrow.right.square")
+                                Text(client.isDemoMode ? "Exit Demo Mode / Sign In" : "Sign Out")
+                            }
+                        }
+                    }
                 }
             }
             .navigationTitle("Settings")
