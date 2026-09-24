@@ -4,20 +4,7 @@ import FeedbackKit
 public struct SettingsView: View {
     @ObservedObject private var client = SupabasePortalClient.shared
     @EnvironmentObject private var appState: AppState
-    @State private var isServerConfigPresented = false
     @State private var showSignOutConfirmation = false
-
-    private var environmentTitle: String {
-        if client.isDemoMode {
-            return "Demo Mode (Offline)"
-        } else if client.supabaseUrl == SupabasePortalClient.defaultProdUrl {
-            return "Production Hosted"
-        } else if client.supabaseUrl == SupabasePortalClient.defaultLocalUrl {
-            return "Local CLI Stack"
-        } else {
-            return "Custom Endpoint"
-        }
-    }
 
     private var appVersionText: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
@@ -79,36 +66,19 @@ public struct SettingsView: View {
                     .padding(.vertical, 4)
                 }
 
-                // Backend Connection
-                Section(
-                    header: Text("Backend Configuration"),
-                    footer: Text("Default is the hosted FeedbackKit production project (https://gpucoladcyvijefdjudf.supabase.co).")
-                ) {
-                    HStack {
-                        Text("Environment")
-                        Spacer()
-                        Text(environmentTitle)
-                            .foregroundColor(.secondary)
-                    }
-
-                    HStack {
-                        Text("Server URL")
-                        Spacer()
-                        Text(client.supabaseUrl)
-                            .lineLimit(1)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Button {
-                        isServerConfigPresented = true
-                    } label: {
-                        HStack {
-                            Text("Configure Endpoint & Keys")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+                // Backend Configuration
+                Section(header: Text("Backend")) {
+                    NavigationLink(destination: BackendConfigView()) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "server.rack")
+                                .foregroundColor(.accentColor)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Backend Configuration")
+                                    .font(.body)
+                                Text("Server URL, environment, and API keys")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                 }
@@ -201,9 +171,6 @@ public struct SettingsView: View {
             .navigationTitle("Settings")
             .onAppear {
                 FeedbackKit.currentScreen = "Settings"
-            }
-            .sheet(isPresented: $isServerConfigPresented) {
-                ServerConfigSheet()
             }
             .alert(
                 client.isDemoMode ? "Exit Demo Mode?" : "Sign out of Developer Portal?",

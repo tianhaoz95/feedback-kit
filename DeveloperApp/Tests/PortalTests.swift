@@ -344,4 +344,36 @@ final class PortalTests: XCTestCase {
         XCTAssertEqual(appState.selectedProject?.id, appState.projects.first?.id)
         XCTAssertEqual(UserDefaults.standard.string(forKey: AppState.lastSelectedProjectIdKey), appState.projects.first?.id)
     }
+
+    @MainActor
+    func testBackendConfigViewInitialization() {
+        let view = BackendConfigView()
+        let host = UIHostingController(rootView: view)
+        XCTAssertNotNil(host.view)
+    }
+
+    @MainActor
+    func testSettingsViewInitialization() {
+        let view = SettingsView().environmentObject(AppState.shared)
+        let host = UIHostingController(rootView: view)
+        XCTAssertNotNil(host.view)
+    }
+
+    @MainActor
+    func testProjectDetailViewInitialization() {
+        let project = PortalProject(
+            id: "test-proj",
+            organizationId: "org-1",
+            name: "Test Project",
+            projectKey: "fk_live_test",
+            createdAt: Date(),
+            githubRepo: "octocat/Hello-World",
+            feedbackCount: 5,
+            unresolvedCount: 2
+        )
+        let view = ProjectDetailView(project: project).environmentObject(AppState.shared)
+        let host = UIHostingController(rootView: view)
+        XCTAssertNotNil(host.view)
+    }
 }
+

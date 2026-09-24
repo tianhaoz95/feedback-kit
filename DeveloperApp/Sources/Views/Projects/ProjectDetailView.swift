@@ -241,26 +241,6 @@ public struct ProjectDetailView: View {
                 Label("GitHub Repository", systemImage: "chevron.left.forwardslash.chevron.right")
                     .font(.headline)
                 Spacer()
-
-                if currentProject.githubRepo != nil {
-                    Menu {
-                        Button {
-                            isConnectRepoSheetPresented = true
-                        } label: {
-                            Label("Change Repository", systemImage: "arrow.triangle.2.circlepath")
-                        }
-
-                        Button(role: .destructive) {
-                            showDisconnectConfirmation = true
-                        } label: {
-                            Label("Disconnect", systemImage: "trash")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .font(.subheadline)
-                            .foregroundColor(.accentColor)
-                    }
-                }
             }
 
             if let repo = currentProject.githubRepo {
