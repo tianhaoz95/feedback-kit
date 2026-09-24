@@ -22,9 +22,39 @@ public struct FeedbackInboxView: View {
             VStack(spacing: 0) {
                 PillFilterView(
                     selectedStatus: $appState.statusFilter,
-                    counts: statusCounts
+                    showArchived: $appState.showArchived,
+                    counts: statusCounts,
+                    archivedCount: appState.archivedCount
                 )
                 .background(Color(UIColor.systemBackground))
+
+                if appState.showArchived {
+                    HStack(spacing: 8) {
+                        Image(systemName: "archivebox.fill")
+                            .foregroundColor(.purple)
+                        Text("Viewing Archived Reports (\(appState.archivedCount))")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.primary)
+
+                        Spacer()
+
+                        Button {
+                            withAnimation(.spring()) {
+                                appState.showArchived = false
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text("Back to Active")
+                                Image(systemName: "arrow.uturn.backward")
+                            }
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.accentColor)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.purple.opacity(0.12))
+                }
 
                 List {
                     if appState.isLoading && appState.feedbackItems.isEmpty && appState.projects.isEmpty {
@@ -109,6 +139,29 @@ public struct FeedbackInboxView: View {
                                 .tint(.purple)
                             }
                         }
+
+                        if !appState.showArchived && appState.archivedCount > 0 && appState.statusFilter == nil && appState.searchQuery.isEmpty {
+                            Section {
+                                Button {
+                                    withAnimation(.spring()) {
+                                        appState.showArchived = true
+                                    }
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "archivebox")
+                                            .foregroundColor(.purple)
+                                        Text("Archived Reports (\(appState.archivedCount))")
+                                            .font(.subheadline.weight(.medium))
+                                            .foregroundColor(.primary)
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding(.vertical, 6)
+                                }
+                            }
+                        }
                     }
                 }
                 .listStyle(.plain)
@@ -190,16 +243,17 @@ public struct FeedbackInboxView: View {
                             Button {
                                 appState.showArchived = false
                             } label: {
-                                Label("Active Reports", systemImage: "tray.fill")
+                                Label("Active Reports (\(appState.activeCount))", systemImage: "tray.fill")
                             }
 
                             Button {
                                 appState.showArchived = true
+                                appState.statusFilter = nil
                             } label: {
-                                Label("Archived Reports", systemImage: "archivebox.fill")
+                                Label("Archived Reports (\(appState.archivedCount))", systemImage: "archivebox.fill")
                             }
                         } label: {
-                            Image(systemName: appState.showArchived ? "archivebox.fill" : "line.3.horizontal.decrease.circle")
+                            Image(systemName: appState.showArchived ? "archivebox.fill" : "archivebox")
                                 .foregroundColor(appState.showArchived ? .purple : .accentColor)
                         }
                     }
@@ -214,11 +268,11 @@ public struct FeedbackInboxView: View {
                     templateText: appState.promptTemplate?.templateText
                 )
             }
-            .confirmationDialog(
+            .alert(
                 "Delete \(appState.selectedFeedbackIds.count) reports?",
-                isPresented: $showBatchDeleteConfirmation,
-                titleVisibility: .visible
+                isPresented: $showBatchDeleteConfirmation
             ) {
+                Button("Cancel", role: .cancel) {}
                 Button("Delete Selected", role: .destructive) {
                     Task {
                         await appState.batchDelete()
@@ -285,10 +339,22 @@ public struct FeedbackInboxView: View {
             title: appState.showArchived ? "No Archived Reports" : "Inbox Zero",
             message: appState.showArchived
                 ? "Items you archive will appear here."
-                : "No feedback matching your current filters. Great job!",
-            actionTitle: appState.statusFilter != nil ? "Clear Filter" : nil,
+                : (appState.archivedCount > 0 && appState.statusFilter == nil && appState.searchQuery.isEmpty
+                    ? "All active reports are cleared! You have \(appState.archivedCount) archived report\(appState.archivedCount == 1 ? "" : "s")."
+                    : "No feedback matching your current filters. Great job!"),
+            actionTitle: appState.statusFilter != nil
+                ? "Clear Filter"
+                : (!appState.showArchived && appState.archivedCount > 0 && appState.searchQuery.isEmpty
+                    ? "View Archived Reports (\(appState.archivedCount))"
+                    : (appState.showArchived ? "View Active Reports" : nil)),
             action: {
-                appState.statusFilter = nil
+                if appState.statusFilter != nil {
+                    appState.statusFilter = nil
+                } else if !appState.showArchived && appState.archivedCount > 0 {
+                    appState.showArchived = true
+                } else if appState.showArchived {
+                    appState.showArchived = false
+                }
             }
         )
         .frame(maxWidth: .infinity)

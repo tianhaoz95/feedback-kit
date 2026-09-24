@@ -1,4 +1,5 @@
 import XCTest
+import SwiftUI
 import FeedbackKit
 @testable import FeedbackPortal
 
@@ -250,5 +251,55 @@ final class PortalTests: XCTestCase {
         XCTAssertEqual(appState.selectedProject?.id, appState.projects.first?.id)
         XCTAssertFalse(appState.feedbackItems.isEmpty)
         XCTAssertNil(appState.errorMessage)
+    }
+
+    @MainActor
+    func testAppStateArchivedFeedbackFilteringAndCounts() async {
+        let appState = AppState.shared
+        SupabasePortalClient.shared.enableDemoMode()
+        await appState.loadProjects()
+
+        // proj-1 in DemoData has fb-101..fb-105 where fb-104 is isArchived: true
+        XCTAssertGreaterThan(appState.feedbackItems.count, 0)
+        XCTAssertEqual(appState.archivedCount, 1)
+        XCTAssertEqual(appState.activeCount, appState.feedbackItems.count - 1)
+
+        // When showArchived is false (default)
+        appState.showArchived = false
+        appState.statusFilter = nil
+        XCTAssertEqual(appState.filteredFeedbackItems.count, appState.activeCount)
+        XCTAssertTrue(appState.filteredFeedbackItems.allSatisfy { !$0.isArchived })
+
+        // When showArchived is true
+        appState.showArchived = true
+        XCTAssertEqual(appState.filteredFeedbackItems.count, appState.archivedCount)
+        XCTAssertTrue(appState.filteredFeedbackItems.allSatisfy { $0.isArchived })
+
+        // Reset
+        appState.showArchived = false
+    }
+
+    @MainActor
+    func testPillFilterViewWithArchivedSupport() {
+        var status: PortalFeedbackStatus? = nil
+        var showArchived = false
+
+        let statusBinding = Binding<PortalFeedbackStatus?>(
+            get: { status },
+            set: { status = $0 }
+        )
+        let archivedBinding = Binding<Bool>(
+            get: { showArchived },
+            set: { showArchived = $0 }
+        )
+
+        let pillView = PillFilterView(
+            selectedStatus: statusBinding,
+            showArchived: archivedBinding,
+            counts: [.new: 3],
+            archivedCount: 1
+        )
+        XCTAssertEqual(pillView.archivedCount, 1)
+        XCTAssertEqual(pillView.counts[.new], 3)
     }
 }

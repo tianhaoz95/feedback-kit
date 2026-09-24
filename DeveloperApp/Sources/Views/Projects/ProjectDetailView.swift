@@ -60,22 +60,22 @@ public struct ProjectDetailView: View {
         .sheet(isPresented: $isConnectRepoSheetPresented) {
             ConnectGitHubRepoSheet(projectId: currentProject.id, currentRepo: currentProject.githubRepo)
         }
-        .confirmationDialog(
+        .alert(
             "Disconnect \(currentProject.githubRepo ?? "Repository")?",
-            isPresented: $showDisconnectConfirmation,
-            titleVisibility: .visible
+            isPresented: $showDisconnectConfirmation
         ) {
+            Button("Cancel", role: .cancel) {}
             Button("Disconnect Repository", role: .destructive) {
                 disconnectRepo()
             }
         } message: {
             Text("Auto-creating GitHub issues from bug reports will be disabled until a new repository is connected.")
         }
-        .confirmationDialog(
+        .alert(
             "Delete \(currentProject.name)?",
-            isPresented: $showDeleteConfirmation,
-            titleVisibility: .visible
+            isPresented: $showDeleteConfirmation
         ) {
+            Button("Cancel", role: .cancel) {}
             Button("Delete Project", role: .destructive) {
                 deleteProject()
             }

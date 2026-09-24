@@ -30,11 +30,9 @@ public final class AppState: ObservableObject {
     @Published public var statusFilter: PortalFeedbackStatus? = nil
     @Published public var showArchived: Bool = false {
         didSet {
-            inFlightFeedbackTask?.cancel()
-            inFlightFeedbackTask = nil
-            Task {
-                await loadFeedback()
-            }
+            guard oldValue != showArchived else { return }
+            selectedFeedbackIds.removeAll()
+            isMultiSelectActive = false
         }
     }
     @Published public var searchQuery: String = ""
@@ -78,6 +76,14 @@ public final class AppState: ObservableObject {
 
     public var selectedFeedbackItems: [PortalFeedbackItem] {
         feedbackItems.filter { selectedFeedbackIds.contains($0.id) }
+    }
+
+    public var archivedCount: Int {
+        feedbackItems.filter { $0.isArchived }.count
+    }
+
+    public var activeCount: Int {
+        feedbackItems.filter { !$0.isArchived }.count
     }
 
     // MARK: - Actions
@@ -141,7 +147,7 @@ public final class AppState: ObservableObject {
             }
 
             do {
-                async let itemsTask = client.fetchFeedbackItems(projectId: proj.id, includeArchived: showArchived)
+                async let itemsTask = client.fetchFeedbackItems(projectId: proj.id, includeArchived: true)
                 async let templateTask = client.fetchPromptTemplate(projectId: proj.id)
 
                 let (items, template) = try await (itemsTask, templateTask)
