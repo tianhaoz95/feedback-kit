@@ -9,10 +9,20 @@ import UIKit
 /// FeedbackKit never needs to know.
 enum ScreenshotCapture {
     static func captureKeyWindow() -> UIImage? {
-        guard let window = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .flatMap({ $0.windows })
-            .first(where: { $0.isKeyWindow })
+        let activeScenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { $0.activationState == .foregroundActive || $0.activationState == .foregroundInactive }
+        let allWindows = activeScenes.flatMap { $0.windows }
+
+        guard let window = allWindows.first(where: { $0.isKeyWindow && $0.bounds.width > 0 && $0.bounds.height > 0 && $0.rootViewController != nil })
+            ?? allWindows.first(where: { $0.isKeyWindow && $0.bounds.width > 0 && $0.bounds.height > 0 })
+            ?? allWindows.filter({ !$0.isHidden && $0.bounds.width > 0 && $0.bounds.height > 0 && $0.rootViewController != nil })
+                .sorted(by: { $0.windowLevel.rawValue > $1.windowLevel.rawValue }).first
+            ?? allWindows.first(where: { $0.bounds.width > 0 && $0.bounds.height > 0 })
+            ?? UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .flatMap({ $0.windows })
+                .first(where: { $0.isKeyWindow })
         else {
             return nil
         }

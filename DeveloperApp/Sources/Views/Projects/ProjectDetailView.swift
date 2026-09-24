@@ -7,9 +7,15 @@ public struct ProjectDetailView: View {
 
     public let project: PortalProject
 
+    private var currentProject: PortalProject {
+        appState.projects.first(where: { $0.id == project.id }) ?? project
+    }
+
     @State private var isKeyRevealed = false
     @State private var didCopyKey = false
     @State private var isTemplateEditorPresented = false
+    @State private var isConnectRepoSheetPresented = false
+    @State private var showDisconnectConfirmation = false
     @State private var templateText: String = PromptGenerator.defaultTemplate
     @State private var showDeleteConfirmation = false
     @State private var isDeleting = false
@@ -41,18 +47,32 @@ public struct ProjectDetailView: View {
             }
             .padding(16)
         }
-        .navigationTitle(project.name)
+        .navigationTitle(currentProject.name)
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            if let tpl = try? await SupabasePortalClient.shared.fetchPromptTemplate(projectId: project.id) {
+            if let tpl = try? await SupabasePortalClient.shared.fetchPromptTemplate(projectId: currentProject.id) {
                 templateText = tpl.templateText
             }
         }
         .sheet(isPresented: $isTemplateEditorPresented) {
-            PromptTemplateEditorView(projectId: project.id, initialText: templateText)
+            PromptTemplateEditorView(projectId: currentProject.id, initialText: templateText)
+        }
+        .sheet(isPresented: $isConnectRepoSheetPresented) {
+            ConnectGitHubRepoSheet(projectId: currentProject.id, currentRepo: currentProject.githubRepo)
         }
         .confirmationDialog(
-            "Delete \(project.name)?",
+            "Disconnect \(currentProject.githubRepo ?? "Repository")?",
+            isPresented: $showDisconnectConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Disconnect Repository", role: .destructive) {
+                disconnectRepo()
+            }
+        } message: {
+            Text("Auto-creating GitHub issues from bug reports will be disabled until a new repository is connected.")
+        }
+        .confirmationDialog(
+            "Delete \(currentProject.name)?",
             isPresented: $showDeleteConfirmation,
             titleVisibility: .visible
         ) {
@@ -85,7 +105,7 @@ public struct ProjectDetailView: View {
             }
 
             HStack {
-                Text(isKeyRevealed ? project.projectKey : String(repeating: "•", count: 24))
+                Text(isKeyRevealed ? currentProject.projectKey : String(repeating: "•", count: 24))
                     .font(.system(.subheadline, design: .monospaced))
                     .lineLimit(1)
                     .foregroundColor(.primary)
@@ -93,7 +113,7 @@ public struct ProjectDetailView: View {
                 Spacer()
 
                 Button {
-                    UIPasteboard.general.string = project.projectKey
+                    UIPasteboard.general.string = currentProject.projectKey
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     didCopyKey = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
@@ -126,7 +146,7 @@ public struct ProjectDetailView: View {
     }
 
     private var sdkGuideCard: some View {
-        NavigationLink(destination: SdkIntegrationGuideView(project: project)) {
+        NavigationLink(destination: SdkIntegrationGuideView(project: currentProject)) {
             HStack(spacing: 12) {
                 Image(systemName: "cube.transparent.fill")
                     .font(.title2)
@@ -137,7 +157,7 @@ public struct ProjectDetailView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(.primary)
 
-                    Text("Drop-in code snippets and AI agent setup prompt for \(project.name)")
+                    Text("Drop-in code snippets and AI agent setup prompt for \(currentProject.name)")
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
@@ -160,9 +180,9 @@ public struct ProjectDetailView: View {
                 .font(.headline)
 
             HStack(spacing: 12) {
-                statTile(title: "Total Reports", value: "\(project.feedbackCount)", color: .primary)
-                statTile(title: "Unresolved", value: "\(project.unresolvedCount)", color: .orange)
-                statTile(title: "Resolved", value: "\(max(0, project.feedbackCount - project.unresolvedCount))", color: .green)
+                statTile(title: "Total Reports", value: "\(currentProject.feedbackCount)", color: .primary)
+                statTile(title: "Unresolved", value: "\(currentProject.unresolvedCount)", color: .orange)
+                statTile(title: "Resolved", value: "\(max(0, currentProject.feedbackCount - currentProject.unresolvedCount))", color: .green)
             }
         }
     }
@@ -216,14 +236,34 @@ public struct ProjectDetailView: View {
     }
 
     private var gitHubCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label("GitHub Repository", systemImage: "chevron.left.forwardslash.chevron.right")
                     .font(.headline)
                 Spacer()
+
+                if currentProject.githubRepo != nil {
+                    Menu {
+                        Button {
+                            isConnectRepoSheetPresented = true
+                        } label: {
+                            Label("Change Repository", systemImage: "arrow.triangle.2.circlepath")
+                        }
+
+                        Button(role: .destructive) {
+                            showDisconnectConfirmation = true
+                        } label: {
+                            Label("Disconnect", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.subheadline)
+                            .foregroundColor(.accentColor)
+                    }
+                }
             }
 
-            if let repo = project.githubRepo {
+            if let repo = currentProject.githubRepo {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(repo)
@@ -239,10 +279,57 @@ public struct ProjectDetailView: View {
                 .padding(12)
                 .background(Color(UIColor.systemBackground))
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                HStack(spacing: 10) {
+                    Button {
+                        isConnectRepoSheetPresented = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                            Text("Change")
+                        }
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color(UIColor.tertiarySystemFill))
+                        .foregroundColor(.primary)
+                        .clipShape(Capsule())
+                    }
+
+                    Button(role: .destructive) {
+                        showDisconnectConfirmation = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "link.badge.plus")
+                            Text("Disconnect")
+                        }
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.red.opacity(0.1))
+                        .foregroundColor(.red)
+                        .clipShape(Capsule())
+                    }
+                }
             } else {
-                Text("No repository connected. You can link a repository via the FeedbackKit web portal to auto-create GitHub issues from bug reports.")
+                Text("No repository connected. Connect a GitHub repository to auto-create GitHub issues from bug reports.")
                     .font(.caption)
                     .foregroundColor(.secondary)
+
+                Button {
+                    isConnectRepoSheetPresented = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "link")
+                        Text("Connect Repository")
+                    }
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(Color.accentColor)
+                    .foregroundColor(.white)
+                    .clipShape(Capsule())
+                }
             }
         }
         .padding(14)
@@ -269,11 +356,22 @@ public struct ProjectDetailView: View {
         .padding(.top, 10)
     }
 
+    private func disconnectRepo() {
+        Task {
+            do {
+                try await appState.updateProjectGitHubRepo(projectId: currentProject.id, githubRepo: nil)
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            } catch {
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+            }
+        }
+    }
+
     private func deleteProject() {
         isDeleting = true
         Task {
             do {
-                try await SupabasePortalClient.shared.deleteProject(id: project.id)
+                try await SupabasePortalClient.shared.deleteProject(id: currentProject.id)
                 await appState.loadProjects()
                 dismiss()
             } catch {

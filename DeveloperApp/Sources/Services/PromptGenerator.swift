@@ -53,11 +53,21 @@ public enum PromptGenerator {
             "app_version": env.appVersion,
             "app_build": env.appBuild,
             "locale": env.locale,
-            "screenshot_url": screenshotUrl ?? "(screenshot unavailable)",
+            "screenshot_url": screenshotUrl ?? "",
             "attachment_url": attachmentUrl ?? "(no attachment)"
         ]
 
         var rendered = template.isEmpty ? defaultTemplate : template
+
+        // If no screenshot is included, remove the entire ## Screenshot section
+        if screenshotUrl == nil || screenshotUrl?.isEmpty == true {
+            let sectionPattern = "(?m)^##\\s*Screenshot\\s*\\n[\\s\\S]*?(?=(?:^##\\s|\\z))"
+            if let regex = try? NSRegularExpression(pattern: sectionPattern, options: []) {
+                let range = NSRange(location: 0, length: rendered.utf16.count)
+                rendered = regex.stringByReplacingMatches(in: rendered, options: [], range: range, withTemplate: "")
+            }
+        }
+
         for (key, val) in values {
             let pattern = "\\{\\{\\s*" + key + "\\s*\\}\\}"
             if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
@@ -65,7 +75,7 @@ public enum PromptGenerator {
                 rendered = regex.stringByReplacingMatches(in: rendered, options: [], range: range, withTemplate: NSRegularExpression.escapedTemplate(for: val))
             }
         }
-        return rendered
+        return rendered.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     public static func renderMergedPrompt(
@@ -108,7 +118,8 @@ public enum PromptGenerator {
         var detailSections: [String] = []
         for (idx, item) in items.enumerated() {
             let env = item.environment
-            let screenshot = item.signedScreenshotUrl ?? (item.screenshotAnnotatedPath != nil ? "(Screenshot available in dashboard)" : "(No screenshot included)")
+            let screenshot = item.signedScreenshotUrl ?? (item.screenshotAnnotatedPath != nil ? "(Screenshot available in dashboard)" : nil)
+            let screenshotLine = screenshot != nil ? "\n- **Screenshot URL**: \(screenshot!)" : ""
             let attachment = item.signedAttachmentUrl ?? "(No attachment)"
             let screen = env.screenName.map { "[\($0)] " } ?? ""
             let titleSnippet = item.text.isEmpty ? "Issue report" : (item.text.count > 60 ? String(item.text.prefix(57)) + "…" : item.text)
@@ -131,8 +142,7 @@ public enum PromptGenerator {
               - OS: \(env.osName) \(env.osVersion)
               - Device: \(env.deviceModel)
               - App Version: \(env.appVersion) (\(env.appBuild))
-              - Locale: \(env.locale)
-            - **Screenshot URL**: \(screenshot)
+              - Locale: \(env.locale)\(screenshotLine)
             - **Attachment**: \(attachment)\(customPromptPart)
             """
             detailSections.append(section)

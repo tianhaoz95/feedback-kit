@@ -104,6 +104,16 @@ public final class AppState: ObservableObject {
         isLoading = false
     }
 
+    public func updateProjectGitHubRepo(projectId: String, githubRepo: String?) async throws {
+        let updated = try await client.updateProjectGitHubRepo(id: projectId, githubRepo: githubRepo)
+        if let idx = projects.firstIndex(where: { $0.id == projectId }) {
+            projects[idx] = updated
+        }
+        if selectedProject?.id == projectId {
+            selectedProject = updated
+        }
+    }
+
     public func loadFeedback() async {
         if let existing = inFlightFeedbackTask {
             await existing.value

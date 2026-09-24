@@ -326,6 +326,60 @@ public final class SupabasePortalClient: ObservableObject {
         }
     }
 
+    public func updateProjectGitHubRepo(id: String, githubRepo: String?) async throws -> PortalProject {
+        let repoToSave = githubRepo?.trimmingCharacters(in: .whitespaces)
+        let cleanedRepo = (repoToSave?.isEmpty == false) ? repoToSave : nil
+
+        if isDemoMode {
+            if let idx = demoProjects.firstIndex(where: { $0.id == id }) {
+                let existing = demoProjects[idx]
+                let updated = PortalProject(
+                    id: existing.id,
+                    organizationId: existing.organizationId,
+                    name: existing.name,
+                    projectKey: existing.projectKey,
+                    createdAt: existing.createdAt,
+                    githubRepo: cleanedRepo,
+                    githubInstallationId: cleanedRepo == nil ? nil : existing.githubInstallationId,
+                    feedbackCount: existing.feedbackCount,
+                    unresolvedCount: existing.unresolvedCount
+                )
+                demoProjects[idx] = updated
+                return updated
+            }
+            throw URLError(.resourceUnavailable)
+        }
+
+        var payload: [String: Any] = [
+            "github_repo": (cleanedRepo as Any)
+        ]
+        if cleanedRepo == nil {
+            payload["github_installation_id"] = NSNull()
+        }
+
+        let bodyData = try JSONSerialization.data(withJSONObject: payload.mapValues { $0 is NSNull ? NSNull() : ($0 ?? NSNull()) })
+
+        let request = try makeRequest(
+            path: "/rest/v1/projects",
+            method: "PATCH",
+            queryItems: [URLQueryItem(name: "id", value: "eq.\(id)")],
+            body: bodyData,
+            preferReturn: "return=representation"
+        )
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+
+        let decoder = JSONDecoder()
+        let updated = try decoder.decode([PortalProject].self, from: data)
+        guard let first = updated.first else {
+            throw URLError(.cannotParseResponse)
+        }
+        return first
+    }
+
     // MARK: - Prompt Template
 
     public func fetchPromptTemplate(projectId: String) async throws -> PortalPromptTemplate {

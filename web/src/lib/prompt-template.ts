@@ -12,6 +12,14 @@ export function renderPromptTemplate(
   screenshotUrl: string | null,
   attachmentUrl: string | null,
 ): string {
+  let rendered = template;
+  if (!screenshotUrl) {
+    rendered = rendered.replace(
+      /(?:^|\n)##\s*Screenshot\s*\n[\s\S]*?(?=(?:\n##\s|$))/gi,
+      "",
+    );
+  }
+
   const env = feedback.environment;
   const values: Record<string, string> = {
     feedback_text: feedback.text || "(no description provided)",
@@ -22,13 +30,15 @@ export function renderPromptTemplate(
     app_version: env.appVersion ?? "",
     app_build: env.appBuild ?? "",
     locale: env.locale ?? "",
-    screenshot_url: screenshotUrl ?? "(screenshot unavailable)",
+    screenshot_url: screenshotUrl ?? "",
     attachment_url: attachmentUrl ?? "(no attachment)",
   };
 
-  return template.replace(/{{\s*(\w+)\s*}}/g, (match, key: string) =>
-    key in values ? values[key] : match,
-  );
+  return rendered
+    .replace(/{{\s*(\w+)\s*}}/g, (match, key: string) =>
+      key in values ? values[key] : match,
+    )
+    .trim();
 }
 
 export const PROMPT_TEMPLATE_PLACEHOLDERS = [
@@ -92,7 +102,8 @@ Resolve all ${items.length} reported issues described below in a coordinated man
         ? urls.screenshot
         : item.screenshot_annotated_path
         ? "(Screenshot loading or available in dashboard)"
-        : "(No screenshot included)";
+        : null;
+      const screenshotLine = screenshot ? `\n- **Screenshot URL**: ${screenshot}` : "";
       const attachment = urls?.attachment
         ? `${item.attachment_filename || "Attachment"}: ${urls.attachment}`
         : "(No attachment)";
@@ -117,8 +128,7 @@ ${item.text ? `> ${item.text.split("\n").join("\n> ")}` : "*(No description prov
   - OS: ${env.osName || ""} ${env.osVersion || ""}
   - Device: ${env.deviceModel || "Unknown"}
   - App Version: ${env.appVersion || "—"} (${env.appBuild || "—"})
-  - Locale: ${env.locale || "—"}
-- **Screenshot URL**: ${screenshot}
+  - Locale: ${env.locale || "—"}${screenshotLine}
 - **Attachment**: ${attachment}${customPromptSection}`;
     })
     .join("\n\n---\n\n");

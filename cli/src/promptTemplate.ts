@@ -9,6 +9,14 @@ export function renderPromptTemplate(
   screenshotUrl: string | null,
   attachmentUrl: string | null,
 ): string {
+  let rendered = template;
+  if (!screenshotUrl) {
+    rendered = rendered.replace(
+      /(?:^|\n)##\s*Screenshot\s*\n[\s\S]*?(?=(?:\n##\s|$))/gi,
+      "",
+    );
+  }
+
   const env = feedback.environment;
   const values: Record<string, string> = {
     feedback_text: feedback.text || "(no description provided)",
@@ -19,11 +27,13 @@ export function renderPromptTemplate(
     app_version: env.appVersion ?? "",
     app_build: env.appBuild ?? "",
     locale: env.locale ?? "",
-    screenshot_url: screenshotUrl ?? "(screenshot unavailable)",
+    screenshot_url: screenshotUrl ?? "",
     attachment_url: attachmentUrl ?? "(no attachment)",
   };
 
-  return template.replace(/{{\s*(\w+)\s*}}/g, (match, key: string) =>
-    key in values ? values[key] : match,
-  );
+  return rendered
+    .replace(/{{\s*(\w+)\s*}}/g, (match, key: string) =>
+      key in values ? values[key] : match,
+    )
+    .trim();
 }

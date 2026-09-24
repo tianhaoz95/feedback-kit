@@ -177,4 +177,48 @@ final class PortalTests: XCTestCase {
         XCTAssertTrue(formatted.hasPrefix("Version "))
         XCTAssertTrue(formatted.contains("(Build "))
     }
+
+    @MainActor
+    func testUpdateProjectGitHubRepoConnectAndDisconnect() async throws {
+        let client = SupabasePortalClient.shared
+        client.enableDemoMode()
+
+        let project = try await client.createProject(name: "Repo Test Project", githubRepo: nil)
+        XCTAssertNil(project.githubRepo)
+
+        // Connect
+        let connected = try await client.updateProjectGitHubRepo(id: project.id, githubRepo: "octocat/Hello-World")
+        XCTAssertEqual(connected.githubRepo, "octocat/Hello-World")
+
+        // Disconnect
+        let disconnected = try await client.updateProjectGitHubRepo(id: project.id, githubRepo: nil)
+        XCTAssertNil(disconnected.githubRepo)
+    }
+
+    func testPromptGeneratorOmittedScreenshotWhenUnavailable() {
+        let item = DemoData.sampleFeedbackItems[2] // Item with nil screenshot
+        XCTAssertNil(item.screenshotRawPath)
+        XCTAssertNil(item.screenshotAnnotatedPath)
+
+        let rendered = PromptGenerator.renderPrompt(
+            template: PromptGenerator.defaultTemplate,
+            feedback: item,
+            screenshotUrl: nil,
+            attachmentUrl: nil
+        )
+
+        XCTAssertFalse(rendered.contains("## Screenshot"))
+        XCTAssertFalse(rendered.contains("(screenshot unavailable)"))
+        XCTAssertTrue(rendered.contains("## User's report"))
+        XCTAssertTrue(rendered.contains("## Environment"))
+        XCTAssertTrue(rendered.contains("## Task"))
+    }
+
+    func testPromptGeneratorMergedOmittedScreenshot() {
+        let items = [DemoData.sampleFeedbackItems[2], DemoData.sampleFeedbackItems[3]] // Items with nil screenshot
+        let merged = PromptGenerator.renderMergedPrompt(items: items)
+
+        XCTAssertFalse(merged.contains("Screenshot URL"))
+        XCTAssertTrue(merged.contains("Report ID"))
+    }
 }

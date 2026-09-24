@@ -94,6 +94,28 @@ public enum FeedbackKit {
         from viewController: UIViewController,
         completion: ((FeedbackReport?) -> Void)? = nil
     ) {
+        // Prevent presenting multiple feedback flows if one is already visible
+        if viewController is FeedbackViewController || viewController.presentedViewController is FeedbackViewController {
+            return
+        }
+
+        // UIAlertController cannot present other modal view controllers in UIKit.
+        // Dismiss the alert first and present from its presenting view controller.
+        if let alert = viewController as? UIAlertController {
+            let presenter = alert.presentingViewController ?? alert
+            alert.dismiss(animated: false) {
+                present(from: presenter, completion: completion)
+            }
+            return
+        }
+
+        // If the view controller is already presenting a non-alert view controller that is not being dismissed,
+        // present on top of the presented view controller.
+        if let presented = viewController.presentedViewController, !presented.isBeingDismissed, !(presented is UIAlertController) {
+            present(from: presented, completion: completion)
+            return
+        }
+
         guard let screenshot = ScreenshotCapture.captureKeyWindow() else {
             completion?(nil)
             return

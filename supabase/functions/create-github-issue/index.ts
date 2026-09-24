@@ -196,12 +196,11 @@ Deno.serve(async (req) => {
       }
     }
 
+    const screenshotSection = screenshotMd ? `\n## Screenshot\n${screenshotMd}\n` : "";
+
     const issueBody = `## Description
 ${feedback.text || "*(No description provided)*"}
-
-## Screenshot
-${screenshotMd}
-
+${screenshotSection}
 ## Environment
 | Spec | Value |
 |---|---|

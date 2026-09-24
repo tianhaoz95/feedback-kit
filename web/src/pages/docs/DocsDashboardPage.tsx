@@ -42,7 +42,7 @@ export function DocsDashboardPage() {
 
       <DocsSection title="Review feedback">
         <p>
-          Each report shows the annotated screenshot — or "Screenshot unavailable" if the reporter
+          Each report shows the annotated screenshot — omitted if the reporter
           toggled it off before submitting, see the SDK's docs — the user's description, environment
           details (OS, device, app version, locale, screen size), and any attachment. Set its status —{" "}
           <InlineCode>new</InlineCode>, <InlineCode>in_progress</InlineCode>, <InlineCode>resolved</InlineCode>, or{" "}

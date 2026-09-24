@@ -56,6 +56,16 @@ test("renderPromptTemplate replaces placeholders accurately", () => {
   );
 });
 
+test("renderPromptTemplate removes screenshot section when screenshotUrl is null", () => {
+  const item = createMockFeedback();
+  const template = `## User's report\n{{feedback_text}}\n\n## Screenshot\nAn annotated screenshot is at: {{screenshot_url}}\n\n## Task\nFix this`;
+  const result = renderPromptTemplate(template, item, null, null);
+  assert.equal(
+    result,
+    "## User's report\nButton overlaps with text on iPhone 16\n\n## Task\nFix this"
+  );
+});
+
 test("renderMergedPrompt returns empty string when no items provided", () => {
   assert.equal(renderMergedPrompt([], {}), "");
 });

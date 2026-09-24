@@ -19,7 +19,6 @@ import {
   ChevronDownIcon,
   ExternalLinkIcon,
   GitHubIcon,
-  ImageOffIcon,
   InboxIcon,
   PaperclipIcon,
   SettingsIcon,
@@ -1091,12 +1090,7 @@ export function ProjectPage() {
                       <div className="flex h-64 animate-pulse items-center justify-center rounded-xl border border-neutral-200 bg-neutral-100">
                         <span className="text-xs text-neutral-400">Loading screenshot…</span>
                       </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-neutral-200 bg-white p-8 text-center shadow-xs">
-                        <ImageOffIcon className="h-6 w-6 text-neutral-300" />
-                        <p className="text-sm text-neutral-400">Screenshot unavailable</p>
-                      </div>
-                    )}
+                    ) : null}
 
                     {/* Description */}
                     <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-xs">

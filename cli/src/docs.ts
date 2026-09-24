@@ -240,7 +240,7 @@ From **Projects**, create one and open it. Every project gets a unique \`project
 
 ## Review feedback
 
-Each report shows the annotated screenshot (or "Screenshot unavailable" if the reporter toggled it off before submitting — see the \`sdk\` topic), description, environment details, and any attachment. Status: \`new\`, \`in_progress\`, \`resolved\`, or \`wont_fix\`.
+Each report shows the annotated screenshot (omitted if the reporter toggled it off before submitting — see the \`sdk\` topic), description, environment details, and any attachment. Status: \`new\`, \`in_progress\`, \`resolved\`, or \`wont_fix\`.
 
 ## Prompt templates
 
