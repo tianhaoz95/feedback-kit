@@ -34,6 +34,7 @@ import { GitHubSetupCard } from "@/components/GitHubSetupCard";
 import { ProductsSetupCard } from "@/components/ProductsSetupCard";
 import { FeedbackProductsPicker } from "@/components/FeedbackProductsPicker";
 import { MergedPromptView } from "@/components/MergedPromptView";
+import { DeleteProjectCard } from "@/components/DeleteProjectCard";
 
 type TabKey = "feedback" | "settings" | "sdk" | "agent";
 
@@ -1260,6 +1261,11 @@ export function ProjectPage() {
             onProjectUpdated={(updated) =>
               setProject((prev) => (prev ? { ...prev, ...updated } : prev))
             }
+          />
+
+          <DeleteProjectCard
+            project={project}
+            feedbackItems={feedbackItems}
           />
         </div>
       )}
