@@ -1,5 +1,17 @@
 import type { FeedbackItem } from "./types.js";
 
+export function formatProductsList(products?: FeedbackItem["products"]): string {
+  if (!products || products.length === 0) {
+    return "(none specified)";
+  }
+  return products
+    .map((p) => {
+      const desc = p.description ? `: ${p.description}` : "";
+      return `- **${p.name || p.key}** (\`${p.key}\`)${desc}`;
+    })
+    .join("\n");
+}
+
 // Ported from web/src/lib/prompt-template.ts — must be kept in sync by hand
 // (same plain find-and-replace approach, deliberately not a templating
 // library; see that file's comment for why).
@@ -29,6 +41,7 @@ export function renderPromptTemplate(
     locale: env.locale ?? "",
     screenshot_url: screenshotUrl ?? "",
     attachment_url: attachmentUrl ?? "(no attachment)",
+    products: formatProductsList(feedback.products),
   };
 
   return rendered

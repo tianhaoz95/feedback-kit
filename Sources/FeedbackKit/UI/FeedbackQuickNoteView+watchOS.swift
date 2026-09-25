@@ -85,12 +85,20 @@ public struct FeedbackQuickNoteView: View {
             return
         }
 
+        let defaultProducts = FeedbackKit.products.filter { prod in
+            if let defKey = FeedbackKit.defaultProductKey {
+                return prod.key == defKey
+            }
+            return prod.isDefault
+        }
+
         let report = FeedbackReport(
             text: text,
             screenshotRawPNG: pngData,
             screenshotAnnotatedPNG: pngData,
             annotations: [],
-            environment: EnvironmentInfo.current(screenName: FeedbackKit.currentScreen)
+            environment: EnvironmentInfo.current(screenName: FeedbackKit.currentScreen),
+            products: defaultProducts
         )
         onComplete(report)
         dismiss()

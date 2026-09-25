@@ -163,6 +163,16 @@ Deno.serve(async (req) => {
 
     // 7. Get coding-agent prompt
     let promptText = feedback.edited_prompt;
+    const productsFormatted =
+      Array.isArray(feedback.products) && feedback.products.length > 0
+        ? feedback.products
+            .map((p: { name?: string; key: string; description?: string }) => {
+              const desc = p.description ? `: ${p.description}` : "";
+              return `- **${p.name || p.key}** (\`${p.key}\`)${desc}`;
+            })
+            .join("\n")
+        : "(none specified)";
+
     if (!promptText) {
       const { data: tmpl } = await userClient
         .from("prompt_templates")
@@ -175,6 +185,10 @@ Deno.serve(async (req) => {
         `Fix the issue reported on the ${feedback.environment?.screenName || "app"} screen:\n\n${feedback.text}`;
     }
 
+    if (promptText) {
+      promptText = promptText.replace(/{{\s*products\s*}}/g, productsFormatted);
+    }
+
     // 8. Construct issue content
     const env = feedback.environment || {};
     const screenName = env.screenName ? `[${env.screenName}] ` : "";
@@ -185,6 +199,11 @@ Deno.serve(async (req) => {
           : feedback.text
         : "New bug report"
     }`;
+
+    let productsMd = "";
+    if (Array.isArray(feedback.products) && feedback.products.length > 0) {
+      productsMd = `\n## Affected Products\n${productsFormatted}\n`;
+    }
 
     let attachmentMd = "";
     if (feedback.attachment_path) {
@@ -200,7 +219,7 @@ Deno.serve(async (req) => {
 
     const issueBody = `## Description
 ${feedback.text || "*(No description provided)*"}
-${screenshotSection}
+${productsMd}${screenshotSection}
 ## Environment
 | Spec | Value |
 |---|---|

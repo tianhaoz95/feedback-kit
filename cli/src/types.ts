@@ -36,6 +36,23 @@ export interface FeedbackEnvironment {
   screenScale: number;
 }
 
+export interface Product {
+  id: string;
+  project_id: string;
+  key: string;
+  name: string;
+  description: string;
+  is_default: boolean;
+  created_at: string;
+}
+
+export interface FeedbackProduct {
+  key: string;
+  name: string;
+  description?: string;
+  is_default?: boolean;
+}
+
 export interface FeedbackItem {
   id: string;
   project_id: string;
@@ -53,4 +70,6 @@ export interface FeedbackItem {
   attachment_mime_type: string | null;
   github_issue_url?: string | null;
   github_issue_number?: number | null;
+  products?: FeedbackProduct[];
+  product_keys?: string[];
 }

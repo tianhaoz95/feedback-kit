@@ -48,6 +48,10 @@ final class FeedbackViewController: UIViewController {
     // than a big fixed-height text box with a full-width submit button below.
     private let composerContainer = UIView()
     private let composerStack = UIStackView()
+    private let productsScrollView = UIScrollView()
+    private let productsStackView = UIStackView()
+    private var selectedProductKeys: Set<String> = []
+    private var productButtons: [String: UIButton] = [:]
     private let attachmentChipView = UIView()
     private let attachmentNameLabel = UILabel()
     private let removeAttachmentButton = UIButton(type: .system)
@@ -272,14 +276,85 @@ final class FeedbackViewController: UIViewController {
         buttonRow.alignment = .center
         buttonRow.spacing = 6
 
+        buildProductsRow()
+
         composerStack.axis = .vertical
         composerStack.spacing = 8
         composerStack.addArrangedSubview(attachmentChipView)
+        composerStack.addArrangedSubview(productsScrollView)
         composerStack.addArrangedSubview(textView)
         composerStack.addArrangedSubview(buttonRow)
         composerContainer.addSubview(composerStack)
         composerContainer.addSubview(placeholderLabel)
         view.addSubview(composerContainer)
+    }
+
+    private func buildProductsRow() {
+        guard !FeedbackKit.products.isEmpty else {
+            productsScrollView.isHidden = true
+            return
+        }
+
+        if let defaultKey = FeedbackKit.defaultProductKey, FeedbackKit.products.contains(where: { $0.key == defaultKey }) {
+            selectedProductKeys.insert(defaultKey)
+        } else if let defaultProd = FeedbackKit.products.first(where: { $0.isDefault }) {
+            selectedProductKeys.insert(defaultProd.key)
+        }
+
+        productsScrollView.showsHorizontalScrollIndicator = false
+        productsScrollView.showsVerticalScrollIndicator = false
+        productsStackView.axis = .horizontal
+        productsStackView.spacing = 6
+        productsStackView.alignment = .center
+
+        for product in FeedbackKit.products {
+            let button = UIButton(type: .system)
+            button.layer.cornerRadius = 12
+            button.layer.masksToBounds = true
+            button.contentEdgeInsets = UIEdgeInsets(top: 4, left: 10, bottom: 4, right: 10)
+            button.titleLabel?.font = .systemFont(ofSize: 12, weight: .medium)
+            productButtons[product.key] = button
+            updateProductButtonStyle(button, product: product)
+            button.addAction(UIAction { [weak self] _ in
+                guard let self else { return }
+                if self.selectedProductKeys.contains(product.key) {
+                    self.selectedProductKeys.remove(product.key)
+                } else {
+                    self.selectedProductKeys.insert(product.key)
+                }
+                self.updateProductButtonStyle(button, product: product)
+            }, for: .touchUpInside)
+            productsStackView.addArrangedSubview(button)
+        }
+
+        productsScrollView.addSubview(productsStackView)
+        productsStackView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            productsStackView.leadingAnchor.constraint(equalTo: productsScrollView.contentLayoutGuide.leadingAnchor),
+            productsStackView.trailingAnchor.constraint(equalTo: productsScrollView.contentLayoutGuide.trailingAnchor),
+            productsStackView.topAnchor.constraint(equalTo: productsScrollView.contentLayoutGuide.topAnchor),
+            productsStackView.bottomAnchor.constraint(equalTo: productsScrollView.contentLayoutGuide.bottomAnchor),
+            productsStackView.heightAnchor.constraint(equalTo: productsScrollView.frameLayoutGuide.heightAnchor),
+        ])
+        productsScrollView.heightAnchor.constraint(equalToConstant: 26).isActive = true
+    }
+
+    private func updateProductButtonStyle(_ button: UIButton, product: FeedbackProduct) {
+        let isSelected = selectedProductKeys.contains(product.key)
+        let primary = primaryColor ?? .systemBlue
+        if isSelected {
+            button.setTitle("✓ \(product.name)", for: .normal)
+            button.backgroundColor = primary.withAlphaComponent(0.15)
+            button.setTitleColor(primary, for: .normal)
+            button.layer.borderColor = primary.withAlphaComponent(0.4).cgColor
+            button.layer.borderWidth = 1
+        } else {
+            button.setTitle(product.name, for: .normal)
+            button.backgroundColor = .secondarySystemBackground
+            button.setTitleColor(.secondaryLabel, for: .normal)
+            button.layer.borderColor = UIColor.separator.cgColor
+            button.layer.borderWidth = 0.5
+        }
     }
 
     private func buildAttachmentChip() {
@@ -457,13 +532,16 @@ final class FeedbackViewController: UIViewController {
             FeedbackAttachment(filename: $0.filename, mimeType: $0.mimeType, data: $0.data)
         }
 
+        let selectedProducts = FeedbackKit.products.filter { selectedProductKeys.contains($0.key) }
+
         let report = FeedbackReport(
             text: textView.text ?? "",
             screenshotRawPNG: rawPNG,
             screenshotAnnotatedPNG: annotatedPNG,
             annotations: annotations,
             environment: EnvironmentInfo.current(screenName: screenNameOverride),
-            attachment: attachment
+            attachment: attachment,
+            products: selectedProducts
         )
 
         dismiss(animated: true) { [weak self] in self?.onComplete(report) }

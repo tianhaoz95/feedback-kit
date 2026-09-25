@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { getErrorMessage } from "@/lib/errors";
-import type { FeedbackItem, FeedbackStatus, Project, PromptTemplate } from "@/lib/types";
+import type { FeedbackItem, FeedbackStatus, Product, Project, PromptTemplate } from "@/lib/types";
 import { renderPromptTemplate } from "@/lib/prompt-template";
 import { TemplateEditorForm } from "@/components/TemplateEditorForm";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -31,6 +31,8 @@ import {
 import { SdkSetupCard } from "@/components/SdkSetupCard";
 import { McpSetupCard } from "@/components/McpSetupCard";
 import { GitHubSetupCard } from "@/components/GitHubSetupCard";
+import { ProductsSetupCard } from "@/components/ProductsSetupCard";
+import { FeedbackProductsPicker } from "@/components/FeedbackProductsPicker";
 import { MergedPromptView } from "@/components/MergedPromptView";
 
 type TabKey = "feedback" | "settings" | "sdk" | "agent";
@@ -52,6 +54,7 @@ export function ProjectPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [project, setProject] = useState<Project | null | undefined>(undefined);
   const [template, setTemplate] = useState<PromptTemplate | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
   const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
   const [signedUrls, setSignedUrls] = useState<
     Record<string, { screenshot: string | null; attachment: string | null }>
@@ -210,9 +213,15 @@ export function ProjectPage() {
     let cancelled = false;
 
     (async () => {
-      const [{ data: projectData }, { data: templateData }, { data: feedbackData }] = await Promise.all([
+      const [{ data: projectData }, { data: templateData }, { data: productsData }, { data: feedbackData }] = await Promise.all([
         supabase.from("projects").select("*").eq("id", projectId).single<Project>(),
         supabase.from("prompt_templates").select("*").eq("project_id", projectId).single<PromptTemplate>(),
+        supabase
+          .from("products")
+          .select("*")
+          .eq("project_id", projectId)
+          .order("created_at", { ascending: true })
+          .returns<Product[]>(),
         supabase
           .from("feedback_items")
           .select("*")
@@ -224,6 +233,7 @@ export function ProjectPage() {
       if (cancelled) return;
       setProject(projectData ?? null);
       setTemplate(templateData ?? null);
+      setProducts(productsData ?? []);
       setFeedbackItems(feedbackData ?? []);
     })();
 
@@ -231,6 +241,12 @@ export function ProjectPage() {
       cancelled = true;
     };
   }, [projectId]);
+
+  function handleFeedbackUpdated(feedbackId: string, updated: Partial<FeedbackItem>) {
+    setFeedbackItems((current) =>
+      current.map((item) => (item.id === feedbackId ? { ...item, ...updated } : item))
+    );
+  }
 
   function toggleSelectItem(id: string) {
     setSelectedIds((prev) => {
@@ -651,10 +667,29 @@ export function ProjectPage() {
               <StatusBadge status={item.status} className="shrink-0" />
             </div>
           </div>
-          <div className="mt-2 flex items-center justify-between text-xs text-neutral-400">
-            <span className="truncate max-w-[140px] font-medium text-neutral-500">
-              {item.environment?.screenName ?? "Unknown screen"}
-            </span>
+          <div className="mt-2 flex items-center justify-between text-xs text-neutral-400 gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="truncate max-w-[120px] font-medium text-neutral-500">
+                {item.environment?.screenName ?? "Unknown screen"}
+              </span>
+              {item.products && item.products.length > 0 && (
+                <div className="flex items-center gap-1 shrink-0 overflow-hidden">
+                  {item.products.slice(0, 2).map((p) => (
+                    <span
+                      key={p.key}
+                      className="font-mono text-[9px] bg-neutral-100 text-neutral-600 px-1 py-0.5 rounded border border-neutral-200"
+                    >
+                      {p.key}
+                    </span>
+                  ))}
+                  {item.products.length > 2 && (
+                    <span className="text-[9px] text-neutral-400 font-mono">
+                      +{item.products.length - 2}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
             <span className="shrink-0">{formatDate(item.created_at)}</span>
           </div>
         </button>
@@ -1102,6 +1137,13 @@ export function ProjectPage() {
                       </p>
                     </div>
 
+                    {/* Affected Products */}
+                    <FeedbackProductsPicker
+                      feedback={selectedFeedback}
+                      availableProducts={products}
+                      onFeedbackUpdated={(updated) => handleFeedbackUpdated(selectedFeedback.id, updated)}
+                    />
+
                     {/* Environment */}
                     {env ? (
                       <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-xs">
@@ -1206,6 +1248,12 @@ export function ProjectPage() {
               initialValue={template?.template_text ?? ""}
             />
           </section>
+
+          <ProductsSetupCard
+            projectId={project.id}
+            products={products}
+            onProductsChanged={setProducts}
+          />
 
           <GitHubSetupCard
             project={project}

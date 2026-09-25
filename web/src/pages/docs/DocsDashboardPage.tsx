@@ -68,6 +68,7 @@ export function DocsDashboardPage() {
             [<InlineCode>{"{{locale}}"}</InlineCode>, "The device's locale."],
             [<InlineCode>{"{{screenshot_url}}"}</InlineCode>, "A time-limited signed URL to the annotated screenshot, or \"(screenshot unavailable)\" if the reporter left it out."],
             [<InlineCode>{"{{attachment_url}}"}</InlineCode>, "A signed URL to the attachment, if one was included."],
+            [<InlineCode>{"{{products}}"}</InlineCode>, "A formatted list of affected products and their descriptions."],
           ]}
         />
         <p>

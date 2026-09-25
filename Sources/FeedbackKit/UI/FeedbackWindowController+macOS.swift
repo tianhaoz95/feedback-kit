@@ -33,6 +33,10 @@ final class FeedbackWindowController: NSWindowController {
     private let toolbar = AnnotationToolbar()
 
     private let composerContainer = FlippedView()
+    private let productsScrollView = NSScrollView()
+    private let productsStackView = NSStackView()
+    private var selectedProductKeys: Set<String> = []
+    private var productButtons: [String: NSButton] = [:]
     private let attachmentChipView = NSView()
     private let attachmentNameLabel = NSTextField(labelWithString: "")
     private let placeholderLabel = NSTextField(labelWithString: "What's the problem?")
@@ -221,7 +225,9 @@ final class FeedbackWindowController: NSWindowController {
             buttonRow.heightAnchor.constraint(equalToConstant: 24)
         ])
 
-        let composerStack = NSStackView(views: [attachmentChipView, scrollView, buttonRow])
+        buildProductsRow()
+
+        let composerStack = NSStackView(views: [attachmentChipView, productsScrollView, scrollView, buttonRow])
         composerStack.orientation = .vertical
         composerStack.spacing = 8
         composerStack.translatesAutoresizingMaskIntoConstraints = false
@@ -248,6 +254,65 @@ final class FeedbackWindowController: NSWindowController {
         composerContainer.setContentHuggingPriority(.defaultHigh, for: .vertical)
 
         root.addSubview(composerContainer)
+    }
+
+    private func buildProductsRow() {
+        guard !FeedbackKit.products.isEmpty else {
+            productsScrollView.isHidden = true
+            return
+        }
+
+        if let defaultKey = FeedbackKit.defaultProductKey, FeedbackKit.products.contains(where: { $0.key == defaultKey }) {
+            selectedProductKeys.insert(defaultKey)
+        } else if let defaultProd = FeedbackKit.products.first(where: { $0.isDefault }) {
+            selectedProductKeys.insert(defaultProd.key)
+        }
+
+        productsScrollView.hasHorizontalScroller = false
+        productsScrollView.hasVerticalScroller = false
+        productsScrollView.drawsBackground = false
+
+        productsStackView.orientation = .horizontal
+        productsStackView.spacing = 6
+        productsStackView.alignment = .centerY
+
+        for product in FeedbackKit.products {
+            let button = NSButton(title: product.name, target: self, action: #selector(productButtonTapped(_:)))
+            button.setButtonType(.pushOnPushOff)
+            button.bezelStyle = .inline
+            button.wantsLayer = true
+            productButtons[product.key] = button
+            updateMacProductButtonStyle(button, product: product)
+            productsStackView.addArrangedSubview(button)
+        }
+
+        productsScrollView.documentView = productsStackView
+        productsScrollView.heightAnchor.constraint(equalToConstant: 24).isActive = true
+    }
+
+    @objc private func productButtonTapped(_ sender: NSButton) {
+        guard let entry = productButtons.first(where: { $0.value === sender }) else { return }
+        let key = entry.key
+        if selectedProductKeys.contains(key) {
+            selectedProductKeys.remove(key)
+        } else {
+            selectedProductKeys.insert(key)
+        }
+        if let product = FeedbackKit.products.first(where: { $0.key == key }) {
+            updateMacProductButtonStyle(sender, product: product)
+        }
+    }
+
+    private func updateMacProductButtonStyle(_ button: NSButton, product: FeedbackProduct) {
+        let isSelected = selectedProductKeys.contains(product.key)
+        button.state = isSelected ? .on : .off
+        if isSelected {
+            button.title = "✓ \(product.name)"
+            button.contentTintColor = primaryColor ?? .controlAccentColor
+        } else {
+            button.title = product.name
+            button.contentTintColor = .secondaryLabelColor
+        }
     }
 
     private func buildAttachmentChip() {
@@ -432,13 +497,16 @@ final class FeedbackWindowController: NSWindowController {
             FeedbackAttachment(filename: $0.filename, mimeType: $0.mimeType, data: $0.data)
         }
 
+        let selectedProducts = FeedbackKit.products.filter { selectedProductKeys.contains($0.key) }
+
         let report = FeedbackReport(
             text: textView.string,
             screenshotRawPNG: rawPNG,
             screenshotAnnotatedPNG: annotatedPNG,
             annotations: annotations,
             environment: EnvironmentInfo.current(screenName: screenNameOverride),
-            attachment: attachment
+            attachment: attachment,
+            products: selectedProducts
         )
 
         dismiss()

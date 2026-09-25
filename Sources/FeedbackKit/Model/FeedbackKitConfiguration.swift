@@ -13,9 +13,21 @@ public struct FeedbackKitConfiguration: Sendable {
     /// which project (and therefore which developer account) feedback is routed to.
     /// It is safe to embed in a shipped app binary — it is a routing key, not a secret.
     public var projectKey: String
+    /// Configured products for this project. If empty, FeedbackKit can fetch them
+    /// from the backend dynamically using `projectKey`.
+    public var products: [FeedbackProduct]
+    /// The default product identifier for this app target (e.g. "ios", "macos").
+    public var defaultProductKey: String?
 
-    public init(endpointURL: URL, projectKey: String) {
+    public init(
+        endpointURL: URL,
+        projectKey: String,
+        products: [FeedbackProduct] = [],
+        defaultProductKey: String? = nil
+    ) {
         self.endpointURL = endpointURL
         self.projectKey = projectKey
+        self.products = products
+        self.defaultProductKey = defaultProductKey
     }
 }

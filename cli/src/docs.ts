@@ -266,6 +266,7 @@ Screenshot: {{screenshot_url}}
 | \`{{locale}}\` | The device's locale. |
 | \`{{screenshot_url}}\` | A time-limited signed URL to the annotated screenshot, or "(screenshot unavailable)" if the reporter left it out. |
 | \`{{attachment_url}}\` | A signed URL to the attachment, if included. |
+| \`{{products}}\` | Formatted list of affected products and their descriptions. |
 
 Edit the project's default template anytime in the project's Settings tab — it applies to every new report. A single report can also get its own edited override without touching the shared template. A "Copy for coding agent" button copies the rendered result.
 

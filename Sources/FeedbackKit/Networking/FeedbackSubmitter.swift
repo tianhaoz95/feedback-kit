@@ -81,6 +81,8 @@ private struct IngestPayload: Encodable {
         case attachmentFilename = "attachment_filename"
         case attachmentMimeType = "attachment_mime_type"
         case attachmentDataBase64 = "attachment_data_base64"
+        case productKeys = "product_keys"
+        case products
     }
 
     func encode(to encoder: Encoder) throws {
@@ -96,5 +98,9 @@ private struct IngestPayload: Encodable {
         try container.encodeIfPresent(report.attachment?.filename, forKey: .attachmentFilename)
         try container.encodeIfPresent(report.attachment?.mimeType, forKey: .attachmentMimeType)
         try container.encodeIfPresent(report.attachment?.data, forKey: .attachmentDataBase64)
+        if !report.products.isEmpty {
+            try container.encode(report.products.map(\.key), forKey: .productKeys)
+            try container.encode(report.products, forKey: .products)
+        }
     }
 }

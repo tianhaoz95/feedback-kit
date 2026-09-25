@@ -19,6 +19,24 @@ final class PortalTests: XCTestCase {
         XCTAssertTrue(rendered.contains("Add to Cart"))
     }
 
+    func testPromptGeneratorProducts() {
+        var item = DemoData.sampleFeedbackItems[0]
+        item.products = [
+            FeedbackProduct(key: "ios", name: "iOS App", description: "SwiftUI app", isDefault: true),
+            FeedbackProduct(key: "backend", name: "Backend API", description: "Node endpoints")
+        ]
+        let template = "Issue on {{screen_name}}:\n{{products}}"
+        let rendered = PromptGenerator.renderPrompt(
+            template: template,
+            feedback: item,
+            screenshotUrl: nil,
+            attachmentUrl: nil
+        )
+
+        XCTAssertTrue(rendered.contains("- **iOS App** (`ios`): SwiftUI app"))
+        XCTAssertTrue(rendered.contains("- **Backend API** (`backend`): Node endpoints"))
+    }
+
     func testPromptGeneratorMergedItems() {
         let items = Array(DemoData.sampleFeedbackItems.prefix(2))
         let merged = PromptGenerator.renderMergedPrompt(items: items)

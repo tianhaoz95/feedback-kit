@@ -2,13 +2,20 @@
 //
 // Auth model: there's no user auth here at all — the request is identified
 // purely by `project_key`, which is safe to embed in a shipped app binary (it
-// only ever lets someone *create* feedback for a project, never read
-// anything). This function uses the service-role key to write, so it
-// completely bypasses the dashboard's RLS policies by design.
+// only ever lets someone *create* feedback or list configured products for a project,
+// never read feedback or other projects). This function uses the service-role key,
+// bypassing dashboard RLS policies by design.
 //
 // Wire format is documented in Sources/FeedbackKit/Networking/FeedbackSubmitter.swift
 // (the `IngestPayload` type) — keep the two in sync.
 import { createClient } from "jsr:@supabase/supabase-js@2";
+
+interface IngestProduct {
+  key: string;
+  name?: string;
+  description?: string;
+  is_default?: boolean;
+}
 
 interface IngestPayload {
   project_key: string;
@@ -22,11 +29,13 @@ interface IngestPayload {
   attachment_filename?: string;
   attachment_mime_type?: string;
   attachment_data_base64?: string;
+  product_keys?: string[];
+  products?: IngestProduct[];
 }
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-project-key",
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS, PUT, DELETE",
 };
 
@@ -34,6 +43,44 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  // GET /ingest-feedback?project_key=pk_... returns products for the given project
+  if (req.method === "GET") {
+    const url = new URL(req.url);
+    const projectKey = url.searchParams.get("project_key") || req.headers.get("x-project-key");
+
+    if (!projectKey) {
+      return json({ error: "missing project_key parameter" }, 400);
+    }
+
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("id")
+      .eq("project_key", projectKey)
+      .single();
+
+    if (projectError || !project) {
+      return json({ error: "unknown project_key" }, 401);
+    }
+
+    const { data: products, error: productsError } = await supabase
+      .from("products")
+      .select("id, key, name, description, is_default, created_at")
+      .eq("project_id", project.id)
+      .order("created_at", { ascending: true });
+
+    if (productsError) {
+      return json({ error: "failed to fetch products", detail: productsError.message }, 500);
+    }
+
+    return json({ products: products ?? [] }, 200);
+  }
+
   if (req.method !== "POST") {
     return json({ error: "method not allowed" }, 405);
   }
@@ -49,11 +96,6 @@ Deno.serve(async (req) => {
     return json({ error: "missing required fields" }, 400);
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
-
   const { data: project, error: projectError } = await supabase
     .from("projects")
     .select("id")
@@ -62,6 +104,34 @@ Deno.serve(async (req) => {
 
   if (projectError || !project) {
     return json({ error: "unknown project_key" }, 401);
+  }
+
+  // Resolve products for this feedback report
+  let resolvedProducts: IngestProduct[] = [];
+  let resolvedProductKeys: string[] = [];
+
+  if (payload.product_keys && payload.product_keys.length > 0) {
+    resolvedProductKeys = Array.from(new Set(payload.product_keys));
+    const { data: dbProducts } = await supabase
+      .from("products")
+      .select("key, name, description, is_default")
+      .eq("project_id", project.id)
+      .in("key", resolvedProductKeys);
+
+    const dbMap = new Map((dbProducts ?? []).map((p) => [p.key, p]));
+    resolvedProducts = resolvedProductKeys.map((key) => {
+      const match = dbMap.get(key);
+      const passedProduct = payload.products?.find((p) => p.key === key);
+      return {
+        key,
+        name: match?.name ?? passedProduct?.name ?? key,
+        description: match?.description ?? passedProduct?.description ?? "",
+        is_default: match?.is_default ?? passedProduct?.is_default ?? false,
+      };
+    });
+  } else if (payload.products && payload.products.length > 0) {
+    resolvedProducts = payload.products;
+    resolvedProductKeys = payload.products.map((p) => p.key);
   }
 
   // Screenshots are optional — the user can toggle them off before
@@ -121,6 +191,8 @@ Deno.serve(async (req) => {
     attachment_path: attachmentPath,
     attachment_filename: attachmentPath ? payload.attachment_filename : null,
     attachment_mime_type: attachmentPath ? (payload.attachment_mime_type ?? null) : null,
+    products: resolvedProducts,
+    product_keys: resolvedProductKeys,
   });
 
   if (insertError) {

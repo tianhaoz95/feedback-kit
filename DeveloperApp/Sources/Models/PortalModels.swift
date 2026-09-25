@@ -149,6 +149,8 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
     public var attachmentMimeType: String?
     public var githubIssueUrl: String?
     public var githubIssueNumber: Int?
+    public var products: [FeedbackProduct]
+    public var productKeys: [String]
 
     // Transient signed URLs resolved at runtime
     public var signedScreenshotUrl: String?
@@ -172,6 +174,8 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
         case attachmentMimeType = "attachment_mime_type"
         case githubIssueUrl = "github_issue_url"
         case githubIssueNumber = "github_issue_number"
+        case products
+        case productKeys = "product_keys"
     }
 
     public init(
@@ -191,6 +195,8 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
         attachmentMimeType: String? = nil,
         githubIssueUrl: String? = nil,
         githubIssueNumber: Int? = nil,
+        products: [FeedbackProduct] = [],
+        productKeys: [String] = [],
         signedScreenshotUrl: String? = nil,
         signedRawScreenshotUrl: String? = nil,
         signedAttachmentUrl: String? = nil
@@ -211,6 +217,8 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
         self.attachmentMimeType = attachmentMimeType
         self.githubIssueUrl = githubIssueUrl
         self.githubIssueNumber = githubIssueNumber
+        self.products = products
+        self.productKeys = productKeys
         self.signedScreenshotUrl = signedScreenshotUrl
         self.signedRawScreenshotUrl = signedRawScreenshotUrl
         self.signedAttachmentUrl = signedAttachmentUrl
@@ -250,6 +258,8 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
         attachmentMimeType = try container.decodeIfPresent(String.self, forKey: .attachmentMimeType)
         githubIssueUrl = try container.decodeIfPresent(String.self, forKey: .githubIssueUrl)
         githubIssueNumber = try container.decodeIfPresent(Int.self, forKey: .githubIssueNumber)
+        products = try container.decodeIfPresent([FeedbackProduct].self, forKey: .products) ?? []
+        productKeys = try container.decodeIfPresent([String].self, forKey: .productKeys) ?? []
     }
 
     public func hash(into hasher: inout Hasher) {

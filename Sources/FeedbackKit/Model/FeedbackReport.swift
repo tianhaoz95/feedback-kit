@@ -130,6 +130,8 @@ public struct FeedbackReport: Codable, Equatable, Sendable {
     public var environment: FeedbackEnvironment
     /// Optional file attached from the composer, separate from the screenshot.
     public var attachment: FeedbackAttachment?
+    /// Products associated with or affected by this report.
+    public var products: [FeedbackProduct]
 
     public init(
         id: UUID = UUID(),
@@ -139,7 +141,8 @@ public struct FeedbackReport: Codable, Equatable, Sendable {
         screenshotAnnotatedPNG: Data?,
         annotations: [FeedbackAnnotation],
         environment: FeedbackEnvironment,
-        attachment: FeedbackAttachment? = nil
+        attachment: FeedbackAttachment? = nil,
+        products: [FeedbackProduct] = []
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -149,5 +152,6 @@ public struct FeedbackReport: Codable, Equatable, Sendable {
         self.annotations = annotations
         self.environment = environment
         self.attachment = attachment
+        self.products = products
     }
 }

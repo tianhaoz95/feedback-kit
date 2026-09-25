@@ -12,8 +12,18 @@ public enum PromptGenerator {
         "app_build",
         "locale",
         "screenshot_url",
-        "attachment_url"
+        "attachment_url",
+        "products"
     ]
+
+    public static func formatProductsList(_ products: [FeedbackProduct]) -> String {
+        guard !products.isEmpty else { return "(none specified)" }
+        return products.map { p in
+            let desc = p.description.isEmpty ? "" : ": \(p.description)"
+            let name = p.name.isEmpty ? p.key : p.name
+            return "- **\(name)** (`\(p.key)`)\(desc)"
+        }.joined(separator: "\n")
+    }
 
     public static let defaultTemplate = """
     You are fixing an issue reported by a real user of this app. If it reads as a feature request rather than a bug, implement the requested behavior instead.
@@ -54,7 +64,8 @@ public enum PromptGenerator {
             "app_build": env.appBuild,
             "locale": env.locale,
             "screenshot_url": screenshotUrl ?? "",
-            "attachment_url": attachmentUrl ?? "(no attachment)"
+            "attachment_url": attachmentUrl ?? "(no attachment)",
+            "products": formatProductsList(feedback.products)
         ]
 
         var rendered = template.isEmpty ? defaultTemplate : template
@@ -129,13 +140,23 @@ public enum PromptGenerator {
                 customPromptPart = "\n- **Custom Prompt / Developer Notes**:\n```markdown\n\(custom)\n```"
             }
 
+            var productsPart = ""
+            if !item.products.isEmpty {
+                let lines = item.products.map { p in
+                    let desc = p.description.isEmpty ? "" : ": \(p.description)"
+                    let name = p.name.isEmpty ? p.key : p.name
+                    return "  - **\(name)** (`\(p.key)`)\(desc)"
+                }.joined(separator: "\n")
+                productsPart = "\n- **Affected Products**:\n\(lines)"
+            }
+
             let descQuoted = item.text.isEmpty ? "*(No description provided)*" : item.text.split(separator: "\n").map { "> \($0)" }.joined(separator: "\n")
 
             let section = """
             ### Issue \(idx + 1): \(screen)\(titleSnippet)
             - **Report ID**: `\(item.id)`
             - **Screen**: \(env.screenName ?? "(unknown)")
-            - **Status**: \(item.status.rawValue)
+            - **Status**: \(item.status.rawValue)\(productsPart)
             - **User Description**:
             \(descQuoted)
             - **Environment**:

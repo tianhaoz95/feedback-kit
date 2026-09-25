@@ -6,6 +6,18 @@ import type { FeedbackItem } from "@/lib/types";
  * placeholders is small and fixed, and keeping this trivial keeps the
  * template text itself (which developers edit directly) easy to read.
  */
+export function formatProductsList(products?: FeedbackItem["products"]): string {
+  if (!products || products.length === 0) {
+    return "(none specified)";
+  }
+  return products
+    .map((p) => {
+      const desc = p.description ? `: ${p.description}` : "";
+      return `- **${p.name || p.key}** (\`${p.key}\`)${desc}`;
+    })
+    .join("\n");
+}
+
 export function renderPromptTemplate(
   template: string,
   feedback: FeedbackItem,
@@ -32,6 +44,7 @@ export function renderPromptTemplate(
     locale: env.locale ?? "",
     screenshot_url: screenshotUrl ?? "",
     attachment_url: attachmentUrl ?? "(no attachment)",
+    products: formatProductsList(feedback.products),
   };
 
   return rendered
@@ -52,6 +65,7 @@ export const PROMPT_TEMPLATE_PLACEHOLDERS = [
   "locale",
   "screenshot_url",
   "attachment_url",
+  "products",
 ] as const;
 
 /**
@@ -118,10 +132,20 @@ Resolve all ${items.length} reported issues described below in a coordinated man
         ? `\n- **Custom Prompt / Developer Notes**:\n\`\`\`markdown\n${item.edited_prompt}\n\`\`\``
         : "";
 
+      const productsLine =
+        item.products && item.products.length > 0
+          ? `\n- **Affected Products**:\n${item.products
+              .map(
+                (p) =>
+                  `  - **${p.name || p.key}** (\`${p.key}\`)${p.description ? `: ${p.description}` : ""}`,
+              )
+              .join("\n")}`
+          : "";
+
       return `### Issue ${idx + 1}: ${screen}${titleSnippet}
 - **Report ID**: \`${item.id}\`
 - **Screen**: ${env.screenName || "(unknown)"}
-- **Status**: ${item.status}
+- **Status**: ${item.status}${productsLine}
 - **User Description**:
 ${item.text ? `> ${item.text.split("\n").join("\n> ")}` : "*(No description provided)*"}
 - **Environment**:

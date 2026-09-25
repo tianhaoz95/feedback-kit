@@ -131,3 +131,26 @@ test("renderMergedPrompt includes custom edited_prompt when available", () => {
 
   assert.match(merged, /Special instructions for fixing CheckoutSheet: check StoreKit validation\./);
 });
+
+test("renderPromptTemplate formats products correctly", () => {
+  const item = createMockFeedback({
+    products: [
+      { key: "ios", name: "iOS App", description: "SwiftUI client" },
+      { key: "backend", name: "Backend API", description: "Node/Edge functions" },
+    ],
+  });
+  const template = "Products:\n{{products}}";
+  const result = renderPromptTemplate(template, item, null, null);
+  assert.equal(
+    result,
+    "Products:\n- **iOS App** (`ios`): SwiftUI client\n- **Backend API** (`backend`): Node/Edge functions"
+  );
+});
+
+test("renderPromptTemplate handles empty products with none specified fallback", () => {
+  const item = createMockFeedback({ products: [] });
+  const template = "Products:\n{{products}}";
+  const result = renderPromptTemplate(template, item, null, null);
+  assert.equal(result, "Products:\n(none specified)");
+});
+

@@ -76,10 +76,78 @@ public enum FeedbackKit {
     /// finishes (via `presentAndSubmit` or triggers). Dispatched on the main queue.
     public static var onSubmissionResult: (@Sendable (Result<FeedbackReport, FeedbackSubmissionError>) -> Void)?
 
+    /// Products configured for this project. Populated from configuration or fetched from the backend.
+    public static var products: [FeedbackProduct] = []
+
+    /// Default product identifier for this app target (e.g. "ios", "macos").
+    public static var defaultProductKey: String?
+
     /// Configures the optional built-in submission path to the hosted dashboard.
     /// Pass `nil` to clear configuration and return to local-only delivery.
     public static func configure(_ configuration: FeedbackKitConfiguration?) {
         self.configuration = configuration
+        if let config = configuration {
+            if !config.products.isEmpty {
+                self.products = config.products
+            }
+            if let defKey = config.defaultProductKey {
+                self.defaultProductKey = defKey
+            }
+            if config.products.isEmpty {
+                fetchProducts(configuration: config, completion: nil)
+            }
+        } else {
+            self.products = []
+            self.defaultProductKey = nil
+        }
+    }
+
+    /// Fetches products dynamically from the configured endpoint for this project.
+    public static func fetchProducts(
+        configuration: FeedbackKitConfiguration? = currentConfiguration,
+        completion: (@Sendable (Result<[FeedbackProduct], Error>) -> Void)? = nil
+    ) {
+        guard let config = configuration else { return }
+        guard var components = URLComponents(url: config.endpointURL, resolvingAgainstBaseURL: true) else { return }
+        var queryItems = components.queryItems ?? []
+        queryItems.append(URLQueryItem(name: "project_key", value: config.projectKey))
+        components.queryItems = queryItems
+        guard let url = components.url else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue(config.projectKey, forHTTPHeaderField: "x-project-key")
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error {
+                completion?(.failure(error))
+                return
+            }
+            guard let data, let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                let err = NSError(
+                    domain: "FeedbackKit",
+                    code: (response as? HTTPURLResponse)?.statusCode ?? -1,
+                    userInfo: [NSLocalizedDescriptionKey: "Failed to fetch products"]
+                )
+                completion?(.failure(err))
+                return
+            }
+
+            struct ProductsResponse: Decodable {
+                let products: [FeedbackProduct]
+            }
+
+            let decoder = JSONDecoder()
+            if let decoded = try? decoder.decode(ProductsResponse.self, from: data) {
+                DispatchQueue.main.async {
+                    self.products = decoded.products
+                    if self.defaultProductKey == nil, let defaultProd = decoded.products.first(where: { $0.isDefault }) {
+                        self.defaultProductKey = defaultProd.key
+                    }
+                    completion?(.success(decoded.products))
+                }
+            }
+        }.resume()
     }
 
     #if os(iOS)
