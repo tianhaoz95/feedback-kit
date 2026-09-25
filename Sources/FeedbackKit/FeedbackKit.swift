@@ -1,3 +1,4 @@
+import Foundation
 #if os(iOS)
 import UIKit
 #elseif os(macOS)
@@ -82,6 +83,32 @@ public enum FeedbackKit {
     /// Default product identifier for this app target (e.g. "ios", "macos").
     public static var defaultProductKey: String?
 
+    /// Optional identity of the person using the app, attached to every
+    /// report they submit so the dashboard can show who reported what. Not
+    /// needed for fix verification — see `reporterID`.
+    public static var user: FeedbackUser?
+
+    /// The anonymous, random, per-install id attached to reports submitted
+    /// from this install. It's how a fix gets back to the device that
+    /// reported the bug (`enableFixVerification`). Stable for the life of the install.
+    public static var reporterID: String {
+        FeedbackReporterIdentity.current
+    }
+
+    /// Fetches this install's reports that need the reporter's attention: a
+    /// fix that shipped in the build it's running ("is it fixed?"), or a
+    /// question from the developer/agent. For a custom UI — the built-in one
+    /// is `enableFixVerification`. Completion is called on the main queue.
+    public static func checkForFixUpdates(
+        completion: @escaping @Sendable (Result<[FixUpdate], FeedbackSubmissionError>) -> Void
+    ) {
+        guard let configuration else {
+            DispatchQueue.main.async { completion(.failure(.notConfigured)) }
+            return
+        }
+        FixUpdatesClient.fetch(configuration: configuration, completion: completion)
+    }
+
     /// Configures the optional built-in submission path to the hosted dashboard.
     /// Pass `nil` to clear configuration and return to local-only delivery.
     public static func configure(_ configuration: FeedbackKitConfiguration?) {
@@ -162,6 +189,14 @@ public enum FeedbackKit {
         from viewController: UIViewController,
         completion: ((FeedbackReport?) -> Void)? = nil
     ) {
+        presentFlow(from: viewController, composerPlaceholder: "What's the problem?", completion: completion)
+    }
+
+    static func presentFlow(
+        from viewController: UIViewController,
+        composerPlaceholder: String,
+        completion: ((FeedbackReport?) -> Void)?
+    ) {
         // Prevent presenting multiple feedback flows if one is already visible
         if viewController is FeedbackViewController || viewController.presentedViewController is FeedbackViewController {
             return
@@ -172,7 +207,7 @@ public enum FeedbackKit {
         if let alert = viewController as? UIAlertController {
             let presenter = alert.presentingViewController ?? alert
             alert.dismiss(animated: false) {
-                present(from: presenter, completion: completion)
+                presentFlow(from: presenter, composerPlaceholder: composerPlaceholder, completion: completion)
             }
             return
         }
@@ -180,7 +215,7 @@ public enum FeedbackKit {
         // If the view controller is already presenting a non-alert view controller that is not being dismissed,
         // present on top of the presented view controller.
         if let presented = viewController.presentedViewController, !presented.isBeingDismissed, !(presented is UIAlertController) {
-            present(from: presented, completion: completion)
+            presentFlow(from: presented, composerPlaceholder: composerPlaceholder, completion: completion)
             return
         }
 
@@ -192,6 +227,7 @@ public enum FeedbackKit {
             rawScreenshot: screenshot,
             screenNameOverride: currentScreen,
             theme: theme,
+            composerPlaceholder: composerPlaceholder,
             onComplete: { report in completion?(report) }
         )
         viewController.present(feedbackViewController, animated: true)
@@ -257,6 +293,31 @@ public enum FeedbackKit {
         }
     }
 
+    /// Closes the loop with the person who reported a bug: when a fix for
+    /// one of their reports ships in the build they're running (announced
+    /// with `feedbackkit release`), shows their original annotated screenshot
+    /// with "Yes, it's fixed" / "No, still broken". Still broken re-runs the
+    /// capture flow so they can show what's wrong now, and the report goes
+    /// straight back to the developer (and the coding agent, if dispatched).
+    /// Also surfaces questions the developer or agent asked about a report.
+    ///
+    /// Checks shortly after this call and whenever the app becomes active
+    /// (at most once a minute). Requires `configure(_:)`. `presenter` returns
+    /// the view controller to present the card from.
+    public static func enableFixVerification(presenter: @escaping () -> UIViewController?) {
+        FixVerificationCoordinator.shared.enable(presenter: presenter)
+    }
+
+    public static func disableFixVerification() {
+        FixVerificationCoordinator.shared.disable()
+    }
+
+    /// Checks for fix updates right now (ignoring the once-a-minute throttle)
+    /// and shows the card if there's one. Requires `enableFixVerification`.
+    public static func presentFixUpdatesIfNeeded() {
+        FixVerificationCoordinator.shared.check(force: true)
+    }
+
     /// Disables the shake to report trigger.
     public static func disableShakeToReport() {
         if let shakeObserver {
@@ -297,6 +358,14 @@ public enum FeedbackKit {
         from window: NSWindow?,
         completion: ((FeedbackReport?) -> Void)? = nil
     ) {
+        presentFlow(from: window, composerPlaceholder: "What's the problem?", completion: completion)
+    }
+
+    static func presentFlow(
+        from window: NSWindow?,
+        composerPlaceholder: String,
+        completion: ((FeedbackReport?) -> Void)?
+    ) {
         guard let screenshot = ScreenshotCapture.captureKeyWindow() else {
             completion?(nil)
             return
@@ -305,6 +374,7 @@ public enum FeedbackKit {
             rawScreenshot: screenshot,
             screenNameOverride: currentScreen,
             theme: theme,
+            composerPlaceholder: composerPlaceholder,
             onComplete: { [self] report in
                 activeWindowController = nil
                 completion?(report)
@@ -353,6 +423,28 @@ public enum FeedbackKit {
     public static func hideFloatingTriggerButton() {
         triggerButton?.removeFromSuperview()
         triggerButton = nil
+    }
+
+    /// Closes the loop with the person who reported a bug: when a fix for
+    /// one of their reports ships in the build they're running (announced
+    /// with `feedbackkit release`), shows their original annotated screenshot
+    /// with "Yes, it's fixed" / "No, still broken" as a sheet on the
+    /// presenter's window. Still broken re-runs the capture flow. Also
+    /// surfaces questions the developer or agent asked about a report.
+    /// Checks shortly after this call and whenever the app becomes active
+    /// (at most once a minute). Requires `configure(_:)`.
+    public static func enableFixVerification(presenter: @escaping () -> NSWindow?) {
+        FixVerificationCoordinator.shared.enable(presenter: presenter)
+    }
+
+    public static func disableFixVerification() {
+        FixVerificationCoordinator.shared.disable()
+    }
+
+    /// Checks for fix updates right now (ignoring the throttle) and shows the
+    /// card if there's one. Requires `enableFixVerification`.
+    public static func presentFixUpdatesIfNeeded() {
+        FixVerificationCoordinator.shared.check(force: true)
     }
 
     /// Presents the feedback flow as a sheet and, if FeedbackKit is configured with

@@ -23,7 +23,11 @@ struct FeedbackKitDemoWatchApp: App {
 
     var body: some Scene {
         WindowGroup {
+            // Asks "is it fixed?" when a fix for something reported from
+            // this watch ships in the build it's running — a modifier here,
+            // since watch apps have no window to present a sheet over.
             ContentView()
+                .feedbackFixVerification()
         }
     }
 }

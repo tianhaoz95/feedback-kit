@@ -18,16 +18,23 @@ public struct FeedbackKitConfiguration: Sendable {
     public var products: [FeedbackProduct]
     /// The default product identifier for this app target (e.g. "ios", "macos").
     public var defaultProductKey: String?
+    /// Where fix updates for this device's reports come from (the
+    /// `reporter-updates` Edge Function). `nil` (the default) derives it from
+    /// `endpointURL` — see `resolvedReporterUpdatesURL` — which is right for
+    /// the hosted dashboard and any standard self-hosted deployment.
+    public var reporterUpdatesURL: URL?
 
     public init(
         endpointURL: URL,
         projectKey: String,
         products: [FeedbackProduct] = [],
-        defaultProductKey: String? = nil
+        defaultProductKey: String? = nil,
+        reporterUpdatesURL: URL? = nil
     ) {
         self.endpointURL = endpointURL
         self.projectKey = projectKey
         self.products = products
         self.defaultProductKey = defaultProductKey
+        self.reporterUpdatesURL = reporterUpdatesURL
     }
 }

@@ -51,12 +51,15 @@ final class FeedbackWindowController: NSWindowController {
         rawScreenshot: NSImage,
         screenNameOverride: String?,
         theme: FeedbackTheme? = nil,
+        composerPlaceholder: String = "What's the problem?",
         onComplete: @escaping (FeedbackReport?) -> Void
     ) {
         self.rawScreenshot = rawScreenshot
         self.screenNameOverride = screenNameOverride
         self.theme = theme
         self.onComplete = onComplete
+        // "What's still wrong?" when reporting that a shipped fix didn't work.
+        placeholderLabel.stringValue = composerPlaceholder
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 760, height: 640),

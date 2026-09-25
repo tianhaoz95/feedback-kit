@@ -59,6 +59,11 @@ struct FeedbackKitDemoMacApp: App {
         FeedbackKit.showFloatingTriggerButton {
             NSApplication.shared.keyWindow
         }
+        // Asks "is it fixed?" once a fix for something reported from this
+        // Mac ships in the build it's running (`feedbackkit release`).
+        FeedbackKit.enableFixVerification {
+            NSApplication.shared.keyWindow
+        }
     }
 
     private func reportProblem() {

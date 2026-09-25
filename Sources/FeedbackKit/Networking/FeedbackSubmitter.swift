@@ -37,7 +37,13 @@ public enum FeedbackSubmitter {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        guard let body = try? IngestPayload.encoder.encode(IngestPayload(report: report, projectKey: configuration.projectKey)) else {
+        let payload = IngestPayload(
+            report: report,
+            projectKey: configuration.projectKey,
+            reporterID: FeedbackReporterIdentity.current,
+            reporter: FeedbackKit.user
+        )
+        guard let body = try? IngestPayload.encoder.encode(payload) else {
             completion(.failure(.encodingFailed))
             return
         }
@@ -62,9 +68,14 @@ public enum FeedbackSubmitter {
 /// `FeedbackReport` model (which uses idiomatic Swift camelCase) so the JSON
 /// contract can use conventional snake_case matching the Postgres schema,
 /// without leaking wire-format concerns into the SDK's public API.
-private struct IngestPayload: Encodable {
+struct IngestPayload: Encodable {
     let report: FeedbackReport
     let projectKey: String
+    /// Anonymous per-install id (see `FeedbackReporterIdentity`) — lets this
+    /// device be asked "is it fixed?" once a fix for this report ships.
+    var reporterID: String?
+    /// `FeedbackKit.user`, if the host app set one.
+    var reporter: FeedbackUser?
 
     static let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
@@ -83,6 +94,8 @@ private struct IngestPayload: Encodable {
         case attachmentDataBase64 = "attachment_data_base64"
         case productKeys = "product_keys"
         case products
+        case reporterID = "reporter_id"
+        case reporter
     }
 
     func encode(to encoder: Encoder) throws {
@@ -102,5 +115,7 @@ private struct IngestPayload: Encodable {
             try container.encode(report.products.map(\.key), forKey: .productKeys)
             try container.encode(report.products, forKey: .products)
         }
+        try container.encodeIfPresent(reporterID, forKey: .reporterID)
+        try container.encodeIfPresent(reporter, forKey: .reporter)
     }
 }

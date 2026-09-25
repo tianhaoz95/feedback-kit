@@ -47,5 +47,12 @@ struct FeedbackKitDemoApp: App {
         FeedbackKit.enableShakeToReport {
             UIApplication.shared.topMostViewController
         }
+        // Closes the loop: once a fix for something reported from this
+        // device ships (`feedbackkit release --build <n>`) and this build is
+        // at least <n>, the app shows the original screenshot and asks
+        // "is it fixed?". Also surfaces questions from the developer/agent.
+        FeedbackKit.enableFixVerification {
+            UIApplication.shared.topMostViewController
+        }
     }
 }

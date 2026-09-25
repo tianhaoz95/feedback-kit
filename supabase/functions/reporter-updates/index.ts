@@ -362,9 +362,21 @@ async function withGitHub(
   }
 }
 
+// Local `supabase functions serve` sets SUPABASE_URL to the Docker-internal
+// gateway (http://kong:8000), which a simulator/browser can't reach. Setting
+// this (e.g. to http://127.0.0.1:54321) rewrites signed URLs' origin for local
+// dev. Unset in production, where SUPABASE_URL is already public.
+const PUBLIC_SUPABASE_URL = Deno.env.get("FEEDBACKKIT_PUBLIC_SUPABASE_URL");
+
 async function signedUrl(supabase: Client, path: string, seconds: number): Promise<string | null> {
   const { data } = await supabase.storage.from("feedback-screenshots").createSignedUrl(path, seconds);
-  return data?.signedUrl ?? null;
+  const url = data?.signedUrl ?? null;
+  if (!url || !PUBLIC_SUPABASE_URL) return url;
+  const internal = new URL(url);
+  const external = new URL(PUBLIC_SUPABASE_URL);
+  internal.protocol = external.protocol;
+  internal.host = external.host;
+  return internal.toString();
 }
 
 function quote(text: string): string {

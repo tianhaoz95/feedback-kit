@@ -79,15 +79,21 @@ final class FeedbackViewController: UIViewController {
     // this doesn't widen anything actually exposed to consumers.
     var composerBottomConstraint: NSLayoutConstraint!
 
+    /// The composer's prompt — "What's still wrong?" when the flow is
+    /// reporting that a shipped fix didn't work (see `FixVerificationCoordinator`).
+    private let composerPlaceholder: String
+
     init(
         rawScreenshot: UIImage,
         screenNameOverride: String?,
         theme: FeedbackTheme? = nil,
+        composerPlaceholder: String = "What's the problem?",
         onComplete: @escaping (FeedbackReport?) -> Void
     ) {
         self.rawScreenshot = rawScreenshot
         self.screenNameOverride = screenNameOverride
         self.theme = theme
+        self.composerPlaceholder = composerPlaceholder
         self.onComplete = onComplete
         super.init(nibName: nil, bundle: nil)
         modalPresentationStyle = .fullScreen
@@ -243,7 +249,7 @@ final class FeedbackViewController: UIViewController {
         textView.heightAnchor.constraint(greaterThanOrEqualToConstant: 24).isActive = true
         textView.heightAnchor.constraint(lessThanOrEqualToConstant: 120).isActive = true
 
-        placeholderLabel.text = "What's the problem?"
+        placeholderLabel.text = composerPlaceholder
         placeholderLabel.font = .preferredFont(forTextStyle: .body)
         placeholderLabel.textColor = .placeholderText
 
