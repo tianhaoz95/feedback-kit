@@ -6,6 +6,7 @@ import {
   uploadScreenshotToRepo,
   createGitHubIssue,
   dispatchIssueToAgent,
+  getProjectInstallationToken,
 } from "../_shared/github.ts";
 
 interface RequestBody {
@@ -104,7 +105,7 @@ Deno.serve(async (req) => {
     if (feedback.github_issue_url) {
       let dispatched = null;
       if (body.dispatch === true && feedback.github_issue_number) {
-        const token = project.github_installation_id ? await getInstallationToken(project.github_installation_id) : null;
+        const token = await getProjectInstallationToken(adminClient, project);
         if (token) {
           dispatched = await dispatchIssueToAgent(token, project.github_repo, feedback.github_issue_number, project);
           if (dispatched) await recordDispatch(userClient, user.id, feedback, dispatched, feedback.github_issue_url);

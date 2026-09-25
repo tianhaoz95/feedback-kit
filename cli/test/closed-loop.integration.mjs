@@ -160,6 +160,14 @@ test("report → PR → merge → release → reporter reopens → reply → rel
   assert.equal(item.fix_stage, "merged");
   assert.equal(item.fix_commit_sha, "abc123");
 
+  // The merged PR's "Fixes #n" closes the issue on GitHub — that must not
+  // resolve a report whose reporter hasn't verified the fix yet.
+  await admin.from("feedback_items").update({ github_issue_number: 12 }).eq("id", feedbackId);
+  await webhook("issues", { action: "closed", issue: { number: 12, html_url: `https://github.com/${repo}/issues/12` }, repository: { full_name: repo } });
+  ({ data: item } = await client.from("feedback_items").select("*").eq("id", feedbackId).single());
+  assert.equal(item.status, "in_progress", "issue close waits for the reporter");
+  assert.equal(item.fix_stage, "merged");
+
   // 4. Nothing to show the reporter before a release.
   let updates = await reporter("GET", { project_key: project.project_key, reporter_id: reporterId, build: "100" });
   assert.equal(updates.status, 200);
@@ -247,7 +255,7 @@ test("report → PR → merge → release → reporter reopens → reply → rel
   const { data: kinds } = await client.from("feedback_events").select("kind").eq("feedback_id", feedbackId).order("created_at");
   assert.deepEqual(
     kinds.map((k) => k.kind),
-    ["claimed", "pr_opened", "pr_merged", "shipped", "reopened", "question", "reporter_reply", "shipped", "verified"],
+    ["claimed", "pr_opened", "pr_merged", "status_changed", "shipped", "reopened", "question", "reporter_reply", "shipped", "verified"],
   );
 
   // 9. Tenancy: another user sees none of it.

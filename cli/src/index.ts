@@ -128,15 +128,16 @@ program
     "Announce a build: marks merged fixes it contains as shipped, so their reporters get asked \"is it fixed?\" in the app.",
   )
   .requiredOption("--build <build>", "The build number reporters will run (CFBundleVersion / your web build id).")
-  .option("--version <version>", "Marketing version, e.g. 1.4.0.")
+  // Not `--version`: the root command's `-V, --version` would swallow it.
+  .option("--app-version <version>", "Marketing version, e.g. 1.4.0 (shown with the release).")
   .option("--commit <rev>", "Commit the build was made from (default HEAD). Fixes must be ancestors of it.")
   .option("--product <key>", "Only ship fixes for this product (e.g. ios); reports with no product always ship.")
   .option("--project <id>", "Project id (default: FEEDBACKKIT_PROJECT_ID, or your only project).")
   .option("--include <ids...>", "Also ship these feedback ids, skipping the git check.")
   .option("--dry-run", "Show what would ship without recording anything.")
-  .action(async (opts: { build: string; version?: string; commit?: string; product?: string; project?: string; include?: string[]; dryRun?: boolean }) => {
+  .action(async (opts: { build: string; appVersion?: string; commit?: string; product?: string; project?: string; include?: string[]; dryRun?: boolean }) => {
     try {
-      await release(opts);
+      await release({ ...opts, version: opts.appVersion });
     } catch (err) {
       handleError(err);
     }

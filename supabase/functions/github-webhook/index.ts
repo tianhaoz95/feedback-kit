@@ -113,12 +113,26 @@ async function handleIssue(adminClient: Client, projectIds: string[], payload: P
 
   const { data: items } = await adminClient
     .from("feedback_items")
-    .select("id, project_id, status")
+    .select("id, project_id, status, fix_stage, reporter_id")
     .in("project_id", projectIds)
     .eq("github_issue_number", issue.number);
 
   for (const item of items ?? []) {
     if (item.status === "wont_fix") continue;
+    // A merged "Fixes #n" PR closes the issue long before the fix reaches the
+    // reporter. When the reporter can be asked (reporter_id) and the fix is
+    // still in flight, their verification — not the issue closing — is what
+    // resolves the report.
+    const awaitingReporter =
+      action === "closed" && !!item.reporter_id && item.fix_stage !== null && item.fix_stage !== "verified";
+    if (awaitingReporter) {
+      await insertEvent(adminClient, item, {
+        kind: "status_changed",
+        body: `GitHub issue #${issue.number} closed — waiting for the reporter to confirm the fix on their device.`,
+        data: { issue_number: issue.number, issue_url: issue.html_url },
+      });
+      continue;
+    }
     const status = action === "closed" ? "resolved" : "in_progress";
     if (item.status === status) continue;
     await adminClient.from("feedback_items").update({ status }).eq("id", item.id);
