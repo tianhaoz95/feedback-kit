@@ -454,6 +454,85 @@ doesn't call `getAuthenticatedClient()` — static local content has no
 reason to require being logged in, and gating it behind auth would block
 exactly the "help me get started" moment it exists for.
 
+## 7. The closed loop: report → agent → build → reporter verifies
+
+§4 and §6 got a report *into* a coding agent. Everything after that used to be
+invisible: nobody learned whether the agent's fix worked, and the person who
+reported the bug never heard back. The loop closes that gap, and it's the
+product's differentiator on mobile specifically: web tools can say "fixed"
+the moment a deploy lands, but a native fix only reaches a tester once a new
+build is on their phone, so the natural place to confirm a fix is *on the
+device, in that build*, by the person who reported it.
+
+```
+SDK report (+ reporter_id) → dashboard / MCP → agent: claim, ask, fix, after-shot
+      ↑                                              ↓  PR "FeedbackKit: <id>"
+reporter's device ← reporter-updates ← release ← merged (github-webhook)
+  "is it fixed?"  → verified  |  still broken (new screenshot) → reopened → agent again
+```
+
+**`fix_stage` is a separate column, not new `status` values**
+(`0014_closed_loop.sql`). Already-shipped Developer Portal builds decode
+`status`, so adding enum values there would risk every item that used one.
+`fix_stage` (agent_working → pr_open → merged → shipped → verified, plus
+reopened) is a checked text column. Every transition also moves `status` to
+the matching coarse value, so status-only clients still see something
+sensible (verified → resolved, everything else → in_progress).
+
+**The reporter is an anonymous, random, per-install id**, not an account.
+The SDKs generate it once (UserDefaults / localStorage) and send it with
+each report. The public `reporter-updates` Edge Function only returns or
+modifies reports carrying that exact id, so possessing it is the
+capability, the same way `project_key` is the capability to create reports.
+This means the loop works for every tester with zero sign-up. The cost:
+reinstalling the app starts a new identity, and old reports can no longer
+reach that device. `FeedbackKit.user` is optional identity on top, for
+display only; it's never used for access.
+
+**"Shipped in a build" is a git question, answered where git lives.**
+`feedbackkit release --build N` runs in the repo (from the release script).
+It ships only the merged fixes whose commit is an ancestor of the release
+commit, so releasing an older branch never claims fixes it doesn't contain.
+It then calls `record_release` (a `security invoker` RPC, so RLS applies) to
+mark them shipped atomically. The device compares its own `CFBundleVersion`
+to `fixed_in_build` with `compare_builds`, which is duplicated in SQL, the
+Edge Function, CLI, Swift and web SDKs: dotted numeric builds compare
+numerically, and anything else only compares equal. An incomparable build
+(e.g. a git SHA on the web) counts as "has the fix", because the item only
+became `shipped` after a release was announced, and a static site is
+replaced wholesale on deploy.
+
+**Agents get narrow write tools, and can't declare victory.** MCP adds
+`claim_feedback`, `post_update`, `ask_reporter`, `link_fix` and
+`attach_after_screenshot`, all timeline writes through RLS as the logged-in
+user (the `feedback_events` insert policy pins `actor_user_id = auth.uid()`
+and `actor_type ∈ {user, agent}`, so no one can forge a reporter or GitHub
+event). There is deliberately no "mark verified" tool: only the reporter can
+verify, from their device. `get_feedback` returns screenshots as MCP image
+content, including the reporter's reopen screenshot, because a signed URL
+is invisible to an agent that won't fetch it.
+
+**Dispatch uses labels and comments, not assignment.** Assigning an issue to
+GitHub's Copilot/Claude/Codex agents needs a *user* token (it's billed per
+user), which a GitHub App installation token isn't. A label added by the App
+*does* trigger `issues.labeled` workflows (e.g. claude-code-action's
+`label_trigger`), so that's the reliable path. On reopen, the label is removed
+and re-added so the workflow fires again.
+
+**The GitHub webhook verifies `X-Hub-Signature-256` and scopes every match to
+the delivery's repository.** Before this it did neither, so anyone could
+POST to resolve feedback, and issue #5 closing in one repo resolved #5-linked
+feedback in every project. It now fails closed when `GITHUB_WEBHOOK_SECRET`
+isn't set. PRs link to reports via `FeedbackKit: <id>` in the title, body or
+branch name (the issue body and MCP prompt both ask for it), or via a
+closing keyword for a linked issue.
+
+**Known gaps.** `feedbackkit release` needs a `feedbackkit login` session,
+so it runs from a developer's machine; CI-driven releases would need a
+project-scoped release token, which doesn't exist yet. The macOS/watchOS
+verification UIs and the "still broken → capture" handoff are covered by
+builds and a manual simulator check (iOS), not automated UI tests.
+
 ## Repo layout
 
 ```

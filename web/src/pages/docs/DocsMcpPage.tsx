@@ -266,17 +266,24 @@ export function DocsMcpPage() {
           columns={["Tool", "What it does"]}
           rows={[
             ["list_projects", "List projects the logged-in user is a member of (or the scoped project)."],
-            ["list_feedback", "List feedback, optionally filtered by project_id/status (scoped project enforced)."],
-            ["get_feedback", "Full detail for one report, including a signed screenshot URL (null if the reporter left the screenshot out)."],
-            ["get_prompt", "The generated (or developer-edited) coding-agent prompt for one report — the whole point."],
+            ["list_feedback", "List feedback, optionally filtered by project_id/status/fix_stage (scoped project enforced)."],
+            ["get_feedback", "Full detail for one report plus its timeline, with the annotated screenshot — and the reporter's latest \"still broken\" screenshot — as images the agent can see."],
+            ["get_prompt", "The generated (or developer-edited) coding-agent prompt for one report, plus how to report back so the fix reaches the reporter."],
+            ["claim_feedback", "Tell the team the agent has started on a report."],
+            ["post_update", "Add a progress note — optionally shown to the reporter on their device."],
+            ["ask_reporter", "Ask the reporter a clarifying question; it appears in the app on their device and the answer lands in the timeline."],
+            ["link_fix", "Record the PR/commit and a one-line summary the reporter sees. Automatic for PRs containing \"FeedbackKit: <id>\"."],
+            ["attach_after_screenshot", "Attach a screenshot of the fixed screen (e.g. from a simulator) for before/after review."],
             ["get_docs", "FeedbackKit's own documentation — e.g. how to add the SDK to an iOS app. Doesn't require being logged in."],
-            ["update_feedback_status", "Mark a report's status, e.g. resolved after fixing it."],
+            ["update_feedback_status", "Set triage status. For code fixes, prefer link_fix — the reporter's confirmation resolves it."],
           ]}
         />
         <p>
-          Everything except <InlineCode>update_feedback_status</InlineCode> is read-only by design: the goal is
-          removing copy/paste, not letting an agent triage your feedback inbox unsupervised. A human
-          still decides which report to hand the agent and reviews what it does with it.
+          The write tools are deliberately narrow: an agent can claim a report, post progress, ask the
+          reporter a question and link its fix — but there's no tool to mark a fix verified. Only the person
+          who reported the bug can, on their own device, once the fix ships in a build they're running (
+          <InlineCode>feedbackkit release</InlineCode>). If they say it's still broken, the report comes back
+          with their new screenshot.
         </p>
       </DocsSection>
 
@@ -287,7 +294,11 @@ export function DocsMcpPage() {
         <CodeBlock code={`Look at feedback report <id> in FeedbackKit and fix it.`} label="You, to your agent" />
         <p>
           The agent calls <InlineCode>get_prompt</InlineCode>, gets back the same rendered prompt you'd otherwise
-          copy from the dashboard, and can call <InlineCode>update_feedback_status</InlineCode> once it's done.
+          copy from the dashboard, claims the report, and puts <InlineCode>FeedbackKit: &lt;id&gt;</InlineCode> in
+          its PR so the fix is tracked through to the reporter. To work the queue:
+        </p>
+        <CodeBlock code={`Fix the reopened FeedbackKit reports first, then the newest ones.`} label="You, to your agent" />
+        <p>
         </p>
         <p>
           <InlineCode>get_docs</InlineCode> means the agent can also answer questions about FeedbackKit itself,

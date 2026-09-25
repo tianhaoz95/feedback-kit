@@ -469,6 +469,24 @@ Rules for skills:
   access token persisted server-side, which is a bigger secret to hold than
   the problem justifies. Don't try to make revocation "harder" by storing
   access tokens in that table — see the migration's comment.
+- **The closed loop (`0014_closed_loop.sql`) tracks fixes in `fix_stage`, not
+  in new `status` values.** Shipped Portal builds decode `status`, so it keeps
+  its four values. Every writer that moves `fix_stage` also sets the
+  matching `status` (`record_release`, `reporter-updates`, `github-webhook`,
+  `cli/src/loop.ts`), so keep that pairing if you add a transition.
+  `compare_builds` (build ordering) is duplicated in SQL,
+  `supabase/functions/_shared/builds.ts`, `cli/src/loop.ts`,
+  `Sources/FeedbackKit/Model/FixUpdate.swift` and `web-sdk/src/fixes.ts`,
+  and nothing enforces consistency, same as the wire format. The
+  reporter-updates response and action payload are mirrored by hand in
+  `FixUpdatesClient.swift` and `web-sdk/src/fixes.ts`. `feedback_events` is
+  append-only for members, and its insert policy pins `actor_user_id =
+  auth.uid()` so no one can forge reporter/GitHub events. Only Edge
+  Functions (service role) write those. `github-webhook` rejects every
+  delivery unless `GITHUB_WEBHOOK_SECRET` is set. See DESIGN.md §7.
+  End-to-end test against a local stack:
+  `cli/test/closed-loop.integration.mjs` (needs `supabase functions serve`
+  with `GITHUB_WEBHOOK_SECRET=testsecret`; header comment has the steps).
 - **The web SDK's report is the Swift contract, not a lookalike.**
   Annotation points are `[x, y]` tuples (how `CGPoint` encodes), and every
   required `FeedbackEnvironment` field is always sent, because the Developer

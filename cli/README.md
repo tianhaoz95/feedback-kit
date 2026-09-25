@@ -67,8 +67,11 @@ feedbackkit login [--dashboard-url <url>]   # sign in via your browser
 feedbackkit logout                          # remove local credentials
 feedbackkit whoami                          # show the signed-in user
 feedbackkit projects                        # list your projects
-feedbackkit list [--project <id>] [--status new|in_progress|resolved|wont_fix]
+feedbackkit list [--project <id>] [--status new|in_progress|resolved|wont_fix] [--stage <fix stage>]
 feedbackkit prompt <feedbackId>             # print the generated coding-agent prompt
+feedbackkit timeline <feedbackId>           # fix-loop activity: agent progress, PRs, releases, reporter replies
+feedbackkit link <feedbackId> --pr <url> | --commit <sha> [--merged] [--summary <text>]
+feedbackkit release --build <n> [--project <id>] [--commit <rev>] [--product <key>] [--dry-run]
 feedbackkit docs [topic]                    # print FeedbackKit's own docs (no topic = list topics)
 feedbackkit mcp                             # run an MCP server over stdio
 ```
@@ -230,15 +233,34 @@ Tools exposed:
 | Tool | What it does |
 |---|---|
 | `list_projects` | List projects you're a member of (or the scoped project) |
-| `list_feedback` | List feedback, optionally filtered by `project_id`/`status` (scoped project enforced) |
-| `get_feedback` | Full detail for one feedback item, with a signed screenshot URL |
-| `get_prompt` | The generated (or developer-edited) coding-agent prompt for one item |
+| `list_feedback` | List feedback, optionally filtered by `project_id`/`status`/`fix_stage` (scoped project enforced) |
+| `get_feedback` | Full detail for one feedback item plus its timeline, with the annotated screenshot — and the reporter's latest "still broken" screenshot — as MCP image content |
+| `get_prompt` | The generated (or developer-edited) coding-agent prompt for one item, plus loop instructions (claim, ask, link the PR) |
+| `claim_feedback` | Mark a report as being worked on (fix stage `agent_working`) |
+| `post_update` | Add a progress note to the timeline; `notify_reporter` shows it on the reporter's device |
+| `ask_reporter` | Ask the reporter a question — shown in the app on their device; the reply lands in the timeline |
+| `link_fix` | Record the fix PR/commit and a one-line summary the reporter sees (automatic for PRs containing `FeedbackKit: <id>`) |
+| `attach_after_screenshot` | Upload a local PNG of the fixed screen for before/after review |
 | `get_docs` | FeedbackKit's own documentation — no `topic` lists topics, e.g. `sdk`/`dashboard`/`cli`/`mcp`; with `topic` returns that topic's full content. Doesn't require being logged in. |
 | `update_feedback_status` | Mark a feedback item's status, e.g. `resolved` after fixing it |
 
-Everything but `update_feedback_status` is read-only by design — the goal is
-to remove the copy/paste step, not to let an agent triage your feedback
-inbox unsupervised.
+The write tools are deliberately narrow: an agent can claim a report, post
+progress, ask the reporter a question and link its fix, but it can't mark a
+fix *verified*. Only the reporter can, from their own device, once the fix
+ships (see below).
+
+## Closing the loop: `release`
+
+`feedbackkit release --build <n>` announces a build. Run it from your repo
+after uploading, e.g. at the end of `scripts/release_testflight.sh`, which
+does it automatically when `FEEDBACKKIT_PROJECT_ID` is set. Every report
+whose fix is merged *and* whose fix commit is an ancestor of the release
+commit (`--commit`, default `HEAD`) is marked shipped in that build. SDKs
+with fix verification enabled then ask the reporter "is it fixed?" once
+they're on that build or newer. `--dry-run` shows what would ship and why.
+Fixes with no recorded commit are included; use `--include <ids...>` to
+ship specific reports regardless of git. See `feedbackkit docs loop` and
+DESIGN.md §7.
 
 ## Developing
 
@@ -250,6 +272,10 @@ node dist/index.js --help
 
 To test local development changes, run from `dist/` directly or `npm link`
 this directory to link the local `feedbackkit` binary to your `PATH`.
+
+`test/closed-loop.integration.mjs` exercises the whole loop (schema, RLS,
+Edge Functions, MCP tools, `release` against a real git repo) on a local
+Supabase stack. It's not part of `npm test`; its header has the steps.
 
 `src/types.ts` and `src/promptTemplate.ts` are hand-kept-in-sync copies of
 `web/src/lib/types.ts` and `web/src/lib/prompt-template.ts` — same pattern

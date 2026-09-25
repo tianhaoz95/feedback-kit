@@ -425,8 +425,11 @@ feedbackkit login --dashboard-url http://localhost:3000
 | \`feedbackkit logout\` | Remove locally stored credentials. |
 | \`feedbackkit whoami\` | Show the signed-in user. |
 | \`feedbackkit projects\` | List projects you're a member of. |
-| \`feedbackkit list [--project <id>] [--status <status>]\` | List feedback reports, optionally filtered. |
+| \`feedbackkit list [--project <id>] [--status <status>] [--stage <stage>]\` | List feedback reports, optionally filtered (by fix stage too). |
 | \`feedbackkit prompt <feedbackId>\` | Print the generated coding-agent prompt for one report. |
+| \`feedbackkit timeline <feedbackId>\` | A report's fix-loop activity: agent progress, PRs, releases, the reporter's replies. |
+| \`feedbackkit link <feedbackId> --pr <url> \\| --commit <sha>\` | Record the fix for a report by hand (PRs mentioning \`FeedbackKit: <id>\` are linked automatically). |
+| \`feedbackkit release --build <n> [--project <id>] [--commit <rev>] [--product <key>] [--dry-run]\` | Announce a build: marks merged fixes it contains as shipped so reporters are asked "is it fixed?" — see the \`loop\` doc topic. |
 | \`feedbackkit docs [topic]\` | Print this documentation (no topic = list topics). |
 | \`feedbackkit mcp [--project <id>]\` | Run an MCP server over stdio, optionally scoped to one project — see the \`mcp\` doc topic. |
 
@@ -676,13 +679,18 @@ When scoped to a project:
 | Tool | What it does |
 |---|---|
 | \`list_projects\` | List projects the logged-in user is a member of (or the scoped project). |
-| \`list_feedback\` | List feedback, optionally filtered by \`project_id\`/\`status\` (scoped project enforced). |
-| \`get_feedback\` | Full detail for one report, including a signed screenshot URL (null if the reporter left the screenshot out). |
-| \`get_prompt\` | The generated (or developer-edited) coding-agent prompt for one report — the whole point. |
-| \`update_feedback_status\` | Mark a report's status, e.g. \`resolved\` after fixing it. |
+| \`list_feedback\` | List feedback, optionally filtered by \`project_id\`/\`status\`/\`fix_stage\` (scoped project enforced). |
+| \`get_feedback\` | Full detail for one report plus its timeline, with the annotated screenshot (and the reporter's latest "still broken" screenshot) as image content. |
+| \`get_prompt\` | The generated (or developer-edited) coding-agent prompt for one report, plus how to report back so the fix reaches the reporter. |
+| \`claim_feedback\` | Tell the team you've started on a report (fix stage → agent working). |
+| \`post_update\` | Add a progress note; \`notify_reporter\` shows a short note on the reporter's device. |
+| \`ask_reporter\` | Ask the reporter a clarifying question — it appears in the app on their device; the answer lands in the timeline. |
+| \`link_fix\` | Record the PR/commit and a one-line summary the reporter will see. Automatic for PRs containing \`FeedbackKit: <id>\`. |
+| \`attach_after_screenshot\` | Upload a local PNG of the fixed screen (e.g. from a simulator) for before/after review. |
+| \`update_feedback_status\` | Set triage status. For code fixes prefer \`link_fix\`; the reporter's confirmation resolves it. |
 | \`get_docs\` | Fetch FeedbackKit's own documentation — e.g. "how do I add this to an iOS app." No argument lists topics; pass \`topic\` for one topic's full content. |
 
-Everything except \`update_feedback_status\` is read-only by design: the goal is removing copy/paste, not letting an agent triage a feedback inbox unsupervised.
+The write tools are deliberately narrow — an agent can claim, report progress, ask, and link a fix, but there's no tool to mark a fix verified: only the reporter can, on their device, once it ships (see the \`loop\` doc topic).
 
 ## Example prompts
 
@@ -693,6 +701,46 @@ Once connected, just ask your agent to use it:
 > How do I add FeedbackKit to my iOS app? Check its own docs.
 
 The agent calls \`get_prompt\` for the first, \`get_docs\` for the second — real, current documentation and templates rather than a guess from training data.`,
+  },
+  {
+    slug: "loop",
+    title: "Closing the loop (fix → reporter verifies)",
+    summary: "How a fix gets from a coding agent back to the person who reported the bug, and how they confirm it on their device.",
+    content: `# Closing the loop
+
+A report isn't done when an agent opens a PR — it's done when the person who reported it confirms the fix on their own device. FeedbackKit tracks each report through a **fix stage**: agent working → PR open → merged → shipped → verified (or **reopened** if the reporter says it's still broken).
+
+## 1. In the app (once)
+
+iOS / macOS:
+
+\`\`\`swift
+FeedbackKit.enableFixVerification { UIApplication.shared.connectedScenes
+    .compactMap { $0 as? UIWindowScene }.flatMap { $0.windows }
+    .first { $0.isKeyWindow }?.rootViewController }       // macOS: { NSApplication.shared.keyWindow }
+\`\`\`
+
+watchOS: \`ContentView().feedbackFixVerification()\`. Web: \`FeedbackKit.enableFixVerification()\` after \`configure\`.
+
+Reports now carry an anonymous per-install reporter id (no sign-up). When a fix for one of them ships in the build the device is running, the app shows the reporter's original annotated screenshot and asks "is it fixed?". **Still broken** re-opens the capture flow so they can show what's wrong now; the report is reopened with that screenshot and, if a GitHub issue is linked, handed back to the coding agent. Questions from the developer or agent (\`ask_reporter\`) show up the same way. Optional: \`FeedbackKit.user = FeedbackUser(email: …)\` / \`FeedbackKit.setUser({ email })\` to show who reported what.
+
+## 2. The agent (MCP)
+
+\`get_prompt\` ends with loop instructions: \`claim_feedback\`, \`ask_reporter\` if needed, reproduce and \`attach_after_screenshot\`, and put \`FeedbackKit: <id>\` in the PR description (or \`link_fix\` for a direct commit). Reopened reports: \`list_feedback\` with \`fix_stage: "reopened"\`; \`get_feedback\` includes the reporter's new screenshot. The \`fix-feedback\` Agent Skill packages this workflow.
+
+## 3. GitHub
+
+With the FeedbackKit GitHub App connected and its webhook secret set (\`GITHUB_WEBHOOK_SECRET\`), PRs that mention \`FeedbackKit: <id>\` (or close a linked issue) move the report to PR open → merged automatically. In project Settings → *Coding agent loop*, set dispatch labels (e.g. \`claude\` for claude-code-action's label trigger) and/or a trigger comment — applied to every issue FeedbackKit creates and re-applied when a reporter reopens it.
+
+## 4. Release
+
+After uploading a build, from the repo:
+
+\`\`\`bash
+npx feedbackkit-cli release --build "$BUILD_NUMBER"      # --project <id> if you have several; --dry-run to preview
+\`\`\`
+
+It ships every merged fix whose commit is in the release commit (default HEAD), so reporters on that build or newer get asked. Builds compare numerically when dotted-numeric (\`42\`, \`1.2.10\`, timestamps); anything else (e.g. a web deploy's git SHA) counts as live once released. \`scripts/release_testflight.sh\` does this automatically when \`FEEDBACKKIT_PROJECT_ID\` is set.`,
   },
   {
     slug: "skills",

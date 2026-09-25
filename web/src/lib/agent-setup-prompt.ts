@@ -73,7 +73,8 @@ export function generateAgentSetupPrompt({
            .first { $0.isKeyWindow }?
            .rootViewController
    }
-   \`\`\` After each TestFlight/App Store upload, run \`npx feedbackkit-cli release --build <CFBundleVersion>\` from the repo — e.g. at the end of the release script — so merged fixes are marked shipped in that build.
+   \`\`\`
+   After each TestFlight/App Store upload, run \`npx feedbackkit-cli release --build <CFBundleVersion>\` from the repo — e.g. at the end of the release script — so merged fixes are marked shipped in that build.
 
 Please inspect the existing codebase, identify whether this is a SwiftUI or UIKit app, add the package dependency, place the configuration and trigger in the proper files, and ensure the app builds and runs cleanly.`;
 

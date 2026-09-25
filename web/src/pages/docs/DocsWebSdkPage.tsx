@@ -151,6 +151,28 @@ export function DocsWebSdkPage() {
         </p>
       </DocsSection>
 
+      <DocsSection title="Closing the loop: “is it fixed?”">
+        <p>
+          <InlineCode>FeedbackKit.enableFixVerification()</InlineCode> asks the person who reported a bug to confirm
+          the fix once it ships: a small card shows their original screenshot with <em>Yes, it's fixed</em> /{" "}
+          <em>No, still broken</em>. Still broken reopens the capture dialog so they can show what's wrong now, and
+          the report goes back to you and your coding agent. Each browser gets an anonymous reporter id, so no
+          sign-up is involved. Run <InlineCode>npx feedbackkit-cli release --build &lt;id&gt;</InlineCode> after a
+          deploy to mark merged fixes shipped.
+        </p>
+        <CodeBlock
+          code={`FeedbackKit.configure({ projectKey: "pk_...", appBuild: "2026.09.25.1" }); // appBuild optional
+FeedbackKit.enableFixVerification();
+FeedbackKit.setUser({ email: user.email }); // optional`}
+          label="TypeScript"
+        />
+        <DocsCallout>
+          With a dotted-number <InlineCode>appBuild</InlineCode>, only fixes shipped in that build or earlier are
+          shown. Any other build id (like a git SHA) counts as live as soon as it's released — right for a site
+          that's replaced on every deploy.
+        </DocsCallout>
+      </DocsSection>
+
       <DocsSection title="Triggers">
         <CodeBlock code={triggers} label="TypeScript" />
         <p className="text-neutral-600">

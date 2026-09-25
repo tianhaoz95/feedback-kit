@@ -39,6 +39,7 @@ export default defineConfig({
           { text: "Wire Format & JSON Contracts", link: "/architecture/wire-format" },
           { text: "Security & Tenancy (RLS)", link: "/architecture/security-tenancy" },
           { text: "Annotation Geometry & Drawing", link: "/architecture/annotations-drawing" },
+          { text: "The Closed Loop", link: "/architecture/closed-loop" },
         ],
       },
       {

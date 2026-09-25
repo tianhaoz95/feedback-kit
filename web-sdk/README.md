@@ -73,6 +73,26 @@ await FeedbackKit.presentAndSubmit();
 Configure from client-only code — the SDK uses `window` and `document`. In
 Next.js, call it from a `"use client"` component's `useEffect`.
 
+### Close the loop: "is it fixed?"
+
+```ts
+FeedbackKit.configure({ projectKey: "pk_...", appBuild: "2026.09.25.1" }); // appBuild optional
+FeedbackKit.enableFixVerification();
+FeedbackKit.setUser({ email: currentUser.email }); // optional — shows who reported what
+```
+
+Each browser gets an anonymous reporter id (localStorage), sent with every
+report. Once a fix for one of this browser's reports ships
+(`npx feedbackkit-cli release --build …` after a deploy), a small card
+shows the original screenshot and asks "is it fixed?". **Still broken**
+reopens the capture dialog so the user can show what's wrong now, and the
+report goes back to the developer (and their coding agent). Questions the
+developer or agent asks about a report also show up in the card. With
+`appBuild` set to a dotted number, only fixes shipped in that build or
+earlier are shown; other build ids (e.g. a git SHA) count as live as soon as
+they're released. For your own UI, use `checkForFixUpdates()` and
+`respondToFixUpdate(id, { type: "verify" | "reopen" | "reply" })`.
+
 ### Options
 
 | API | What it does |
@@ -84,6 +104,10 @@ Next.js, call it from a `"use client"` component's `useEffect`.
 | `configure({ products, defaultProductKey })` | The "affected product" chips. Fetched from the dashboard when omitted. |
 | `FeedbackKit.submit(report)` | Send a report you got from `present()`. |
 | `FeedbackKit.captureScreenshot()` | Just the viewport PNG, no UI. |
+| `FeedbackKit.enableFixVerification()` / `disableFixVerification()` | The "is it fixed?" card (checks on load and tab focus, at most once a minute). |
+| `FeedbackKit.setUser({ id, email, name })` | Optional identity attached to reports. `null` on sign-out. |
+| `FeedbackKit.reporterId` | This browser's anonymous reporter id. |
+| `configure({ reporterUpdatesEndpoint })` | Override where fix updates come from (defaults to the sibling of `endpoint`). |
 | `FeedbackKit.destroy()` | Remove the trigger, dialog host, listeners and log hooks. |
 | `drawAnnotations(ctx, annotations, size)` | The annotation renderer (a port of the Swift `AnnotationRenderer`), for redrawing stored markup. |
 

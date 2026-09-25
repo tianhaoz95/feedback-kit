@@ -147,3 +147,14 @@ xcodebuild -exportArchive \
 
 echo "✅ Build $BUILD_NUMBER uploaded to App Store Connect."
 echo "   It will appear in TestFlight once Apple finishes processing (usually a few minutes)."
+
+# Close the loop: mark every merged fix contained in this commit as shipped
+# in $BUILD_NUMBER, so the people who reported those bugs get asked "is it
+# fixed?" when they open this build. Opt-in (set FEEDBACKKIT_PROJECT_ID) and
+# best-effort — it needs a `feedbackkit login` session on this machine, and
+# a failure here must never fail a release that already uploaded.
+if [[ -n "${FEEDBACKKIT_PROJECT_ID:-}" ]]; then
+  echo "-> Announcing build $BUILD_NUMBER to FeedbackKit reporters..."
+  npx --yes feedbackkit-cli release --project "$FEEDBACKKIT_PROJECT_ID" --build "$BUILD_NUMBER" --commit HEAD \
+    || echo "   ⚠️  feedbackkit release failed (not logged in?) — run it by hand: npx feedbackkit-cli release --build $BUILD_NUMBER"
+fi

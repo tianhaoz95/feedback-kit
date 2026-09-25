@@ -2,6 +2,20 @@ import { Link } from "react-router-dom";
 import { CodeBlock } from "@/components/docs/CodeBlock";
 import { DocsCallout, DocsList, DocsSection, DocsTable, DocsTitle, InlineCode } from "@/components/docs/DocsProse";
 
+const fixVerification = `// iOS — same presenter closure as your trigger:
+FeedbackKit.enableFixVerification {
+    UIApplication.shared.topMostViewController
+}
+
+// macOS:
+FeedbackKit.enableFixVerification { NSApplication.shared.keyWindow }
+
+// watchOS — a modifier on your root view:
+ContentView().feedbackFixVerification()
+
+// Optional: who reported what, shown in the dashboard.
+FeedbackKit.user = FeedbackUser(email: currentUser.email)`;
+
 const basicUsage = `import FeedbackKit
 
 // Anywhere you have a presenting view controller — a button action,
@@ -231,6 +245,23 @@ export function DocsIosSdkPage() {
         <DocsCallout>
           The project key is a routing key, not a secret — it can only ever <em>create</em> feedback for
           that project, never read anything, so it's safe to ship in an app binary.
+        </DocsCallout>
+      </DocsSection>
+
+      <DocsSection title="Closing the loop: “is it fixed?”" id="fix-verification">
+        <p>
+          Turn this on and FeedbackKit asks the person who reported a bug to confirm the fix — on their own
+          device, in the build that contains it. Reports carry an anonymous per-install id (no sign-up), so once
+          a fix ships (<InlineCode>npx feedbackkit-cli release --build &lt;CFBundleVersion&gt;</InlineCode> after
+          uploading), the app shows the reporter's original annotated screenshot with{" "}
+          <em>Yes, it's fixed</em> / <em>No, still broken</em>. Still broken re-runs the capture flow so they can
+          show what's wrong now, and the report goes straight back to you — and your coding agent. Questions you
+          or the agent ask about a report show up the same way.
+        </p>
+        <CodeBlock code={fixVerification} label="Swift" />
+        <DocsCallout>
+          Requires <InlineCode>configure(_:)</InlineCode>. It checks when the app becomes active, at most once a
+          minute, and never shows a fix to a build older than the one it shipped in.
         </DocsCallout>
       </DocsSection>
 
