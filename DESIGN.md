@@ -7,7 +7,8 @@ FeedbackKit is three things that share one contract:
    a problem, and hands the developer a structured `FeedbackReport`. What
    happens to that report is entirely up to the developer. (watchOS is a
    deliberately stripped-down flow — text and context only, no screenshot,
-   no annotation — see §1.)
+   no annotation — see §1.) **A web SDK** (`web-sdk/`, npm `feedbackkit-web`)
+   is the same idea for websites and produces the same report shape — see §1b.
 2. **An optional hosted dashboard** (`web/` + `supabase/`) that's just one way
    to consume that report: a place to receive it, organize it by project,
    and turn it into a prompt for a coding agent.
@@ -196,6 +197,80 @@ one overridable. `NSSwitch` (macOS) has no tint/on-color API at all, unlike
 `UISwitch`, so the screenshot toggle's on-tint only ever reflects the
 primary color on iOS — a known, accepted platform gap, not an oversight.
 
+## 1b. Web SDK (`web-sdk/`, npm `feedbackkit-web`)
+
+The browser counterpart of §1: same capture → annotate → describe → report
+flow, same `FeedbackReport` shape, same optional delivery to the same
+ingestion endpoint. Nothing downstream needed to learn a new format — a web
+report is a normal `feedback_items` row, with a few additive fields.
+
+**Capture is DOM re-rendering, not screen capture** (`src/capture.ts`). The
+page's own DOM is rendered into an image with `modern-screenshot` (SVG
+`foreignObject`, so the browser itself lays out every modern CSS feature —
+html2canvas reimplements CSS and can't even parse Tailwind v4's `oklch()`).
+That's the web analog of §1's window-level capture: render our own view
+hierarchy instead of reading the screen buffer, so there's never a
+permission prompt. The Screen Capture API (`getDisplayMedia`) is an opt-in
+`captureOptions.mode = "display"` for pages that need pixel-exact output
+(cross-origin iframes, WebGL) — it asks every time and doesn't exist on
+mobile, so it's not the default.
+
+What's captured is the **viewport**, not the document, because that's what
+the user saw and what annotations are normalized against. The root is
+clipped to `innerWidth × innerHeight` and shifted by the scroll offset — but
+a transform on `<body>` silently makes it the containing block for every
+`position: fixed` descendant, and sticky elements have no scroll context in
+the clone. `pinFixedAndSticky` measures each fixed/sticky element's
+on-screen box first and re-pins it in the *clone only* (the live page only
+gets a temporary data attribute). Verified pixel-for-pixel against real
+browser screenshots in Chromium, Firefox and WebKit with sticky headers,
+fixed FABs, transformed modals and scrolled inner containers.
+
+**The report contract is the Swift one, byte for byte where it matters.**
+Annotation points are `[x, y]` tuples because that's how Swift's `CGPoint`
+encodes through `Codable` — the Developer Portal decodes stored web reports
+with the Swift SDK's own `FeedbackAnnotation`/`FeedbackEnvironment`, so every
+required Swift field is always sent (`osName` is the real OS, `deviceModel`
+the browser, `screenWidthPoints` the viewport, `screenScale` the pixel
+ratio, `bundleIdentifier` the host). Web-only facts are *additive optional*
+fields (`platform: "web"`, `pageUrl`, `userAgent`, `browserName`,
+`browserVersion`) that Swift's `Codable` ignores or, since this change,
+decodes into optional properties. `web-sdk/test/submit.test.ts` and
+`FeedbackReportTests.testDecodesWebSDKEnvironmentAndAnnotations` pin the
+contract from both sides.
+
+**Annotation rendering is a line-for-line port of `AnnotationRenderer`**
+(`src/renderer.ts`): same 4pt stroke, arrowhead geometry, text-bubble
+metrics, scale/rotation math and hit-testing, in the capture's CSS-pixel
+space. The dashboard imports the same renderer to overlay stored markup
+(from any platform) on the raw screenshot. Scale/rotate works by pinch/twist
+on touch and by wheel / Shift+wheel with a mouse — closing the gap the macOS
+port accepted (trackpad-only).
+
+**Console & network logs** (`src/logs.ts`) are the one thing a browser knows
+that a native report doesn't, and exactly what turns "the button does
+nothing" into a root cause for a coding agent. A small ring buffer records
+`console.warn/error`, uncaught errors, unhandled rejections and failed or
+4xx/5xx fetch/XHR (method, URL, status — never bodies), with credentials
+redacted. They're stored in their own `feedback_items.logs` JSONB column
+rather than inside `environment` (which mirrors a Swift struct describing the
+device, not an event stream), and the dialog shows exactly what's included
+with a per-report opt-out.
+
+**UI isolation:** everything lives in one Shadow DOM host with
+`:host { all: initial }`, so host-page CSS can't break the widget and vice
+versa — no framework dependency, which is what lets one package serve React,
+Vue, server-rendered pages and plain `<script>` tags alike. The IIFE build is
+self-contained; the ESM build keeps `modern-screenshot` external and
+lazy-loads it on first capture.
+
+**Dogfooding:** the dashboard (`web/`) uses the SDK for its own Feedback
+button, importing it *from source* via a Vite alias rather than from npm, so
+an SDK change is exercised by the real app in the same commit (and
+`web-sdk-ci.yml` builds the dashboard from a clean checkout to prove the
+alias works without `web-sdk/node_modules`, which is what Cloudflare's build
+sees). Its reports go to the same hosted project as the Portal app's.
+
 ## 2. Data model / multi-tenancy (`supabase/migrations`)
 
 ```
@@ -255,6 +330,18 @@ same `feedback-screenshots` bucket, under `{project_id}/{feedback_id}/attachment
 — the storage RLS policy only keys off the first path segment, so no new
 bucket or policy was needed, just three new nullable `feedback_items` columns
 (`attachment_path`/`attachment_filename`/`attachment_mime_type`).
+
+**Abuse controls** (`0013_web_sdk.sql`). A project key is public by
+design, but on the web it's trivially readable in page source and CORS is
+`*`, so any other site could embed someone's key. `projects.allowed_origins`
+(empty = allow all, so existing projects are unaffected) is checked against
+the request's `Origin` header — requests without one (native apps, curl) are
+never blocked, because this is about stopping *other websites*, not a
+determined script. For that there's a per-project submissions-per-minute cap
+(`INGEST_RATE_LIMIT_PER_MINUTE`, default 30) counted on a server-set
+`received_at` column, since `created_at` comes from the client. Both checks
+fail open if their columns are missing, so a function deploy that lands
+before its migration can't take ingestion down.
 
 ## 4. AI-agent prompt generation (the dashboard's actual differentiator)
 
@@ -372,6 +459,7 @@ exactly the "help me get started" moment it exists for.
 ```
 Sources/FeedbackKit/   the SDK (Swift Package, iOS + macOS + watchOS)
 Tests/FeedbackKitTests/
+web-sdk/               the web SDK (npm feedbackkit-web): src/, unit tests, Playwright e2e
 DemoApp/               project.yml (XcodeGen) + sample apps exercising the SDK
                        on iOS, macOS, and watchOS (one project, three targets)
 web/                   Static SPA dashboard (Vite + React)
@@ -402,10 +490,16 @@ scripts/               setup.sh, run-ios.sh, start-web.sh — see README.md
 - **No image compression/downsizing.** Screenshots are full-resolution PNGs;
   fine for a v1, but worth revisiting (JPEG or PNG downscaling) if storage
   cost or upload time on cellular becomes a concern.
-- **No rate limiting on the ingestion endpoint.** A leaked `project_key`
-  could be used to spam a project with junk feedback. Not a data-privacy
-  issue (it can't read anything), but worth adding before this is used by
-  real strangers' apps at scale.
+- **Rate limiting is coarse.** Ingestion caps submissions per project per
+  minute (see §3), which stops a leaked key from flooding a project, but
+  it's one shared bucket — a spammer can crowd out real users for that
+  minute. Per-client limits would need an IP/fingerprint store, deliberately
+  not built yet.
+- **Web capture can't see cross-origin pixels.** DOM rendering leaves
+  cross-origin iframes, CORS-less images and non-preserved WebGL canvases
+  blank (§1b); `mode: "display"` is the escape hatch, at the cost of a
+  prompt. There's also no session replay — a web report is a moment, not a
+  recording — by design, for privacy and payload size.
 - **Local Supabase requires Docker**, which this environment didn't have
   installed — see README.md for the one manual prerequisite.
 - **`feedbackkit login` needs a browser reachable from wherever the CLI

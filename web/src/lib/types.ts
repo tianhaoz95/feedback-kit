@@ -8,6 +8,8 @@ export interface Project {
   created_at: string;
   github_repo?: string | null;
   github_installation_id?: number | null;
+  /** Web origins allowed to submit with this project's key; empty = any. See 0013_web_sdk.sql. */
+  allowed_origins?: string[];
 }
 
 export interface PromptTemplate {
@@ -17,9 +19,15 @@ export interface PromptTemplate {
   updated_at: string;
 }
 
+/**
+ * A 0...1-normalized point, stored as `[x, y]` — that's how Swift's `CGPoint`
+ * encodes through `Codable`, and the web SDK matches it.
+ */
+export type NormalizedPoint = [number, number];
+
 export interface FeedbackAnnotation {
   kind: "rectangle" | "arrow" | "freehand" | "text";
-  points: { x: number; y: number }[];
+  points: NormalizedPoint[];
   colorHex: string;
   label?: string;
   /** Uniform scale around the shape's center (rectangle/arrow) or font size
@@ -30,7 +38,11 @@ export interface FeedbackAnnotation {
   rotation?: number;
 }
 
-/** Mirrors `FeedbackEnvironment` in the iOS SDK (Sources/FeedbackKit/Model/FeedbackReport.swift). */
+/**
+ * Mirrors `FeedbackEnvironment` in the Swift SDK (Sources/FeedbackKit/Model/FeedbackReport.swift)
+ * and the web SDK (web-sdk/src/types.ts). The trailing optional fields are
+ * set only by the web SDK.
+ */
 export interface FeedbackEnvironment {
   osName: string;
   osVersion: string;
@@ -43,6 +55,19 @@ export interface FeedbackEnvironment {
   screenWidthPoints: number;
   screenHeightPoints: number;
   screenScale: number;
+  /** `"web"` for web SDK reports; unset for native ones (infer from `osName`). */
+  platform?: "web";
+  pageUrl?: string;
+  userAgent?: string;
+  browserName?: string;
+  browserVersion?: string;
+}
+
+/** One console message / uncaught error / failed request captured by the web SDK. */
+export interface FeedbackLogEntry {
+  level: "log" | "info" | "warn" | "error" | "debug" | "network";
+  message: string;
+  timestamp: string;
 }
 
 export interface Product {
@@ -82,6 +107,9 @@ export interface FeedbackItem {
   github_issue_number?: number | null;
   products?: FeedbackProduct[];
   product_keys?: string[];
+  /** Web SDK reports only; `[]` otherwise. See 0013_web_sdk.sql. */
+  logs?: FeedbackLogEntry[];
+  received_at?: string;
 }
 
 /** Mirrors supabase/migrations/0007_cli_sessions.sql. */

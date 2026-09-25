@@ -22,7 +22,7 @@ export const DOCS_TOPICS: DocTopic[] = [
     summary: "What FeedbackKit is and how its four pieces fit together.",
     content: `# FeedbackKit overview
 
-FeedbackKit is an iOS/macOS/watchOS SDK for capturing in-app feedback, plus three optional ways to consume it: a hosted dashboard, a CLI, and an MCP server for coding agents. Each piece works without the others.
+FeedbackKit is an iOS/macOS/watchOS SDK — plus a web SDK for websites (see the \`web-sdk\` topic) — for capturing in-app feedback, plus three optional ways to consume it: a hosted dashboard, a CLI, and an MCP server for coding agents. Each piece works without the others.
 
 ## The four pieces
 
@@ -221,6 +221,68 @@ The project key is a routing key, not a secret — it can only ever *create* fee
 | annotations | Each shape's kind, normalized points, color, scale/rotation. Empty on watchOS, and whenever the screenshot was toggled off. |
 | environment | OS name/version, device model, app version/build, bundle id, locale, screen size/scale, current screen name. |
 | attachment | An optional extra file (iOS/macOS only). |`,
+  },
+  {
+    slug: "web-sdk",
+    title: "Web SDK",
+    summary: "Add FeedbackKit to a website (npm `feedbackkit-web` or a script tag): triggers, screen names, logs, allowed origins.",
+    content: `# Web SDK (\`feedbackkit-web\`)
+
+The browser counterpart of the Swift SDK: capture the visible viewport, let the user annotate it (freehand, rectangle, arrow, text, move) and describe the problem, and get the same \`FeedbackReport\` shape — plus the page URL and recent console errors / failed network requests. Framework-agnostic (plain DOM inside a Shadow DOM), one dependency (\`modern-screenshot\`, lazy-loaded on first capture).
+
+## Install
+
+\`\`\`bash
+npm install feedbackkit-web
+\`\`\`
+
+Or without a bundler: \`<script src="https://cdn.jsdelivr.net/npm/feedbackkit-web/dist/feedbackkit.iife.js"></script>\` exposes \`window.FeedbackKit\`.
+
+## Local-only use
+
+\`\`\`ts
+import { FeedbackKit } from "feedbackkit-web";
+const report = await FeedbackKit.present(); // null if cancelled; nothing is sent anywhere
+\`\`\`
+
+## Sending to the dashboard
+
+\`\`\`ts
+FeedbackKit.configure({
+  projectKey: "pk_...",
+  endpoint: "https://<ref>.supabase.co/functions/v1/ingest-feedback", // optional, defaults to the hosted dashboard
+  appVersion: "2.4.0", // optional
+});
+await FeedbackKit.presentAndSubmit(); // progress, retry on error, thank-you state built in
+\`\`\`
+
+Configure from client-only code (it touches \`window\`/\`document\`): in Next.js, a \`"use client"\` component's \`useEffect\`.
+
+## Triggers
+
+- \`FeedbackKit.showFloatingTriggerButton({ position?, label?, compact? })\`
+- \`FeedbackKit.enableKeyboardShortcut({ key? })\` — ⌘⇧F / Ctrl+Shift+F by default (the web's stand-in for shake-to-report)
+- Your own button calling \`FeedbackKit.presentAndSubmit()\`
+
+## Other API
+
+- \`FeedbackKit.currentScreen = "Checkout"\` — set on route changes; falls back to \`location.pathname\`.
+- \`FeedbackKit.theme = { primaryColorHex, secondaryColorHex }\`
+- \`FeedbackKit.captureOptions = { mode: "dom" | "display", maxPixelRatio }\` — \`"display"\` uses the Screen Capture API (pixel-exact, but prompts every time; falls back to DOM rendering).
+- \`captureLogs\` in \`configure\` — default on: console warn/error, uncaught errors, unhandled rejections, failed/4xx/5xx fetch+XHR (method, URL, status only — never bodies; tokens and sensitive URL params redacted). \`false\` disables; users can untick logs per report.
+- \`FeedbackKit.submit(report)\`, \`FeedbackKit.captureScreenshot()\`, \`FeedbackKit.destroy()\`, and the annotation renderer (\`drawAnnotations\`).
+
+## What's different from native reports
+
+\`environment\` has every native field (\`osName\` = real OS, \`deviceModel\` = browser + major version, \`screenWidthPoints\`/\`screenHeightPoints\` = viewport, \`screenScale\` = devicePixelRatio, \`bundleIdentifier\` = host) plus \`platform: "web"\`, \`pageUrl\`, \`userAgent\`, \`browserName\`, \`browserVersion\`. Reports also carry \`logs\` ({level, message, timestamp}). Prompt templates get \`{{platform}}\`, \`{{page_url}}\`, \`{{browser}}\`, \`{{console_logs}}\`; if a template uses none of the web ones, a "Web context" section is appended automatically.
+
+## Capture limits
+
+DOM rendering can't read cross-origin iframes, images without CORS headers, or WebGL canvases without \`preserveDrawingBuffer\` — they come out blank. Use \`mode: "display"\` if that matters.
+
+## Allowed origins
+
+The project key is visible in page source. In the dashboard, Settings → Allowed web origins restricts which sites (\`https://app.example.com\`, \`https://*.example.com\`) may submit; empty = any. Native apps (no \`Origin\` header) are never affected. Submissions are also rate-limited per project.`,
   },
   {
     slug: "dashboard",

@@ -37,6 +37,33 @@ final class PortalTests: XCTestCase {
         XCTAssertTrue(rendered.contains("- **Backend API** (`backend`): Node endpoints"))
     }
 
+    func testPromptGeneratorWebReportAppendsWebContext() throws {
+        let json = """
+        {"id":"w1","project_id":"p1","text":"Save does nothing","annotations":[{"kind":"arrow","points":[[0.1,0.2],[0.3,0.4]],"colorHex":"#FF3B30","scale":1,"rotation":0}],
+         "environment":{"osName":"macOS","osVersion":"15.2","deviceModel":"Chrome 141","appVersion":"2.3.0","appBuild":"45","bundleIdentifier":"app.example.com",
+          "screenName":"Settings","locale":"en-US","screenWidthPoints":1280,"screenHeightPoints":800,"screenScale":2,"platform":"web",
+          "pageUrl":"https://app.example.com/settings","browserName":"Chrome","browserVersion":"141.0.7390.54"},
+         "status":"new","created_at":"2026-09-25T12:00:00Z",
+         "logs":[{"level":"error","message":"TypeError: x is undefined","timestamp":"2026-09-25T12:00:01.000Z"}]}
+        """
+        let item = try JSONDecoder().decode(PortalFeedbackItem.self, from: Data(json.utf8))
+        XCTAssertTrue(item.environment.isWeb)
+        XCTAssertEqual(item.logs.count, 1)
+        XCTAssertEqual(item.annotations.count, 1)
+
+        let rendered = PromptGenerator.renderPrompt(template: "{{feedback_text}}", feedback: item, screenshotUrl: nil, attachmentUrl: nil)
+        XCTAssertTrue(rendered.contains("## Web context"))
+        XCTAssertTrue(rendered.contains("- Page URL: https://app.example.com/settings"))
+        XCTAssertTrue(rendered.contains("- Viewport: 1280×800 @2x"))
+        XCTAssertTrue(rendered.contains("12:00:01 [error] TypeError: x is undefined"))
+
+        let explicit = PromptGenerator.renderPrompt(template: "{{platform}} {{page_url}}", feedback: item, screenshotUrl: nil, attachmentUrl: nil)
+        XCTAssertEqual(explicit, "Web https://app.example.com/settings")
+
+        let native = PromptGenerator.renderPrompt(template: "{{platform}}", feedback: DemoData.sampleFeedbackItems[0], screenshotUrl: nil, attachmentUrl: nil)
+        XCTAssertFalse(native.contains("Web context"))
+    }
+
     func testPromptGeneratorMergedItems() {
         let items = Array(DemoData.sampleFeedbackItems.prefix(2))
         let merged = PromptGenerator.renderMergedPrompt(items: items)

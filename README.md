@@ -4,14 +4,18 @@
 [![Release to TestFlight](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight.yml)
 [![Release macOS Demo](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-macos-demo.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-macos-demo.yml)
 [![Publish CLI Package](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-cli.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-cli.yml)
+[![Publish Web SDK Package](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-web-sdk.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-web-sdk.yml)
+[![Web SDK CI](https://github.com/tianhaoz95/feedback-kit/actions/workflows/web-sdk-ci.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/web-sdk-ci.yml)
 [![Publish Skills Package](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-skills.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-skills.yml)
 [![Deploy developer docs](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-docs.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-docs.yml)
 [![Deploy Supabase Functions](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-functions.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/deploy-functions.yml)
 
 An iOS + macOS + watchOS SDK for capturing in-app user feedback (screenshot +
 annotations + description + device/app/screen info on iOS/macOS; text +
-context only on watchOS), plus an optional Supabase-backed dashboard for
-collecting it and turning it into prompts for a coding agent.
+context only on watchOS), a web SDK that does the same for websites (plus
+the page URL and recent console errors / failed requests), and an optional
+Supabase-backed dashboard for collecting it and turning it into prompts for
+a coding agent.
 
 > 📖 **Developer Documentation & Contributor Guide**: [https://tianhaoz95.github.io/feedback-kit/](https://tianhaoz95.github.io/feedback-kit/)  
 > 🚀 **Live Web Dashboard**: [https://feedback-kit.hejitech.workers.dev](https://feedback-kit.hejitech.workers.dev)
@@ -79,6 +83,31 @@ To test just the SDK itself on a watch simulator instead:
 xcodebuild test -scheme FeedbackKit -destination 'id=<WATCH_SIMULATOR_UDID>'
 ```
 
+### Add feedback to a website (web SDK)
+
+```bash
+npm install feedbackkit-web
+```
+
+```ts
+import { FeedbackKit } from "feedbackkit-web";
+
+FeedbackKit.configure({ projectKey: "pk_..." });
+FeedbackKit.showFloatingTriggerButton();
+```
+
+The same capture → annotate → describe flow as the native SDKs, in any
+framework (or a plain `<script>` tag). Source lives in [`web-sdk/`](web-sdk/README.md);
+the dashboard itself dogfoods it from source for its own "Feedback" button.
+Develop and test it with:
+
+```bash
+cd web-sdk
+npm install
+npm test           # unit tests
+npm run test:e2e   # the full flow in real Chromium, Firefox and WebKit
+```
+
 ### Run the web dashboard
 
 Needs Docker Desktop running first (see above).
@@ -131,6 +160,7 @@ Claude Code, Cursor, Antigravity, Gemini CLI, and other AI coding assistants to 
 | [`setup/`](skills/setup/README.md) | [`setup-ios-sdk`](skills/setup/setup-ios-sdk/SKILL.md) | Integrate FeedbackKit SDK into an iOS project (SwiftUI or UIKit). |
 | [`setup/`](skills/setup/README.md) | [`setup-macos-sdk`](skills/setup/setup-macos-sdk/SKILL.md) | Integrate FeedbackKit SDK into a macOS desktop app (SwiftUI or AppKit). |
 | [`setup/`](skills/setup/README.md) | [`setup-watchos-sdk`](skills/setup/setup-watchos-sdk/SKILL.md) | Integrate FeedbackKit SDK into a watchOS app using FeedbackQuickNoteView. |
+| [`setup/`](skills/setup/README.md) | [`setup-web-sdk`](skills/setup/setup-web-sdk/SKILL.md) | Integrate the FeedbackKit web SDK into a website or web app. |
 | [`setup/`](skills/setup/README.md) | [`setup-mcp-server`](skills/setup/setup-mcp-server/SKILL.md) | Configure FeedbackKit CLI and MCP server for AI coding agents. |
 
 #### Layout

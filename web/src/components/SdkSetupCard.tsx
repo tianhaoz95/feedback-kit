@@ -12,6 +12,7 @@ const PLATFORMS: { id: TargetPlatform; label: string }[] = [
   { id: "macos", label: "macOS" },
   { id: "multiplatform", label: "Multiplatform" },
   { id: "watchos", label: "watchOS" },
+  { id: "web", label: "Web" },
 ];
 
 export function SdkSetupCard({
@@ -35,6 +36,10 @@ export function SdkSetupCard({
 
   const swiftSnippet = `FeedbackKit.configure(.init(\n    endpointURL: URL(string: "${endpointUrl}")!,\n    projectKey: "${projectKey}"\n))`;
   const packageUrl = "https://github.com/tianhaoz95/feedback-kit";
+  const isWeb = platform === "web";
+  const webInstall = "npm install feedbackkit-web";
+  const webSnippet = `import { FeedbackKit } from "feedbackkit-web";\n\nFeedbackKit.configure({\n  projectKey: "${projectKey}",\n  endpoint: "${endpointUrl}",\n});\nFeedbackKit.showFloatingTriggerButton();`;
+  const scriptSnippet = `<script src="https://cdn.jsdelivr.net/npm/feedbackkit-web/dist/feedbackkit.iife.js"></script>\n<script>\n  FeedbackKit.configure({ projectKey: "${projectKey}", endpoint: "${endpointUrl}" });\n  FeedbackKit.showFloatingTriggerButton();\n</script>`;
 
   return (
     <section className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
@@ -133,7 +138,7 @@ export function SdkSetupCard({
                 Or install Agent Skills →
               </Link>
               <Link
-                to="/docs/ios-sdk"
+                to={isWeb ? "/docs/web-sdk" : "/docs/ios-sdk"}
                 className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-900 hover:underline"
               >
                 View SDK documentation →
@@ -143,6 +148,61 @@ export function SdkSetupCard({
         </div>
       ) : (
         <div className="mt-4 space-y-4">
+          <div className="inline-flex rounded-md border border-neutral-200 bg-neutral-50 p-0.5 text-xs font-medium">
+            {(["swift", "web"] as const).map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                onClick={() => setPlatform(kind === "web" ? "web" : "ios")}
+                className={`rounded px-2.5 py-1 transition-colors ${
+                  (kind === "web") === isWeb ? "bg-white text-neutral-900 shadow-xs" : "text-neutral-500 hover:text-neutral-900"
+                }`}
+              >
+                {kind === "web" ? "Web (npm / script tag)" : "Swift (iOS · macOS · watchOS)"}
+              </button>
+            ))}
+          </div>
+
+          {isWeb ? (
+            <>
+              <div>
+                <span className="text-xs font-medium text-neutral-700">1. Install the package</span>
+                <div className="mt-1 flex items-center gap-2">
+                  <code className="flex-1 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs font-mono text-neutral-800">
+                    {webInstall}
+                  </code>
+                  <CopyButton text={webInstall} label="Copy" />
+                </div>
+              </div>
+              <div>
+                <span className="text-xs font-medium text-neutral-700">2. Configure it on the client and add a trigger</span>
+                <pre className="mt-1 overflow-x-auto rounded-lg bg-neutral-900 p-3.5 text-xs leading-relaxed text-neutral-100">
+                  {webSnippet}
+                </pre>
+                <div className="mt-2.5">
+                  <CopyButton text={webSnippet} label="Copy snippet" />
+                </div>
+              </div>
+              <div>
+                <span className="text-xs font-medium text-neutral-700">Or, without a bundler</span>
+                <pre className="mt-1 overflow-x-auto rounded-lg bg-neutral-900 p-3.5 text-xs leading-relaxed text-neutral-100">
+                  {scriptSnippet}
+                </pre>
+                <div className="mt-2.5">
+                  <CopyButton text={scriptSnippet} label="Copy script tag" />
+                </div>
+              </div>
+              <div className="border-t border-neutral-100 pt-3">
+                <Link
+                  to="/docs/web-sdk"
+                  className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-900 hover:underline"
+                >
+                  View the web SDK guide (triggers, screen names, logs, allowed origins) →
+                </Link>
+              </div>
+            </>
+          ) : (
+          <>
           <div>
             <span className="text-xs font-medium text-neutral-700">1. Add Swift Package dependency</span>
             <div className="mt-1 flex items-center gap-2">
@@ -171,6 +231,8 @@ export function SdkSetupCard({
               View full SDK setup guide (triggers, screen tracking, etc.) →
             </Link>
           </div>
+          </>
+          )}
         </div>
       )}
     </section>

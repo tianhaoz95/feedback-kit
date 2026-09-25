@@ -48,6 +48,18 @@ export function DocsDashboardPage() {
           <InlineCode>new</InlineCode>, <InlineCode>in_progress</InlineCode>, <InlineCode>resolved</InlineCode>, or{" "}
           <InlineCode>wont_fix</InlineCode> — to track it through your workflow.
         </p>
+        <p>
+          A badge on each report shows where it came from — iOS, macOS, watchOS, or Web. Web reports
+          also show the page URL, the browser, and the console errors and failed network requests
+          captured before the report (see the <Link to="/docs/web-sdk" className="underline">Web SDK</Link>).
+          Switch the screenshot to <strong>Original</strong> to see it without markup, or with the
+          markup overlaid live from the stored shapes.
+        </p>
+        <p>
+          Web SDK reports can come from any site that has your project key, since it&apos;s visible in page
+          source. List your own sites under <strong>Settings → Allowed web origins</strong> to reject
+          the rest; native apps are unaffected.
+        </p>
       </DocsSection>
 
       <DocsSection title="Prompt templates">
@@ -69,6 +81,9 @@ export function DocsDashboardPage() {
             [<InlineCode>{"{{screenshot_url}}"}</InlineCode>, "A time-limited signed URL to the annotated screenshot, or \"(screenshot unavailable)\" if the reporter left it out."],
             [<InlineCode>{"{{attachment_url}}"}</InlineCode>, "A signed URL to the attachment, if one was included."],
             [<InlineCode>{"{{products}}"}</InlineCode>, "A formatted list of affected products and their descriptions."],
+            [<InlineCode>{"{{platform}}"}</InlineCode>, "Web, iOS, macOS, or watchOS."],
+            [<InlineCode>{"{{page_url}} / {{browser}}"}</InlineCode>, "Web reports only: the page the report was filed from, and the browser."],
+            [<InlineCode>{"{{console_logs}}"}</InlineCode>, "Web reports only: recent console errors and failed requests, as a code block. If a template uses none of the web placeholders, a \"Web context\" section with all three is appended automatically."],
           ]}
         />
         <p>

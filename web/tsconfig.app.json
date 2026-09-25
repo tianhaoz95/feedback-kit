@@ -19,7 +19,9 @@
     "noFallthroughCasesInSwitch": true,
 
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "feedbackkit-web": ["../web-sdk/src/index.ts"],
+      "modern-screenshot": ["./node_modules/modern-screenshot"]
     }
   },
   "include": ["src"]

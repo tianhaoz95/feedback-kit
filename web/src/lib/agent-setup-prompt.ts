@@ -1,4 +1,4 @@
-export type TargetPlatform = "ios" | "macos" | "multiplatform" | "watchos";
+export type TargetPlatform = "ios" | "macos" | "multiplatform" | "watchos" | "web";
 
 export interface AgentSetupPromptOptions {
   platform: TargetPlatform;
@@ -184,5 +184,41 @@ Please inspect the project structure, locate the entry points for each platform,
 4. Screen tracking: Set FeedbackKit.currentScreen = "ScreenName" as the user navigates so reports identify the active watch screen.
 
 Please inspect the existing codebase, add the package dependency, configure FeedbackKit in the app entry point, wire up the quick note sheet, and verify that the watchOS app builds cleanly.`;
+
+    case "web":
+      return `Please integrate the FeedbackKit web SDK ${projectContext}into this web app.
+
+1. Install the package (npm: \`feedbackkit-web\`):
+   \`\`\`bash
+   npm install feedbackkit-web
+   \`\`\`
+   (No bundler? Use the script tag instead:
+   \`<script src="https://cdn.jsdelivr.net/npm/feedbackkit-web/dist/feedbackkit.iife.js"></script>\`,
+   which exposes \`window.FeedbackKit\`.)
+
+2. Configure FeedbackKit once, as early as possible on the client (so console errors from startup are captured too):
+   \`\`\`ts
+   import { FeedbackKit } from "feedbackkit-web";
+
+   FeedbackKit.configure({
+     projectKey: "${projectKey}",
+     endpoint: "${endpointUrl}",
+     appVersion: "1.0.0", // optional: your app's version/build
+   });
+   \`\`\`
+   - Vite/CRA/plain SPA: the client entry file (e.g. src/main.tsx).
+   - Next.js (App Router): a \`"use client"\` component rendered from the root layout, calling configure in a \`useEffect\` — the SDK touches \`window\`/\`document\`, so it must never run during server rendering.
+   - Nuxt/SvelteKit/others: a client-only plugin / \`onMount\`.
+
+3. Add a trigger so users can send feedback:
+   - Option A: floating button — \`FeedbackKit.showFloatingTriggerButton()\`
+   - Option B: your own button/menu item — \`FeedbackKit.presentAndSubmit()\`
+   - Option C: keyboard shortcut (⌘⇧F / Ctrl+Shift+F) — \`FeedbackKit.enableKeyboardShortcut()\`
+
+4. Screen tracking (recommended): set \`FeedbackKit.currentScreen = "Checkout"\` on route changes (from the router's navigation hook) so reports name the page; it falls back to \`location.pathname\`.
+
+5. Optional branding: \`FeedbackKit.theme = { primaryColorHex: "#RRGGBB" }\` using the app's brand color.
+
+Please inspect the project, identify the framework and its client entry point, install the package, configure FeedbackKit client-side only, wire up a trigger that fits the existing UI, and verify the app builds and the feedback dialog opens.`;
   }
 }

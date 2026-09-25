@@ -32,3 +32,4 @@ dist/
 docs/.vitepress/cache
 docs/.vitepress/dist
 
+web-sdk/e2e/output/

@@ -64,7 +64,10 @@ public struct FeedbackRowView: View {
 
                 // Bottom row: Metadata badges (device, annotations, attachment, GitHub)
                 HStack(spacing: 8) {
-                    Label(item.environment.deviceModel, systemImage: "iphone")
+                    Label(
+                        item.environment.deviceModel,
+                        systemImage: item.environment.isWeb ? "globe" : "iphone"
+                    )
                         .font(.caption2)
                         .foregroundColor(.secondary)
 

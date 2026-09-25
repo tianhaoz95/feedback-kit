@@ -15,7 +15,9 @@ FeedbackKit is three things sharing one JSON contract / one Postgres schema:
    UIKit/AppKit UI implementations — see the architecture notes below before
    touching either. watchOS is a deliberately stripped-down third flow (text
    + context only, no screenshot, no annotation tools) rather than a third
-   full UI port — see `FeedbackQuickNoteView`.
+   full UI port — see `FeedbackQuickNoteView`. **A web SDK** (`web-sdk/`,
+   npm `feedbackkit-web`) brings the same flow to websites and produces the
+   same report shape — see the web SDK notes below.
 2. **An optional hosted dashboard** (`web/` + `supabase/`) — one way to consume
    that report: receive it, organize it by project, and turn it into a prompt
    for a coding agent.
@@ -37,6 +39,7 @@ file is about how to build/test/run things day to day.
 |---|---|
 | `Sources/FeedbackKit/` | The iOS + macOS + watchOS SDK (Swift Package) |
 | `Tests/FeedbackKitTests/` | SDK unit tests |
+| `web-sdk/` | Web SDK (npm `feedbackkit-web`, TypeScript, no framework): capture/annotate/submit for websites, plus console/network log capture. Unit tests (vitest) + Playwright e2e |
 | `DemoApp/` | Sample apps exercising the SDK on iOS, macOS, and watchOS (one XcodeGen project, three targets; the `.xcodeproj` is generated — not committed) |
 | `DeveloperApp/` | Native iOS Developer Portal companion app (XcodeGen project `FeedbackPortal.xcodeproj`, SwiftUI, triages feedback, renders annotations, dispatches AI coding prompts) |
 | `web/` | Static SPA dashboard (Vite + React + React Router), deployed to Cloudflare Workers Static Assets (`https://feedback-kit.hejitech.workers.dev`) |
@@ -44,6 +47,7 @@ file is about how to build/test/run things day to day.
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function, billing (Stripe) Edge Functions |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) — reads feedback/prompts as a logged-in user |
 | `skills/` | Agent Skills catalog (`vercel-labs/skills`) for automated setup via AI coding agents |
+| `.github/workflows/` | Release/deploy pipelines, incl. `publish-web-sdk.yml` (npm + GitHub Packages) and `web-sdk-ci.yml` (SDK unit + 3-browser e2e, dashboard clean build) |
 | `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `run-portal-ios.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `generate_social_preview.py`, `release_testflight.sh`, `release_portal_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh` |
 | `branding/` | FeedbackKit logo assets (SVG source + PNG exports) — reused for the iOS app icon and the GitHub OAuth App's logo |
 
@@ -89,6 +93,25 @@ the one platform-specific file, `#if os(watchOS)`-gated, covering that
 platform's `EnvironmentInfo`/`ScreenshotCapture`/`FeedbackQuickNoteView`
 directly since there's no UI layer to test on any platform otherwise (see
 the architecture note on why below).
+
+### Web SDK (`web-sdk/`)
+
+```bash
+cd web-sdk
+npm install
+npm run lint        # tsc --noEmit
+npm test            # vitest unit tests (renderer geometry, UA parsing, redaction, wire payload)
+npm run build       # dist/feedbackkit.js (ESM, modern-screenshot external) + feedbackkit.iife.js + d.ts
+npm run test:e2e    # build, then the full flow in real Chromium/Firefox/WebKit (needs `npx playwright install`)
+BROWSERS=chromium node e2e/run.mjs   # one engine
+```
+
+The e2e (`e2e/run.mjs` + `e2e/fixture.html`) drives the built IIFE bundle
+through trigger → annotate → submit against a mocked endpoint and asserts
+the exact JSON posted; screenshots land in `e2e/output/` (gitignored).
+Published on releases by `publish-web-sdk.yml` (unified `vX.Y.Z` tags, or
+`./scripts/cut_release.sh X.Y.Z --web-sdk` for `web-sdk-vX.Y.Z` alone); the
+version comes from the tag, not `package.json`.
 
 ### Demo apps (`DemoApp/`)
 
@@ -219,6 +242,16 @@ every push to `main` touching `supabase/functions/**`, or manually via
 manually after reviewing `supabase config diff` — a blind push syncs
 config.toml's entire declared state, including its local-dev-oriented
 defaults, over whatever's actually live.
+
+The dashboard **dogfoods the web SDK from source**: `vite.config.ts` aliases
+`feedbackkit-web` → `../web-sdk/src/index.ts` (with `resolve.dedupe` for
+`modern-screenshot`, and matching `tsconfig.app.json` `paths`), so `web/`
+builds without `web-sdk/node_modules` — which is what Cloudflare's build
+has. `web/package.json` lists `modern-screenshot` itself for that reason;
+keep its version in step with `web-sdk/package.json`. `src/lib/feedbackkit.ts`
+configures it: `VITE_FEEDBACKKIT_PROJECT_KEY` if set, else production builds
+send to the FeedbackKit team's hosted project (same key as the Portal app),
+and dev builds leave it unconfigured (Feedback button hidden).
 
 ### CLI + MCP server (`cli/`)
 
@@ -436,6 +469,34 @@ Rules for skills:
   access token persisted server-side, which is a bigger secret to hold than
   the problem justifies. Don't try to make revocation "harder" by storing
   access tokens in that table — see the migration's comment.
+- **The web SDK's report is the Swift contract, not a lookalike.**
+  Annotation points are `[x, y]` tuples (how `CGPoint` encodes), and every
+  required `FeedbackEnvironment` field is always sent, because the Developer
+  Portal decodes web reports with the Swift SDK's own types — a missing field
+  fails the whole item. Web-only data goes in *optional* fields
+  (`platform: "web"`, `pageUrl`, `userAgent`, `browserName`, `browserVersion`
+  — mirrored as optionals on the Swift `FeedbackEnvironment`, in
+  `web/src/lib/types.ts` and `cli/src/types.ts`) or the separate
+  `feedback_items.logs` column (`0013_web_sdk.sql`). `web/src/lib/platform.ts`
+  infers native platforms from `osName`, since native reports never set
+  `platform`. Web prompts get `{{platform}}`/`{{page_url}}`/`{{browser}}`/
+  `{{console_logs}}`, and a "Web context" section is auto-appended when a
+  template uses none of them — implemented three times (web, CLI, Portal's
+  `PromptGenerator.swift`), keep them in sync by hand.
+- **Web capture re-renders the DOM** (`web-sdk/src/capture.ts`) rather than
+  using the Screen Capture API, for the same no-permission reason as the
+  native window-level capture; it clips to the viewport and re-pins
+  fixed/sticky elements in the clone (a `<body>` transform otherwise makes
+  it their containing block). Don't "simplify" that away without re-running
+  the e2e — it's what makes sticky headers and floating buttons land in the
+  right place. `web-sdk/src/renderer.ts` is a port of `AnnotationRenderer`;
+  change both together.
+- **Ingestion now has abuse controls** (`0013_web_sdk.sql`):
+  `projects.allowed_origins` (empty = any; only checked when an `Origin`
+  header exists, so native apps are never affected) and a per-project
+  per-minute cap on server-set `received_at`. Both fail open if the columns
+  are missing, so function and migration can deploy in either order — keep
+  that property when adding checks.
 - **RLS helper functions that query the same table their policy protects
   must be PL/pgSQL, not `language sql`, and every policy on that table needs
   the same treatment.** This bit us for real: `auth_organization_ids()` (used

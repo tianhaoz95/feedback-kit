@@ -5,7 +5,7 @@ export function PrivacyPage() {
     <LegalPageLayout title="Privacy notice" lastUpdated="[fill in date]">
       <LegalSection title="Overview">
         <p>
-          FeedbackKit is an iOS SDK that lets an app capture in-app feedback (a
+          FeedbackKit is an SDK for iOS, macOS, watchOS and the web that lets an app capture in-app feedback (a
           screenshot, the user&apos;s annotations on it, a text description, and
           basic device/app/screen info) and hand it to the integrating app. The SDK
           never requires this dashboard — delivery of that report is entirely up to
@@ -25,10 +25,17 @@ export function PrivacyPage() {
             locale, screen size, and — if the developer set it — the current screen
             name.
           </li>
+          <li>
+            For reports from the web SDK: the page URL (with sensitive query parameters
+            redacted), the browser and its user-agent string, and — unless the user or
+            developer turns it off — recent console warnings/errors and the method, URL and
+            status of failed network requests (never request or response bodies).
+          </li>
         </ul>
         <p className="mt-2">
           The SDK does not collect anything beyond what&apos;s visible on screen at
-          capture time and the fields above. Whether that screen happens to contain
+          capture time and the fields above. The FeedbackKit dashboard itself uses the web
+          SDK for its own Feedback button, so the same applies to reports you send about it. Whether that screen happens to contain
           personal data depends entirely on the integrating app.
         </p>
       </LegalSection>

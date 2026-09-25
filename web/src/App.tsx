@@ -14,6 +14,7 @@ import { BillingPage } from "@/pages/BillingPage";
 import { DocsLayout } from "@/components/docs/DocsLayout";
 import { DocsOverviewPage } from "@/pages/docs/DocsOverviewPage";
 import { DocsIosSdkPage } from "@/pages/docs/DocsIosSdkPage";
+import { DocsWebSdkPage } from "@/pages/docs/DocsWebSdkPage";
 import { DocsDashboardPage } from "@/pages/docs/DocsDashboardPage";
 import { DocsCliPage } from "@/pages/docs/DocsCliPage";
 import { DocsMcpPage } from "@/pages/docs/DocsMcpPage";
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/docs" element={<DocsLayout />}>
           <Route index element={<DocsOverviewPage />} />
           <Route path="ios-sdk" element={<DocsIosSdkPage />} />
+          <Route path="web-sdk" element={<DocsWebSdkPage />} />
           <Route path="dashboard" element={<DocsDashboardPage />} />
           <Route path="cli" element={<DocsCliPage />} />
           <Route path="mcp" element={<DocsMcpPage />} />

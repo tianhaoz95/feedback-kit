@@ -14,20 +14,45 @@ public struct EnvironmentSectionView: View {
                 .font(.headline)
 
             VStack(spacing: 8) {
+                if env.isWeb, let pageUrl = env.pageUrl, let url = URL(string: pageUrl) {
+                    Link(destination: url) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "link")
+                                .font(.caption)
+                            Text(pageUrl)
+                                .font(.caption.monospaced())
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(10)
+                        .background(Color(UIColor.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                }
+
                 HStack(spacing: 12) {
-                    metricCard(title: "Device", value: env.deviceModel, icon: "iphone")
+                    if env.isWeb {
+                        metricCard(
+                            title: "Browser",
+                            value: env.browserName.map { "\($0) \(env.browserVersion ?? "")" } ?? env.deviceModel,
+                            icon: "globe"
+                        )
+                    } else {
+                        metricCard(title: "Device", value: env.deviceModel, icon: "iphone")
+                    }
                     metricCard(title: "Operating System", value: "\(env.osName) \(env.osVersion)", icon: "gearshape")
                 }
 
                 HStack(spacing: 12) {
                     metricCard(title: "App Version", value: "\(env.appVersion) (\(env.appBuild))", icon: "app.badge")
-                    metricCard(title: "Screen", value: env.screenName ?? "—", icon: "macwindow")
+                    metricCard(title: env.isWeb ? "Page" : "Screen", value: env.screenName ?? "—", icon: "macwindow")
                 }
 
                 HStack(spacing: 12) {
                     metricCard(
-                        title: "Resolution",
-                        value: "\(Int(env.screenWidthPoints))×\(Int(env.screenHeightPoints)) pt @ \(Int(env.screenScale))x",
+                        title: env.isWeb ? "Viewport" : "Resolution",
+                        value: "\(Int(env.screenWidthPoints))×\(Int(env.screenHeightPoints)) \(env.isWeb ? "px" : "pt") @ \(Int(env.screenScale))x",
                         icon: "aspectratio"
                     )
                     metricCard(title: "Locale", value: env.locale, icon: "globe")

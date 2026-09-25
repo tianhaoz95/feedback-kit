@@ -9,6 +9,11 @@ const pieces = [
     description: "Drop into any UIKit or SwiftUI app to capture, annotate, and hand off feedback.",
   },
   {
+    to: "/docs/web-sdk",
+    title: "Web SDK",
+    description: "The same capture → annotate → report flow for any website, plus console errors and failed requests.",
+  },
+  {
     to: "/docs/dashboard",
     title: "Web dashboard",
     description: "Receive reports, organize them by project, and generate coding-agent prompts.",
@@ -40,7 +45,7 @@ export function DocsOverviewPage() {
       <DocsTitle
         eyebrow="Documentation"
         title="FeedbackKit documentation"
-        description="FeedbackKit is an iOS, macOS, and watchOS SDK for capturing in-app feedback, plus tools to consume it: a hosted dashboard, a CLI, an MCP server, and Agent Skills for coding agents. Pick the pages you need — each piece works without the others."
+        description="FeedbackKit is an iOS, macOS, watchOS, and web SDK for capturing in-app feedback, plus tools to consume it: a hosted dashboard, a CLI, an MCP server, and Agent Skills for coding agents. Pick the pages you need — each piece works without the others."
       />
 
       <DocsSection title="The building blocks">

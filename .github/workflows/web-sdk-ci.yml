@@ -1,0 +1,77 @@
+name: Web SDK CI
+
+# Unit + cross-browser end-to-end tests for web-sdk/, plus a dashboard build
+# from a clean checkout — the dashboard (web/) imports the SDK from source
+# (vite alias), so a web-sdk change can break it without touching web/.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web-sdk/**"
+      - "web/**"
+      - ".github/workflows/web-sdk-ci.yml"
+  pull_request:
+    paths:
+      - "web-sdk/**"
+      - "web/**"
+      - ".github/workflows/web-sdk-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: web-sdk-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-sdk:
+    name: SDK (unit + e2e in Chromium, Firefox, WebKit)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: web-sdk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web-sdk/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: End-to-end tests
+        run: node e2e/run.mjs
+      - name: Upload e2e screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-sdk-e2e-screenshots
+          path: web-sdk/e2e/output
+          if-no-files-found: ignore
+          retention-days: 7
+
+  dashboard:
+    name: Dashboard (lint, test, build)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      # Deliberately *not* installing web-sdk/node_modules: this mirrors the
+      # Cloudflare build, which only installs web/.
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build

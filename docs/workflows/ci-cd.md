@@ -12,6 +12,8 @@ FeedbackKit automates testing, packaging, and deployments through GitHub Actions
 ├── deploy-functions.yml # Deploys Supabase Edge Functions on push to main
 ├── release-cli.yml      # Publishes feedbackkit-cli to npm with provenance
 ├── release-skills.yml   # Publishes feedback-kit-skills to npm with provenance
+├── publish-web-sdk.yml  # Publishes feedbackkit-web to npm (provenance) + GitHub Packages
+├── web-sdk-ci.yml       # Web SDK unit + 3-browser e2e; dashboard clean build
 ├── release-testflight.yml # Builds & uploads iOS/watchOS demo to TestFlight
 └── release-mac.yml      # Builds, notarizes, and attaches signed macOS DMG
 ```
@@ -48,6 +50,9 @@ Both CLI and Skills packages are published with cryptographic OpenID Connect (OI
 
 - **`feedbackkit-cli`**: Triggered by git tags matching `v*` (e.g. `v0.1.0`).
 - **`feedback-kit-skills`**: Triggered by tag or manual dispatch.
+- **`feedbackkit-web`** (`publish-web-sdk.yml`): Triggered by any published release except `mac-demo-`/`cli-`/`skills-` tags (so `vX.Y.Z` and `web-sdk-vX.Y.Z`), or manual dispatch with dry-run. Runs lint, unit tests, build and a Chromium e2e before publishing to npm and GitHub Packages.
+
+`web-sdk-ci.yml` runs on pushes/PRs touching `web-sdk/**` or `web/**`: SDK unit tests, the Playwright e2e in Chromium, Firefox and WebKit, and a dashboard lint/test/build from a clean checkout (the dashboard imports the SDK from source).
 
 ---
 

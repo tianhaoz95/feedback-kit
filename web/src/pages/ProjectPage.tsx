@@ -35,6 +35,10 @@ import { ProductsSetupCard } from "@/components/ProductsSetupCard";
 import { FeedbackProductsPicker } from "@/components/FeedbackProductsPicker";
 import { MergedPromptView } from "@/components/MergedPromptView";
 import { DeleteProjectCard } from "@/components/DeleteProjectCard";
+import { AllowedOriginsCard } from "@/components/AllowedOriginsCard";
+import { ConsoleLogsPanel } from "@/components/ConsoleLogsPanel";
+import { PlatformBadge } from "@/components/PlatformBadge";
+import { ScreenshotViewer } from "@/components/ScreenshotViewer";
 
 type TabKey = "feedback" | "settings" | "sdk" | "agent";
 
@@ -58,7 +62,7 @@ export function ProjectPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
   const [signedUrls, setSignedUrls] = useState<
-    Record<string, { screenshot: string | null; attachment: string | null }>
+    Record<string, { screenshot: string | null; attachment: string | null; raw?: string | null }>
   >({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<"single" | "merged">("single");
@@ -314,7 +318,7 @@ export function ProjectPage() {
       const itemsToFetch = feedbackItems.filter((item) => idsToFetch.has(item.id));
       const results = await Promise.all(
         itemsToFetch.map(async (item) => {
-          const [signedScreenshot, signedAttachment] = await Promise.all([
+          const [signedScreenshot, signedAttachment, signedRaw] = await Promise.all([
             item.screenshot_annotated_path
               ? supabase.storage
                   .from("feedback-screenshots")
@@ -325,11 +329,17 @@ export function ProjectPage() {
                   .from("feedback-screenshots")
                   .createSignedUrl(item.attachment_path, 60 * 60)
               : Promise.resolve(null),
+            item.screenshot_raw_path
+              ? supabase.storage
+                  .from("feedback-screenshots")
+                  .createSignedUrl(item.screenshot_raw_path, 60 * 60)
+              : Promise.resolve(null),
           ]);
           return {
             id: item.id,
             screenshot: signedScreenshot?.data?.signedUrl ?? null,
             attachment: signedAttachment?.data?.signedUrl ?? null,
+            raw: signedRaw?.data?.signedUrl ?? null,
           };
         })
       );
@@ -341,6 +351,7 @@ export function ProjectPage() {
           next[res.id] = {
             screenshot: res.screenshot,
             attachment: res.attachment,
+            raw: res.raw,
           };
         }
         return next;
@@ -584,6 +595,7 @@ export function ProjectPage() {
 
   const selectedScreenshotUrl = selectedFeedback ? signedUrls[selectedFeedback.id]?.screenshot ?? null : null;
   const selectedAttachmentUrl = selectedFeedback ? signedUrls[selectedFeedback.id]?.attachment ?? null : null;
+  const selectedRawUrl = selectedFeedback ? signedUrls[selectedFeedback.id]?.raw ?? null : null;
   const promptValue = selectedFeedback
     ? selectedFeedback.edited_prompt ??
       renderPromptTemplate(
@@ -670,6 +682,7 @@ export function ProjectPage() {
           </div>
           <div className="mt-2 flex items-center justify-between text-xs text-neutral-400 gap-1.5">
             <div className="flex items-center gap-1.5 min-w-0">
+              <PlatformBadge environment={item.environment} className="shrink-0" />
               <span className="truncate max-w-[120px] font-medium text-neutral-500">
                 {item.environment?.screenName ?? "Unknown screen"}
               </span>
@@ -1110,18 +1123,13 @@ export function ProjectPage() {
                   <div className="space-y-4">
                     {/* Screenshot */}
                     {selectedScreenshotUrl ? (
-                      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xs">
-                        <div className="border-b border-neutral-100 bg-neutral-50/70 px-4 py-2 text-xs font-medium text-neutral-500">
-                          Annotated screenshot
-                        </div>
-                        <div className="flex items-center justify-center bg-neutral-900/5 p-4">
-                          <img
-                            src={selectedScreenshotUrl}
-                            alt="Annotated screenshot"
-                            className="max-h-[520px] w-auto rounded-lg object-contain shadow-xs"
-                          />
-                        </div>
-                      </div>
+                      <ScreenshotViewer
+                        key={selectedFeedback.id}
+                        annotatedUrl={selectedScreenshotUrl}
+                        rawUrl={selectedRawUrl}
+                        annotations={selectedFeedback.annotations ?? []}
+                        environment={selectedFeedback.environment}
+                      />
                     ) : selectedFeedback.screenshot_annotated_path ? (
                       <div className="flex h-64 animate-pulse items-center justify-center rounded-xl border border-neutral-200 bg-neutral-100">
                         <span className="text-xs text-neutral-400">Loading screenshot…</span>
@@ -1148,13 +1156,35 @@ export function ProjectPage() {
                     {/* Environment */}
                     {env ? (
                       <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-xs">
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-                          Environment
-                        </h3>
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                            Environment
+                          </h3>
+                          <PlatformBadge environment={env} />
+                        </div>
+                        {env.platform === "web" && env.pageUrl ? (
+                          <a
+                            href={env.pageUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-3 flex items-center gap-1.5 truncate rounded-lg border border-neutral-100 bg-neutral-50 px-2.5 py-1.5 font-mono text-[11px] text-blue-700 hover:underline"
+                            title={env.pageUrl}
+                          >
+                            <ExternalLinkIcon className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{env.pageUrl}</span>
+                          </a>
+                        ) : null}
                         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
-                          <Row label="Screen" value={env.screenName ?? "—"} />
+                          <Row label={env.platform === "web" ? "Page" : "Screen"} value={env.screenName ?? "—"} />
                           <Row label="OS" value={`${env.osName ?? ""} ${env.osVersion ?? ""}`.trim() || "—"} />
-                          <Row label="Device" value={env.deviceModel ?? "—"} />
+                          <Row
+                            label={env.platform === "web" ? "Browser" : "Device"}
+                            value={
+                              env.platform === "web" && env.browserName
+                                ? `${env.browserName} ${env.browserVersion ?? ""}`.trim()
+                                : env.deviceModel ?? "—"
+                            }
+                          />
                           <Row
                             label="App version"
                             value={
@@ -1163,7 +1193,7 @@ export function ProjectPage() {
                           />
                           <Row label="Locale" value={env.locale ?? "—"} />
                           <Row
-                            label="Screen size"
+                            label={env.platform === "web" ? "Viewport" : "Screen size"}
                             value={
                               env.screenWidthPoints
                                 ? `${env.screenWidthPoints}×${env.screenHeightPoints} @${env.screenScale}x`
@@ -1173,6 +1203,9 @@ export function ProjectPage() {
                         </dl>
                       </div>
                     ) : null}
+
+                    {/* Console & network logs (web SDK reports) */}
+                    <ConsoleLogsPanel logs={selectedFeedback.logs ?? []} />
 
                     {/* Attachment (if present) */}
                     {selectedFeedback.attachment_path ? (
@@ -1254,6 +1287,13 @@ export function ProjectPage() {
             projectId={project.id}
             products={products}
             onProductsChanged={setProducts}
+          />
+
+          <AllowedOriginsCard
+            project={project}
+            onProjectUpdated={(updated) =>
+              setProject((prev) => (prev ? { ...prev, ...updated } : prev))
+            }
           />
 
           <GitHubSetupCard

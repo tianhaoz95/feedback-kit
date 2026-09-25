@@ -261,3 +261,48 @@ export function LayersIcon(props: IconProps) {
 
 
 
+
+export function MessageIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z" />
+      <path d="M8.5 10.5h7M8.5 14h4.5" />
+    </svg>
+  );
+}
+
+export function GlobeIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+    </svg>
+  );
+}
+
+export function DeviceIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="7" y="3" width="10" height="18" rx="2" />
+      <path d="M11 17.5h2" />
+    </svg>
+  );
+}
+
+export function MonitorIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4" width="18" height="12" rx="2" />
+      <path d="M8 20h8M12 16v4" />
+    </svg>
+  );
+}
+
+export function WatchIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="6" y="6" width="12" height="12" rx="3" />
+      <path d="M9 6l1-3h4l1 3M9 18l1 3h4l1-3" />
+    </svg>
+  );
+}

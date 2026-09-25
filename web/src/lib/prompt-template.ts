@@ -18,6 +18,41 @@ export function formatProductsList(products?: FeedbackItem["products"]): string 
     .join("\n");
 }
 
+/** Recent console/network logs as a fenced block for a coding agent, newest last. */
+export function formatConsoleLogs(logs?: FeedbackItem["logs"]): string {
+  if (!logs || logs.length === 0) return "(none captured)";
+  const lines = logs.map((l) => {
+    const time = l.timestamp ? l.timestamp.slice(11, 19) : "";
+    return `${time} [${l.level}] ${l.message}`;
+  });
+  return "```\n" + lines.join("\n") + "\n```";
+}
+
+function browserLabel(env: FeedbackItem["environment"]): string {
+  if (env.browserName) return `${env.browserName} ${env.browserVersion ?? ""}`.trim();
+  return env.deviceModel ?? "";
+}
+
+/**
+ * Appended to a web report's prompt when the project's template predates the
+ * web SDK (references none of its placeholders), so every existing project
+ * gets the page URL and logs without having to edit its template first.
+ */
+function webContextSection(feedback: FeedbackItem): string {
+  const env = feedback.environment;
+  return [
+    "## Web context",
+    `- Page URL: ${env.pageUrl ?? "(unknown)"}`,
+    `- Browser: ${browserLabel(env)}`,
+    `- Viewport: ${env.screenWidthPoints}×${env.screenHeightPoints} @${env.screenScale}x`,
+    "",
+    "### Console & network log (most recent last)",
+    formatConsoleLogs(feedback.logs),
+  ].join("\n");
+}
+
+const WEB_PLACEHOLDERS = /{{\s*(page_url|console_logs|browser)\s*}}/;
+
 export function renderPromptTemplate(
   template: string,
   feedback: FeedbackItem,
@@ -45,7 +80,15 @@ export function renderPromptTemplate(
     screenshot_url: screenshotUrl ?? "",
     attachment_url: attachmentUrl ?? "(no attachment)",
     products: formatProductsList(feedback.products),
+    platform: env.platform === "web" ? "Web" : env.osName ?? "",
+    page_url: env.pageUrl ?? "(not a web report)",
+    browser: env.platform === "web" ? browserLabel(env) : "(not a web report)",
+    console_logs: formatConsoleLogs(feedback.logs),
   };
+
+  if (env.platform === "web" && !WEB_PLACEHOLDERS.test(rendered)) {
+    rendered = `${rendered.trimEnd()}\n\n${webContextSection(feedback)}`;
+  }
 
   return rendered
     .replace(/{{\s*(\w+)\s*}}/g, (match, key: string) =>
@@ -66,6 +109,10 @@ export const PROMPT_TEMPLATE_PLACEHOLDERS = [
   "screenshot_url",
   "attachment_url",
   "products",
+  "platform",
+  "page_url",
+  "browser",
+  "console_logs",
 ] as const;
 
 /**
@@ -142,6 +189,15 @@ Resolve all ${items.length} reported issues described below in a coordinated man
               .join("\n")}`
           : "";
 
+      const webLines =
+        env.platform === "web"
+          ? `\n  - Page URL: ${env.pageUrl || "—"}\n  - Browser: ${browserLabel(env as FeedbackItem["environment"])}${
+              item.logs && item.logs.length > 0
+                ? `\n- **Console & network log**:\n${formatConsoleLogs(item.logs)}`
+                : ""
+            }`
+          : "";
+
       return `### Issue ${idx + 1}: ${screen}${titleSnippet}
 - **Report ID**: \`${item.id}\`
 - **Screen**: ${env.screenName || "(unknown)"}
@@ -152,7 +208,7 @@ ${item.text ? `> ${item.text.split("\n").join("\n> ")}` : "*(No description prov
   - OS: ${env.osName || ""} ${env.osVersion || ""}
   - Device: ${env.deviceModel || "Unknown"}
   - App Version: ${env.appVersion || "—"} (${env.appBuild || "—"})
-  - Locale: ${env.locale || "—"}${screenshotLine}
+  - Locale: ${env.locale || "—"}${webLines}${screenshotLine}
 - **Attachment**: ${attachment}${customPromptSection}`;
     })
     .join("\n\n---\n\n");
@@ -160,7 +216,7 @@ ${item.text ? `> ${item.text.split("\n").join("\n> ")}` : "*(No description prov
   const instructions = `## Coordinated Implementation Guidelines
 1. **Analyze Shared Dependencies**: Review all ${items.length} issues above before modifying code. Identify any shared files, view models, database models, or theme variables.
 2. **Coordinated Multi-Issue Fixes**: Implement the fixes cohesively so that resolving one issue does not cause conflicts, duplication, or regressions in another.
-3. **Architecture & Styling Conventions**: Maintain existing project idioms and code style across Swift/SwiftUI/UIKit/AppKit.
+3. **Architecture & Styling Conventions**: Maintain existing project idioms and code style across Swift/SwiftUI/UIKit/AppKit and web front-end code.
 4. **Verification**: Verify each modified screen or workflow and ensure all test suites pass.`;
 
   return `${header}

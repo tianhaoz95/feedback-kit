@@ -154,3 +154,56 @@ test("renderPromptTemplate handles empty products with none specified fallback",
   assert.equal(result, "Products:\n(none specified)");
 });
 
+
+const webEnv: Partial<FeedbackItem["environment"]> = {
+  screenName: "Project › Settings",
+  osName: "macOS",
+  osVersion: "15.2",
+  deviceModel: "Chrome 141",
+  bundleIdentifier: "app.example.com",
+  platform: "web",
+  pageUrl: "https://app.example.com/projects/1?tab=settings",
+  browserName: "Chrome",
+  browserVersion: "141.0.7390.54",
+  screenWidthPoints: 1440,
+  screenHeightPoints: 900,
+  screenScale: 2,
+};
+
+test("renderPromptTemplate appends web context to a pre-web-SDK template", () => {
+  const feedback = createMockFeedback({
+    environment: webEnv,
+    logs: [{ level: "error", message: "TypeError: x is undefined", timestamp: "2026-09-25T12:00:01.000Z" }],
+  });
+  const result = renderPromptTemplate("## Report\n{{feedback_text}}", feedback, null, null);
+  assert.ok(result.includes("## Web context"));
+  assert.ok(result.includes("- Page URL: https://app.example.com/projects/1?tab=settings"));
+  assert.ok(result.includes("- Browser: Chrome 141.0.7390.54"));
+  assert.ok(result.includes("12:00:01 [error] TypeError: x is undefined"));
+});
+
+test("renderPromptTemplate fills web placeholders and doesn't duplicate the section", () => {
+  const feedback = createMockFeedback({ environment: webEnv, logs: [] });
+  const result = renderPromptTemplate("URL {{page_url}} on {{platform}} / {{browser}}\n{{console_logs}}", feedback, null, null);
+  assert.equal(
+    result,
+    "URL https://app.example.com/projects/1?tab=settings on Web / Chrome 141.0.7390.54\n(none captured)",
+  );
+  assert.ok(!result.includes("## Web context"));
+});
+
+test("renderPromptTemplate leaves native reports without a web section", () => {
+  const result = renderPromptTemplate("{{feedback_text}} {{platform}}", createMockFeedback(), null, null);
+  assert.equal(result, "Button overlaps with text on iPhone 16 iOS");
+});
+
+test("renderMergedPrompt includes page URL and logs for web reports", () => {
+  const web = createMockFeedback({
+    id: "fb_web",
+    environment: webEnv,
+    logs: [{ level: "network", message: "POST /api/save → 500", timestamp: "2026-09-25T12:00:02.000Z" }],
+  });
+  const result = renderMergedPrompt([web, createMockFeedback({ id: "fb_ios" })], {});
+  assert.ok(result.includes("Page URL: https://app.example.com/projects/1?tab=settings"));
+  assert.ok(result.includes("[network] POST /api/save → 500"));
+});

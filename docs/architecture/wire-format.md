@@ -32,31 +32,63 @@ Notice that `environment` and `annotations` remain **camelCase** even though the
 
 ```json
 {
-  "project_key": "fbk_live_...",
-  "client_id": "9B1DE6E8-8B7C-4C9D-9F0A-1B2C3D4E5F6A",
+  "project_key": "pk_...",
+  "id": "9B1DE6E8-8B7C-4C9D-9F0A-1B2C3D4E5F6A",
+  "created_at": "2026-09-25T12:00:00Z",
   "text": "The checkout button is obscured by the banner.",
+  "screenshot_raw_png_base64": "iVBORw0…",
+  "screenshot_annotated_png_base64": "iVBORw0…",
   "annotations": [
     {
-      "type": "rectangle",
+      "kind": "rectangle",
       "colorHex": "#FF3B30",
-      "lineWidth": 3.0,
-      "points": [
-        {"x": 0.12, "y": 0.45},
-        {"x": 0.88, "y": 0.62}
-      ]
+      "points": [[0.12, 0.45], [0.88, 0.62]],
+      "scale": 1,
+      "rotation": 0
     }
   ],
   "environment": {
     "appVersion": "1.2.0",
     "appBuild": "42",
+    "bundleIdentifier": "com.example.app",
     "osName": "iOS",
     "osVersion": "18.2",
-    "deviceModel": "iPhone 16 Pro",
+    "deviceModel": "iPhone17,1",
+    "screenName": "Checkout",
     "locale": "en_US",
     "screenWidthPoints": 393,
     "screenHeightPoints": 852,
     "screenScale": 3.0
   }
+}
+```
+
+Points are `[x, y]` arrays normalized to 0…1 — that's how Swift's `CGPoint`
+encodes through `Codable`, and the web SDK emits the same shape.
+
+### Web SDK additions
+
+Reports from the web SDK (`web-sdk/`) use the exact same payload. Every
+`environment` field above is always present (the Developer Portal decodes it
+with the Swift type), plus optional web-only fields, and a top-level `logs`
+array stored in `feedback_items.logs`:
+
+```json
+{
+  "environment": {
+    "osName": "macOS", "osVersion": "15.2", "deviceModel": "Chrome 141",
+    "bundleIdentifier": "app.example.com", "screenWidthPoints": 1440,
+    "screenHeightPoints": 900, "screenScale": 2,
+    "platform": "web",
+    "pageUrl": "https://app.example.com/checkout?session=%5Bredacted%5D",
+    "userAgent": "Mozilla/5.0 …",
+    "browserName": "Chrome",
+    "browserVersion": "141.0.7390.54"
+  },
+  "logs": [
+    { "level": "error", "message": "TypeError: …", "timestamp": "2026-09-25T11:59:58.120Z" },
+    { "level": "network", "message": "POST https://api.example.com/cart → 500", "timestamp": "2026-09-25T11:59:59.004Z" }
+  ]
 }
 ```
 

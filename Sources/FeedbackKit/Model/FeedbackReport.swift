@@ -78,6 +78,22 @@ public struct FeedbackEnvironment: Codable, Equatable, Sendable {
     public var screenWidthPoints: Double
     public var screenHeightPoints: Double
     public var screenScale: Double
+    /// `"web"` for reports from the web SDK (`web-sdk/`, npm `feedbackkit-web`),
+    /// which share this same `environment` JSON shape. Always `nil` for reports
+    /// this SDK captures — it exists so consumers decoding stored reports with
+    /// this type (the Developer Portal app) can tell a web report apart.
+    public var platform: String?
+    /// Web SDK only: the page URL at capture time (sensitive params redacted).
+    public var pageUrl: String?
+    /// Web SDK only.
+    public var userAgent: String?
+    /// Web SDK only, e.g. "Chrome".
+    public var browserName: String?
+    /// Web SDK only, e.g. "141.0.7390.54".
+    public var browserVersion: String?
+
+    /// Whether this report came from the web SDK rather than a native app.
+    public var isWeb: Bool { platform == "web" }
 
     public init(
         osName: String,
@@ -90,7 +106,12 @@ public struct FeedbackEnvironment: Codable, Equatable, Sendable {
         locale: String,
         screenWidthPoints: Double,
         screenHeightPoints: Double,
-        screenScale: Double
+        screenScale: Double,
+        platform: String? = nil,
+        pageUrl: String? = nil,
+        userAgent: String? = nil,
+        browserName: String? = nil,
+        browserVersion: String? = nil
     ) {
         self.osName = osName
         self.osVersion = osVersion
@@ -103,6 +124,11 @@ public struct FeedbackEnvironment: Codable, Equatable, Sendable {
         self.screenWidthPoints = screenWidthPoints
         self.screenHeightPoints = screenHeightPoints
         self.screenScale = screenScale
+        self.platform = platform
+        self.pageUrl = pageUrl
+        self.userAgent = userAgent
+        self.browserName = browserName
+        self.browserVersion = browserVersion
     }
 }
 

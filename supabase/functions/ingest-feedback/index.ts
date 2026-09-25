@@ -1,4 +1,5 @@
-// Public ingestion endpoint the FeedbackKit iOS SDK POSTs to.
+// Public ingestion endpoint the FeedbackKit SDKs POST to — the Swift SDK
+// (iOS/macOS/watchOS) and the web SDK (web-sdk/, npm `feedbackkit-web`).
 //
 // Auth model: there's no user auth here at all — the request is identified
 // purely by `project_key`, which is safe to embed in a shipped app binary (it
@@ -7,7 +8,13 @@
 // bypassing dashboard RLS policies by design.
 //
 // Wire format is documented in Sources/FeedbackKit/Networking/FeedbackSubmitter.swift
-// (the `IngestPayload` type) — keep the two in sync.
+// (the `IngestPayload` type) and web-sdk/src/submit.ts — keep all three in sync.
+//
+// Abuse controls (see supabase/migrations/0013_web_sdk.sql): an optional
+// per-project `allowed_origins` list checked against the browser's `Origin`
+// header, and a per-project submissions-per-minute cap. Both fail open if
+// the columns they read don't exist yet, so a function deploy that lands
+// before its migration can never take ingestion down.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 interface IngestProduct {
@@ -31,7 +38,19 @@ interface IngestPayload {
   attachment_data_base64?: string;
   product_keys?: string[];
   products?: IngestProduct[];
+  /** Web SDK only: recent console/network log entries. */
+  logs?: unknown;
 }
+
+interface IngestLogEntry {
+  level: string;
+  message: string;
+  timestamp: string;
+}
+
+const MAX_LOG_ENTRIES = 100;
+const MAX_LOG_MESSAGE_LENGTH = 2000;
+const RATE_LIMIT_PER_MINUTE = Number(Deno.env.get("INGEST_RATE_LIMIT_PER_MINUTE") ?? "30");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -96,14 +115,34 @@ Deno.serve(async (req) => {
     return json({ error: "missing required fields" }, 400);
   }
 
+  // `*` rather than naming `allowed_origins`, so this query still works
+  // against a database where 0013_web_sdk.sql hasn't been applied yet.
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("id")
+    .select("*")
     .eq("project_key", payload.project_key)
     .single();
 
   if (projectError || !project) {
     return json({ error: "unknown project_key" }, 401);
+  }
+
+  const origin = req.headers.get("origin");
+  if (!isOriginAllowed(origin, project.allowed_origins)) {
+    return json({ error: "origin_not_allowed", origin }, 403);
+  }
+
+  if (RATE_LIMIT_PER_MINUTE > 0) {
+    const since = new Date(Date.now() - 60_000).toISOString();
+    const { count, error: countError } = await supabase
+      .from("feedback_items")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", project.id)
+      .gte("received_at", since);
+    // countError (e.g. column missing before the migration) → fail open.
+    if (!countError && (count ?? 0) >= RATE_LIMIT_PER_MINUTE) {
+      return json({ error: "rate_limited" }, 429);
+    }
   }
 
   // Resolve products for this feedback report
@@ -179,6 +218,8 @@ Deno.serve(async (req) => {
     }
   }
 
+  const logs = sanitizeLogs(payload.logs);
+
   const { error: insertError } = await supabase.from("feedback_items").insert({
     id: payload.id,
     project_id: project.id,
@@ -193,6 +234,8 @@ Deno.serve(async (req) => {
     attachment_mime_type: attachmentPath ? (payload.attachment_mime_type ?? null) : null,
     products: resolvedProducts,
     product_keys: resolvedProductKeys,
+    // Only sent when present, so native reports insert exactly as before.
+    ...(logs.length > 0 ? { logs } : {}),
   });
 
   if (insertError) {
@@ -201,6 +244,38 @@ Deno.serve(async (req) => {
 
   return json({ id: payload.id }, 201);
 });
+
+/**
+ * `allowed_origins` entries are exact origins (`https://app.example.com`) or
+ * a leading-wildcard subdomain pattern (`https://*.example.com`). An empty
+ * list allows everything, and a request with no `Origin` header (native
+ * apps, server-to-server) is never blocked.
+ */
+function isOriginAllowed(origin: string | null, allowed: unknown): boolean {
+  if (!origin || !Array.isArray(allowed) || allowed.length === 0) return true;
+  const normalized = origin.toLowerCase().replace(/\/+$/, "");
+  return allowed.some((entry) => {
+    if (typeof entry !== "string") return false;
+    const rule = entry.trim().toLowerCase().replace(/\/+$/, "");
+    if (rule === "*" || rule === normalized) return true;
+    const wildcard = rule.match(/^(https?:\/\/)\*\.(.+)$/);
+    if (!wildcard) return false;
+    const [, scheme, domain] = wildcard;
+    return normalized.startsWith(scheme) && normalized.slice(scheme.length).endsWith(`.${domain}`);
+  });
+}
+
+function sanitizeLogs(raw: unknown): IngestLogEntry[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === "object")
+    .slice(-MAX_LOG_ENTRIES)
+    .map((entry) => ({
+      level: typeof entry.level === "string" ? entry.level.slice(0, 16) : "log",
+      message: String(entry.message ?? "").slice(0, MAX_LOG_MESSAGE_LENGTH),
+      timestamp: typeof entry.timestamp === "string" ? entry.timestamp.slice(0, 40) : new Date().toISOString(),
+    }));
+}
 
 // Keeps the original filename (for nicer downloads) while stripping
 // anything that could be read as a path separator or otherwise escape the

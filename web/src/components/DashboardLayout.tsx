@@ -1,8 +1,10 @@
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
+import { FeedbackKit, screenNameForPath, setUpFeedbackKit } from "@/lib/feedbackkit";
 import { Logomark } from "@/components/Logomark";
-import { BookIcon, CreditCardIcon, FolderIcon, KeyIcon, LogOutIcon } from "@/components/icons";
+import { BookIcon, CreditCardIcon, FolderIcon, KeyIcon, LogOutIcon, MessageIcon } from "@/components/icons";
 
 const NAV_LINK_CLASS = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium transition-colors sm:px-2.5 ${
@@ -14,6 +16,14 @@ export function DashboardLayout() {
   const { user } = useAuth();
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
   const displayName = (user?.user_metadata?.full_name as string | undefined) || user?.email || "";
+  const location = useLocation();
+  const [feedbackEnabled] = useState(() => setUpFeedbackKit());
+
+  // Keep reports' screen name in step with the route (the web counterpart of
+  // setting `FeedbackKit.currentScreen` in a native `viewDidAppear`).
+  useEffect(() => {
+    FeedbackKit.currentScreen = screenNameForPath(location.pathname);
+  }, [location.pathname, location.search]);
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -48,6 +58,19 @@ export function DashboardLayout() {
               <CreditCardIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Billing</span>
             </NavLink>
+
+            {feedbackEnabled && (
+              <button
+                type="button"
+                onClick={() => void FeedbackKit.presentAndSubmit()}
+                className={NAV_LINK_CLASS({ isActive: false })}
+                aria-label="Send feedback about the dashboard"
+                title="Send feedback (⌘⇧F / Ctrl+Shift+F)"
+              >
+                <MessageIcon className="h-4 w-4" />
+                <span className="hidden lg:inline">Feedback</span>
+              </button>
+            )}
 
             <div className="mx-1 hidden h-5 w-px bg-neutral-200 sm:mx-2 sm:block" />
 

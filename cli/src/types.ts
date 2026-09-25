@@ -34,6 +34,19 @@ export interface FeedbackEnvironment {
   screenWidthPoints: number;
   screenHeightPoints: number;
   screenScale: number;
+  /** Web SDK only (see web/src/lib/types.ts). */
+  platform?: "web";
+  pageUrl?: string;
+  userAgent?: string;
+  browserName?: string;
+  browserVersion?: string;
+}
+
+/** One console message / uncaught error / failed request captured by the web SDK. */
+export interface FeedbackLogEntry {
+  level: string;
+  message: string;
+  timestamp: string;
 }
 
 export interface Product {
@@ -72,4 +85,6 @@ export interface FeedbackItem {
   github_issue_number?: number | null;
   products?: FeedbackProduct[];
   product_keys?: string[];
+  /** Web SDK reports only; `[]` otherwise. */
+  logs?: FeedbackLogEntry[];
 }

@@ -1,0 +1,63 @@
+{
+  "name": "feedbackkit-web",
+  "version": "0.1.0",
+  "description": "Drop-in in-app feedback for websites: capture a screenshot, annotate it, describe the problem, and get a structured FeedbackKit report.",
+  "type": "module",
+  "main": "./dist/feedbackkit.js",
+  "module": "./dist/feedbackkit.js",
+  "types": "./dist/types/index.d.ts",
+  "unpkg": "./dist/feedbackkit.iife.js",
+  "jsdelivr": "./dist/feedbackkit.iife.js",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/feedbackkit.js"
+    },
+    "./iife": "./dist/feedbackkit.iife.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "vite build && FEEDBACKKIT_IIFE=1 vite build && tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build",
+    "dev": "vite build --watch",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "npm run build && node e2e/run.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tianhaoz95/feedback-kit.git",
+    "directory": "web-sdk"
+  },
+  "homepage": "https://github.com/tianhaoz95/feedback-kit/tree/main/web-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/tianhaoz95/feedback-kit/issues"
+  },
+  "keywords": [
+    "feedback",
+    "bug-report",
+    "screenshot",
+    "annotation",
+    "widget",
+    "feedbackkit"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "dependencies": {
+    "modern-screenshot": "^4.7.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0",
+    "typescript": "^5",
+    "vite": "^7",
+    "vitest": "^4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

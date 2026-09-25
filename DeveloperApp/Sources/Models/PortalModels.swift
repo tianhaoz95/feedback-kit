@@ -132,6 +132,21 @@ public struct PortalPromptTemplate: Codable, Identifiable, Sendable {
 
 // MARK: - Feedback Item
 
+/// One console message / uncaught error / failed request captured by the web
+/// SDK before a report (`feedback_items.logs`, see 0013_web_sdk.sql). Always
+/// empty for native reports.
+public struct PortalLogEntry: Codable, Hashable, Sendable {
+    public var level: String
+    public var message: String
+    public var timestamp: String
+
+    public init(level: String, message: String, timestamp: String) {
+        self.level = level
+        self.message = message
+        self.timestamp = timestamp
+    }
+}
+
 public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
     public let id: String
     public let projectId: String
@@ -151,6 +166,7 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
     public var githubIssueNumber: Int?
     public var products: [FeedbackProduct]
     public var productKeys: [String]
+    public var logs: [PortalLogEntry]
 
     // Transient signed URLs resolved at runtime
     public var signedScreenshotUrl: String?
@@ -176,6 +192,7 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
         case githubIssueNumber = "github_issue_number"
         case products
         case productKeys = "product_keys"
+        case logs
     }
 
     public init(
@@ -197,6 +214,7 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
         githubIssueNumber: Int? = nil,
         products: [FeedbackProduct] = [],
         productKeys: [String] = [],
+        logs: [PortalLogEntry] = [],
         signedScreenshotUrl: String? = nil,
         signedRawScreenshotUrl: String? = nil,
         signedAttachmentUrl: String? = nil
@@ -219,6 +237,7 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
         self.githubIssueNumber = githubIssueNumber
         self.products = products
         self.productKeys = productKeys
+        self.logs = logs
         self.signedScreenshotUrl = signedScreenshotUrl
         self.signedRawScreenshotUrl = signedRawScreenshotUrl
         self.signedAttachmentUrl = signedAttachmentUrl
@@ -260,6 +279,7 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
         githubIssueNumber = try container.decodeIfPresent(Int.self, forKey: .githubIssueNumber)
         products = try container.decodeIfPresent([FeedbackProduct].self, forKey: .products) ?? []
         productKeys = try container.decodeIfPresent([String].self, forKey: .productKeys) ?? []
+        logs = (try? container.decodeIfPresent([PortalLogEntry].self, forKey: .logs)) ?? []
     }
 
     public func hash(into hasher: inout Hasher) {

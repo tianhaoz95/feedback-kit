@@ -12,6 +12,7 @@ FeedbackKit contains multiple test suites spanning Swift, TypeScript, and Agent 
 | **Swift SDK** | iOS Simulator | `xcodebuild` | `xcodebuild test -scheme FeedbackKit -destination '...'` |
 | **Swift SDK** | watchOS Simulator | `xcodebuild` | `xcodebuild test -scheme FeedbackKit -destination '...'` |
 | **Web Dashboard** | Node / Browser | Node test runner | `cd web && npm test` |
+| **Web SDK** | Node + real browsers | Vitest + Playwright | `cd web-sdk && npm test && npm run test:e2e` |
 | **CLI & MCP** | Node.js | Node test runner | `cd cli && npm test` |
 | **Agent Skills** | Specification | Node script | `npm run validate` |
 

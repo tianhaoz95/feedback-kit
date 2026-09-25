@@ -55,6 +55,11 @@ public struct FeedbackDetailView: View {
                 // Environment & Diagnostics
                 EnvironmentSectionView(env: currentItem.environment)
 
+                // Console & network logs (web SDK reports only)
+                if !currentItem.logs.isEmpty {
+                    ConsoleLogsSectionView(logs: currentItem.logs)
+                }
+
                 // AI Prompt Generator Section
                 aiPromptSection
 

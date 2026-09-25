@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FeedbackKit e2e fixture</title>
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; background: oklch(0.98 0.01 250); color: #1a1a1a; }
+  header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; height: 56px; padding: 0 20px; background: oklch(0.55 0.2 265); color: #fff; font-weight: 700; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px; }
+  .card { margin: 0 0 16px; padding: 20px; border-radius: 12px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+  .save { padding: 10px 18px; border: 0; border-radius: 8px; background: #16a34a; color: #fff; font-weight: 600; }
+</style>
+</head>
+<body>
+<header>Acme Settings</header>
+<main id="main"></main>
+<script>
+  const main = document.getElementById("main");
+  for (let i = 1; i <= 12; i++) {
+    const c = document.createElement("section");
+    c.className = "card";
+    c.innerHTML = `<h2>Section ${i}</h2><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p><button class="save">Save changes</button>`;
+    main.appendChild(c);
+  }
+</script>
+<script src="../dist/feedbackkit.iife.js"></script>
+</body>
+</html>

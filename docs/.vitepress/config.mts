@@ -45,6 +45,7 @@ export default defineConfig({
         text: "Components",
         items: [
           { text: "Swift SDK (iOS, macOS, watchOS)", link: "/components/sdk" },
+          { text: "Web SDK", link: "/components/web-sdk" },
           { text: "Demo Applications", link: "/components/demo-apps" },
           { text: "Web Dashboard (React SPA)", link: "/components/web-dashboard" },
           { text: "Cloudflare Deployment", link: "/components/cloudflare" },

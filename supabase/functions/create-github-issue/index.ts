@@ -217,6 +217,28 @@ Deno.serve(async (req) => {
 
     const screenshotSection = screenshotMd ? `\n## Screenshot\n${screenshotMd}\n` : "";
 
+    // Web SDK reports (environment.platform === "web", see 0013_web_sdk.sql)
+    // carry the page URL, browser and recent console/network logs.
+    const isWeb = env.platform === "web";
+    const webRows = isWeb
+      ? `| **Page URL** | ${env.pageUrl || "—"} |
+| **Browser** | ${env.browserName ? `${env.browserName} ${env.browserVersion || ""}` : env.deviceModel || "—"} |
+`
+      : "";
+    const logs = Array.isArray(feedback.logs) ? feedback.logs : [];
+    const logsMd = logs.length > 0
+      ? `
+<details>
+<summary><b>Console &amp; network log</b> (${logs.length} entries)</summary>
+
+\`\`\`
+${logs.map((l: { level?: string; message?: string; timestamp?: string }) => `${(l.timestamp || "").slice(11, 19)} [${l.level}] ${l.message}`).join("\n")}
+\`\`\`
+
+</details>
+`
+      : "";
+
     const issueBody = `## Description
 ${feedback.text || "*(No description provided)*"}
 ${productsMd}${screenshotSection}
@@ -224,13 +246,13 @@ ${productsMd}${screenshotSection}
 | Spec | Value |
 |---|---|
 | **Screen** | ${env.screenName || "—"} |
-| **OS** | ${env.osName || ""} ${env.osVersion || ""} |
+${webRows}| **OS** | ${env.osName || ""} ${env.osVersion || ""} |
 | **Device** | ${env.deviceModel || "—"} |
 | **App Version** | ${env.appVersion || "—"} (${env.appBuild || ""}) |
 | **Locale** | ${env.locale || "—"} |
-| **Screen Size** | ${env.screenWidthPoints || ""}×${env.screenHeightPoints || ""} @${env.screenScale || 1}x |
+| **${isWeb ? "Viewport" : "Screen Size"}** | ${env.screenWidthPoints || ""}×${env.screenHeightPoints || ""} @${env.screenScale || 1}x |
 | **Reported At** | ${new Date(feedback.created_at).toUTCString()} |
-${attachmentMd}
+${attachmentMd}${logsMd}
 <details>
 <summary><b>🤖 Coding Agent Prompt</b> (click to expand)</summary>
 

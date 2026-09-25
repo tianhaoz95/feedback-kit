@@ -42,6 +42,25 @@ const RAW_NAV: RawNavItem[] = [
     ],
   },
   {
+    to: "/docs/web-sdk",
+    label: "Web SDK",
+    sections: [
+      "Requirements",
+      "Install",
+      "Basic usage",
+      "Sending to the hosted dashboard",
+      "Triggers",
+      "Tracking the current page",
+      "Annotation tools",
+      "Console & network logs",
+      "How the screenshot is captured",
+      "Theming",
+      "Next.js and other SSR frameworks",
+      "What's in a FeedbackReport",
+      "Try it",
+    ],
+  },
+  {
     to: "/docs/dashboard",
     label: "Web dashboard",
     sections: [

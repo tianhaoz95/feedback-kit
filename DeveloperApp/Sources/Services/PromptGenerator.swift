@@ -13,8 +13,51 @@ public enum PromptGenerator {
         "locale",
         "screenshot_url",
         "attachment_url",
-        "products"
+        "products",
+        "platform",
+        "page_url",
+        "browser",
+        "console_logs"
     ]
+
+    /// Recent console/network logs as a fenced block, newest last — mirrors
+    /// `formatConsoleLogs` in web/src/lib/prompt-template.ts.
+    public static func formatConsoleLogs(_ logs: [PortalLogEntry]) -> String {
+        guard !logs.isEmpty else { return "(none captured)" }
+        let lines = logs.map { log -> String in
+            let time = log.timestamp.count >= 19
+                ? String(log.timestamp[log.timestamp.index(log.timestamp.startIndex, offsetBy: 11)..<log.timestamp.index(log.timestamp.startIndex, offsetBy: 19)])
+                : ""
+            return "\(time) [\(log.level)] \(log.message)"
+        }
+        return "```\n" + lines.joined(separator: "\n") + "\n```"
+    }
+
+    static func browserLabel(_ env: FeedbackEnvironment) -> String {
+        if let name = env.browserName {
+            return "\(name) \(env.browserVersion ?? "")".trimmingCharacters(in: .whitespaces)
+        }
+        return env.deviceModel
+    }
+
+    /// Appended to a web report's prompt when the template uses none of the
+    /// web placeholders — same rule as the dashboard and CLI.
+    static func webContextSection(_ feedback: PortalFeedbackItem) -> String {
+        let env = feedback.environment
+        return [
+            "## Web context",
+            "- Page URL: \(env.pageUrl ?? "(unknown)")",
+            "- Browser: \(browserLabel(env))",
+            "- Viewport: \(Int(env.screenWidthPoints))×\(Int(env.screenHeightPoints)) @\(formatScale(env.screenScale))x",
+            "",
+            "### Console & network log (most recent last)",
+            formatConsoleLogs(feedback.logs)
+        ].joined(separator: "\n")
+    }
+
+    private static func formatScale(_ scale: Double) -> String {
+        scale == scale.rounded() ? String(Int(scale)) : String(scale)
+    }
 
     public static func formatProductsList(_ products: [FeedbackProduct]) -> String {
         guard !products.isEmpty else { return "(none specified)" }
@@ -65,10 +108,18 @@ public enum PromptGenerator {
             "locale": env.locale,
             "screenshot_url": screenshotUrl ?? "",
             "attachment_url": attachmentUrl ?? "(no attachment)",
-            "products": formatProductsList(feedback.products)
+            "products": formatProductsList(feedback.products),
+            "platform": env.isWeb ? "Web" : env.osName,
+            "page_url": env.pageUrl ?? "(not a web report)",
+            "browser": env.isWeb ? browserLabel(env) : "(not a web report)",
+            "console_logs": formatConsoleLogs(feedback.logs)
         ]
 
         var rendered = template.isEmpty ? defaultTemplate : template
+
+        if env.isWeb, rendered.range(of: "\\{\\{\\s*(page_url|console_logs|browser)\\s*\\}\\}", options: .regularExpression) == nil {
+            rendered = rendered.trimmingCharacters(in: .whitespacesAndNewlines) + "\n\n" + webContextSection(feedback)
+        }
 
         // If no screenshot is included, remove the entire ## Screenshot section
         if screenshotUrl == nil || screenshotUrl?.isEmpty == true {
@@ -150,6 +201,14 @@ public enum PromptGenerator {
                 productsPart = "\n- **Affected Products**:\n\(lines)"
             }
 
+            var webPart = ""
+            if env.isWeb {
+                webPart = "\n  - Page URL: \(env.pageUrl ?? "—")\n  - Browser: \(browserLabel(env))"
+                if !item.logs.isEmpty {
+                    webPart += "\n- **Console & network log**:\n\(formatConsoleLogs(item.logs))"
+                }
+            }
+
             let descQuoted = item.text.isEmpty ? "*(No description provided)*" : item.text.split(separator: "\n").map { "> \($0)" }.joined(separator: "\n")
 
             let section = """
@@ -163,7 +222,7 @@ public enum PromptGenerator {
               - OS: \(env.osName) \(env.osVersion)
               - Device: \(env.deviceModel)
               - App Version: \(env.appVersion) (\(env.appBuild))
-              - Locale: \(env.locale)\(screenshotLine)
+              - Locale: \(env.locale)\(webPart)\(screenshotLine)
             - **Attachment**: \(attachment)\(customPromptPart)
             """
             detailSections.append(section)
