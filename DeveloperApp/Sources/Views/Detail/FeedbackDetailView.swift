@@ -60,6 +60,9 @@ public struct FeedbackDetailView: View {
                     ConsoleLogsSectionView(logs: currentItem.logs)
                 }
 
+                // Closed loop: agent → PR → release → reporter verifies
+                FixLoopSectionView(item: currentItem)
+
                 // AI Prompt Generator Section
                 aiPromptSection
 

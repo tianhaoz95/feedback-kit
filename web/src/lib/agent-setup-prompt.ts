@@ -64,6 +64,17 @@ export function generateAgentSetupPrompt({
 
 4. Screen tracking (optional but recommended): Set FeedbackKit.currentScreen = "ScreenName" when navigating so reports record which screen they originated from.
 
+5. Close the loop (recommended): once a fix ships, ask the person who reported it to confirm on their device:
+   \`\`\`swift
+   FeedbackKit.enableFixVerification {
+       UIApplication.shared.connectedScenes
+           .compactMap { $0 as? UIWindowScene }
+           .flatMap { $0.windows }
+           .first { $0.isKeyWindow }?
+           .rootViewController
+   }
+   \`\`\` After each TestFlight/App Store upload, run \`npx feedbackkit-cli release --build <CFBundleVersion>\` from the repo — e.g. at the end of the release script — so merged fixes are marked shipped in that build.
+
 Please inspect the existing codebase, identify whether this is a SwiftUI or UIKit app, add the package dependency, place the configuration and trigger in the proper files, and ensure the app builds and runs cleanly.`;
 
     case "macos":
@@ -99,6 +110,8 @@ Please inspect the existing codebase, identify whether this is a SwiftUI or UIKi
      \`\`\`
 
 4. Screen tracking: macOS does not auto-detect screens, so update FeedbackKit.currentScreen = "ScreenName" as users navigate.
+
+5. Close the loop (recommended): \`FeedbackKit.enableFixVerification { NSApplication.shared.keyWindow }\` asks reporters to confirm a fix once it ships; run \`npx feedbackkit-cli release --build <CFBundleVersion>\` after each release build.
 
 Please inspect the existing codebase, identify the entry point, add the package dependency, place the configuration and trigger in the proper place, and ensure the app builds cleanly.`;
 
@@ -183,6 +196,8 @@ Please inspect the project structure, locate the entry points for each platform,
 
 4. Screen tracking: Set FeedbackKit.currentScreen = "ScreenName" as the user navigates so reports identify the active watch screen.
 
+5. Close the loop (recommended): add \`.feedbackFixVerification()\` to the root view so the watch asks reporters to confirm a fix once it ships; run \`npx feedbackkit-cli release --build <CFBundleVersion>\` after each release build.
+
 Please inspect the existing codebase, add the package dependency, configure FeedbackKit in the app entry point, wire up the quick note sheet, and verify that the watchOS app builds cleanly.`;
 
     case "web":
@@ -218,6 +233,8 @@ Please inspect the existing codebase, add the package dependency, configure Feed
 4. Screen tracking (recommended): set \`FeedbackKit.currentScreen = "Checkout"\` on route changes (from the router's navigation hook) so reports name the page; it falls back to \`location.pathname\`.
 
 5. Optional branding: \`FeedbackKit.theme = { primaryColorHex: "#RRGGBB" }\` using the app's brand color.
+
+6. Close the loop (recommended): call \`FeedbackKit.enableFixVerification()\` after \`configure\` so reporters are asked "is it fixed?" once a fix ships, and pass \`appBuild\` (your build/deploy id) to \`configure\` if the app has one. Run \`npx feedbackkit-cli release --build <build id>\` from the repo as a post-deploy step so merged fixes are marked shipped.
 
 Please inspect the project, identify the framework and its client entry point, install the package, configure FeedbackKit client-side only, wire up a trigger that fits the existing UI, and verify the app builds and the feedback dialog opens.`;
   }

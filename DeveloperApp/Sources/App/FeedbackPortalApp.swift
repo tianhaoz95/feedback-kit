@@ -46,6 +46,12 @@ struct FeedbackPortalApp: App {
         } else {
             FeedbackKit.disableShakeToReport()
         }
+
+        // Ask "is it fixed?" when a fix for something reported from this
+        // device ships in the Portal build it's running.
+        FeedbackKit.enableFixVerification {
+            UIApplication.shared.topMostViewController
+        }
     }
 
     private func handleIncomingURL(_ url: URL) {

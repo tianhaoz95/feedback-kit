@@ -55,6 +55,18 @@ public struct SdkIntegrationGuideView: View {
 
         4. Screen tracking (optional but recommended): Set FeedbackKit.currentScreen = "ScreenName" when navigating so reports record which screen they originated from.
 
+        5. Close the loop (recommended): ask reporters to confirm fixes on their device once they ship:
+           ```swift
+           FeedbackKit.enableFixVerification {
+               UIApplication.shared.connectedScenes
+                   .compactMap { $0 as? UIWindowScene }
+                   .flatMap { $0.windows }
+                   .first { $0.isKeyWindow }?
+                   .rootViewController
+           }
+           ```
+           Then, after each TestFlight/App Store upload, run `npx feedbackkit-cli release --project \(project.id) --build <CFBundleVersion>` from the repo so merged fixes are marked shipped in that build.
+
         Project Reference:
         - Project Name: \(project.name)
         - Project ID: \(project.id)

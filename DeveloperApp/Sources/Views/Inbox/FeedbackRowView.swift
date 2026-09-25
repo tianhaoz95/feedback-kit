@@ -38,6 +38,10 @@ public struct FeedbackRowView: View {
                 HStack(spacing: 6) {
                     StatusBadgeView(status: item.status, compact: true)
 
+                    if let stage = item.fixStage.flatMap(PortalFixStage.init(rawValue:)) {
+                        FixStageBadgeView(stage: stage)
+                    }
+
                     if let screen = item.environment.screenName {
                         Text(screen)
                             .font(.caption.weight(.semibold))

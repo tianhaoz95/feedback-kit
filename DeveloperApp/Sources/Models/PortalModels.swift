@@ -167,6 +167,15 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
     public var products: [FeedbackProduct]
     public var productKeys: [String]
     public var logs: [PortalLogEntry]
+    // Closed loop (supabase/migrations/0014_closed_loop.sql). Raw string, not
+    // an enum, so a stage added later never fails decoding the whole item.
+    public var fixStage: String?
+    public var fixPrUrl: String?
+    public var fixPrNumber: Int?
+    public var fixSummary: String?
+    public var fixedInBuild: String?
+    public var reopenCount: Int
+    public var reporterId: String?
 
     // Transient signed URLs resolved at runtime
     public var signedScreenshotUrl: String?
@@ -193,6 +202,13 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
         case products
         case productKeys = "product_keys"
         case logs
+        case fixStage = "fix_stage"
+        case fixPrUrl = "fix_pr_url"
+        case fixPrNumber = "fix_pr_number"
+        case fixSummary = "fix_summary"
+        case fixedInBuild = "fixed_in_build"
+        case reopenCount = "reopen_count"
+        case reporterId = "reporter_id"
     }
 
     public init(
@@ -215,6 +231,11 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
         products: [FeedbackProduct] = [],
         productKeys: [String] = [],
         logs: [PortalLogEntry] = [],
+        fixStage: String? = nil,
+        fixPrUrl: String? = nil,
+        fixedInBuild: String? = nil,
+        reopenCount: Int = 0,
+        reporterId: String? = nil,
         signedScreenshotUrl: String? = nil,
         signedRawScreenshotUrl: String? = nil,
         signedAttachmentUrl: String? = nil
@@ -238,6 +259,13 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
         self.products = products
         self.productKeys = productKeys
         self.logs = logs
+        self.fixStage = fixStage
+        self.fixPrUrl = fixPrUrl
+        self.fixPrNumber = nil
+        self.fixSummary = nil
+        self.fixedInBuild = fixedInBuild
+        self.reopenCount = reopenCount
+        self.reporterId = reporterId
         self.signedScreenshotUrl = signedScreenshotUrl
         self.signedRawScreenshotUrl = signedRawScreenshotUrl
         self.signedAttachmentUrl = signedAttachmentUrl
@@ -280,6 +308,13 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
         products = try container.decodeIfPresent([FeedbackProduct].self, forKey: .products) ?? []
         productKeys = try container.decodeIfPresent([String].self, forKey: .productKeys) ?? []
         logs = (try? container.decodeIfPresent([PortalLogEntry].self, forKey: .logs)) ?? []
+        fixStage = try? container.decodeIfPresent(String.self, forKey: .fixStage)
+        fixPrUrl = try? container.decodeIfPresent(String.self, forKey: .fixPrUrl)
+        fixPrNumber = try? container.decodeIfPresent(Int.self, forKey: .fixPrNumber)
+        fixSummary = try? container.decodeIfPresent(String.self, forKey: .fixSummary)
+        fixedInBuild = try? container.decodeIfPresent(String.self, forKey: .fixedInBuild)
+        reopenCount = (try? container.decodeIfPresent(Int.self, forKey: .reopenCount)) ?? 0
+        reporterId = try? container.decodeIfPresent(String.self, forKey: .reporterId)
     }
 
     public func hash(into hasher: inout Hasher) {
@@ -288,6 +323,119 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
 
     public static func == (lhs: PortalFeedbackItem, rhs: PortalFeedbackItem) -> Bool {
         lhs.id == rhs.id && lhs.status == rhs.status && lhs.isArchived == rhs.isArchived && lhs.editedPrompt == rhs.editedPrompt
+            && lhs.fixStage == rhs.fixStage
+    }
+}
+
+// MARK: - Fix loop (0014_closed_loop.sql)
+
+/// Display info for `PortalFeedbackItem.fixStage` — mirrors web/src/lib/fixStageMeta.ts.
+public enum PortalFixStage: String, CaseIterable, Sendable {
+    case agentWorking = "agent_working"
+    case prOpen = "pr_open"
+    case merged
+    case shipped
+    case verified
+    case reopened
+
+    public var label: String {
+        switch self {
+        case .agentWorking: return "Agent working"
+        case .prOpen: return "PR open"
+        case .merged: return "Merged"
+        case .shipped: return "Shipped"
+        case .verified: return "Verified"
+        case .reopened: return "Reopened"
+        }
+    }
+
+    public var systemImage: String {
+        switch self {
+        case .agentWorking: return "sparkles"
+        case .prOpen: return "arrow.triangle.pull"
+        case .merged: return "arrow.triangle.merge"
+        case .shipped: return "shippingbox"
+        case .verified: return "checkmark.seal"
+        case .reopened: return "exclamationmark.arrow.circlepath"
+        }
+    }
+}
+
+/// One timeline entry (`feedback_events`).
+public struct PortalFeedbackEvent: Codable, Identifiable, Hashable, Sendable {
+    public let id: String
+    public let feedbackId: String
+    public let kind: String
+    public let actorType: String
+    public let actorLabel: String?
+    public let body: String?
+    public let visibleToReporter: Bool
+    public let createdAt: String
+    /// `data.screenshot_annotated_path` / `data.screenshot_path`, when the event carries a screenshot.
+    public let screenshotPath: String?
+    /// `data.pr_url`, for PR events.
+    public let prUrl: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, kind, body, data
+        case feedbackId = "feedback_id"
+        case actorType = "actor_type"
+        case actorLabel = "actor_label"
+        case visibleToReporter = "visible_to_reporter"
+        case createdAt = "created_at"
+    }
+
+    private struct EventData: Codable {
+        let screenshot_annotated_path: String?
+        let screenshot_path: String?
+        let pr_url: String?
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        feedbackId = try c.decode(String.self, forKey: .feedbackId)
+        kind = try c.decode(String.self, forKey: .kind)
+        actorType = try c.decodeIfPresent(String.self, forKey: .actorType) ?? "system"
+        actorLabel = try c.decodeIfPresent(String.self, forKey: .actorLabel)
+        body = try c.decodeIfPresent(String.self, forKey: .body)
+        visibleToReporter = try c.decodeIfPresent(Bool.self, forKey: .visibleToReporter) ?? false
+        createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt) ?? ""
+        let data = try? c.decodeIfPresent(EventData.self, forKey: .data)
+        screenshotPath = data?.screenshot_annotated_path ?? data?.screenshot_path
+        prUrl = data?.pr_url
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(feedbackId, forKey: .feedbackId)
+        try c.encode(kind, forKey: .kind)
+        try c.encode(actorType, forKey: .actorType)
+        try c.encodeIfPresent(actorLabel, forKey: .actorLabel)
+        try c.encodeIfPresent(body, forKey: .body)
+        try c.encode(visibleToReporter, forKey: .visibleToReporter)
+        try c.encode(createdAt, forKey: .createdAt)
+    }
+
+    /// Human label for `kind` — mirrors KIND_LABEL in web/src/components/FixLoopPanel.tsx.
+    public var title: String {
+        switch kind {
+        case "comment": return "Note"
+        case "question": return "Asked the reporter"
+        case "reporter_reply": return "Reporter replied"
+        case "claimed": return "Started working"
+        case "dispatched": return "Sent to coding agent"
+        case "pr_opened": return "Pull request opened"
+        case "pr_merged": return "Fix merged"
+        case "pr_closed": return "Pull request closed"
+        case "shipped": return "Shipped"
+        case "verified": return "Reporter verified the fix"
+        case "reopened": return "Reporter says it's still broken"
+        case "status_changed": return "Status changed"
+        case "after_screenshot": return "After-fix screenshot"
+        default: return kind
+        }
     }
 }
 

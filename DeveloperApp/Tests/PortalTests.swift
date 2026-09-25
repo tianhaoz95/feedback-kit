@@ -420,5 +420,57 @@ final class PortalTests: XCTestCase {
         let host = UIHostingController(rootView: view)
         XCTAssertNotNil(host.view)
     }
-}
 
+    // MARK: - Closed loop (0014_closed_loop.sql)
+
+    func testDecodesFixLoopFieldsAndToleratesOldRows() throws {
+        let json = """
+        [{"id":"a","project_id":"p","text":"x","created_at":"2026-09-25T10:00:00.123456+00:00","status":"in_progress",
+          "fix_stage":"reopened","fix_pr_url":"https://github.com/o/r/pull/7","fix_pr_number":7,"fixed_in_build":"101",
+          "fix_summary":"Inset fixed","reopen_count":2,"reporter_id":"abcdefabcdefabcdef"},
+         {"id":"b","project_id":"p","text":"old row","created_at":"2026-09-25T10:00:00+00:00","status":"new"},
+         {"id":"c","project_id":"p","text":"future stage","created_at":"2026-09-25T10:00:00+00:00","status":"new","fix_stage":"some_new_stage"}]
+        """
+        let items = try JSONDecoder().decode([PortalFeedbackItem].self, from: Data(json.utf8))
+        XCTAssertEqual(items[0].fixStage.flatMap(PortalFixStage.init(rawValue:)), .reopened)
+        XCTAssertEqual(items[0].fixPrNumber, 7)
+        XCTAssertEqual(items[0].fixedInBuild, "101")
+        XCTAssertEqual(items[0].reopenCount, 2)
+        XCTAssertEqual(items[0].reporterId, "abcdefabcdefabcdef")
+        XCTAssertNil(items[1].fixStage)
+        XCTAssertEqual(items[1].reopenCount, 0)
+        // An unknown stage decodes fine and just doesn't render a badge.
+        XCTAssertNil(items[2].fixStage.flatMap(PortalFixStage.init(rawValue:)))
+    }
+
+    func testDecodesFeedbackEvents() throws {
+        let json = """
+        [{"id":"e1","feedback_id":"a","project_id":"p","kind":"reopened","actor_type":"reporter","actor_label":"Reporter",
+          "actor_user_id":null,"body":"Still broken","data":{"screenshot_annotated_path":"p/a/reopen/1-annotated.png","build":"101"},
+          "visible_to_reporter":true,"created_at":"2026-09-25T10:00:00+00:00"},
+         {"id":"e2","feedback_id":"a","project_id":"p","kind":"pr_opened","actor_type":"github","actor_label":"GitHub",
+          "body":"PR #7 opened","data":{"pr_url":"https://github.com/o/r/pull/7","pr_number":7},"visible_to_reporter":false,
+          "created_at":"2026-09-25T10:01:00+00:00"}]
+        """
+        let events = try JSONDecoder().decode([PortalFeedbackEvent].self, from: Data(json.utf8))
+        XCTAssertEqual(events[0].title, "Reporter says it's still broken")
+        XCTAssertEqual(events[0].screenshotPath, "p/a/reopen/1-annotated.png")
+        XCTAssertTrue(events[0].visibleToReporter)
+        XCTAssertEqual(events[1].prUrl, "https://github.com/o/r/pull/7")
+        XCTAssertNil(events[1].screenshotPath)
+    }
+
+    func testFixLoopSectionRenders() {
+        let item = PortalFeedbackItem(
+            id: "a",
+            projectId: "p",
+            text: "x",
+            environment: DemoData.sampleFeedbackItems[0].environment,
+            fixStage: "shipped",
+            fixedInBuild: "12",
+            reporterId: "abcdefabcdefabcdef"
+        )
+        let host = UIHostingController(rootView: FixLoopSectionView(item: item))
+        XCTAssertNotNil(host.view)
+    }
+}

@@ -839,4 +839,57 @@ public final class SupabasePortalClient: ObservableObject {
             throw URLError(.badServerResponse)
         }
     }
+
+    // MARK: - Fix loop timeline (0014_closed_loop.sql)
+
+    public func fetchFeedbackEvents(feedbackId: String) async throws -> [PortalFeedbackEvent] {
+        if isDemoMode { return [] }
+        let request = try makeRequest(
+            path: "/rest/v1/feedback_events",
+            queryItems: [
+                URLQueryItem(name: "select", value: "*"),
+                URLQueryItem(name: "feedback_id", value: "eq.\(feedbackId)"),
+                URLQueryItem(name: "order", value: "created_at.asc")
+            ]
+        )
+        let (data, httpResponse) = try await executeRequest(request)
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        return try JSONDecoder().decode([PortalFeedbackEvent].self, from: data)
+    }
+
+    /// Adds a note, a note to the reporter, or a question for the reporter
+    /// (`kind` "comment"/"question"), as the signed-in user. RLS requires
+    /// `actor_user_id` to be the caller.
+    public func postFeedbackEvent(
+        item: PortalFeedbackItem,
+        kind: String,
+        body: String,
+        visibleToReporter: Bool
+    ) async throws {
+        if isDemoMode { return }
+        guard let session = currentSession, !session.userId.isEmpty else {
+            throw URLError(.userAuthenticationRequired)
+        }
+        let payload: [String: Any] = [
+            "feedback_id": item.id,
+            "project_id": item.projectId,
+            "kind": kind,
+            "actor_type": "user",
+            "actor_user_id": session.userId,
+            "actor_label": "Developer Portal",
+            "body": body,
+            "visible_to_reporter": visibleToReporter
+        ]
+        let request = try makeRequest(
+            path: "/rest/v1/feedback_events",
+            method: "POST",
+            body: try JSONSerialization.data(withJSONObject: payload)
+        )
+        let (_, httpResponse) = try await executeRequest(request)
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+    }
 }
