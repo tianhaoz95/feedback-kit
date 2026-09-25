@@ -1,4 +1,4 @@
-import type { FeedbackKitConfiguration, FeedbackProduct, FeedbackReport } from "./types";
+import type { FeedbackKitConfiguration, FeedbackProduct, FeedbackReport, FeedbackUser } from "./types";
 
 /** The hosted FeedbackKit dashboard's ingestion endpoint. */
 export const DEFAULT_ENDPOINT = "https://gpucoladcyvijefdjudf.supabase.co/functions/v1/ingest-feedback";
@@ -37,6 +37,10 @@ export interface IngestPayload {
   product_keys?: string[];
   products?: { key: string; name: string; description: string; is_default: boolean }[];
   logs?: FeedbackReport["logs"];
+  /** Anonymous per-browser id — see fixes.ts `reporterId`. */
+  reporter_id?: string;
+  /** `FeedbackKit.setUser(...)`, camelCase JSONB like `environment`. */
+  reporter?: FeedbackUser;
 }
 
 export async function blobToBase64(blob: Blob): Promise<string> {
@@ -49,7 +53,11 @@ export async function blobToBase64(blob: Blob): Promise<string> {
   return btoa(binary);
 }
 
-export async function encodePayload(report: FeedbackReport, projectKey: string): Promise<IngestPayload> {
+export async function encodePayload(
+  report: FeedbackReport,
+  projectKey: string,
+  identity: { reporterId?: string; user?: FeedbackUser | null } = {},
+): Promise<IngestPayload> {
   const payload: IngestPayload = {
     project_key: projectKey,
     id: report.id,
@@ -81,14 +89,20 @@ export async function encodePayload(report: FeedbackReport, projectKey: string):
     }));
   }
   if (report.logs.length > 0) payload.logs = report.logs;
+  if (identity.reporterId) payload.reporter_id = identity.reporterId;
+  if (identity.user) payload.reporter = identity.user;
   return payload;
 }
 
-export async function submitReport(report: FeedbackReport, configuration: FeedbackKitConfiguration): Promise<void> {
+export async function submitReport(
+  report: FeedbackReport,
+  configuration: FeedbackKitConfiguration,
+  identity: { reporterId?: string; user?: FeedbackUser | null } = {},
+): Promise<void> {
   if (!configuration.projectKey) {
     throw new FeedbackSubmissionError("FeedbackKit is not configured with a project key.", "not_configured");
   }
-  const body = JSON.stringify(await encodePayload(report, configuration.projectKey));
+  const body = JSON.stringify(await encodePayload(report, configuration.projectKey, identity));
   let response: Response;
   try {
     response = await fetch(configuration.endpoint ?? DEFAULT_ENDPOINT, {

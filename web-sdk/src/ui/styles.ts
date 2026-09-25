@@ -257,6 +257,39 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .fk-done-icon svg { width: 26px; height: 26px; }
 .fk-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
+/* ---------- "is it fixed?" card (fixCard.ts) ---------- */
+.fk-fixcard {
+  position: fixed;
+  z-index: 2147483000;
+  right: 20px;
+  bottom: 76px;
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(640px, calc(100vh - 96px));
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--fk-border);
+  border-radius: 16px;
+  background: var(--fk-bg);
+  box-shadow: var(--fk-shadow);
+  animation: fk-rise 0.2s ease-out;
+}
+.fk-fixcard[data-position="bottom-left"] { right: auto; left: 20px; }
+.fk-fixcard > *, .fk-fixcard-actions > * { flex-shrink: 0; }
+.fk-fixcard p { margin: 0; }
+.fk-fixcard-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.fk-fixcard-shot { display: block; width: 100%; max-height: 220px; object-fit: contain; border-radius: 10px; background: var(--fk-surface); }
+.fk-fixcard-quote { font-size: 14px; }
+.fk-fixcard-summary { font-size: 13px; padding: 8px 10px; border-radius: 8px; background: var(--fk-surface); }
+.fk-fixcard-message p { font-size: 13px; }
+.fk-fixcard-question { font-weight: 600; }
+.fk-fixcard-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.fk-fixcard-actions .fk-btn { flex: none; width: 100%; }
+.fk-fixcard-actions .fk-textarea { min-height: 64px; }
+@keyframes fk-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
 /* ---------- narrow screens: stack stage over composer ---------- */
 @media (max-width: 760px) {
   .fk-overlay { padding: 0; }
@@ -266,8 +299,9 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   .fk-canvas-wrap { padding: 10px; }
   .fk-composer { max-height: 55vh; padding: 14px; gap: 10px; }
   .fk-textarea { min-height: 84px; }
+  .fk-fixcard, .fk-fixcard[data-position] { right: 16px; left: 16px; width: auto; bottom: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .fk-overlay, .fk-dialog { animation: none; }
+  .fk-overlay, .fk-dialog, .fk-fixcard { animation: none; }
 }
 `;

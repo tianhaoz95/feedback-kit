@@ -10,7 +10,10 @@ import type {
   FeedbackProduct,
   FeedbackReport,
   FeedbackTheme,
+  FeedbackUser,
+  FixUpdate,
 } from "../types";
+import { FixCard, type FixCardOutcome } from "./fixCard";
 import { AnnotationEditor, COLORS, type Tool } from "./editor";
 import { icons } from "./icons";
 import { styles } from "./styles";
@@ -23,6 +26,8 @@ export interface WidgetDeps {
   logs(): FeedbackLogEntry[];
   captureOptions(): CaptureOptions;
   currentScreen(): string | null;
+  /** Reporter identity attached to submitted reports (fixes.ts). */
+  identity(): { reporterId: string; user: FeedbackUser | null };
 }
 
 export interface OpenOptions {
@@ -32,6 +37,22 @@ export interface OpenOptions {
   onReport?: (report: FeedbackReport) => void | Promise<void>;
   /** Called if submitting fails. The dialog stays open so the user can retry. */
   onError?: (error: unknown) => void;
+  /**
+   * Deliver the report somewhere other than the ingestion endpoint — used by
+   * "still broken", which sends it as a reopen of the original report.
+   * Takes precedence over `submit`. Shows the thank-you state like `submit`.
+   */
+  deliver?: (report: FeedbackReport) => Promise<void>;
+  /** Dialog wording overrides (e.g. "What's still wrong?" for a reopen). */
+  copy?: DialogCopy;
+}
+
+export interface DialogCopy {
+  title?: string;
+  label?: string;
+  placeholder?: string;
+  thanksTitle?: string;
+  thanksBody?: string;
 }
 
 export interface TriggerOptions {
@@ -70,8 +91,33 @@ export class Widget {
   private shadow: ShadowRoot | null = null;
   private trigger: HTMLButtonElement | null = null;
   private pending: Promise<FeedbackReport | null> | null = null;
+  private fixCard: FixCard | null = null;
 
   constructor(private readonly deps: WidgetDeps) {}
+
+  get isShowingFixCard(): boolean {
+    return this.fixCard !== null;
+  }
+
+  /**
+   * The non-modal "is it fixed?" card (bottom corner). Resolves with what
+   * the reporter chose; the card removes itself.
+   */
+  showFixCard(update: FixUpdate): Promise<FixCardOutcome> {
+    this.fixCard?.remove();
+    const shadow = this.mount();
+    return new Promise((resolve) => {
+      this.fixCard = new FixCard(shadow, update, (outcome) => {
+        this.fixCard = null;
+        resolve(outcome);
+      });
+      this.fixCard.show(this.trigger?.dataset.position === "bottom-left" ? "bottom-left" : "bottom-right");
+    });
+  }
+
+  hideFixCard(): void {
+    this.fixCard?.dismiss();
+  }
 
   /** True for the widget's own host element — used to keep it out of screenshots. */
   isOwnNode = (node: Node): boolean => node === this.host;
@@ -105,6 +151,8 @@ export class Widget {
 
   destroy(): void {
     this.hideTrigger();
+    this.fixCard?.remove();
+    this.fixCard = null;
     this.host?.remove();
     this.host = null;
     this.shadow = null;
@@ -325,18 +373,18 @@ class Dialog {
     const header = el("div", "fk-header");
     const title = el("h2", "fk-title");
     title.id = "fk-title";
-    title.textContent = "Send feedback";
+    title.textContent = this.options.copy?.title ?? "Send feedback";
     const close = iconButton("fk-close", icons.close, "Close");
     close.addEventListener("click", () => this.cancel());
     header.append(title, close);
 
     const textLabel = el("label", "fk-label");
-    textLabel.textContent = "What's the problem?";
+    textLabel.textContent = this.options.copy?.label ?? "What's the problem?";
     textLabel.setAttribute("for", "fk-text");
     this.textarea = document.createElement("textarea");
     this.textarea.id = "fk-text";
     this.textarea.className = "fk-textarea";
-    this.textarea.placeholder = "Describe what happened and what you expected instead…";
+    this.textarea.placeholder = this.options.copy?.placeholder ?? "Describe what happened and what you expected instead…";
     this.textarea.addEventListener("input", () => this.refreshState());
     const textGroup = el("div");
     textGroup.append(textLabel, this.textarea);
@@ -583,14 +631,16 @@ class Dialog {
     this.sendButton.innerHTML = `<span class="fk-spinner" aria-hidden="true"></span><span>Sending…</span>`;
     try {
       const report = await this.buildReport();
-      if (this.options.submit) {
+      if (this.options.deliver) {
+        await this.options.deliver(report);
+      } else if (this.options.submit) {
         const configuration = this.deps.configuration();
         if (!configuration) throw new Error("FeedbackKit.configure() hasn't been called.");
-        await submitReport(report, configuration);
+        await submitReport(report, configuration, this.deps.identity());
       }
       await this.options.onReport?.(report);
       this.showThanks();
-      setTimeout(() => this.finish(report), this.options.submit ? 1300 : 0);
+      setTimeout(() => this.finish(report), this.delivers ? 1300 : 0);
     } catch (error) {
       this.sending = false;
       this.sendButton.innerHTML = `${icons.send}<span>Retry</span>`;
@@ -600,8 +650,12 @@ class Dialog {
     }
   }
 
+  private get delivers(): boolean {
+    return this.options.submit || !!this.options.deliver;
+  }
+
   private showThanks(): void {
-    if (!this.options.submit) return;
+    if (!this.delivers) return;
     const composer = this.overlay.querySelector(".fk-composer");
     if (!composer) return;
     const done = el("div", "fk-done");
@@ -609,9 +663,9 @@ class Dialog {
     const icon = el("span", "fk-done-icon");
     icon.innerHTML = icons.check;
     const title = el("h2", "fk-title");
-    title.textContent = "Thanks for the feedback!";
+    title.textContent = this.options.copy?.thanksTitle ?? "Thanks for the feedback!";
     const sub = el("p", "fk-meta");
-    sub.textContent = "It's on its way to the team.";
+    sub.textContent = this.options.copy?.thanksBody ?? "It's on its way to the team.";
     done.append(icon, title, sub);
     composer.replaceChildren(done);
   }

@@ -53,6 +53,10 @@ export function setUpFeedbackKit(): boolean {
   });
   FeedbackKit.theme = { primaryColorHex: "#171717", secondaryColorHex: "#525252" };
   FeedbackKit.enableKeyboardShortcut();
+  // "We fixed what you reported — is it fixed?" once a fix ships. appBuild is
+  // a git SHA here, which doesn't order, so a released fix counts as live on
+  // the next page load — right for a static SPA that's replaced on deploy.
+  FeedbackKit.enableFixVerification();
   configured = true;
   return true;
 }

@@ -148,6 +148,41 @@ export interface FeedbackKitConfiguration {
    * report). Default `true`; pass options to tune, or `false` to disable.
    */
   captureLogs?: boolean | LogCaptureOptions;
+  /**
+   * Where fix updates for this browser's reports come from (the
+   * `reporter-updates` function). Defaults to the sibling of `endpoint`.
+   */
+  reporterUpdatesEndpoint?: string;
+}
+
+/** Optional identity of the person using your site, attached to their reports. Mirrors Swift's `FeedbackUser`. */
+export interface FeedbackUser {
+  id?: string;
+  email?: string;
+  name?: string;
+}
+
+/**
+ * Something that happened to a report this browser filed: a fix that
+ * shipped ("is it fixed?") and/or a question from the developer or their
+ * coding agent. Mirrors Swift's `FixUpdate`.
+ */
+export interface FixUpdate {
+  feedbackId: string;
+  /** What the reporter originally wrote. */
+  text: string;
+  createdAt: string;
+  screenName: string | null;
+  fixStage: string | null;
+  fixedInBuild: string | null;
+  /** One plain-language line on what was fixed, if the developer/agent wrote one. */
+  fixSummary: string | null;
+  /** A fix shipped (in a build this page is at least, when `appBuild` is configured) and hasn't been confirmed. */
+  needsVerification: boolean;
+  openQuestion: { id: string; body: string; createdAt: string } | null;
+  /** Short-lived signed URL of the original annotated screenshot. */
+  screenshotUrl: string | null;
+  messages: { id: string; kind: string; body: string; author: string; createdAt: string }[];
 }
 
 export interface CaptureOptions {

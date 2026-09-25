@@ -1,6 +1,7 @@
 // End-to-end check of the built IIFE bundle in real Chromium, WebKit and
 // Firefox: trigger → capture → annotate → describe → submit, asserting the
-// exact JSON that reaches the (mocked) ingestion endpoint.
+// exact JSON that reaches the (mocked) ingestion endpoint — then the closed
+// loop: the "is it fixed?" card against a mocked reporter-updates endpoint.
 //
 //   npm run test:e2e              # all three engines
 //   BROWSERS=chromium npm run test:e2e
@@ -16,6 +17,9 @@ const outDir = path.join(here, "output");
 fs.mkdirSync(outDir, { recursive: true });
 
 const ENDPOINT = "https://ingest.feedbackkit.test/functions/v1/ingest-feedback";
+const UPDATES = "https://ingest.feedbackkit.test/functions/v1/reporter-updates";
+// 1×1 PNG, standing in for the signed screenshot URL.
+const PIXEL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 const engines = { chromium, webkit, firefox };
 const selected = (process.env.BROWSERS ?? "chromium,webkit,firefox").split(",");
 
@@ -24,6 +28,7 @@ for (const name of selected) {
   const browser = await engines[name].launch();
   try {
     await runSuite(name, browser);
+    await runFixSuite(name, browser);
     console.log(`✓ ${name}`);
   } catch (error) {
     failures++;
@@ -137,6 +142,7 @@ async function runSuite(name, browser) {
   assert.equal(posted.length, 1, "one POST");
   const p = posted[0];
   assert.equal(p.project_key, "pk_e2e");
+  assert.match(p.reporter_id, /^[A-Za-z0-9_-]{16,128}$/, "reports carry the per-browser reporter id");
   assert.match(p.id, /^[0-9a-f-]{36}$/i);
   assert.equal(p.text, "Clicking “Save changes” does nothing.");
   assert.ok(!Number.isNaN(Date.parse(p.created_at)));
@@ -233,6 +239,124 @@ async function runSuite(name, browser) {
   await page.evaluate(() => window.FeedbackKit.destroy());
   assert.equal(await page.locator("[data-feedbackkit-root]").count(), 0);
   assert.equal(await page.evaluate(() => document.documentElement.style.overflow), "");
+
+  assert.deepEqual(pageErrors, [], "no uncaught page errors");
+  await context.close();
+}
+
+async function runFixSuite(name, browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on("pageerror", (e) => pageErrors.push(e));
+  const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "content-type", "access-control-allow-methods": "POST, GET, OPTIONS" };
+
+  const update = (id, extra) => ({
+    feedback_id: id,
+    text: `Report ${id}`,
+    created_at: "2026-09-25T10:00:00Z",
+    fix_stage: "shipped",
+    fixed_in_build: "45",
+    fix_summary: null,
+    needs_verification: true,
+    open_question: null,
+    screenshot_url: PIXEL,
+    messages: [],
+    ...extra,
+  });
+  // What the fake server still has to show; answered items drop off.
+  let pending = [
+    update("f1", { fix_summary: "The save button works on the first click now.", messages: [{ id: "m", kind: "comment", body: "Thanks for the arrow — made it obvious.", author: "claude-code", created_at: "t" }] }),
+    update("f2", { needs_verification: false, fix_stage: "agent_working", open_question: { id: "q", body: "Which browser tab were you in?", created_at: "t" } }),
+  ];
+  const gets = [];
+  const actions = [];
+  await page.route(`${UPDATES}**`, async (route) => {
+    const req = route.request();
+    if (req.method() === "OPTIONS") return route.fulfill({ status: 200, headers: cors });
+    if (req.method() === "GET") {
+      gets.push(new URL(req.url()).searchParams);
+      return route.fulfill({ status: 200, contentType: "application/json", headers: cors, body: JSON.stringify({ updates: pending }) });
+    }
+    const body = JSON.parse(req.postData());
+    actions.push(body);
+    pending = pending.filter((u) => u.feedback_id !== body.feedback_id);
+    return route.fulfill({ status: 200, contentType: "application/json", headers: cors, body: '{"ok":true}' });
+  });
+  await page.route(`${ENDPOINT}**`, (route) => route.fulfill({ status: 200, headers: cors, body: '{"products":[]}' }));
+
+  await page.goto(fixture);
+  await page.evaluate((endpoint) => {
+    window.FeedbackKit.configure({ projectKey: "pk_e2e", endpoint, appBuild: "45", captureLogs: false });
+    window.FeedbackKit.theme = { primaryColorHex: "#7C3AED" };
+    window.FeedbackKit.showFloatingTriggerButton();
+    window.FeedbackKit.enableFixVerification();
+  }, ENDPOINT);
+
+  // ---- 1. shipped fix → "Yes, it's fixed"
+  const card = page.locator(".fk-fixcard");
+  await card.waitFor();
+  assert.match(await card.textContent(), /We fixed something you reported/);
+  assert.match(await card.textContent(), /Fixed in build 45/);
+  assert.match(await card.textContent(), /The save button works on the first click now/);
+  assert.match(await card.textContent(), /claude-code/);
+  const reporterId = await page.evaluate(() => window.FeedbackKit.reporterId);
+  assert.equal(gets[0].get("reporter_id"), reporterId);
+  assert.equal(gets[0].get("build"), "45");
+  assert.equal(gets[0].get("project_key"), "pk_e2e");
+  await page.waitForTimeout(300); // let the card's fade-in finish
+  await page.screenshot({ path: path.join(outDir, `${name}-4-fixcard.png`) });
+  await card.locator('button:has-text("Yes, it\'s fixed")').click();
+
+  // ---- 2. the next item is a question → reply
+  await page.locator('.fk-fixcard:has-text("Which browser tab")').waitFor();
+  assert.deepEqual(actions[0], { project_key: "pk_e2e", reporter_id: reporterId, feedback_id: "f1", action: "verify", build: "45" });
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: path.join(outDir, `${name}-5-question.png`) });
+  const answer = page.locator(".fk-fixcard textarea");
+  await answer.fill("The billing tab");
+  await page.locator('.fk-fixcard button:has-text("Send")').click();
+  await card.waitFor({ state: "detached" });
+  await page.waitForTimeout(100);
+  assert.equal(actions[1].action, "reply");
+  assert.equal(actions[1].text, "The billing tab");
+
+  // ---- 3. another fix ships → "No, still broken" → capture dialog in reopen mode
+  pending = [update("f3", {})];
+  await page.evaluate(() => window.FeedbackKit.presentFixUpdatesIfNeeded());
+  await card.waitFor();
+  await card.locator('button:has-text("No, still broken")').click();
+  await page.locator(".fk-ink").waitFor();
+  assert.equal(await page.locator("#fk-title").textContent(), "Still broken");
+  assert.equal(await page.locator('label[for="fk-text"]').textContent(), "What's still wrong?");
+  const ink = await page.locator(".fk-ink").boundingBox();
+  await page.mouse.move(ink.x + 30, ink.y + 30);
+  await page.mouse.down();
+  await page.mouse.move(ink.x + 90, ink.y + 60, { steps: 5 });
+  await page.mouse.up();
+  await page.locator("#fk-text").fill("Still does nothing on the second section");
+  await page.screenshot({ path: path.join(outDir, `${name}-6-still-broken.png`) });
+  await page.locator(".fk-btn-primary").click();
+  await page.locator(".fk-done").waitFor();
+  assert.match(await page.locator(".fk-done").textContent(), /reopened/);
+  await page.locator(".fk-overlay").waitFor({ state: "detached" });
+  const reopen = actions[2];
+  assert.equal(reopen.action, "reopen");
+  assert.equal(reopen.feedback_id, "f3");
+  assert.equal(reopen.text, "Still does nothing on the second section");
+  assert.equal(Buffer.from(reopen.screenshot_annotated_png_base64, "base64").subarray(1, 4).toString(), "PNG");
+  assert.equal(reopen.annotations[0].kind, "freehand");
+
+  // ---- 4. "later" (close button) sends nothing and doesn't re-ask this page load
+  pending = [update("f4", {})];
+  await page.evaluate(() => window.FeedbackKit.presentFixUpdatesIfNeeded());
+  await card.waitFor();
+  await card.locator(".fk-close").click();
+  await card.waitFor({ state: "detached" });
+  await page.evaluate(() => window.FeedbackKit.presentFixUpdatesIfNeeded());
+  await page.waitForTimeout(200);
+  assert.equal(await card.count(), 0, "snoozed for this page load");
+  assert.equal(actions.length, 3);
 
   assert.deepEqual(pageErrors, [], "no uncaught page errors");
   await context.close();
