@@ -16,6 +16,9 @@
 // the columns they read don't exist yet, so a function deploy that lands
 // before its migration can never take ingestion down.
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { decodeBase64 } from "../_shared/encoding.ts";
+import { isOriginAllowed } from "../_shared/origin.ts";
+import { sanitizeReporter, sanitizeReporterId } from "../_shared/reporter.ts";
 
 interface IngestProduct {
   key: string;
@@ -40,6 +43,10 @@ interface IngestPayload {
   products?: IngestProduct[];
   /** Web SDK only: recent console/network log entries. */
   logs?: unknown;
+  /** Random per-install id — lets `reporter-updates` show this report's fix back to its reporter. See 0014_closed_loop.sql. */
+  reporter_id?: string;
+  /** Optional host-app identity from `FeedbackKit.setUser` (camelCase JSONB). */
+  reporter?: unknown;
 }
 
 interface IngestLogEntry {
@@ -219,6 +226,8 @@ Deno.serve(async (req) => {
   }
 
   const logs = sanitizeLogs(payload.logs);
+  const reporterId = sanitizeReporterId(payload.reporter_id);
+  const reporter = sanitizeReporter(payload.reporter);
 
   const { error: insertError } = await supabase.from("feedback_items").insert({
     id: payload.id,
@@ -236,6 +245,8 @@ Deno.serve(async (req) => {
     product_keys: resolvedProductKeys,
     // Only sent when present, so native reports insert exactly as before.
     ...(logs.length > 0 ? { logs } : {}),
+    ...(reporterId ? { reporter_id: reporterId } : {}),
+    ...(reporter ? { reporter } : {}),
   });
 
   if (insertError) {
@@ -244,26 +255,6 @@ Deno.serve(async (req) => {
 
   return json({ id: payload.id }, 201);
 });
-
-/**
- * `allowed_origins` entries are exact origins (`https://app.example.com`) or
- * a leading-wildcard subdomain pattern (`https://*.example.com`). An empty
- * list allows everything, and a request with no `Origin` header (native
- * apps, server-to-server) is never blocked.
- */
-function isOriginAllowed(origin: string | null, allowed: unknown): boolean {
-  if (!origin || !Array.isArray(allowed) || allowed.length === 0) return true;
-  const normalized = origin.toLowerCase().replace(/\/+$/, "");
-  return allowed.some((entry) => {
-    if (typeof entry !== "string") return false;
-    const rule = entry.trim().toLowerCase().replace(/\/+$/, "");
-    if (rule === "*" || rule === normalized) return true;
-    const wildcard = rule.match(/^(https?:\/\/)\*\.(.+)$/);
-    if (!wildcard) return false;
-    const [, scheme, domain] = wildcard;
-    return normalized.startsWith(scheme) && normalized.slice(scheme.length).endsWith(`.${domain}`);
-  });
-}
 
 function sanitizeLogs(raw: unknown): IngestLogEntry[] {
   if (!Array.isArray(raw)) return [];
@@ -283,15 +274,6 @@ function sanitizeLogs(raw: unknown): IngestLogEntry[] {
 function sanitizeFilename(filename: string): string {
   const base = filename.split(/[/\\]/).pop() || "attachment";
   return base.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-200);
-}
-
-function decodeBase64(base64: string): Uint8Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
 }
 
 function json(body: unknown, status: number): Response {

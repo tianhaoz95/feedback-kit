@@ -15,7 +15,7 @@ test("createMcpServer without projectId registers all tools with default descrip
   assert.equal(tools["list_projects"].description, "List the FeedbackKit projects you're a member of.");
   assert.equal(
     tools["list_feedback"].description,
-    "List feedback reports captured by the iOS app, optionally filtered by project and/or status.",
+    "List feedback reports captured by the iOS app, optionally filtered by project, status and/or fix stage.",
   );
 });
 

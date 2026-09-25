@@ -135,3 +135,114 @@ export async function createGitHubIssue(
   };
 }
 
+
+async function githubRequest(token: string, method: string, path: string, body?: unknown): Promise<Response> {
+  return await fetch(`https://api.github.com${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "User-Agent": "FeedbackKit",
+      "Content-Type": "application/json",
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+}
+
+/**
+ * An installation token for a project's connected repo, discovering (and
+ * caching on the project row) the installation id the first time. Null when
+ * the GitHub App isn't configured/installed — callers treat GitHub as
+ * best-effort unless it's the whole point of the request.
+ */
+// deno-lint-ignore no-explicit-any
+export async function getProjectInstallationToken(adminClient: any, project: {
+  id: string;
+  github_repo?: string | null;
+  github_installation_id?: number | null;
+}): Promise<string | null> {
+  if (!project.github_repo || !project.github_repo.includes("/")) return null;
+  let installationId = project.github_installation_id ?? null;
+  if (!installationId) {
+    const [owner, repo] = project.github_repo.split("/");
+    installationId = await getInstallationIdForRepo(owner, repo);
+    if (!installationId) return null;
+    await adminClient.from("projects").update({ github_installation_id: installationId }).eq("id", project.id);
+  }
+  return await getInstallationToken(installationId);
+}
+
+export async function addIssueComment(token: string, repoFullName: string, issueNumber: number, body: string): Promise<boolean> {
+  try {
+    const res = await githubRequest(token, "POST", `/repos/${repoFullName}/issues/${issueNumber}/comments`, { body });
+    return res.ok;
+  } catch (err) {
+    console.warn("Failed to comment on issue:", err);
+    return false;
+  }
+}
+
+export async function setIssueState(
+  token: string,
+  repoFullName: string,
+  issueNumber: number,
+  state: "open" | "closed",
+): Promise<boolean> {
+  try {
+    const res = await githubRequest(token, "PATCH", `/repos/${repoFullName}/issues/${issueNumber}`, { state });
+    return res.ok;
+  } catch (err) {
+    console.warn("Failed to change issue state:", err);
+    return false;
+  }
+}
+
+export async function addIssueLabels(token: string, repoFullName: string, issueNumber: number, labels: string[]): Promise<boolean> {
+  if (labels.length === 0) return true;
+  try {
+    const res = await githubRequest(token, "POST", `/repos/${repoFullName}/issues/${issueNumber}/labels`, { labels });
+    return res.ok;
+  } catch (err) {
+    console.warn("Failed to label issue:", err);
+    return false;
+  }
+}
+
+/**
+ * Hands an issue to whatever coding agent the project has configured
+ * (0014_closed_loop.sql `dispatch_labels`/`dispatch_comment`). Labels are the
+ * robust trigger: a label added with a GitHub App installation token fires
+ * `issues.labeled` workflows (e.g. claude-code-action's `label_trigger`),
+ * while a mention comment works for agents that accept bot mentions.
+ * Returns what was actually done, for the timeline.
+ */
+export async function dispatchIssueToAgent(
+  token: string,
+  repoFullName: string,
+  issueNumber: number,
+  settings: { dispatch_labels?: string[] | null; dispatch_comment?: string | null },
+  context?: string,
+): Promise<{ labels: string[]; commented: boolean } | null> {
+  const labels = (settings.dispatch_labels ?? []).filter((l) => l.trim().length > 0);
+  const comment = settings.dispatch_comment?.trim();
+  if (labels.length === 0 && !comment) return null;
+
+  let labeled: string[] = [];
+  if (labels.length > 0) {
+    // Re-adding a label that's already present doesn't fire `labeled` again,
+    // so a re-dispatch (reporter reopened) removes it first.
+    for (const label of labels) {
+      try {
+        await githubRequest(token, "DELETE", `/repos/${repoFullName}/issues/${issueNumber}/labels/${encodeURIComponent(label)}`);
+      } catch {
+        // Not present — fine.
+      }
+    }
+    if (await addIssueLabels(token, repoFullName, issueNumber, labels)) labeled = labels;
+  }
+  let commented = false;
+  if (comment) {
+    commented = await addIssueComment(token, repoFullName, issueNumber, context ? `${comment}\n\n${context}` : comment);
+  }
+  return { labels: labeled, commented };
+}

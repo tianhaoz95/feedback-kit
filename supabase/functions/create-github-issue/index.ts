@@ -5,11 +5,18 @@ import {
   getInstallationToken,
   uploadScreenshotToRepo,
   createGitHubIssue,
+  dispatchIssueToAgent,
 } from "../_shared/github.ts";
 
 interface RequestBody {
   project_id: string;
   feedback_id: string;
+  /**
+   * Hand the issue to the project's configured coding agent
+   * (`projects.dispatch_labels` / `dispatch_comment`, 0014_closed_loop.sql).
+   * Default true. On an already-linked item, `true` re-dispatches it.
+   */
+  dispatch?: boolean;
 }
 
 Deno.serve(async (req) => {
@@ -35,6 +42,7 @@ Deno.serve(async (req) => {
     }
 
     const { project_id, feedback_id } = body;
+    const shouldDispatch = body.dispatch !== false;
     if (!project_id || !feedback_id) {
       return json({ error: "missing_fields", message: "project_id and feedback_id are required" }, 400);
     }
@@ -88,21 +96,31 @@ Deno.serve(async (req) => {
       return json({ error: "feedback_not_found", message: "Feedback item not found" }, 404);
     }
 
-    // If already linked, return existing issue immediately
+    // Admin client for backend updates (writing issue number/url, downloading storage)
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // If already linked, return the existing issue — re-dispatching it to the
+    // agent only when explicitly asked (`dispatch: true`).
     if (feedback.github_issue_url) {
+      let dispatched = null;
+      if (body.dispatch === true && feedback.github_issue_number) {
+        const token = project.github_installation_id ? await getInstallationToken(project.github_installation_id) : null;
+        if (token) {
+          dispatched = await dispatchIssueToAgent(token, project.github_repo, feedback.github_issue_number, project);
+          if (dispatched) await recordDispatch(userClient, user.id, feedback, dispatched, feedback.github_issue_url);
+        }
+      }
       return json(
         {
           success: true,
           issue_url: feedback.github_issue_url,
           issue_number: feedback.github_issue_number,
           already_linked: true,
+          dispatched,
         },
         200
       );
     }
-
-    // Admin client for backend updates (writing issue number/url, downloading storage)
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
     const [owner, repo] = project.github_repo.split("/");
 
@@ -262,6 +280,13 @@ ${promptText}
 
 </details>
 
+## Closing the loop
+When you open a pull request for this, include this line in its description so FeedbackKit can track the fix through to the reporter's device:
+
+\`\`\`
+FeedbackKit: ${feedback.id}
+\`\`\`
+
 ---
 *Logged via [FeedbackKit](https://feedback-kit.hejitech.workers.dev/) from report \`${feedback.id}\`*`;
 
@@ -283,11 +308,18 @@ ${promptText}
       })
       .eq("id", feedback.id);
 
+    let dispatched = null;
+    if (shouldDispatch) {
+      dispatched = await dispatchIssueToAgent(tokenInstall, project.github_repo, issue.number, project);
+      if (dispatched) await recordDispatch(userClient, user.id, feedback, dispatched, issue.html_url);
+    }
+
     return json(
       {
         success: true,
         issue_url: issue.html_url,
         issue_number: issue.number,
+        dispatched,
       },
       201
     );
@@ -302,3 +334,32 @@ ${promptText}
     );
   }
 });
+
+/** Timeline entry for a dispatch, written as the calling user (RLS applies). */
+async function recordDispatch(
+  // deno-lint-ignore no-explicit-any
+  userClient: any,
+  userId: string,
+  feedback: { id: string; project_id: string },
+  dispatched: { labels: string[]; commented: boolean },
+  issueUrl: string,
+) {
+  const how = [
+    dispatched.labels.length > 0 ? `labeled ${dispatched.labels.map((l) => `\`${l}\``).join(", ")}` : null,
+    dispatched.commented ? "posted the trigger comment" : null,
+  ]
+    .filter(Boolean)
+    .join(" and ");
+  const { error } = await userClient.from("feedback_events").insert({
+    feedback_id: feedback.id,
+    project_id: feedback.project_id,
+    kind: "dispatched",
+    actor_type: "user",
+    actor_user_id: userId,
+    actor_label: "Dashboard",
+    body: `Sent to the coding agent via GitHub (${how || "no trigger configured"}).`,
+    data: { ...dispatched, issue_url: issueUrl },
+  });
+  if (error) console.warn("Failed to record dispatch event:", error.message);
+  await userClient.from("feedback_items").update({ fix_stage: "agent_working" }).eq("id", feedback.id).is("fix_stage", null);
+}

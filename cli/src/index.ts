@@ -7,6 +7,9 @@ import { listProjects } from "./commands/projects.js";
 import { listFeedback } from "./commands/list.js";
 import { printPrompt } from "./commands/prompt.js";
 import { printDocs } from "./commands/docs.js";
+import { release } from "./commands/release.js";
+import { link } from "./commands/link.js";
+import { timeline } from "./commands/timeline.js";
 import { runMcpServer } from "./mcp/server.js";
 
 function handleError(err: unknown): void {
@@ -70,7 +73,8 @@ program
   .description("List feedback reports.")
   .option("--project <id>", "Only feedback for this project id.")
   .option("--status <status>", "Only feedback with this status (new, in_progress, resolved, wont_fix).")
-  .action(async (opts: { project?: string; status?: string }) => {
+  .option("--stage <stage>", "Only feedback at this fix stage (agent_working, pr_open, merged, shipped, verified, reopened).")
+  .action(async (opts: { project?: string; status?: string; stage?: string }) => {
     try {
       await listFeedback(opts);
     } catch (err) {
@@ -85,6 +89,54 @@ program
   .action(async (feedbackId: string) => {
     try {
       await printPrompt(feedbackId);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+program
+  .command("timeline")
+  .argument("<feedbackId>", "Feedback id.")
+  .description("Show a report's fix-loop activity: agent progress, PRs, releases, and the reporter's replies.")
+  .action(async (feedbackId: string) => {
+    try {
+      await timeline(feedbackId);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+program
+  .command("link")
+  .argument("<feedbackId>", "Feedback id the fix is for.")
+  .description("Record the fix for a report (automatic for PRs mentioning `FeedbackKit: <id>` when the GitHub App is connected).")
+  .option("--pr <url>", "Pull request URL.")
+  .option("--commit <sha>", "Fix commit (without --pr, treated as already merged).")
+  .option("--merged", "The PR is merged.")
+  .option("--summary <text>", "One sentence on what was fixed, shown to the reporter.")
+  .action(async (feedbackId: string, opts: { pr?: string; commit?: string; merged?: boolean; summary?: string }) => {
+    try {
+      await link(feedbackId, opts);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+program
+  .command("release")
+  .description(
+    "Announce a build: marks merged fixes it contains as shipped, so their reporters get asked \"is it fixed?\" in the app.",
+  )
+  .requiredOption("--build <build>", "The build number reporters will run (CFBundleVersion / your web build id).")
+  .option("--version <version>", "Marketing version, e.g. 1.4.0.")
+  .option("--commit <rev>", "Commit the build was made from (default HEAD). Fixes must be ancestors of it.")
+  .option("--product <key>", "Only ship fixes for this product (e.g. ios); reports with no product always ship.")
+  .option("--project <id>", "Project id (default: FEEDBACKKIT_PROJECT_ID, or your only project).")
+  .option("--include <ids...>", "Also ship these feedback ids, skipping the git check.")
+  .option("--dry-run", "Show what would ship without recording anything.")
+  .action(async (opts: { build: string; version?: string; commit?: string; product?: string; project?: string; include?: string[]; dryRun?: boolean }) => {
+    try {
+      await release(opts);
     } catch (err) {
       handleError(err);
     }

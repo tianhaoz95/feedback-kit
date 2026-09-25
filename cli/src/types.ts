@@ -5,6 +5,46 @@
 
 export type FeedbackStatus = "new" | "in_progress" | "resolved" | "wont_fix";
 
+/** Where a report's fix is in the closed loop — see 0014_closed_loop.sql. Null = nothing yet. */
+export type FixStage = "agent_working" | "pr_open" | "merged" | "shipped" | "verified" | "reopened";
+
+export type FeedbackEventKind =
+  | "comment"
+  | "question"
+  | "reporter_reply"
+  | "claimed"
+  | "dispatched"
+  | "pr_opened"
+  | "pr_merged"
+  | "pr_closed"
+  | "shipped"
+  | "verified"
+  | "reopened"
+  | "status_changed"
+  | "after_screenshot";
+
+/** One row of a report's timeline (`feedback_events`). */
+export interface FeedbackEvent {
+  id: string;
+  feedback_id: string;
+  project_id: string;
+  kind: FeedbackEventKind;
+  actor_type: "user" | "agent" | "reporter" | "system" | "github";
+  actor_user_id: string | null;
+  actor_label: string | null;
+  body: string | null;
+  data: Record<string, unknown>;
+  visible_to_reporter: boolean;
+  created_at: string;
+}
+
+/** `FeedbackKit.setUser(...)` on the reporter's device, if the host app set it. */
+export interface FeedbackReporter {
+  id?: string;
+  email?: string;
+  name?: string;
+}
+
 export interface Project {
   id: string;
   organization_id: string;
@@ -87,4 +127,16 @@ export interface FeedbackItem {
   product_keys?: string[];
   /** Web SDK reports only; `[]` otherwise. */
   logs?: FeedbackLogEntry[];
+  // Closed loop (0014_closed_loop.sql).
+  fix_stage?: FixStage | null;
+  fix_pr_url?: string | null;
+  fix_pr_number?: number | null;
+  fix_commit_sha?: string | null;
+  fix_summary?: string | null;
+  fixed_in_build?: string | null;
+  shipped_at?: string | null;
+  verified_at?: string | null;
+  reopen_count?: number;
+  reporter_id?: string | null;
+  reporter?: FeedbackReporter | null;
 }

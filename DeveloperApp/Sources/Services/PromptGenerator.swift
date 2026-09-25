@@ -3,6 +3,7 @@ import FeedbackKit
 
 public enum PromptGenerator {
     public static let placeholders: [String] = [
+        "feedback_id",
         "feedback_text",
         "screen_name",
         "os_name",
@@ -112,7 +113,8 @@ public enum PromptGenerator {
             "platform": env.isWeb ? "Web" : env.osName,
             "page_url": env.pageUrl ?? "(not a web report)",
             "browser": env.isWeb ? browserLabel(env) : "(not a web report)",
-            "console_logs": formatConsoleLogs(feedback.logs)
+            "console_logs": formatConsoleLogs(feedback.logs),
+            "feedback_id": feedback.id
         ]
 
         var rendered = template.isEmpty ? defaultTemplate : template

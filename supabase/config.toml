@@ -419,8 +419,16 @@ verify_jwt = false
 [functions.stripe-webhook]
 verify_jwt = false
 
-# GitHub calls this directly with webhooks, not a Supabase session.
+# GitHub calls this directly with webhooks, not a Supabase session — its
+# trust boundary is the X-Hub-Signature-256 HMAC checked against
+# GITHUB_WEBHOOK_SECRET (see supabase/functions/github-webhook/index.ts).
 [functions.github-webhook]
+verify_jwt = false
+
+# Called anonymously by the SDKs on the reporter's device, scoped by
+# project_key + the per-install reporter_id — like ingest-feedback, there's
+# no Supabase session. See supabase/functions/reporter-updates/index.ts.
+[functions.reporter-updates]
 verify_jwt = false
 
 

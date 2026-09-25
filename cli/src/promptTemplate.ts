@@ -78,6 +78,9 @@ export function renderPromptTemplate(
     page_url: env.pageUrl ?? "(not a web report)",
     browser: env.platform === "web" ? browserLabel(env) : "(not a web report)",
     console_logs: formatConsoleLogs(feedback.logs),
+    // Lets a template ask for `FeedbackKit: {{feedback_id}}` in the PR description,
+    // which is how the GitHub webhook links a PR back to the report (0014_closed_loop.sql).
+    feedback_id: feedback.id,
   };
 
   if (env.platform === "web" && !WEB_PLACEHOLDERS.test(rendered)) {
