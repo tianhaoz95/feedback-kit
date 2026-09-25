@@ -36,6 +36,9 @@ import { FeedbackProductsPicker } from "@/components/FeedbackProductsPicker";
 import { MergedPromptView } from "@/components/MergedPromptView";
 import { DeleteProjectCard } from "@/components/DeleteProjectCard";
 import { AllowedOriginsCard } from "@/components/AllowedOriginsCard";
+import { AgentDispatchCard } from "@/components/AgentDispatchCard";
+import { FixLoopPanel } from "@/components/FixLoopPanel";
+import { FixStageBadge } from "@/components/FixStageBadge";
 import { ConsoleLogsPanel } from "@/components/ConsoleLogsPanel";
 import { PlatformBadge } from "@/components/PlatformBadge";
 import { ScreenshotViewer } from "@/components/ScreenshotViewer";
@@ -96,7 +99,7 @@ export function ProjectPage() {
   const [isCreatingIssue, setIsCreatingIssue] = useState(false);
   const [issueError, setIssueError] = useState<{ message: string; installUrl?: string } | null>(null);
 
-  async function createIssue(feedbackId: string) {
+  async function createIssue(feedbackId: string, options: { redispatch?: boolean } = {}) {
     if (!project) return;
     setIssueError(null);
 
@@ -113,6 +116,8 @@ export function ProjectPage() {
         body: {
           project_id: project.id,
           feedback_id: feedbackId,
+          // On an already-linked issue, only re-dispatch when explicitly asked.
+          ...(options.redispatch ? { dispatch: true } : {}),
         },
       });
 
@@ -146,6 +151,8 @@ export function ProjectPage() {
                   github_issue_url: data.issue_url,
                   github_issue_number: data.issue_number,
                   status: item.status === "new" ? "in_progress" : item.status,
+                  // create-github-issue moves an untouched item to agent_working when it dispatches.
+                  fix_stage: data.dispatched && !item.fix_stage ? "agent_working" : item.fix_stage,
                 }
               : item
           )
@@ -677,6 +684,7 @@ export function ProjectPage() {
                   <span>Archived</span>
                 </span>
               )}
+              {item.fix_stage ? <FixStageBadge stage={item.fix_stage} className="shrink-0" /> : null}
               <StatusBadge status={item.status} className="shrink-0" />
             </div>
           </div>
@@ -1007,7 +1015,23 @@ export function ProjectPage() {
                         <span>Issue #{selectedFeedback.github_issue_number ?? ""}</span>
                         <ExternalLinkIcon className="h-3 w-3 text-neutral-400" />
                       </a>
-                    ) : (
+                    ) : null}
+                    {selectedFeedback.github_issue_url &&
+                    ((project.dispatch_labels?.length ?? 0) > 0 || project.dispatch_comment) ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={isCreatingIssue}
+                        onClick={() => createIssue(selectedFeedback.id, { redispatch: true })}
+                        className="inline-flex items-center gap-1.5"
+                        title="Re-apply the coding-agent trigger (labels / comment from Settings) to this issue"
+                      >
+                        <SparkleIcon className="h-3.5 w-3.5" />
+                        <span>{isCreatingIssue ? "Sending…" : "Send to agent again"}</span>
+                      </Button>
+                    ) : null}
+                    {selectedFeedback.github_issue_url ? null : (
                       <Button
                         type="button"
                         variant="secondary"
@@ -1145,6 +1169,9 @@ export function ProjectPage() {
                         {selectedFeedback.text || "(no description provided)"}
                       </p>
                     </div>
+
+                    {/* Closed loop: agent → PR → release → reporter verifies */}
+                    <FixLoopPanel feedback={selectedFeedback} />
 
                     {/* Affected Products */}
                     <FeedbackProductsPicker
@@ -1297,6 +1324,13 @@ export function ProjectPage() {
           />
 
           <GitHubSetupCard
+            project={project}
+            onProjectUpdated={(updated) =>
+              setProject((prev) => (prev ? { ...prev, ...updated } : prev))
+            }
+          />
+
+          <AgentDispatchCard
             project={project}
             onProjectUpdated={(updated) =>
               setProject((prev) => (prev ? { ...prev, ...updated } : prev))

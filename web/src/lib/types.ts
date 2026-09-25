@@ -1,5 +1,60 @@
 export type FeedbackStatus = "new" | "in_progress" | "resolved" | "wont_fix";
 
+/**
+ * Where a report's fix is in the closed loop (report → agent → PR → release →
+ * reporter verifies). Separate from `status` — see 0014_closed_loop.sql.
+ * Null = nothing has happened yet.
+ */
+export type FixStage = "agent_working" | "pr_open" | "merged" | "shipped" | "verified" | "reopened";
+
+export type FeedbackEventKind =
+  | "comment"
+  | "question"
+  | "reporter_reply"
+  | "claimed"
+  | "dispatched"
+  | "pr_opened"
+  | "pr_merged"
+  | "pr_closed"
+  | "shipped"
+  | "verified"
+  | "reopened"
+  | "status_changed"
+  | "after_screenshot";
+
+/** One row of a report's timeline — mirrors `feedback_events` (0014_closed_loop.sql). */
+export interface FeedbackEvent {
+  id: string;
+  feedback_id: string;
+  project_id: string;
+  kind: FeedbackEventKind;
+  actor_type: "user" | "agent" | "reporter" | "system" | "github";
+  actor_user_id: string | null;
+  actor_label: string | null;
+  body: string | null;
+  data: Record<string, unknown>;
+  visible_to_reporter: boolean;
+  created_at: string;
+}
+
+/** Mirrors `releases` (0014_closed_loop.sql) — one per `feedbackkit release`. */
+export interface Release {
+  id: string;
+  project_id: string;
+  build: string;
+  version: string | null;
+  commit_sha: string | null;
+  product_key: string | null;
+  created_at: string;
+}
+
+/** `FeedbackKit.setUser(...)` from the reporter's app, if set. Opaque camelCase JSONB. */
+export interface FeedbackReporter {
+  id?: string;
+  email?: string;
+  name?: string;
+}
+
 export interface Project {
   id: string;
   organization_id: string;
@@ -10,6 +65,10 @@ export interface Project {
   github_installation_id?: number | null;
   /** Web origins allowed to submit with this project's key; empty = any. See 0013_web_sdk.sql. */
   allowed_origins?: string[];
+  /** Labels added to GitHub issues to trigger a coding agent (0014_closed_loop.sql). */
+  dispatch_labels?: string[];
+  /** Comment posted on new GitHub issues to trigger a coding agent, e.g. "@claude fix this". */
+  dispatch_comment?: string | null;
 }
 
 export interface PromptTemplate {
@@ -110,6 +169,19 @@ export interface FeedbackItem {
   /** Web SDK reports only; `[]` otherwise. See 0013_web_sdk.sql. */
   logs?: FeedbackLogEntry[];
   received_at?: string;
+  // Closed loop (0014_closed_loop.sql).
+  fix_stage?: FixStage | null;
+  fix_pr_url?: string | null;
+  fix_pr_number?: number | null;
+  fix_commit_sha?: string | null;
+  fix_summary?: string | null;
+  fixed_in_build?: string | null;
+  shipped_at?: string | null;
+  verified_at?: string | null;
+  reopen_count?: number;
+  /** Anonymous per-install id — present means the reporter's device can be asked "is it fixed?". */
+  reporter_id?: string | null;
+  reporter?: FeedbackReporter | null;
 }
 
 /** Mirrors supabase/migrations/0007_cli_sessions.sql. */
