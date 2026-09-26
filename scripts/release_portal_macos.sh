@@ -16,9 +16,14 @@
 # notarized before Gatekeeper will run it on anyone else's Mac.
 #
 # Usage:
-#   ./scripts/release_portal_macos.sh --version 1.0.0
-#   ./scripts/release_portal_macos.sh --version 1.0.0 --no-upload   # build+sign+notarize only
-#   ./scripts/release_portal_macos.sh --tag portal-mac-v1.0.0       # derive version from a tag
+#   ./scripts/release_portal_macos.sh --version 1.0.0                # attach to the unified release v1.0.0
+#   ./scripts/release_portal_macos.sh --version 1.0.0 --no-upload    # build+sign+notarize only
+#   ./scripts/release_portal_macos.sh --tag portal-mac-v1.0.0        # a Portal-only release
+#
+# Tags follow the same scheme as every other release pipeline (see
+# scripts/cut_release.sh): a unified vX.Y.Z release ships everything,
+# including this DMG; a prefixed portal-mac-vX.Y.Z release ships only the
+# macOS Portal.
 #
 # The build number (CFBundleVersion) is the version itself (e.g. 1.2.0), so
 # FeedbackKit's fix verification can order builds (DESIGN.md §7).
@@ -53,7 +58,7 @@ while [[ $# -gt 0 ]]; do
     --tag)       TAG="${2:-}"; shift 2 ;;
     --no-upload) NO_UPLOAD=1; shift ;;
     --check)     CHECK_ONLY=1; shift ;;
-    -h|--help)   sed -n '2,36p' "$0"; exit 0 ;;
+    -h|--help)   sed -n '2,42p' "$0"; exit 0 ;;
     *) echo "error: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -66,11 +71,11 @@ if [[ "$CHECK_ONLY" -eq 0 ]]; then
       VERSION="${TAG#v}"
     else
       VERSION="$TAG"
-      TAG="portal-mac-v${VERSION}"
+      TAG="v${VERSION}"
     fi
   elif [[ -n "$VERSION" ]]; then
     VERSION="${VERSION#v}"
-    TAG="portal-mac-v${VERSION}"
+    TAG="v${VERSION}"
   fi
   [[ -n "$VERSION" ]] || { echo "error: --version X.Y.Z or --tag vX.Y.Z is required" >&2; exit 1; }
   echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "error: version must be X.Y.Z, got: $VERSION" >&2; exit 1; }
@@ -247,7 +252,8 @@ open without a Gatekeeper warning. Found a problem? Help › Report a Problem…
 if gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
   echo "   release $TAG already exists — attaching to it"
 else
-  TITLE="Portal for macOS $VERSION"
+  TITLE="FeedbackKit $VERSION"
+  [[ "$TAG" =~ ^portal-mac-v ]] && TITLE="macOS Portal $VERSION"
   gh release create "$TAG" --repo "$GH_REPO" --title "$TITLE" --notes "$NOTES"
 fi
 gh release upload "$TAG" --repo "$GH_REPO" --clobber "$OUT_DMG#$DMG_NAME"

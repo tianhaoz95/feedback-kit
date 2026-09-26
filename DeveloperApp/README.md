@@ -4,8 +4,8 @@ The native companion to the web dashboard: triage feedback, inspect screenshots 
 
 | Target | Platform | Entry | Run | Release |
 |---|---|---|---|---|
-| `FeedbackPortal` | iOS 17+ | `Sources/App/FeedbackPortalApp.swift` | `./scripts/run-portal-ios.sh` | TestFlight — `./scripts/release_portal_testflight.sh` / `testflight-portal.yml` |
-| `FeedbackPortalMac` ("FeedbackKit Portal") | macOS 14+ | `SourcesMac/FeedbackPortalMacApp.swift` | `./scripts/run-portal-macos.sh` | Notarized DMG on GitHub Releases — `./scripts/release_portal_macos.sh --version X.Y.Z` / `release-portal-macos.yml` (tag `portal-mac-vX.Y.Z`) |
+| `FeedbackPortal` | iOS 17+ | `Sources/App/FeedbackPortalApp.swift` | `./scripts/run-portal-ios.sh` | TestFlight — `testflight-portal.yml` on every unified `vX.Y.Z` release; locally `./scripts/release_portal_testflight.sh` |
+| `FeedbackPortalMac` ("FeedbackKit Portal") | macOS 14+ | `SourcesMac/FeedbackPortalMacApp.swift` | `./scripts/run-portal-macos.sh` | Notarized DMG attached to the GitHub Release — `release-portal-macos.yml` on every unified `vX.Y.Z` release (or `./scripts/cut_release.sh X.Y.Z --mac-portal` for `portal-mac-vX.Y.Z` alone); locally `./scripts/release_portal_macos.sh --version X.Y.Z` |
 
 Tests (`Tests/PortalTests.swift`) run against both: schemes `FeedbackPortal` (iOS simulator) and `FeedbackPortalMac` (`xcodebuild test -scheme FeedbackPortalMac -destination 'platform=macOS'`).
 

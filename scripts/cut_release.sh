@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Cuts a GitHub Release, triggering all CI release pipelines:
 #   - TestFlight upload (.github/workflows/testflight.yml)
+#   - Portal TestFlight upload (.github/workflows/testflight-portal.yml)
 #   - macOS Demo DMG build, sign, notarize & attach (.github/workflows/release-macos-demo.yml)
+#   - macOS Portal DMG build, sign, notarize & attach (.github/workflows/release-portal-macos.yml)
 #   - CLI package publish to npm & GitHub Packages (.github/workflows/publish-cli.yml)
 #   - Skills package publish to npm & GitHub Packages (.github/workflows/publish-skills.yml)
 #   - Web SDK package publish to npm & GitHub Packages (.github/workflows/publish-web-sdk.yml)
@@ -27,7 +29,11 @@ Usage:
   cut_release.sh <tag-or-version> [options]
 
 Tag examples:
-  1.0.0 (or v1.0.0)    Unified release (triggers TestFlight + macOS DMG + npm CLI/Skills/Web SDK)
+  1.0.0 (or v1.0.0)    Unified release (triggers TestFlight + macOS DMGs + npm CLI/Skills/Web SDK)
+  1.0.0 --mac-demo     macOS demo app only (tag mac-demo-v1.0.0)
+  1.0.0 --mac-portal   macOS Developer Portal only (tag portal-mac-v1.0.0)
+  1.0.0 --cli          CLI only (tag cli-v1.0.0)
+  1.0.0 --skills       Skills only (tag skills-v1.0.0)
   1.0.0 --web-sdk      Web SDK only (tag web-sdk-v1.0.0)
 
 Options:
@@ -49,6 +55,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --mac-demo)
       PREFIX_TYPE="mac-demo"
+      shift
+      ;;
+    --mac-portal)
+      PREFIX_TYPE="mac-portal"
       shift
       ;;
     --cli)
@@ -79,7 +89,7 @@ while [[ $# -gt 0 ]]; do
     -h|--help)
       usage 0
       ;;
-    mac-demo-v*|cli-v*|skills-v*|web-sdk-v*|v*)
+    mac-demo-v*|portal-mac-v*|cli-v*|skills-v*|web-sdk-v*|v*)
       [[ -n "$VERSION" ]] && usage
       VERSION="$1"
       shift
@@ -98,11 +108,12 @@ done
 [[ -z "$VERSION" ]] && usage
 
 # Normalize version according to prefix type if not already prefixed
-if [[ "$VERSION" =~ ^(mac-demo-v|cli-v|skills-v|web-sdk-v|v)[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+if [[ "$VERSION" =~ ^(mac-demo-v|portal-mac-v|cli-v|skills-v|web-sdk-v|v)[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   TAG="$VERSION"
 elif [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   case "$PREFIX_TYPE" in
     mac-demo) TAG="mac-demo-v$VERSION" ;;
+    mac-portal) TAG="portal-mac-v$VERSION" ;;
     cli)      TAG="cli-v$VERSION" ;;
     skills)   TAG="skills-v$VERSION" ;;
     web-sdk)  TAG="web-sdk-v$VERSION" ;;
@@ -110,7 +121,7 @@ elif [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   esac
 else
   echo "error: invalid version format: $VERSION" >&2
-  echo "expected X.Y.Z, vX.Y.Z, mac-demo-vX.Y.Z, cli-vX.Y.Z, skills-vX.Y.Z, or web-sdk-vX.Y.Z" >&2
+  echo "expected X.Y.Z, vX.Y.Z, mac-demo-vX.Y.Z, portal-mac-vX.Y.Z, cli-vX.Y.Z, skills-vX.Y.Z, or web-sdk-vX.Y.Z" >&2
   exit 1
 fi
 
@@ -157,6 +168,9 @@ if [[ "$TAG" =~ ^cli-v(.*)$ ]]; then
 elif [[ "$TAG" =~ ^mac-demo-v(.*)$ ]]; then
   TITLE="macOS Demo ${BASH_REMATCH[1]}"
   WORKFLOW="release-macos-demo.yml"
+elif [[ "$TAG" =~ ^portal-mac-v(.*)$ ]]; then
+  TITLE="macOS Portal ${BASH_REMATCH[1]}"
+  WORKFLOW="release-portal-macos.yml"
 elif [[ "$TAG" =~ ^skills-v(.*)$ ]]; then
   TITLE="Skills v${BASH_REMATCH[1]}"
   WORKFLOW="publish-skills.yml"
@@ -197,9 +211,10 @@ else
     echo "   1. TestFlight upload (.github/workflows/testflight.yml)"
     echo "   2. Portal TestFlight upload (.github/workflows/testflight-portal.yml)"
     echo "   3. macOS Demo DMG build, sign, notarize & attach (.github/workflows/release-macos-demo.yml)"
-    echo "   4. FeedbackKit CLI publish to npm & GitHub Packages (.github/workflows/publish-cli.yml)"
-    echo "   5. FeedbackKit Skills publish to npm & GitHub Packages (.github/workflows/publish-skills.yml)"
-    echo "   6. FeedbackKit Web SDK publish to npm & GitHub Packages (.github/workflows/publish-web-sdk.yml)"
+    echo "   4. macOS Portal DMG build, sign, notarize & attach (.github/workflows/release-portal-macos.yml)"
+    echo "   5. FeedbackKit CLI publish to npm & GitHub Packages (.github/workflows/publish-cli.yml)"
+    echo "   6. FeedbackKit Skills publish to npm & GitHub Packages (.github/workflows/publish-skills.yml)"
+    echo "   7. FeedbackKit Web SDK publish to npm & GitHub Packages (.github/workflows/publish-web-sdk.yml)"
     echo
     echo "Check active runs with:"
     echo "   gh run list --repo $REPO_SLUG"

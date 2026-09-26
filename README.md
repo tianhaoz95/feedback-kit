@@ -304,15 +304,30 @@ Release the entire suite with a single command:
 ./scripts/cut_release.sh 1.0.0 --notes "Version 1.0.0 release"
 ```
 
-This publishes the GitHub release and triggers all release pipelines in parallel:
+This publishes the GitHub release (tag `v1.0.0`) and triggers all release pipelines in parallel:
 1. **`.github/workflows/testflight.yml`**: Archives `FeedbackKitDemo` and uploads it to App Store Connect for TestFlight.
-2. **`.github/workflows/release-macos-demo.yml`**: Archives `FeedbackKitDemoMac`, signs it with a **Developer ID Application** certificate, notarizes with Apple, and attaches the notarized `FeedbackKitDemoMac-1.0.0.dmg` directly to the GitHub release.
-3. **`.github/workflows/publish-cli.yml`**: Builds, tests, and publishes `feedbackkit-cli` to both the public npm registry (`feedbackkit-cli`) and GitHub Packages (`@tianhaoz95/feedbackkit-cli`).
-4. **`.github/workflows/publish-skills.yml`**: Validates and publishes `feedback-kit-skills` to both the public npm registry (`feedback-kit-skills`) and GitHub Packages (`@tianhaoz95/feedback-kit-skills`).
+2. **`.github/workflows/testflight-portal.yml`**: Archives the iOS Developer Portal (`FeedbackPortal`) and uploads it to TestFlight.
+3. **`.github/workflows/release-macos-demo.yml`**: Archives `FeedbackKitDemoMac`, signs it with a **Developer ID Application** certificate, notarizes with Apple, and attaches the notarized `FeedbackKitDemoMac-1.0.0.dmg` directly to the GitHub release.
+4. **`.github/workflows/release-portal-macos.yml`**: Same for the macOS Developer Portal — attaches the notarized `FeedbackKit-Portal-1.0.0.dmg` to the same release.
+5. **`.github/workflows/publish-cli.yml`**: Builds, tests, and publishes `feedbackkit-cli` to both the public npm registry (`feedbackkit-cli`) and GitHub Packages (`@tianhaoz95/feedbackkit-cli`).
+6. **`.github/workflows/publish-skills.yml`**: Validates and publishes `feedback-kit-skills` to both the public npm registry (`feedback-kit-skills`) and GitHub Packages (`@tianhaoz95/feedback-kit-skills`).
+7. **`.github/workflows/publish-web-sdk.yml`**: Publishes `feedbackkit-web` to npm and GitHub Packages.
+
+To release just one component, add its flag — it gets its own prefixed tag, and only that component's pipeline runs:
+
+| Flag | Tag | Pipeline |
+|---|---|---|
+| `--mac-demo` | `mac-demo-v1.0.0` | `release-macos-demo.yml` |
+| `--mac-portal` | `portal-mac-v1.0.0` | `release-portal-macos.yml` |
+| `--cli` | `cli-v1.0.0` | `publish-cli.yml` |
+| `--skills` | `skills-v1.0.0` | `publish-skills.yml` |
+| `--web-sdk` | `web-sdk-v1.0.0` | `publish-web-sdk.yml` |
+
+Every release workflow follows this rule (a unified `vX.Y.Z` runs them all; a prefixed tag runs only its owner), so a new pipeline should skip every *other* prefix in its job's `if:` and be added to `scripts/cut_release.sh`.
 
 Unlike TestFlight signing (an "Apple Development" identity Xcode manages
 automatically), Developer ID distribution needs a real exported `.p12` in CI,
-so `release-macos-demo.yml` imports one into a throwaway keychain rather than relying on
+so `release-macos-demo.yml` and `release-portal-macos.yml` import one into a throwaway keychain rather than relying on
 `-allowProvisioningUpdates`. You can also trigger either workflow by hand from the Actions tab
 (`workflow_dispatch`) — for macOS, check "Pipeline validation (no-upload)" there to validate
 the full build, sign, and notarization pipeline without touching a real release.

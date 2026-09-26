@@ -163,7 +163,9 @@ failure, not a guess) for a *standalone* watch app in the first place.
 cd DeveloperApp && xcodegen generate
 xcodebuild test -project FeedbackPortal.xcodeproj -scheme FeedbackPortalMac -destination 'platform=macOS'
 xcodebuild test -project FeedbackPortal.xcodeproj -scheme FeedbackPortal -destination 'id=<SIMULATOR_UDID>'
-./scripts/release_portal_macos.sh --version X.Y.Z [--no-upload]   # notarized DMG → GitHub Release (tag portal-mac-vX.Y.Z)
+./scripts/release_portal_macos.sh --version X.Y.Z [--no-upload]   # notarized DMG → GitHub Release vX.Y.Z (local)
+./scripts/cut_release.sh X.Y.Z                # CI: unified release — every pipeline, incl. both Portals
+./scripts/cut_release.sh X.Y.Z --mac-portal   # CI: macOS Portal only (tag portal-mac-vX.Y.Z)
 ```
 
 One `project.yml`, two apps sharing `Sources/`; the Mac target adds `SourcesMac/`
