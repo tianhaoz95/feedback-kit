@@ -122,7 +122,25 @@ Set `FeedbackKit.currentScreen` on active watch views:
 }
 ```
 
-### Step 5 -- Verify the Build
+### Step 5 -- Close the Loop: "Is It Fixed?" (Recommended)
+
+Watch apps have no window to present over, so fix verification is a view modifier on the root view. It asks "is it fixed?" when a fix for something reported from this watch ships in the build it's running. "Still broken" collects a short description in the card itself, since there's no screenshot flow on watchOS.
+
+```swift
+WindowGroup {
+    ContentView()
+        .feedbackFixVerification()
+}
+```
+
+**Build numbers must be real and increasing.** The device compares its own `CFBundleVersion` with the build a fix shipped in, so:
+- `CFBundleVersion` has to be a number that increases every build (a UTC timestamp like `202609261015` is simplest).
+- The number the release pipeline announces has to be the one actually in the binary. With XcodeGen, set `CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"` and `CFBundleShortVersionString: "$(MARKETING_VERSION)"` under `info.properties`. Otherwise XcodeGen hardcodes `1` / `1.0` and command-line overrides never reach the app.
+- For App Store / TestFlight exports, set `manageAppVersionAndBuildNumber` to `false` in `ExportOptions.plist`, or App Store Connect renumbers the build.
+
+The repo/CI side (announcing builds, linking commits, the beta pipeline) is the `setup-release-loop` skill.
+
+### Step 6 -- Verify the Build
 
 Verify the watchOS target compiles cleanly:
 ```bash

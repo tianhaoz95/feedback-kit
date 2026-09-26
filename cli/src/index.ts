@@ -9,6 +9,7 @@ import { printPrompt } from "./commands/prompt.js";
 import { printDocs } from "./commands/docs.js";
 import { release } from "./commands/release.js";
 import { promote } from "./commands/promote.js";
+import { listReleases } from "./commands/releases.js";
 import { createToken, listTokens, revokeToken } from "./commands/token.js";
 import { link } from "./commands/link.js";
 import { timeline } from "./commands/timeline.js";
@@ -143,6 +144,20 @@ program
   .action(async (opts: { build: string; appVersion?: string; commit?: string; product?: string; project?: string; channel?: string; token?: string; apiUrl?: string; include?: string[]; dryRun?: boolean }) => {
     try {
       await release({ ...opts, version: opts.appVersion });
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+program
+  .command("releases")
+  .description("Release readiness: each build's fixes — verified, waiting on reporters, or reopened — and whether it's ready to promote.")
+  .option("--project <id>", "Project id (default: FEEDBACKKIT_PROJECT_ID, or your only project).")
+  .option("--limit <n>", "How many releases (default 20).")
+  .option("--json", "Machine-readable output.")
+  .action(async (opts: { project?: string; limit?: string; json?: boolean }) => {
+    try {
+      await listReleases(opts);
     } catch (err) {
       handleError(err);
     }

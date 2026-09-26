@@ -80,3 +80,21 @@ test("loop instructions ask for a commit trailer", () => {
   assert.match(text, /trailer/);
   assert.match(text, /FeedbackKit-Summary/);
 });
+
+test("readinessVerdict matches the dashboard's rules", async () => {
+  const { readinessVerdict } = await import("../dist/loop.js");
+  const beta = { channel: "beta" };
+  assert.equal(readinessVerdict({ ...beta, fixes: 2, verified: 1, reopened: 1, awaiting: 0 }), "blocked");
+  assert.equal(readinessVerdict({ ...beta, fixes: 2, verified: 1, reopened: 0, awaiting: 1 }), "waiting");
+  assert.equal(readinessVerdict({ ...beta, fixes: 2, verified: 2, reopened: 0, awaiting: 0 }), "ready");
+  assert.equal(readinessVerdict({ ...beta, fixes: 0, verified: 0, reopened: 0, awaiting: 0 }), "no_fixes");
+  assert.equal(readinessVerdict({ channel: "production", fixes: 1, verified: 0, reopened: 1, awaiting: 0 }), "production");
+});
+
+test("list_releases is registered and respects project scoping", async () => {
+  const server = createMcpServer({ projectId: "proj_abc123" });
+  const tool = server._registeredTools["list_releases"];
+  assert.ok(tool);
+  const res = await tool.handler({ project_id: "other", limit: 5 });
+  assert.equal(res.isError, true);
+});

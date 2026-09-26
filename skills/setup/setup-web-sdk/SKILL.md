@@ -88,6 +88,19 @@ Set `FeedbackKit.currentScreen` from the router on every navigation (a readable 
 - Console/network log capture is on by default; pass `captureLogs: false` to `configure` if the app's policy forbids it.
 - Remind the user to add the site's origin(s) under **Settings → Allowed web origins** in the dashboard, since the project key is visible in page source.
 
+### Step 6 -- Close the loop: "is it fixed?" (recommended)
+
+Call `FeedbackKit.enableFixVerification()` right after `configure`. Once a fix for something reported from this browser ships, a small card shows the reporter their original screenshot and asks "is it fixed?". "Still broken" reopens the capture dialog, and developer/agent questions show up there too. Each browser gets an anonymous reporter id, so no sign-in is needed.
+
+```ts
+FeedbackKit.configure({ projectKey: "pk_...", appBuild: import.meta.env.VITE_BUILD_ID }); // appBuild optional
+FeedbackKit.enableFixVerification();
+FeedbackKit.setUser(user ? { id: user.id, email: user.email } : null); // optional
+```
+
+- With a dotted-number `appBuild` (e.g. a timestamp), only fixes shipped in that build or earlier are shown. Any other build id (like a git SHA) counts as live once announced, which is right for a site that's replaced on every deploy.
+- Deploys should announce themselves: run `npx feedbackkit-cli release --build <id>` after deploying, with `FEEDBACKKIT_RELEASE_TOKEN` set in CI. The `setup-release-loop` skill wires that up.
+
 ## Verification
 
 1. Build the app (`npm run build`) — confirm no SSR errors about `window`/`document`.

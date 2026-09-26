@@ -142,7 +142,26 @@ Because macOS does not have a single mobile view-controller stack, set `Feedback
 }
 ```
 
-### Step 5 -- Verify the Build
+### Step 5 -- Close the Loop: "Is It Fixed?" (Recommended)
+
+When a fix for something reported from this Mac ships in the build it's running, show the reporter their original screenshot and ask "is it fixed?" — as a sheet on the key window. "Still broken" re-runs the capture flow; questions from the developer or agent appear the same way.
+
+```swift
+FeedbackKit.enableFixVerification {
+    NSApplication.shared.keyWindow
+}
+// Optional: attach who reported what.
+FeedbackKit.user = FeedbackUser(email: currentUser.email)
+```
+
+**Build numbers must be real and increasing.** The device compares its own `CFBundleVersion` with the build a fix shipped in, so:
+- `CFBundleVersion` has to be a number that increases every build (a UTC timestamp like `202609261015` is simplest).
+- The number the release pipeline announces has to be the one actually in the binary. With XcodeGen, set `CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"` and `CFBundleShortVersionString: "$(MARKETING_VERSION)"` under `info.properties`. Otherwise XcodeGen hardcodes `1` / `1.0` and command-line overrides never reach the app.
+- For App Store / TestFlight exports, set `manageAppVersionAndBuildNumber` to `false` in `ExportOptions.plist`, or App Store Connect renumbers the build.
+
+The repo/CI side (announcing builds, linking commits, the beta pipeline) is the `setup-release-loop` skill.
+
+### Step 6 -- Verify the Build
 
 Verify that the macOS app compiles cleanly:
 ```bash
@@ -152,6 +171,9 @@ xcodebuild build -scheme YourMacScheme
 ```
 
 ## Non-Obvious Pitfalls
+
+- **Fix verification never appears**: check the running app's `CFBundleVersion` is the number the release announced (Step 5). A DMG built with a hardcoded `1` is always "older" than any fix.
+- **Liquid Glass sidebars**: on macOS 26 a `NavigationSplitView` sidebar inside Liquid Glass renders blank in the screenshot (it's unreachable without Screen Recording permission, which the SDK deliberately doesn't request). The rest of the window, including the toolbar, is captured.
 
 - **Sheet Presentation**: On macOS, FeedbackKit presents as a sheet attached to the target `NSWindow` rather than taking over the entire screen. Ensure `NSApplication.shared.keyWindow` or a specific window reference is non-nil when presenting.
 - **No Shake Sensor**: `FeedbackKit.enableShakeToReport` is iOS-only and does not exist on macOS. Use `showFloatingTriggerButton` or menu commands instead.

@@ -10,6 +10,7 @@ import {
   claimFeedback,
   downloadBase64,
   fetchFeedback,
+  fetchReleaseReadiness,
   fetchTimeline,
   linkFix,
   loopInstructions,
@@ -278,6 +279,35 @@ export function createMcpServer(options: McpServerOptions = {}): McpServer {
         );
       }
       return textResult(`Marked ${feedback_id} as ${status}.`);
+    },
+  );
+
+  server.registerTool(
+    "list_releases",
+    {
+      description:
+        (projectId ? `Release readiness for project ${projectId}` : "Release readiness for a project") +
+        ": each announced build (beta or production) with how many of its fixes the reporters verified on " +
+        "device, how many are still awaiting them, and how many were reopened, plus a verdict — 'ready' " +
+        "(all verified), 'waiting', 'blocked' (something reopened), 'no_fixes' or 'production'. Use it to " +
+        "help the owner decide which beta to promote.",
+      inputSchema: {
+        project_id: z.string().describe("Project id (defaults to the scoped project).").optional(),
+        limit: z.number().int().min(1).max(50).default(10),
+      },
+    },
+    async ({ project_id, limit }) => {
+      if (projectId && project_id && project_id !== projectId) {
+        return errorResult(`Cannot query project "${project_id}": this MCP server is scoped to project "${projectId}".`);
+      }
+      const effective = projectId || project_id;
+      if (!effective) return errorResult("Pass project_id (see list_projects), or scope the server with --project.");
+      try {
+        const client = await getAuthenticatedClient();
+        return jsonResult(await fetchReleaseReadiness(client, effective, limit));
+      } catch (err) {
+        return errorResult((err as Error).message);
+      }
     },
   );
 

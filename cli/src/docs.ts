@@ -430,6 +430,7 @@ feedbackkit login --dashboard-url http://localhost:3000
 | \`feedbackkit timeline <feedbackId>\` | A report's fix-loop activity: agent progress, PRs, releases, the reporter's replies. |
 | \`feedbackkit link <feedbackId> --pr <url> \\| --commit <sha>\` | Record the fix for a report by hand (PRs mentioning \`FeedbackKit: <id>\` are linked automatically). |
 | \`feedbackkit release --build <n> [--project <id>] [--commit <rev>] [--product <key>] [--channel <c>] [--token <t>] [--dry-run]\` | Announce a build: marks merged fixes it contains as shipped so reporters are asked "is it fixed?" — see the \`loop\` doc topic. |
+| \`feedbackkit releases [--json]\` | Release readiness: each build's fixes (verified / awaiting reporter / reopened) and whether it's ready to promote. |
 | \`feedbackkit promote --build <n>\` | Record that a beta build went to production. |
 | \`feedbackkit token create <name> \\| list \\| revoke <id>\` | Project release tokens, so CI can run \`release\` without a login. |
 | \`feedbackkit docs [topic]\` | Print this documentation (no topic = list topics). |
@@ -689,6 +690,7 @@ When scoped to a project:
 | \`ask_reporter\` | Ask the reporter a clarifying question — it appears in the app on their device; the answer lands in the timeline. |
 | \`link_fix\` | Record the PR/commit and a one-line summary the reporter will see. Automatic for PRs containing \`FeedbackKit: <id>\`. |
 | \`attach_after_screenshot\` | Upload a local PNG of the fixed screen (e.g. from a simulator) for before/after review. |
+| \`list_releases\` | Release readiness per build (verified / awaiting / reopened) with a ready / waiting / blocked verdict — for deciding what to promote. |
 | \`update_feedback_status\` | Set triage status. For code fixes prefer \`link_fix\`; the reporter's confirmation resolves it. |
 | \`get_docs\` | Fetch FeedbackKit's own documentation — e.g. "how do I add this to an iOS app." No argument lists topics; pass \`topic\` for one topic's full content. |
 
@@ -728,7 +730,7 @@ Reports now carry an anonymous per-install reporter id (no sign-up). When a fix 
 
 ## 2. The agent (MCP)
 
-\`get_prompt\` ends with loop instructions: \`claim_feedback\`, \`ask_reporter\` if needed, reproduce and \`attach_after_screenshot\`, and put \`FeedbackKit: <id>\` in the PR description (or \`link_fix\` for a direct commit). Reopened reports: \`list_feedback\` with \`fix_stage: "reopened"\`; \`get_feedback\` includes the reporter's new screenshot. The \`fix-feedback\` Agent Skill packages this workflow.
+\`get_prompt\` ends with loop instructions: \`claim_feedback\`, \`ask_reporter\` if needed, reproduce and \`attach_after_screenshot\`, and add a \`FeedbackKit: <id>\` trailer to the fix commit (or the PR description; \`link_fix\` without the GitHub App). Reopened reports: \`list_feedback\` with \`fix_stage: "reopened"\`; \`get_feedback\` includes the reporter's new screenshot. The \`fix-feedback\` Agent Skill packages this workflow.
 
 ## 3. GitHub
 
@@ -754,14 +756,20 @@ Agents can commit straight to the default branch. Add \`FeedbackKit: <id>\` as a
     summary: "Agent Skills for AI coding agents to automate SDK setup, triggers, and MCP configuration.",
     content: `# Agent Skills for FeedbackKit
 
-FeedbackKit packages Agent Skills compliant with the vercel-labs/skills open standard (npx skills add). AI coding agents (Claude Code, Cursor, Antigravity, Codex) use these skills to autonomously inspect a project, add package dependencies, configure credentials, wire UI triggers, and set up MCP.
+FeedbackKit packages Agent Skills compliant with the vercel-labs/skills open standard (npx skills add). AI coding agents (Claude Code, Cursor, Antigravity, Codex) use these skills to autonomously inspect a project, add package dependencies, configure credentials, wire UI triggers, set up MCP, and run the fix loop — from wiring releases to fixing reports and promoting verified builds.
 
 ## Available skills
 
 - \`setup-ios-sdk\` — Integrates FeedbackKit into an iOS project (SwiftUI or UIKit, XcodeGen or Xcode project). Adds package dependency, initializes credentials at app launch, sets up shake or floating triggers, and configures screen tracking.
 - \`setup-macos-sdk\` — Integrates FeedbackKit into a macOS desktop app (SwiftUI or AppKit). Configures credentials, sets up floating button or menu item triggers, and configures screen tracking.
 - \`setup-watchos-sdk\` — Integrates FeedbackKit into a watchOS app using \`FeedbackQuickNoteView\` embedded in a SwiftUI sheet for text and context feedback.
+- \`setup-web-sdk\` — Integrates the web SDK (\`feedbackkit-web\`) into a website or web app.
 - \`setup-mcp-server\` — Configures the FeedbackKit CLI and MCP server for Claude Code, Cursor, Antigravity, or Codex.
+- \`setup-release-loop\` — Wires a repo's releases into the closed loop: GitHub fix linking and agent hand-off, a CI release token, build announcements so reporters get asked "is it fixed?", correct build numbers, and an optional beta on every push to main.
+- \`fix-feedback\` — An agent fixes a report end to end: claim, reproduce, fix, after-screenshot, and a \`FeedbackKit:\` commit trailer.
+- \`promote-release\` — Reads release readiness (\`feedbackkit releases\`, MCP \`list_releases\`), explains what blocks a beta, and records the promotion.
+
+The SDK setup skills each include enabling "is it fixed?" verification (\`enableFixVerification\`).
 
 ## Installing skills
 

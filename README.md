@@ -164,6 +164,8 @@ Claude Code, Cursor, Antigravity, Gemini CLI, and other AI coding assistants to 
 | [`setup/`](skills/setup/README.md) | [`setup-web-sdk`](skills/setup/setup-web-sdk/SKILL.md) | Integrate the FeedbackKit web SDK into a website or web app. |
 | [`setup/`](skills/setup/README.md) | [`setup-mcp-server`](skills/setup/setup-mcp-server/SKILL.md) | Configure FeedbackKit CLI and MCP server for AI coding agents. |
 | [`workflow/`](skills/workflow/README.md) | [`fix-feedback`](skills/workflow/fix-feedback/SKILL.md) | Fix a reported bug end to end and ship the fix back to the reporter's device for verification. |
+| [`setup/`](skills/setup/README.md) | [`setup-release-loop`](skills/setup/setup-release-loop/SKILL.md) | Wire a repo's release pipeline into the loop: GitHub linking, agent hand-off, release token, build announcements, beta on every push. |
+| [`workflow/`](skills/workflow/README.md) | [`promote-release`](skills/workflow/promote-release/SKILL.md) | Decide which beta is ready for production from reporters' verifications, and record the promotion. |
 
 #### Layout
 

@@ -92,9 +92,29 @@ export function DocsSkillsPage() {
               "Integrates FeedbackKit into watchOS apps using FeedbackQuickNoteView embedded in a SwiftUI sheet for streamlined text and context feedback.",
             ],
             [
+              "setup-web-sdk",
+              "Web",
+              "Installs feedbackkit-web in a website or SPA (React, Next.js, Vue, plain HTML), configures it client-side, adds a trigger and screen names.",
+            ],
+            [
               "setup-mcp-server",
               "Agent / MCP",
               "Installs feedbackkit-cli, completes browser-based authentication, and registers the MCP server in Claude Code, Cursor, Antigravity, or Codex.",
+            ],
+            [
+              "setup-release-loop",
+              "Release loop",
+              "Wires the repo's releases into the loop: GitHub fix linking and agent hand-off, a CI release token, build announcements so reporters get asked \"is it fixed?\", correct build numbers, and an optional beta on every push.",
+            ],
+            [
+              "fix-feedback",
+              "Agent workflow",
+              "Fixes a report end to end over MCP: claim, reproduce, fix, attach an after-fix screenshot, and commit with a FeedbackKit: trailer so the fix ships back to the reporter.",
+            ],
+            [
+              "promote-release",
+              "Owner workflow",
+              "Reads release readiness (verified / awaiting / reopened), explains what blocks a beta, recommends which build to ship, and records the promotion.",
             ],
           ]}
         />

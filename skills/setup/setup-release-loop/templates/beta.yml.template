@@ -1,0 +1,77 @@
+name: Beta
+
+# Every push to main that touches the app ships a beta build — once the tests
+# pass — and announces it to FeedbackKit, so the people who reported the bugs
+# it fixes are asked "is it fixed?" in that build. The owner promotes a
+# verified beta to production by hand (App Store Connect), then records it with
+# `npx feedbackkit-cli promote --build <n>` or the dashboard's Releases tab.
+#
+# Adapt: APP_SCHEME, the test command, and the upload step (this example uses
+# an App Store Connect API key and xcodebuild; swap in fastlane if you use it).
+# Secrets: FEEDBACKKIT_RELEASE_TOKEN (`npx feedbackkit-cli token create
+# github-actions | gh secret set FEEDBACKKIT_RELEASE_TOKEN`) plus your signing
+# and App Store Connect secrets.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "__APP_SOURCE_DIR__/**"
+      - ".github/workflows/beta.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# A newer push supersedes a beta that's still building.
+concurrency:
+  group: beta-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_SCHEME: __APP_SCHEME__
+
+jobs:
+  test:
+    name: Tests (gate)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: |
+          xcodebuild test -scheme "$APP_SCHEME" \
+            -destination 'platform=iOS Simulator,name=iPhone 16'
+
+  beta:
+    name: Build → TestFlight → announce
+    needs: test
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # FeedbackKit ships only fixes whose commit is an ancestor of HEAD.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build number (UTC timestamp — increasing, and compared on device)
+        run: echo "BUILD_NUMBER=$(date -u +%Y%m%d%H%M)" >> "$GITHUB_ENV"
+
+      # --- Replace with your existing signing + archive + upload steps. ------
+      # Requirements for FeedbackKit's fix verification:
+      #   - pass CURRENT_PROJECT_VERSION="$BUILD_NUMBER" to xcodebuild archive
+      #     (and make Info.plist's CFBundleVersion "$(CURRENT_PROJECT_VERSION)")
+      #   - ExportOptions.plist: manageAppVersionAndBuildNumber = false
+      - name: Archive and upload to TestFlight
+        run: ./scripts/release_testflight.sh   # your script; must use $BUILD_NUMBER
+        env:
+          BUILD_NUMBER: ${{ env.BUILD_NUMBER }}
+      # ------------------------------------------------------------------------
+
+      - name: Announce the build to FeedbackKit reporters
+        env:
+          FEEDBACKKIT_RELEASE_TOKEN: ${{ secrets.FEEDBACKKIT_RELEASE_TOKEN }}
+          # FEEDBACKKIT_API_URL: https://<your-project>.supabase.co   # self-hosted only
+        run: ./scripts/feedbackkit_announce.sh "$BUILD_NUMBER" --channel beta

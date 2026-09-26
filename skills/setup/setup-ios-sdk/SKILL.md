@@ -1,6 +1,6 @@
 ---
 name: setup-ios-sdk
-description: Integrate FeedbackKit SDK into an iOS project (SwiftUI or UIKit) — adds package dependency, configures project key/endpoint at app launch, sets up shake or floating triggers, and adds screen tracking.
+description: Integrate FeedbackKit SDK into an iOS project (SwiftUI or UIKit) — adds package dependency, configures project key/endpoint at app launch, sets up shake or floating triggers, screen tracking, and "is it fixed?" verification so reporters confirm fixes on their device.
 ---
 
 # setup-ios-sdk
@@ -195,7 +195,31 @@ FeedbackKit.theme = .init(
 )
 ```
 
-### Step 7 -- Verify the Build
+### Step 7 -- Close the Loop: "Is It Fixed?" (Recommended)
+
+Once a fix for something a user reported ships in the build they're running, FeedbackKit can show them their original annotated screenshot and ask "is it fixed?". "Still broken" re-runs the capture flow and sends the report back to the developer (and their coding agent). It also surfaces questions the developer or agent asked about a report. Install it next to the trigger, with the same presenter:
+
+```swift
+FeedbackKit.enableFixVerification {
+    UIApplication.shared.connectedScenes
+        .compactMap { $0 as? UIWindowScene }
+        .flatMap { $0.windows }
+        .first { $0.isKeyWindow }?
+        .rootViewController
+}
+
+// Optional: who reported what, shown in the dashboard (not needed for verification).
+FeedbackKit.user = FeedbackUser(id: currentUser.id, email: currentUser.email)
+```
+
+**Build numbers must be real and increasing.** The device compares its own `CFBundleVersion` with the build a fix shipped in, so:
+- `CFBundleVersion` has to be a number that increases every build (a UTC timestamp like `202609261015` is simplest).
+- The number the release pipeline announces has to be the one actually in the binary. With XcodeGen, set `CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"` and `CFBundleShortVersionString: "$(MARKETING_VERSION)"` under `info.properties`. Otherwise XcodeGen hardcodes `1` / `1.0` and command-line overrides never reach the app.
+- For App Store / TestFlight exports, set `manageAppVersionAndBuildNumber` to `false` in `ExportOptions.plist`, or App Store Connect renumbers the build.
+
+The repo/CI side (announcing builds, linking commits, the beta pipeline) is the `setup-release-loop` skill.
+
+### Step 8 -- Verify the Build
 
 Build the project to verify clean compilation:
 ```bash
@@ -203,6 +227,8 @@ xcodebuild build -scheme YourScheme -destination 'generic/platform=iOS Simulator
 ```
 
 ## Non-Obvious Pitfalls
+
+- **Fix verification never appears**: almost always a build-number mismatch (see Step 7). Check the installed app's `CFBundleVersion` is the number the release announced, and that it's at least the build the fix shipped in.
 
 - **Key Window Resolution**: In iOS 15+, `UIApplication.shared.keyWindow` is deprecated. Use the multi-scene resolution pattern shown in Step 4 (`connectedScenes -> UIWindowScene -> windows -> isKeyWindow`).
 - **Simulator Shake Testing**: To test shake-to-report in the iOS Simulator, select `Features > Shake Gesture` or press `Ctrl + Cmd + Z`.

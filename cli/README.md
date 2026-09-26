@@ -72,6 +72,7 @@ feedbackkit prompt <feedbackId>             # print the generated coding-agent p
 feedbackkit timeline <feedbackId>           # fix-loop activity: agent progress, PRs, releases, reporter replies
 feedbackkit link <feedbackId> --pr <url> | --commit <sha> [--merged] [--summary <text>]
 feedbackkit release --build <n> [--project <id>] [--commit <rev>] [--product <key>] [--channel beta|production] [--token <fkr_…>] [--dry-run]
+feedbackkit releases [--project <id>] [--json]                        # release readiness: verified / waiting / reopened per build
 feedbackkit promote --build <n> [--product <key>] [--token <fkr_…>]   # a beta went to production
 feedbackkit token create <name> | list | revoke <id>                  # release tokens for CI
 feedbackkit docs [topic]                    # print FeedbackKit's own docs (no topic = list topics)
@@ -243,6 +244,7 @@ Tools exposed:
 | `ask_reporter` | Ask the reporter a question — shown in the app on their device; the reply lands in the timeline |
 | `link_fix` | Record the fix PR/commit and a one-line summary the reporter sees (automatic for PRs containing `FeedbackKit: <id>`) |
 | `attach_after_screenshot` | Upload a local PNG of the fixed screen for before/after review |
+| `list_releases` | Release readiness: each build's fixes verified / awaiting / reopened, with a ready / waiting / blocked verdict |
 | `get_docs` | FeedbackKit's own documentation — no `topic` lists topics, e.g. `sdk`/`dashboard`/`cli`/`mcp`; with `topic` returns that topic's full content. Doesn't require being logged in. |
 | `update_feedback_status` | Mark a feedback item's status, e.g. `resolved` after fixing it |
 

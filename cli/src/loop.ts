@@ -388,3 +388,56 @@ ${reopened}
    Optionally add \`FeedbackKit-Summary: <one plain-language sentence for the reporter>\`. If you open a pull request instead, put the same \`FeedbackKit:\` line in its description. Without the GitHub App, call \`link_fix\` with the commit sha.
 5. Don't mark it resolved yourself: once the fix ships in a build, the reporter confirms it on their device.`;
 }
+
+// ---- Release readiness (release_readiness view, 0015) -------------------------
+
+export interface ReleaseReadinessRow {
+  release_id: string;
+  build: string;
+  version: string | null;
+  commit_sha: string | null;
+  product_key: string | null;
+  channel: ReleaseChannel;
+  source: "cli" | "ci";
+  created_at: string;
+  promoted_at: string | null;
+  fixes: number;
+  verified: number;
+  reopened: number;
+  awaiting: number;
+  unreachable: number;
+}
+
+export type ReadinessVerdict = "production" | "blocked" | "no_fixes" | "waiting" | "ready";
+
+/**
+ * Whether a beta is safe to promote — same rules as the dashboard's
+ * web/src/lib/releaseVerdict.ts: any reopened fix blocks, unverified fixes
+ * mean waiting, all verified is ready.
+ */
+export function readinessVerdict(r: Pick<ReleaseReadinessRow, "channel" | "fixes" | "verified" | "reopened" | "awaiting">): ReadinessVerdict {
+  if (r.channel === "production") return "production";
+  if (Number(r.reopened) > 0) return "blocked";
+  if (Number(r.fixes) === 0) return "no_fixes";
+  if (Number(r.awaiting) > 0) return "waiting";
+  return "ready";
+}
+
+export async function fetchReleaseReadiness(client: SupabaseClient, projectId: string, limit = 20): Promise<Array<ReleaseReadinessRow & { verdict: ReadinessVerdict }>> {
+  const { data, error } = await client
+    .from("release_readiness")
+    .select("release_id, build, version, commit_sha, product_key, channel, source, created_at, promoted_at, fixes, verified, reopened, awaiting, unreachable")
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as ReleaseReadinessRow[]).map((r) => ({
+    ...r,
+    fixes: Number(r.fixes),
+    verified: Number(r.verified),
+    reopened: Number(r.reopened),
+    awaiting: Number(r.awaiting),
+    unreachable: Number(r.unreachable),
+    verdict: readinessVerdict(r),
+  }));
+}
