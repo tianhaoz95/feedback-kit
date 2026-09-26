@@ -107,7 +107,7 @@ export function ProjectsPage() {
       <div>
         <h1 className="text-xl font-semibold text-neutral-900">Projects</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Each project gets its own key to embed in an iOS app so feedback routes here.
+          Each project gets its own key to put in your app or website so feedback routes here.
         </p>
       </div>
 
@@ -139,7 +139,7 @@ export function ProjectsPage() {
             <EmptyState
               icon={<FolderIcon className="h-6 w-6" />}
               title="No projects yet"
-              description="Create your first project to get a key you can drop into an iOS app — feedback from it will show up here."
+              description="Create your first project to get a key you can put in your app or website — feedback from it will show up here."
             />
           ) : (
             <div className="space-y-3">

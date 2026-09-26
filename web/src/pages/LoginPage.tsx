@@ -38,7 +38,7 @@ export function LoginPage() {
             <span className="text-2xl font-semibold tracking-tight text-neutral-900">FeedbackKit</span>
           </Link>
           <p className="mt-2 text-sm text-neutral-500">
-            The dashboard for feedback captured by your iOS app.
+            The dashboard for feedback from your apps and websites.
           </p>
         </div>
 

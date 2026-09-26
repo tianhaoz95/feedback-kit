@@ -11,7 +11,7 @@ const steps = [
   {
     title: "Capture",
     description:
-      "A shake, or a floating button, or your own trigger — one call captures the current screen, whether it's UIKit, SwiftUI, or both.",
+      "A shake, a floating button, a keyboard shortcut, or your own trigger captures the current screen: UIKit, SwiftUI, AppKit, or any web page.",
   },
   {
     title: "Annotate & describe",
@@ -21,15 +21,20 @@ const steps = [
   {
     title: "Ship it",
     description:
-      "You get a structured FeedbackReport in a completion handler. Print it, send it to your own backend, or hand it to the hosted dashboard.",
+      "You get a structured report with the screenshot, the drawing, and device context. Keep it, send it to your own backend, or hand it to the hosted dashboard.",
   },
 ];
 
 const features = [
   {
-    title: "Works with UIKit and SwiftUI",
+    title: "One report, every platform",
     description:
-      "Capture is window-level, not view-controller-level, so it works identically no matter what built the screen on top.",
+      "iOS, iPadOS, macOS, watchOS and the web all produce the same report, so your dashboard, CLI and coding agent handle them the same way.",
+  },
+  {
+    title: "No permission prompts",
+    description:
+      "Native capture renders the app's own window and web capture re-renders the page, so users never see a screen-recording prompt.",
   },
   {
     title: "Four annotation tools",
@@ -39,17 +44,22 @@ const features = [
   {
     title: "A structured report, not a screenshot",
     description:
-      "Device model, OS version, app version/build, locale, and screen name travel alongside the image and every shape drawn on it.",
+      "Device, OS, app version and build, locale and screen name travel with the image and every shape drawn on it. On the web: the page URL, browser, and recent console errors and failed requests.",
   },
   {
     title: "No dashboard required",
     description:
-      "present(from:) hands you a FeedbackReport in a completion handler. Delivery is entirely up to your app.",
+      "The SDK hands the report to your code. Where it goes next is up to you: the dashboard is one option, not a requirement.",
   },
   {
     title: "Prompt generation for coding agents",
     description:
       "The optional dashboard turns a report into a ready-to-paste prompt via a plain, editable template — no templating language to learn.",
+  },
+  {
+    title: "Closes the loop with the reporter",
+    description:
+      "When a fix ships, the person who reported the bug sees their own screenshot and confirms it's fixed, or shows you what's still broken.",
   },
   {
     title: "Built for teams",
@@ -60,11 +70,6 @@ const features = [
     title: "Notified the moment it matters",
     description:
       "New reports, reporter replies, and fixes confirmed or reopened show up live in the dashboard and as push notifications in the Portal app.",
-  },
-  {
-    title: "Multi-project, multi-tenant",
-    description:
-      "Organizations, projects, and per-project prompt templates, with Postgres row-level security enforcing tenancy, not application code.",
   },
 ];
 
@@ -79,7 +84,11 @@ const platforms: { name: string; soon?: boolean }[] = [
   { name: "Android", soon: true },
 ];
 
-const codeSample = `FeedbackKit.configure(
+const codeSamples = {
+  swift: {
+    label: "Swift",
+    file: "AppDelegate.swift",
+    code: `FeedbackKit.configure(
     .init(endpointURL: myEndpoint, projectKey: "pk_live_...")
 )
 
@@ -87,7 +96,21 @@ FeedbackKit.enableShakeToReport {
     UIApplication.shared.topMostViewController
 }
 
-FeedbackKit.currentScreen = "Checkout"`;
+FeedbackKit.currentScreen = "Checkout"`,
+  },
+  web: {
+    label: "Web",
+    file: "main.ts",
+    code: `import { FeedbackKit } from "feedbackkit-web";
+
+FeedbackKit.configure({ projectKey: "pk_live_..." });
+
+FeedbackKit.showFloatingTriggerButton();
+FeedbackKit.enableKeyboardShortcut(); // ⌘⇧F / Ctrl+Shift+F
+
+FeedbackKit.currentScreen = "Checkout";`,
+  },
+} as const;
 
 export function LandingPage() {
   const { user, loading } = useAuth();
@@ -98,6 +121,8 @@ export function LandingPage() {
     : { to: "/login", label: "Sign in", shortLabel: "Sign in" };
 
   const [scrolled, setScrolled] = useState(false);
+  const [sampleKind, setSampleKind] = useState<keyof typeof codeSamples>("swift");
+  const sample = codeSamples[sampleKind];
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
@@ -170,13 +195,13 @@ export function LandingPage() {
                 Source available &middot; PolyForm Perimeter
               </span>
               <h1 className="mt-5 text-4xl font-semibold tracking-tight text-neutral-900 sm:text-5xl">
-                In-app feedback for iOS, turned into prompts your coding agent can act on.
+                In-app feedback for your apps and websites, turned into prompts your coding agent can act on.
               </h1>
               <p className="mt-5 text-base text-neutral-600 sm:text-lg">
-                Drop the SDK into any UIKit or SwiftUI app. Users shake, mark up
-                the screen, and describe the problem. You get a structured
-                report — and, optionally, a hosted dashboard that turns it
-                into a ready-to-paste prompt.
+                Add the SDK to your iOS, macOS or watchOS app, or your website.
+                Users mark up the screen and describe the problem. You get a
+                structured report and, if you want it, a hosted dashboard that
+                turns it into a ready-to-paste prompt.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link
@@ -259,9 +284,9 @@ export function LandingPage() {
                 Everything the report needs, nothing it doesn't
               </h2>
               <p className="mt-3 text-sm text-neutral-600 sm:text-base">
-                Built as two things sharing one JSON contract: an SDK that
-                never requires the dashboard, and a dashboard that's just one
-                way to consume what the SDK produces.
+                Native and web SDKs that share one report format and never
+                require the dashboard, plus a dashboard, CLI and MCP server
+                that are optional ways to use what they produce.
               </p>
             </div>
           </Reveal>
@@ -286,25 +311,31 @@ export function LandingPage() {
                   A few lines to wire up
                 </h2>
                 <p className="mt-3 text-sm text-neutral-600 sm:text-base">
-                  One call — <code className="break-words rounded bg-neutral-100 px-1.5 py-0.5 text-[13px]">FeedbackKit.present(from:)</code> —
-                  is everything else is built on. Shake-to-report and a
-                  floating trigger button are convenience wrappers on top of it;
-                  call it directly if you already have your own trigger.
+                  Configure once, then pick a trigger: shake to report, a
+                  floating button, a keyboard shortcut on the web, or your own
+                  button calling{" "}
+                  <code className="break-words rounded bg-neutral-100 px-1.5 py-0.5 text-[13px]">present</code>.
                 </p>
                 <ul className="mt-6 space-y-3 text-sm text-neutral-600">
                   <li className="flex gap-2">
                     <span className="text-neutral-400">&middot;</span>
-                    Swift Package, no external dependencies.
+                    <span>
+                      Swift Package with no dependencies, or the{" "}
+                      <code className="break-words rounded bg-neutral-100 px-1.5 py-0.5 text-[13px]">feedbackkit-web</code>{" "}
+                      npm package (or a script tag).
+                    </span>
                   </li>
                   <li className="flex gap-2">
                     <span className="text-neutral-400">&middot;</span>
-                    Works with your own backend via the completion handler, or
-                    submit straight to the hosted dashboard.
+                    Keep the report in your own code and backend, or submit it
+                    straight to the hosted dashboard.
                   </li>
                   <li className="flex gap-2">
                     <span className="text-neutral-400">&middot;</span>
-                    Set <code className="break-words rounded bg-neutral-100 px-1.5 py-0.5 text-[13px]">currentScreen</code> as
-                    users navigate so reports say where they came from.
+                    <span>
+                      Set <code className="break-words rounded bg-neutral-100 px-1.5 py-0.5 text-[13px]">currentScreen</code> as
+                      users navigate so reports say where they came from.
+                    </span>
                   </li>
                 </ul>
               </div>
@@ -315,10 +346,26 @@ export function LandingPage() {
                   <span className="h-2.5 w-2.5 rounded-full bg-neutral-700" />
                   <span className="h-2.5 w-2.5 rounded-full bg-neutral-700" />
                   <span className="h-2.5 w-2.5 rounded-full bg-neutral-700" />
-                  <span className="ml-3 text-[11px] text-neutral-500">AppDelegate.swift</span>
+                  <span className="ml-3 text-[11px] text-neutral-500">{sample.file}</span>
+                  <div className="ml-auto flex rounded-md bg-neutral-800 p-0.5" role="tablist" aria-label="Code sample language">
+                    {(Object.keys(codeSamples) as (keyof typeof codeSamples)[]).map((kind) => (
+                      <button
+                        key={kind}
+                        type="button"
+                        role="tab"
+                        aria-selected={sampleKind === kind}
+                        onClick={() => setSampleKind(kind)}
+                        className={`rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                          sampleKind === kind ? "bg-neutral-700 text-white" : "text-neutral-400 hover:text-neutral-200"
+                        }`}
+                      >
+                        {codeSamples[kind].label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <pre className="overflow-x-auto p-5 text-[13px] leading-relaxed text-neutral-200">
-                  <code>{codeSample}</code>
+                  <code>{sample.code}</code>
                 </pre>
               </div>
             </Reveal>
@@ -355,8 +402,13 @@ export function LandingPage() {
                   </li>
                   <li className="flex gap-2">
                     <span className="text-neutral-400">&middot;</span>
-                    Organizations and team membership, with row-level security
-                    enforcing that no account can see another's data.
+                    Invite your team with a link, and get notified about new
+                    reports in the browser or the Developer Portal app.
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-neutral-400">&middot;</span>
+                    Row-level security in Postgres keeps every organization's
+                    data private.
                   </li>
                   <li className="flex gap-2">
                     <span className="text-neutral-400">&middot;</span>
@@ -376,7 +428,8 @@ export function LandingPage() {
                 Add it to your app in an afternoon
               </h2>
               <p className="mt-3 text-sm text-neutral-300 sm:text-base">
-                FeedbackKit is a Swift Package. The dashboard is optional, and
+                A Swift Package for Apple platforms and an npm package for the
+                web, with Android coming soon. The dashboard is optional, and
                 free to self-host from this repo.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
