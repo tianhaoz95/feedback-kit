@@ -64,22 +64,46 @@ import AppKit
 /// hierarchy directly (like UIKit's `drawHierarchy(in:afterScreenUpdates:)`)
 /// rather than compositing the real screen buffer, so this needs no Screen
 /// Recording permission.
+///
+/// It renders the window's *frame* view (`contentView.superview`), not just
+/// the content view: the toolbar, title and window controls live outside the
+/// content view, and without them a report from a modern SwiftUI app (search
+/// field, project pickers, toolbar buttons) loses exactly the controls users
+/// point at. Found by dogfooding the SDK in the Mac Developer Portal.
+///
+/// Known gap: on macOS 26, a `NavigationSplitView` sidebar drawn inside
+/// Liquid Glass (`NSGlassEffectView`) renders blank — its content isn't
+/// reachable by `cacheDisplay`, and the only API that captures it
+/// (ScreenCaptureKit) needs Screen Recording permission, which a feedback
+/// SDK shouldn't ask for. The rest of the window is captured normally.
 enum ScreenshotCapture {
     static func captureKeyWindow() -> NSImage? {
         guard let window = NSApplication.shared.keyWindow, let contentView = window.contentView else {
             return nil
         }
 
-        let bounds = contentView.bounds
+        let root = frameView(of: contentView)
+        let bounds = root.bounds
         guard bounds.width > 0, bounds.height > 0 else { return nil }
 
-        guard let rep = contentView.bitmapImageRepForCachingDisplay(in: bounds) else { return nil }
+        guard let rep = root.bitmapImageRepForCachingDisplay(in: bounds) else { return nil }
         rep.size = bounds.size
-        contentView.cacheDisplay(in: bounds, to: rep)
+        root.cacheDisplay(in: bounds, to: rep)
 
         let image = NSImage(size: bounds.size)
         image.addRepresentation(rep)
         return image
+    }
+
+    /// The window's frame view (titlebar + toolbar + content) when it fully
+    /// contains the content view, else the content view itself.
+    static func frameView(of contentView: NSView) -> NSView {
+        guard let frame = contentView.superview,
+              frame.bounds.width >= contentView.bounds.width,
+              frame.bounds.height >= contentView.bounds.height else {
+            return contentView
+        }
+        return frame
     }
 }
 #elseif os(watchOS)
