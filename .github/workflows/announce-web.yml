@@ -1,0 +1,82 @@
+name: Announce web deploy
+
+# The dashboard/website (web/, which bundles web-sdk/ from source) is deployed
+# by Cloudflare's Workers Builds Git integration, not by a workflow here, so
+# nothing else tells FeedbackKit that a web fix went live. This waits for
+# Cloudflare's check run on the pushed commit to succeed, then announces the
+# build (DESIGN.md §7-8): merged fixes it contains move to "shipped", and their
+# reporters get asked "is it fixed?" on their next page load.
+#
+# The build id is the short SHA, matching the dashboard's own `appBuild`
+# (web/vite.config.ts). A SHA doesn't order, which is right for a static SPA
+# replaced on deploy — see enableFixVerification in web/src/lib/feedbackkit.ts.
+# Announced as production: there's no web beta, a deploy is what users get.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "web-sdk/src/**"
+      - "wrangler.jsonc"
+      - "scripts/feedbackkit_announce.sh"
+      - ".github/workflows/announce-web.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  checks: read
+
+# A newer deploy contains every older commit, so it supersedes a pending one.
+concurrency:
+  group: announce-web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  announce:
+    name: Announce web deploy to FeedbackKit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: `feedbackkit release` checks each fix commit is an
+          # ancestor of this build's commit (scripts/feedbackkit_announce.sh).
+          fetch-depth: 0
+
+      - name: Wait for the Cloudflare deploy
+        id: deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHECK_NAME: "Workers Builds: feedback-kit"
+        run: |
+          for _ in $(seq 1 50); do
+            result=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs" \
+              --jq ".check_runs[] | select(.name == \"$CHECK_NAME\") | \"\(.status) \(.conclusion)\"" | head -n1)
+            case "$result" in
+              "completed success")
+                echo "Cloudflare deploy succeeded."
+                echo "live=true" >> "$GITHUB_OUTPUT"
+                exit 0 ;;
+              completed*)
+                echo "::warning::Cloudflare deploy finished as '${result#completed }' — not announcing."
+                exit 0 ;;
+            esac
+            echo "Waiting for '$CHECK_NAME' (${result:-not started})..."
+            sleep 30
+          done
+          echo "::warning::Timed out waiting for '$CHECK_NAME' — not announcing. Rerun this workflow once it's live."
+
+      - name: Set up FeedbackKit CLI (build announcement)
+        if: steps.deploy.outputs.live == 'true'
+        uses: ./.github/actions/setup-feedbackkit-cli
+
+      - name: Announce to FeedbackKit reporters
+        if: steps.deploy.outputs.live == 'true'
+        env:
+          FEEDBACKKIT_RELEASE_TOKEN: ${{ secrets.FEEDBACKKIT_RELEASE_TOKEN }}
+        run: |
+          # One SPA serves both products (web/src/lib/feedbackkit.ts).
+          BUILD="${GITHUB_SHA::7}"
+          ./scripts/feedbackkit_announce.sh "$BUILD" --channel production --product web-dashboard
+          ./scripts/feedbackkit_announce.sh "$BUILD" --channel production --product website

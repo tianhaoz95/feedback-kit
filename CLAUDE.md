@@ -512,7 +512,9 @@ Rules for skills:
   TestFlight (iOS Portal) and the rolling `beta-portal-mac` prerelease
   (macOS Portal). Each release script ends with `scripts/feedbackkit_announce.sh`,
   which records the build with `FEEDBACKKIT_RELEASE_TOKEN` (CI) or a login
-  session. Release tokens are hash-only, and inserts go through the
+  session. The web dashboard deploys through Cloudflare, not a workflow, so
+  `announce-web.yml` waits for Cloudflare's check run on each web push and
+  then announces the short SHA as a production build. Release tokens are hash-only, and inserts go through the
   `create_release_token` RPC, never directly. `record_release_system` is
   service-role only. Build numbers are UTC timestamps in every release
   script, and app plists take `CFBundleVersion`/`CFBundleShortVersionString`
