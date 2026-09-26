@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { CodeBlock } from "@/components/docs/CodeBlock";
 import { DocsCallout, DocsSection, DocsTitle, InlineCode } from "@/components/docs/DocsProse";
+import { LifecycleLoop } from "@/components/docs/Lifecycle";
 
 const pieces = [
   {
@@ -47,6 +48,25 @@ export function DocsOverviewPage() {
         title="FeedbackKit documentation"
         description="FeedbackKit is an iOS, macOS, watchOS, and web SDK for capturing in-app feedback, plus tools to consume it: a hosted dashboard, a CLI, an MCP server, and Agent Skills for coding agents. Pick the pages you need — each piece works without the others."
       />
+
+      <DocsSection title="See the whole loop first">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] sm:items-center">
+          <div className="min-w-0 space-y-3">
+            <p>
+              A user reports a bug from inside your app. A coding agent fixes it. When the fix ships, the same
+              user's device asks them whether it's fixed. Most people understand FeedbackKit after following
+              one report through that loop.
+            </p>
+            <Link
+              to="/docs/how-it-works"
+              className="inline-flex items-center gap-1 rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-neutral-700"
+            >
+              Follow one bug, start to finish →
+            </Link>
+          </div>
+          <LifecycleLoop />
+        </div>
+      </DocsSection>
 
       <DocsSection title="The building blocks">
         <div className="grid gap-4 sm:grid-cols-2">

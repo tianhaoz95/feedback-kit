@@ -93,14 +93,70 @@ body {
   transform: scaleX(1);
 }
 
+/* Lifecycle walkthrough (/docs/how-it-works). Each scene remounts per step,
+   which replays these; delays are set inline to sequence a scene. */
+@keyframes lc-draw {
+  from { stroke-dashoffset: var(--lc-len, 400); }
+  to { stroke-dashoffset: 0; }
+}
+.lc-draw { stroke-dasharray: var(--lc-len, 400); animation: lc-draw 0.9s ease-out both; }
+@keyframes lc-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.lc-in { animation: lc-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes lc-pop {
+  0% { opacity: 0; transform: scale(0.6); }
+  70% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.lc-pop { animation: lc-pop 0.45s ease-out both; }
+@keyframes lc-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.lc-fade-out { animation: lc-fade-out 0.3s ease-in both; }
+.lc-word { animation: lc-fade-in 0.01s linear both; }
+@keyframes lc-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes lc-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.lc-grow { transform-origin: left; animation: lc-grow var(--lc-dur, 1s) linear both; }
+@keyframes lc-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+.lc-slide-up { animation: lc-slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes lc-tap {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55); transform: scale(1); }
+  30% { transform: scale(0.95); }
+  100% { box-shadow: 0 0 0 14px rgba(16, 185, 129, 0); transform: scale(1); }
+}
+.lc-tap { animation: lc-tap 0.8s ease-out both; }
+
 @media (prefers-reduced-motion: reduce) {
   .animate-aurora-1,
   .animate-aurora-2,
   .animate-aurora-3,
   .animate-fade-up,
   .animate-float,
-  .animate-float-delayed {
+  .animate-float-delayed,
+  .lc-draw,
+  .lc-in,
+  .lc-pop,
+  .lc-word,
+  .lc-grow,
+  .lc-slide-up,
+  .lc-tap {
     animation: none;
+  }
+  .lc-fade-out {
+    animation: none;
+    opacity: 0;
   }
   .reveal {
     opacity: 1;

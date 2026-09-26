@@ -19,7 +19,7 @@ export const DOCS_TOPICS: DocTopic[] = [
   {
     slug: "overview",
     title: "Overview",
-    summary: "What FeedbackKit is and how its four pieces fit together.",
+    summary: "What FeedbackKit is and how its four pieces fit together. For the end-to-end walkthrough, see `lifecycle`.",
     content: `# FeedbackKit overview
 
 FeedbackKit is an iOS/macOS/watchOS SDK — plus a web SDK for websites (see the \`web-sdk\` topic) — for capturing in-app feedback, plus three optional ways to consume it: a hosted dashboard, a CLI, and an MCP server for coding agents. Each piece works without the others.
@@ -53,6 +53,74 @@ A report includes a raw and an annotated screenshot (iOS/macOS only, and optiona
 ## Getting help
 
 FeedbackKit is open source: https://github.com/tianhaoz95/feedback-kit`,
+  },
+  {
+    slug: "lifecycle",
+    title: "How it works: one bug, start to finish",
+    summary: "One report followed from the reporter's device, through a coding agent, and back to the same device for \"is it fixed?\".",
+    content: `# How it works: one bug, start to finish
+
+Follow one report from the moment a user hits a bug to the moment the same user taps "Yes, it's fixed". The loop: reporter's device → dashboard → coding agent (MCP) → GitHub → release → back to the reporter's device. If they say "still broken", the report is reopened and goes back to the agent.
+
+## 1. A user hits a bug (in your app)
+
+They shake the phone (or use the floating button, a menu item, or ⌘⇧F on the web), draw a box around the problem, type one sentence, and send. The SDK adds the screenshot, annotation, screen name, device, OS, app version/build, and locale. Everything this loop needs in the app:
+
+\`\`\`swift
+FeedbackKit.configure(.init(endpointURL: endpoint, projectKey: "pk_live_..."))
+FeedbackKit.enableShakeToReport { UIApplication.shared.topMostViewController }
+FeedbackKit.enableFixVerification { UIApplication.shared.topMostViewController }
+\`\`\`
+
+## 2. It lands in the dashboard
+
+The project's Feedback tab shows the annotated screenshot, the description, and the context. Web reports also carry the page URL, browser, and console/network logs. No triage is required before the next steps.
+
+## 3. It becomes a prompt
+
+The project's prompt template fills every \`{{placeholder}}\` from the report (see the \`dashboard\` topic), so the agent gets the whole bug in one message.
+
+## 4. The coding agent fixes it (MCP)
+
+Tell the agent: "Look at feedback report <id> in FeedbackKit and fix it." It calls \`get_prompt\`, then \`claim_feedback\` (fix stage → Agent working). If the report is unclear, it uses \`ask_reporter\`. It then fixes the bug, calls \`attach_after_screenshot\`, and tags the commit:
+
+\`\`\`bash
+git commit -m "Keep Pay above the keyboard" \\
+  -m "FeedbackKit: <id>" \\
+  -m "FeedbackKit-Summary: The Pay button now stays above the keyboard."
+\`\`\`
+
+The \`fix-feedback\` Agent Skill packages this routine.
+
+## 5. The fix merges (GitHub)
+
+With the FeedbackKit GitHub App connected, a PR containing \`FeedbackKit: <id>\` moves the report to PR open, and merging moves it to Merged. A trailer on a commit pushed straight to main works too. Without the GitHub App, the agent uses \`link_fix\`. Merged isn't done; the loop waits for a release.
+
+## 6. You ship a build
+
+\`\`\`bash
+npx feedbackkit-cli release --build 42
+\`\`\`
+
+This marks every merged fix whose commit is in the release as Shipped (see the \`loop\` topic for release tokens in CI).
+
+## 7. The reporter confirms (their device)
+
+On build 42 or newer, the app shows the reporter their own annotated screenshot, their text, and what changed. **Yes, it's fixed** → Verified, status \`resolved\`. **No, still broken** → the capture flow opens again, and the report is Reopened with the new screenshot and sent back to the agent if a GitHub issue is linked. Reporters don't need an account; each install gets an anonymous reporter id.
+
+## 8. You promote the release
+
+The Releases tab (or MCP \`list_releases\` / \`feedbackkit releases\`) shows each build's verified / awaiting / reopened counts. When every fix is verified, the build is ready: \`feedbackkit promote --build 42\`.
+
+## What moves each stage
+
+| Stage | Moved by |
+|---|---|
+| Reported | The SDK submitting a report |
+| Agent working | \`claim_feedback\` |
+| PR open → Merged | GitHub, from the \`FeedbackKit: <id>\` trailer (or \`link_fix\`) |
+| Shipped | \`feedbackkit release --build N\` |
+| Verified / Reopened | The reporter, on their device |`,
   },
   {
     slug: "sdk",

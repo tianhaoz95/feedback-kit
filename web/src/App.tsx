@@ -13,6 +13,7 @@ import { CliSessionsPage } from "@/pages/CliSessionsPage";
 import { BillingPage } from "@/pages/BillingPage";
 import { DocsLayout } from "@/components/docs/DocsLayout";
 import { DocsOverviewPage } from "@/pages/docs/DocsOverviewPage";
+import { DocsHowItWorksPage } from "@/pages/docs/DocsHowItWorksPage";
 import { DocsIosSdkPage } from "@/pages/docs/DocsIosSdkPage";
 import { DocsWebSdkPage } from "@/pages/docs/DocsWebSdkPage";
 import { DocsDashboardPage } from "@/pages/docs/DocsDashboardPage";
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/docs" element={<DocsLayout />}>
           <Route index element={<DocsOverviewPage />} />
+          <Route path="how-it-works" element={<DocsHowItWorksPage />} />
           <Route path="ios-sdk" element={<DocsIosSdkPage />} />
           <Route path="web-sdk" element={<DocsWebSdkPage />} />
           <Route path="dashboard" element={<DocsDashboardPage />} />
