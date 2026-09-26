@@ -18,6 +18,44 @@ public struct FeedbackInboxView: View {
     }
 
     public var body: some View {
+        #if os(macOS)
+        // Desktop layout: the list and the selected report side by side,
+        // instead of pushing the detail over the list like on iPhone.
+        HSplitView {
+            inbox
+                .frame(minWidth: 340, idealWidth: 400, maxWidth: 560)
+            macDetailPane
+                .frame(minWidth: 480, maxWidth: .infinity, maxHeight: .infinity)
+        }
+        #else
+        inbox
+        #endif
+    }
+
+    #if os(macOS)
+    @ViewBuilder
+    private var macDetailPane: some View {
+        if let item = selectedFeedback,
+           let current = appState.feedbackItems.first(where: { $0.id == item.id }) ?? Optional(item) {
+            NavigationStack {
+                FeedbackDetailView(item: current)
+            }
+            .id(current.id)
+        } else {
+            EmptyStateCard(
+                iconName: "sidebar.right",
+                title: "No Report Selected",
+                message: "Select a report to see its screenshot, environment, fix loop, and coding-agent prompt.",
+                actionTitle: nil,
+                action: nil
+            )
+            .frame(maxWidth: 420)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+    #endif
+
+    private var inbox: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 PillFilterView(
@@ -56,113 +94,17 @@ public struct FeedbackInboxView: View {
                     .background(Color.purple.opacity(0.12))
                 }
 
-                List {
-                    if appState.isLoading && appState.feedbackItems.isEmpty && appState.projects.isEmpty {
-                        loadingView
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets())
-                    } else if appState.projects.isEmpty {
-                        noProjectsView
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets())
-                    } else if appState.isLoading && appState.feedbackItems.isEmpty {
-                        loadingView
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets())
-                    } else if appState.filteredFeedbackItems.isEmpty {
-                        emptyView
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets())
-                    } else {
-                        ForEach(appState.filteredFeedbackItems) { item in
-                            FeedbackRowView(
-                                item: item,
-                                isSelected: appState.selectedFeedbackIds.contains(item.id),
-                                isSelectionMode: appState.isMultiSelectActive,
-                                onSelectToggle: {
-                                    appState.toggleSelect(id: item.id)
-                                }
-                            )
-                            .listRowSeparator(.hidden)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                if appState.isMultiSelectActive {
-                                    appState.toggleSelect(id: item.id)
-                                } else {
-                                    selectedFeedback = item
-                                }
-                            }
-                            // Leading swipe: Mark Resolved
-                            .swipeActions(edge: .leading) {
-                                if item.status != .resolved {
-                                    Button {
-                                        Task {
-                                            await appState.updateStatus(item: item, to: .resolved)
-                                        }
-                                    } label: {
-                                        Label("Resolve", systemImage: "checkmark.circle.fill")
-                                    }
-                                    .tint(.green)
-                                } else {
-                                    Button {
-                                        Task {
-                                            await appState.updateStatus(item: item, to: .inProgress)
-                                        }
-                                    } label: {
-                                        Label("In Progress", systemImage: "arrow.triangle.2.circlepath")
-                                    }
-                                    .tint(.orange)
-                                }
-                            }
-                            // Trailing swipe: Archive & Delete
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) {
-                                    Task {
-                                        await appState.delete(item: item)
-                                    }
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                                .tint(.red)
-
-                                Button {
-                                    Task {
-                                        await appState.toggleArchive(item: item)
-                                    }
-                                } label: {
-                                    Label(item.isArchived ? "Unarchive" : "Archive", systemImage: item.isArchived ? "tray.and.arrow.up" : "archivebox")
-                                }
-                                .tint(.purple)
-                            }
-                        }
-
-                        if !appState.showArchived && appState.archivedCount > 0 && appState.statusFilter == nil && appState.searchQuery.isEmpty {
-                            Section {
-                                Button {
-                                    withAnimation(.spring()) {
-                                        appState.showArchived = true
-                                    }
-                                } label: {
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "archivebox")
-                                            .foregroundColor(.purple)
-                                        Text("Archived Reports (\(appState.archivedCount))")
-                                            .font(.subheadline.weight(.medium))
-                                            .foregroundColor(.primary)
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.caption.weight(.semibold))
-                                            .foregroundColor(.secondary)
-                                    }
-                                    .padding(.vertical, 6)
-                                }
-                            }
-                        }
+                Group {
+                    #if os(macOS)
+                    // Native selection: click or ↑/↓ to pick a report, shown in the detail pane.
+                    List(selection: macSelection) {
+                        listContent
                     }
+                    #else
+                    List {
+                        listContent
+                    }
+                    #endif
                 }
                 .listStyle(.plain)
                 .refreshable {
@@ -217,9 +159,12 @@ public struct FeedbackInboxView: View {
                             Text(appState.selectedProject?.name ?? (appState.isLoading ? "Loading…" : (appState.projects.isEmpty ? "No Projects" : "Select Project")))
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundColor(.primary)
+                            #if os(iOS)
+                            // macOS toolbar menus draw their own indicator.
                             Image(systemName: "chevron.down")
                                 .font(.caption2.weight(.bold))
                                 .foregroundColor(.secondary)
+                            #endif
                         }
                     }
                 }
@@ -259,9 +204,11 @@ public struct FeedbackInboxView: View {
                     }
                 }
             }
+            #if os(iOS)
             .navigationDestination(item: $selectedFeedback) { item in
                 FeedbackDetailView(item: item)
             }
+            #endif
             .sheet(isPresented: $isMergedPromptSheetPresented) {
                 MergedPromptSheet(
                     selectedItems: appState.selectedFeedbackItems,
@@ -286,6 +233,138 @@ public struct FeedbackInboxView: View {
             }
         }
     }
+
+    @ViewBuilder
+    private var listContent: some View {
+                if appState.isLoading && appState.feedbackItems.isEmpty && appState.projects.isEmpty {
+                    loadingView
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
+                } else if appState.projects.isEmpty {
+                    noProjectsView
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
+                } else if appState.isLoading && appState.feedbackItems.isEmpty {
+                    loadingView
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
+                } else if appState.filteredFeedbackItems.isEmpty {
+                    emptyView
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
+                } else {
+                    ForEach(appState.filteredFeedbackItems) { item in
+                        FeedbackRowView(
+                            item: item,
+                            isSelected: appState.selectedFeedbackIds.contains(item.id),
+                            isSelectionMode: appState.isMultiSelectActive,
+                            onSelectToggle: {
+                                appState.toggleSelect(id: item.id)
+                            }
+                        )
+                        .listRowSeparator(.hidden)
+                        #if os(macOS)
+                        .tag(item.id)
+                        #else
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if appState.isMultiSelectActive {
+                                appState.toggleSelect(id: item.id)
+                            } else {
+                                selectedFeedback = item
+                            }
+                        }
+                        #endif
+                        // Leading swipe: Mark Resolved
+                        .swipeActions(edge: .leading) {
+                            if item.status != .resolved {
+                                Button {
+                                    Task {
+                                        await appState.updateStatus(item: item, to: .resolved)
+                                    }
+                                } label: {
+                                    Label("Resolve", systemImage: "checkmark.circle.fill")
+                                }
+                                .tint(.green)
+                            } else {
+                                Button {
+                                    Task {
+                                        await appState.updateStatus(item: item, to: .inProgress)
+                                    }
+                                } label: {
+                                    Label("In Progress", systemImage: "arrow.triangle.2.circlepath")
+                                }
+                                .tint(.orange)
+                            }
+                        }
+                        // Trailing swipe: Archive & Delete
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                Task {
+                                    await appState.delete(item: item)
+                                }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            .tint(.red)
+
+                            Button {
+                                Task {
+                                    await appState.toggleArchive(item: item)
+                                }
+                            } label: {
+                                Label(item.isArchived ? "Unarchive" : "Archive", systemImage: item.isArchived ? "tray.and.arrow.up" : "archivebox")
+                            }
+                            .tint(.purple)
+                        }
+                    }
+
+                    if !appState.showArchived && appState.archivedCount > 0 && appState.statusFilter == nil && appState.searchQuery.isEmpty {
+                        Section {
+                            Button {
+                                withAnimation(.spring()) {
+                                    appState.showArchived = true
+                                }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "archivebox")
+                                        .foregroundColor(.purple)
+                                    Text("Archived Reports (\(appState.archivedCount))")
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(.vertical, 6)
+                            }
+                        }
+                    }
+                }
+    }
+
+    #if os(macOS)
+    /// List selection ⇄ the report shown in the detail pane (or, in
+    /// multi-select mode, toggling a report in/out of the selection).
+    private var macSelection: Binding<String?> {
+        Binding(
+            get: { appState.isMultiSelectActive ? nil : selectedFeedback?.id },
+            set: { id in
+                guard let id else { return }
+                if appState.isMultiSelectActive {
+                    appState.toggleSelect(id: id)
+                } else {
+                    selectedFeedback = appState.filteredFeedbackItems.first { $0.id == id }
+                }
+            }
+        )
+    }
+    #endif
 
     // MARK: - Subviews
 

@@ -120,6 +120,25 @@ public struct SettingsView: View {
                 }
 
                 // Portal App Feedback
+                #if os(macOS)
+                // The Mac Portal reports problems about itself through
+                // FeedbackKit's own macOS SDK (see FeedbackPortalMacApp).
+                Section(
+                    header: Text("Feedback"),
+                    footer: Text("Use Help › Report a Problem… (⇧⌘R) anywhere in the Portal to capture this window, annotate it, and send it to the FeedbackKit team. When a fix ships, the Portal asks you to confirm it.")
+                ) {
+                    Toggle("Show Floating Feedback Button", isOn: Binding(
+                        get: { UserDefaults.standard.bool(forKey: PortalDogfood.floatingButtonDefaultsKey) },
+                        set: { isEnabled in
+                            UserDefaults.standard.set(isEnabled, forKey: PortalDogfood.floatingButtonDefaultsKey)
+                            PortalDogfood.applyFloatingButtonPreference()
+                        }
+                    ))
+                    Button("Report a Problem…") {
+                        PortalDogfood.reportProblem()
+                    }
+                }
+                #else
                 Section(
                     header: Text("Feedback"),
                     footer: Text("Shake your device anywhere in the app to capture a screenshot, annotate it, and share feedback.")
@@ -138,6 +157,7 @@ public struct SettingsView: View {
                         }
                     ))
                 }
+                #endif
 
                 // App Info
                 Section {

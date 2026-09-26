@@ -1,6 +1,7 @@
 # FeedbackKit
 
 [![Release Portal to TestFlight](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight-portal.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight-portal.yml)
+[![Release macOS Portal](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-portal-macos.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-portal-macos.yml)
 [![Release to TestFlight](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight.yml)
 [![Release macOS Demo](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-macos-demo.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-macos-demo.yml)
 [![Publish CLI Package](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-cli.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-cli.yml)
@@ -347,7 +348,7 @@ API key with access to the team, the same one works for both.
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function, billing (Stripe) Edge Functions |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) |
 | `skills/` | Agent Skills catalog (`vercel-labs/skills`) for automated setup via AI coding agents |
-| `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `release_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh` |
+| `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `release_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh`, `release_portal_macos.sh` |
 
 ## Contributing
 

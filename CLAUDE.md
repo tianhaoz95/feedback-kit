@@ -41,14 +41,14 @@ file is about how to build/test/run things day to day.
 | `Tests/FeedbackKitTests/` | SDK unit tests |
 | `web-sdk/` | Web SDK (npm `feedbackkit-web`, TypeScript, no framework): capture/annotate/submit for websites, plus console/network log capture. Unit tests (vitest) + Playwright e2e |
 | `DemoApp/` | Sample apps exercising the SDK on iOS, macOS, and watchOS (one XcodeGen project, three targets; the `.xcodeproj` is generated — not committed) |
-| `DeveloperApp/` | Native iOS Developer Portal companion app (XcodeGen project `FeedbackPortal.xcodeproj`, SwiftUI, triages feedback, renders annotations, dispatches AI coding prompts) |
+| `DeveloperApp/` | Native Developer Portal companion apps for iOS and macOS (one XcodeGen project `FeedbackPortal.xcodeproj`, SwiftUI; the Mac app shares the iOS views — see `DeveloperApp/README.md`). Triages feedback, renders annotations, follows fix loops, dispatches AI coding prompts, and dogfoods FeedbackKit on itself |
 | `web/` | Static SPA dashboard (Vite + React + React Router), deployed to Cloudflare Workers Static Assets (`https://feedback-kit.hejitech.workers.dev`) |
 | `docs/` | Contributor developer documentation (VitePress), deployed to GitHub Pages (`https://tianhaoz95.github.io/feedback-kit/`) |
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function, billing (Stripe) Edge Functions |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) — reads feedback/prompts as a logged-in user |
 | `skills/` | Agent Skills catalog (`vercel-labs/skills`) for automated setup via AI coding agents |
 | `.github/workflows/` | Release/deploy pipelines, incl. `publish-web-sdk.yml` (npm + GitHub Packages) and `web-sdk-ci.yml` (SDK unit + 3-browser e2e, dashboard clean build) |
-| `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `run-portal-ios.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `generate_social_preview.py`, `release_testflight.sh`, `release_portal_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh` |
+| `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `run-portal-ios.sh`, `run-portal-macos.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `generate_social_preview.py`, `release_testflight.sh`, `release_portal_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh`, `release_portal_macos.sh` |
 | `branding/` | FeedbackKit logo assets (SVG source + PNG exports) — reused for the iOS app icon and the GitHub OAuth App's logo |
 
 ## Commands
@@ -154,6 +154,23 @@ normal, and here it's specifically needed because `MacContentView` uses
 `NavigationSplitView` (macOS 13+) and because this Xcode's watchOS
 Simulator only accepts 9.0+ as a deployment target at all (a real build
 failure, not a guess) for a *standalone* watch app in the first place.
+
+### Developer Portal (`DeveloperApp/`)
+
+```bash
+./scripts/run-portal-ios.sh      # iOS app in the Simulator
+./scripts/run-portal-macos.sh    # macOS app ("FeedbackKit Portal"), natively
+cd DeveloperApp && xcodegen generate
+xcodebuild test -project FeedbackPortal.xcodeproj -scheme FeedbackPortalMac -destination 'platform=macOS'
+xcodebuild test -project FeedbackPortal.xcodeproj -scheme FeedbackPortal -destination 'id=<SIMULATOR_UDID>'
+./scripts/release_portal_macos.sh --version X.Y.Z [--no-upload]   # notarized DMG → GitHub Release (tag portal-mac-vX.Y.Z)
+```
+
+One `project.yml`, two apps sharing `Sources/`; the Mac target adds `SourcesMac/`
+(desktop shell) and makes the iOS views compile via
+`Sources/Platform/PortalPlatform+macOS.swift`. Both apps dogfood FeedbackKit
+into the team's own project (`Sources/App/PortalDogfood.swift`). Read
+`DeveloperApp/README.md` before adding iOS-only APIs to a shared view.
 
 ### Web dashboard (`web/`)
 

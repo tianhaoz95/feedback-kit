@@ -264,8 +264,10 @@ private struct FullScreenScreenshotModal: View {
                     }
                 }
             }
+            #if os(iOS)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarBackground(Color.black, for: .navigationBar)
+            #endif
         }
     }
 }

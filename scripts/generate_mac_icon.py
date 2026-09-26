@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Derives FeedbackKitDemoMac's AppIcon.appiconset from the existing iOS app icon.
+"""Derives a macOS AppIcon.appiconset from an existing iOS app icon.
+
+By default: FeedbackKitDemoMac's icon from the iOS demo's. Pass a source PNG
+and a destination .appiconset to do the same for another app, e.g. the Mac
+Developer Portal:
+
+  python3 scripts/generate_mac_icon.py \
+    DeveloperApp/Assets.xcassets/AppIcon.appiconset/icon-1024.png \
+    DeveloperApp/AssetsMac.xcassets/AppIcon.appiconset
 
 macOS (Big Sur+) always clips every app icon into its own consistent "squircle" shape in Finder/
 the Dock, regardless of what shape the source image is -- but it does NOT scale content down for
@@ -14,9 +22,10 @@ silently leaves the icon "unassigned" if you try that. Finder/Dock/etc. each req
 specific bitmap resolution directly, so this writes the full discrete size set macOS actually
 needs (16 up to 512, at 1x/2x) and a Contents.json that names every one of them explicitly.
 
-Usage: python3 scripts/generate_mac_icon.py
+Usage: python3 scripts/generate_mac_icon.py [SOURCE_PNG DEST_APPICONSET]
 """
 import json
+import sys
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -60,6 +69,12 @@ def build_master() -> Image.Image:
 
 
 def main() -> None:
+    global SOURCE, DEST_DIR
+    if len(sys.argv) == 3:
+        SOURCE = (Path.cwd() / sys.argv[1]).resolve()
+        DEST_DIR = (Path.cwd() / sys.argv[2]).resolve()
+    elif len(sys.argv) != 1:
+        raise SystemExit("usage: generate_mac_icon.py [SOURCE_PNG DEST_APPICONSET]")
     if not SOURCE.exists():
         raise SystemExit(f"source icon not found: {SOURCE}")
 

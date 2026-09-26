@@ -344,6 +344,9 @@ private class AuthPresentationContextProvider: NSObject, ASWebAuthenticationPres
     static let shared = AuthPresentationContextProvider()
 
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        #if os(macOS)
+        return NSApplication.shared.keyWindow ?? NSApplication.shared.windows.first ?? ASPresentationAnchor()
+        #else
         for scene in UIApplication.shared.connectedScenes {
             if let windowScene = scene as? UIWindowScene {
                 if let keyWindow = windowScene.windows.first(where: { $0.isKeyWindow }) {
@@ -355,5 +358,6 @@ private class AuthPresentationContextProvider: NSObject, ASWebAuthenticationPres
             }
         }
         return ASPresentationAnchor()
+        #endif
     }
 }

@@ -3,6 +3,7 @@ options:
   bundleIdPrefix: com.feedbackkit.developer
   deploymentTarget:
     iOS: "17.0"
+    macOS: "14.0"
 targets:
   FeedbackPortal:
     type: application
@@ -43,6 +44,65 @@ targets:
     dependencies:
       - package: FeedbackKit
 
+  # Native macOS Portal. Shares Sources/ with the iOS app — iOS-only APIs are
+  # given macOS meanings in Sources/Platform/PortalPlatform+macOS.swift — and
+  # adds a desktop shell in SourcesMac/. Built against FeedbackKit's AppKit
+  # (not Mac Catalyst) implementation on purpose: the Portal dogfoods the
+  # macOS SDK on itself. See DeveloperApp/README.md.
+  FeedbackPortalMac:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources
+        excludes:
+          - "App/FeedbackPortalApp.swift"
+          - "App/UIApplication+TopMost.swift"
+      - path: SourcesMac
+      - path: AssetsMac.xcassets
+    info:
+      path: Generated/Info-Mac.plist
+      properties:
+        CFBundleDisplayName: "FeedbackKit Portal"
+        CFBundleName: "FeedbackKit Portal"
+        LSApplicationCategoryType: public.app-category.developer-tools
+        NSHumanReadableCopyright: "© FeedbackKit"
+        CFBundleURLTypes:
+          - CFBundleURLName: com.feedbackkit.developer.mac
+            CFBundleURLSchemes:
+              - feedbackkit
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_NAME: "FeedbackKit Portal"
+        # Same module name as the iOS app, so Tests/ (`@testable import FeedbackPortal`) runs on both.
+        PRODUCT_MODULE_NAME: FeedbackPortal
+        PRODUCT_BUNDLE_IDENTIFIER: com.feedbackkit.developer.mac
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+    dependencies:
+      - package: FeedbackKit
+
+  FeedbackPortalMacTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests
+    info:
+      path: Generated/Info-MacTests.plist
+    settings:
+      base:
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/FeedbackKit Portal.app/Contents/MacOS/FeedbackKit Portal"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+    dependencies:
+      - target: FeedbackPortalMac
+      - package: FeedbackKit
+
   FeedbackPortalTests:
     type: bundle.unit-test
     platform: iOS
@@ -65,5 +125,14 @@ schemes:
     test:
       targets:
         - FeedbackPortalTests
+    run:
+      config: Debug
+  FeedbackPortalMac:
+    build:
+      targets:
+        FeedbackPortalMac: all
+    test:
+      targets:
+        - FeedbackPortalMacTests
     run:
       config: Debug

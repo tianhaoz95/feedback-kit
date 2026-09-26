@@ -7,10 +7,8 @@ struct FeedbackPortalApp: App {
     @StateObject private var appState = AppState.shared
 
     init() {
-        FeedbackKit.configure(.init(
-            endpointURL: URL(string: "https://gpucoladcyvijefdjudf.supabase.co/functions/v1/ingest-feedback")!,
-            projectKey: "pk_cde764e9b97ba261cdd084e7e3e4cf04ce31"
-        ))
+        // Reports about the Portal itself go to the FeedbackKit team's own project.
+        PortalDogfood.configure()
 
         UserDefaults.standard.register(defaults: [
             "shake_to_feedback_enabled": true
@@ -30,6 +28,9 @@ struct FeedbackPortalApp: App {
             }
             .tint(.blue)
             .onAppear(perform: installTriggers)
+            .onChange(of: client.currentSession?.userId, initial: true) {
+                PortalDogfood.updateUser(client.currentSession)
+            }
             .onOpenURL { url in
                 handleIncomingURL(url)
             }
@@ -55,30 +56,6 @@ struct FeedbackPortalApp: App {
     }
 
     private func handleIncomingURL(_ url: URL) {
-        // Handle feedbackkit:// deep links e.g. feedbackkit://auth-callback
-        if url.scheme == "feedbackkit" && url.host == "auth-callback" {
-            var token: String?
-            var refresh: String?
-
-            if let fragment = url.fragment {
-                let params = fragment.components(separatedBy: "&").reduce(into: [String: String]()) { dict, pair in
-                    let parts = pair.components(separatedBy: "=")
-                    if parts.count == 2 {
-                        dict[parts[0]] = parts[1]
-                    }
-                }
-                token = params["access_token"]
-                refresh = params["refresh_token"]
-            }
-
-            if let token = token {
-                let userSession = PortalUserSession.fromJWT(
-                    accessToken: token,
-                    refreshToken: refresh ?? ""
-                )
-                client.signIn(session: userSession)
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-            }
-        }
+        PortalDeepLinks.handle(url, client: client)
     }
 }
