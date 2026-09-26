@@ -20,13 +20,21 @@ const WEB_DASHBOARD_PRODUCT = {
   key: "web-dashboard",
   name: "Web Dashboard",
   description: "The FeedbackKit web dashboard (web/ — Vite + React SPA on Cloudflare).",
-  isDefault: true,
 };
 
-let configured = false;
+const WEBSITE_PRODUCT = {
+  key: "website",
+  name: "Website",
+  description: "The public FeedbackKit site: landing page and docs (web/, same SPA as the dashboard).",
+};
 
-export function setUpFeedbackKit(): boolean {
-  if (configured) return true;
+/** Which part of the SPA is asking — decides the product preselected in the composer. */
+export type FeedbackSurface = "dashboard" | "website";
+
+let configuredFor: FeedbackSurface | null = null;
+
+export function setUpFeedbackKit(surface: FeedbackSurface = "dashboard"): boolean {
+  if (configuredFor === surface) return true;
   const envKey = import.meta.env.VITE_FEEDBACKKIT_PROJECT_KEY;
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
@@ -43,21 +51,31 @@ export function setUpFeedbackKit(): boolean {
   }
   if (!projectKey) return false;
 
+  const defaultProduct = surface === "website" ? WEBSITE_PRODUCT : WEB_DASHBOARD_PRODUCT;
+  // Re-running configure when the surface changes is safe: it only swaps the
+  // configuration (log capture is started once).
   FeedbackKit.configure({
     projectKey,
     endpoint,
-    products: [WEB_DASHBOARD_PRODUCT],
-    defaultProductKey: WEB_DASHBOARD_PRODUCT.key,
+    products: [
+      { ...WEB_DASHBOARD_PRODUCT, isDefault: surface === "dashboard" },
+      { ...WEBSITE_PRODUCT, isDefault: surface === "website" },
+    ],
+    defaultProductKey: defaultProduct.key,
     appVersion: __APP_VERSION__,
     appBuild: __APP_COMMIT__ || import.meta.env.MODE,
   });
+  if (configuredFor !== null) {
+    configuredFor = surface;
+    return true;
+  }
   FeedbackKit.theme = { primaryColorHex: "#171717", secondaryColorHex: "#525252" };
   FeedbackKit.enableKeyboardShortcut();
   // "We fixed what you reported — is it fixed?" once a fix ships. appBuild is
   // a git SHA here, which doesn't order, so a released fix counts as live on
   // the next page load — right for a static SPA that's replaced on deploy.
   FeedbackKit.enableFixVerification();
-  configured = true;
+  configuredFor = surface;
   return true;
 }
 

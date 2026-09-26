@@ -22,7 +22,7 @@ export function DashboardLayout() {
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
   const displayName = (user?.user_metadata?.full_name as string | undefined) || user?.email || "";
   const location = useLocation();
-  const [feedbackEnabled] = useState(() => setUpFeedbackKit());
+  const [feedbackEnabled] = useState(() => setUpFeedbackKit("dashboard"));
   const { organizations } = useOrganization();
 
   // Keep reports' screen name in step with the route (the web counterpart of

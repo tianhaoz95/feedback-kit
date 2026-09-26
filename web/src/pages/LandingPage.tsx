@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
+import { FeedbackKit, setUpFeedbackKit } from "@/lib/feedbackkit";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Logomark } from "@/components/Logomark";
 import { PhoneMockup } from "@/components/landing/PhoneMockup";
@@ -140,6 +141,20 @@ export function LandingPage() {
   const primaryCta = !loading && user
     ? { to: "/projects", label: "Go to your projects", shortLabel: "Projects" }
     : { to: "/login", label: "Sign in", shortLabel: "Sign in" };
+
+  // Dogfooding: the landing page collects feedback with FeedbackKit's own web
+  // SDK, via a floating button (and ⌘⇧F / Ctrl+Shift+F). Reports go to the
+  // team's project under the "Website" product. Hidden in dev builds unless
+  // VITE_FEEDBACKKIT_PROJECT_KEY is set (see lib/feedbackkit.ts).
+  useEffect(() => {
+    if (!setUpFeedbackKit("website")) return;
+    FeedbackKit.currentScreen = "Landing page";
+    FeedbackKit.showFloatingTriggerButton({ label: "Feedback" });
+    return () => {
+      FeedbackKit.hideFloatingTriggerButton();
+      FeedbackKit.currentScreen = null;
+    };
+  }, []);
 
   const [scrolled, setScrolled] = useState(false);
   const [sampleKind, setSampleKind] = useState<keyof typeof codeSamples>("swift");
