@@ -22,13 +22,16 @@ final class AnnotationToolbar: UIView {
     // AnnotationToolbar itself isn't part of the SDK's public API.
     private(set) var selectedToolButton: UIButton?
 
-    private static let colors: [UIColor] = [.systemRed, .systemYellow, .systemGreen, .systemBlue, .label]
-    private static let tools: [(AnnotationCanvasView.Tool, String)] = [
-        (.pen, "pencil.tip"),
-        (.rectangle, "rectangle"),
-        (.arrow, "arrow.up.right"),
-        (.text, "textformat"),
-        (.drag, "arrow.up.and.down.and.arrow.left.and.right")
+    private static let colors: [(UIColor, String)] = [
+        (.systemRed, "Red"), (.systemYellow, "Yellow"), (.systemGreen, "Green"), (.systemBlue, "Blue"), (.label, "Black")
+    ]
+    // Icon-only buttons, so each gets a spoken name for VoiceOver (and UI tests).
+    private static let tools: [(AnnotationCanvasView.Tool, String, String)] = [
+        (.pen, "pencil.tip", "Pen"),
+        (.rectangle, "rectangle", "Rectangle"),
+        (.arrow, "arrow.up.right", "Arrow"),
+        (.text, "textformat", "Text"),
+        (.drag, "arrow.up.and.down.and.arrow.left.and.right", "Move")
     ]
 
     private var toolButtons: [UIButton] = []
@@ -55,6 +58,7 @@ final class AnnotationToolbar: UIView {
         for (index, entry) in Self.tools.enumerated() {
             let button = UIButton(type: .system)
             button.setImage(UIImage(systemName: entry.1), for: .normal)
+            button.accessibilityLabel = entry.2
             button.tag = index
             button.addTarget(self, action: #selector(toolTapped(_:)), for: .touchUpInside)
             toolButtons.append(button)
@@ -68,8 +72,9 @@ final class AnnotationToolbar: UIView {
         colorStack.spacing = 8
         colorStack.translatesAutoresizingMaskIntoConstraints = false
 
-        for color in Self.colors {
+        for (color, name) in Self.colors {
             let swatch = UIButton(type: .system)
+            swatch.accessibilityLabel = "\(name) color"
             swatch.backgroundColor = color
             swatch.layer.cornerRadius = 12
             swatch.layer.borderWidth = 1
@@ -82,6 +87,7 @@ final class AnnotationToolbar: UIView {
 
         let undoButton = UIButton(type: .system)
         undoButton.setImage(UIImage(systemName: "arrow.uturn.backward"), for: .normal)
+        undoButton.accessibilityLabel = "Undo"
         undoButton.addAction(UIAction { [weak self] _ in self?.onUndo?() }, for: .touchUpInside)
 
         let mainStack = UIStackView(arrangedSubviews: [toolStack, colorStack, undoButton])

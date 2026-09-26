@@ -86,7 +86,7 @@ final class AnnotationCanvasView: NSView {
     private func setUpGestures() {
         // Recognizes both a plain mouse click-drag (for users without a
         // trackpad) and a one-finger trackpad drag.
-        let pan = NSPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
+        let pan = MouseDownPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
         addGestureRecognizer(pan)
 
         let click = NSClickGestureRecognizer(target: self, action: #selector(handleClick(_:)))
@@ -124,14 +124,21 @@ final class AnnotationCanvasView: NSView {
 
     @objc private func handlePan(_ gesture: NSPanGestureRecognizer) {
         let location = gesture.location(in: self)
+        // A pan only reports `.began` once the cursor has moved past the
+        // recognizer's threshold, so `location` there is already ahead of
+        // where the mouse went down. Shapes start from the recorded
+        // mouse-down point instead, or they'd begin offset along the drag
+        // (same fix as the iOS canvas).
+        let touchDown = (gesture as? MouseDownPanGestureRecognizer)?.mouseDownLocation ?? location
 
         if tool == .drag {
             switch gesture.state {
             case .began:
-                if let index = draggableAnnotationIndex(at: location) {
+                if let index = draggableAnnotationIndex(at: touchDown) {
                     draggedAnnotationIndex = index
                     draggedAnnotationOriginalPoints = completedAnnotations[index].points
-                    dragAnnotationStartLocation = location
+                    dragAnnotationStartLocation = touchDown
+                    applyDrag(to: index, currentLocation: location)
                 }
             case .changed:
                 if let index = draggedAnnotationIndex {
@@ -152,9 +159,9 @@ final class AnnotationCanvasView: NSView {
         case .began:
             switch tool {
             case .pen:
-                activeFreehandPoints = [location]
+                activeFreehandPoints = [touchDown, location]
             case .rectangle, .arrow:
-                dragStart = location
+                dragStart = touchDown
                 dragCurrent = location
             case .text, .drag:
                 break
@@ -362,6 +369,23 @@ extension AnnotationCanvasView: NSGestureRecognizerDelegate {
 private extension CGPoint {
     func distance(to other: CGPoint) -> CGFloat {
         hypot(x - other.x, y - other.y)
+    }
+}
+/// A pan that remembers where the mouse actually went down, since AppKit only
+/// reports `.began` after the pan threshold.
+final class MouseDownPanGestureRecognizer: NSPanGestureRecognizer {
+    private(set) var mouseDownLocation: CGPoint?
+
+    override func mouseDown(with event: NSEvent) {
+        if mouseDownLocation == nil, let view {
+            mouseDownLocation = view.convert(event.locationInWindow, from: nil)
+        }
+        super.mouseDown(with: event)
+    }
+
+    override func reset() {
+        super.reset()
+        mouseDownLocation = nil
     }
 }
 #endif

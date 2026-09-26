@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Logomark } from "@/components/Logomark";
 import { PhoneMockup } from "@/components/landing/PhoneMockup";
+import { BrowserMockup } from "@/components/landing/BrowserMockup";
 import { DashboardMockup } from "@/components/landing/DashboardMockup";
 import { Reveal } from "@/components/landing/Reveal";
 
@@ -242,9 +243,21 @@ export function LandingPage() {
                 Swift Package and npm. No dashboard required — bring your own backend, or use ours.
               </p>
             </div>
+            {/* The same capture → annotate step on the web and on iOS, both real
+                captures of the SDKs' own UI. The phone sits in front, overlapping
+                the browser's right edge. */}
             <div className="animate-fade-up" style={{ animationDelay: "150ms" }}>
-              <div className="animate-float">
-                <PhoneMockup />
+              <div className="relative mx-auto max-w-[560px]">
+                <div className="absolute left-0 top-1/2 w-[86%] -translate-y-1/2">
+                  <div className="animate-float-delayed">
+                    <BrowserMockup />
+                  </div>
+                </div>
+                <div className="relative z-10 ml-auto w-[38%]">
+                  <div className="animate-float">
+                    <PhoneMockup className="" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

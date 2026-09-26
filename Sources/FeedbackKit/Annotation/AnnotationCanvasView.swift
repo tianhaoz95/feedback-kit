@@ -1,5 +1,6 @@
 #if os(iOS)
 import UIKit
+import UIKit.UIGestureRecognizerSubclass
 
 /// A transparent overlay that sits on top of the screenshot preview and lets
 /// the user mark it up. Handles its own touch tracking for all five tool
@@ -66,7 +67,16 @@ final class AnnotationCanvasView: UIView {
     }
 
     private func setUpGestures() {
-        let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
+        // A drawing surface: VoiceOver users (and UI tests) can find it, and
+        // `.allowsDirectInteraction` passes touches straight through so they
+        // can draw on it instead of VoiceOver consuming them.
+        isAccessibilityElement = true
+        accessibilityIdentifier = "FeedbackKit.AnnotationCanvas"
+        accessibilityLabel = "Screenshot"
+        accessibilityHint = "Draw on the screenshot to point out the problem."
+        accessibilityTraits = [.allowsDirectInteraction]
+
+        let pan = TouchDownPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
         pan.maximumNumberOfTouches = 1
         addGestureRecognizer(pan)
 
@@ -102,14 +112,22 @@ final class AnnotationCanvasView: UIView {
 
     @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
         let location = gesture.location(in: self)
+        // A pan only reports `.began` once the finger has moved past the
+        // recognizer's threshold (~10pt), so `location` there is already
+        // ahead of where the finger went down — and UIKit rebases
+        // `translation(in:)` at that point too, so it can't recover it.
+        // Shapes start from the recorded touch-down point instead, or every
+        // rectangle, arrow and stroke would begin offset along the drag.
+        let touchDown = (gesture as? TouchDownPanGestureRecognizer)?.touchDownLocation ?? location
 
         if tool == .drag {
             switch gesture.state {
             case .began:
-                if let index = draggableAnnotationIndex(at: location) {
+                if let index = draggableAnnotationIndex(at: touchDown) {
                     draggedAnnotationIndex = index
                     draggedAnnotationOriginalPoints = completedAnnotations[index].points
-                    dragAnnotationStartLocation = location
+                    dragAnnotationStartLocation = touchDown
+                    applyDrag(to: index, currentLocation: location)
                 }
             case .changed:
                 if let index = draggedAnnotationIndex {
@@ -130,9 +148,9 @@ final class AnnotationCanvasView: UIView {
         case .began:
             switch tool {
             case .pen:
-                activeFreehandPoints = [location]
+                activeFreehandPoints = [touchDown, location]
             case .rectangle, .arrow:
-                dragStart = location
+                dragStart = touchDown
                 dragCurrent = location
             case .text, .drag:
                 break
@@ -330,6 +348,24 @@ extension AnnotationCanvasView: UIGestureRecognizerDelegate {
 private extension CGPoint {
     func distance(to other: CGPoint) -> CGFloat {
         hypot(x - other.x, y - other.y)
+    }
+}
+
+/// A pan that remembers where the finger actually went down, since UIKit only
+/// reports `.began` (and rebases `translation`) after the pan threshold.
+final class TouchDownPanGestureRecognizer: UIPanGestureRecognizer {
+    private(set) var touchDownLocation: CGPoint?
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        if touchDownLocation == nil, let touch = touches.first {
+            touchDownLocation = touch.location(in: view)
+        }
+        super.touchesBegan(touches, with: event)
+    }
+
+    override func reset() {
+        super.reset()
+        touchDownLocation = nil
     }
 }
 #endif

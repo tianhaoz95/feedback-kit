@@ -330,6 +330,7 @@ class Dialog {
     toolbar.append(this.undoButton, this.clearButton);
     this.hint = el("span", "fk-hint");
     this.hint.textContent = HINTS.pen;
+    this.hint.title = HINTS.pen;
     toolbar.append(this.hint);
 
     const wrap = el("div", "fk-canvas-wrap");
@@ -363,6 +364,7 @@ class Dialog {
     this.editor?.setTool(tool);
     this.toolButtons.forEach((b, t) => b.setAttribute("aria-pressed", String(t === tool)));
     this.hint.textContent = HINTS[tool];
+    this.hint.title = HINTS[tool];
   }
 
   // ---------------------------------------------------------------- composer

@@ -8,9 +8,9 @@ import demoScreenshot from "@/assets/demo-feedback-screen.png";
  * FeedbackViewController itself (Sources/FeedbackKit/UI/FeedbackViewController.swift),
  * not by this page — this component only adds the outer device frame.
  */
-export function PhoneMockup() {
+export function PhoneMockup({ className = "mx-auto max-w-[300px]" }: { className?: string }) {
   return (
-    <div className="relative mx-auto w-full max-w-[300px] select-none">
+    <div className={`relative w-full select-none ${className}`}>
       {/* Hardware buttons */}
       <div className="absolute -left-[3px] top-[12%] h-6 w-[3px] rounded-l-sm bg-neutral-800" />
       <div className="absolute -left-[3px] top-[18%] h-10 w-[3px] rounded-l-sm bg-neutral-800" />
@@ -21,7 +21,7 @@ export function PhoneMockup() {
         <div className="relative overflow-hidden rounded-[1.9rem] bg-white">
           <img
             src={demoScreenshot}
-            alt="FeedbackKit's annotate screen in the demo app: a screenshot of the Home tab with a rectangle drawn around the Add button, captured mid-report"
+            alt="FeedbackKit's iOS annotate screen in the demo app: a screenshot of the Home tab with a rectangle drawn around the first Add button, captured mid-report"
             className="block w-full"
           />
           {/* Dynamic Island, over the screenshot's own (real) status bar */}

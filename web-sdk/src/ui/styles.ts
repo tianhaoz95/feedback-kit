@@ -135,7 +135,10 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   box-shadow: 0 0 0 1px var(--fk-border);
 }
 .fk-swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--fk-text); }
-.fk-hint { margin-left: auto; font-size: 12px; color: var(--fk-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Shrinks (with an ellipsis) instead of wrapping onto its own line: hints
+   differ in length per tool, and a toolbar that changed height on every tool
+   switch would make the screenshot below jump mid-annotation. */
+.fk-hint { flex: 1 1 0; min-width: 0; margin-left: auto; text-align: right; font-size: 12px; color: var(--fk-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fk-canvas-wrap {
   position: relative;
   flex: 1;

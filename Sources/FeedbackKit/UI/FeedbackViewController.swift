@@ -142,7 +142,7 @@ final class FeedbackViewController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        let outerRect = AVMakeRect(
+        let fittedRect = AVMakeRect(
             aspectRatio: rawScreenshot.size,
             insideRect: screenshotBoundsView.bounds
         )
@@ -151,8 +151,19 @@ final class FeedbackViewController: UIViewController {
         // screenshot is inset within the frame rather than sharing its bounds
         // — otherwise a bezel thick enough to read as a phone body would eat
         // into the screenshot content instead of surrounding it.
-        let bezelWidth = outerRect.width * 0.045
-        let innerRect = outerRect.insetBy(dx: bezelWidth, dy: bezelWidth)
+        //
+        // The screen area keeps the screenshot's exact aspect ratio (an even
+        // inset would make it relatively narrower). The canvas covers this
+        // same rect and annotations are normalized to it, so any letterboxing
+        // here would shift every saved annotation away from what the user
+        // drew on (the flattened PNG and the dashboard draw them against the
+        // screenshot itself).
+        let bezelWidth = fittedRect.width * 0.045
+        let innerRect = AVMakeRect(
+            aspectRatio: rawScreenshot.size,
+            insideRect: fittedRect.insetBy(dx: bezelWidth, dy: bezelWidth)
+        )
+        let outerRect = innerRect.insetBy(dx: -bezelWidth, dy: -bezelWidth)
 
         imageView.frame = innerRect
         canvasView.frame = innerRect
