@@ -71,7 +71,9 @@ feedbackkit list [--project <id>] [--status new|in_progress|resolved|wont_fix] [
 feedbackkit prompt <feedbackId>             # print the generated coding-agent prompt
 feedbackkit timeline <feedbackId>           # fix-loop activity: agent progress, PRs, releases, reporter replies
 feedbackkit link <feedbackId> --pr <url> | --commit <sha> [--merged] [--summary <text>]
-feedbackkit release --build <n> [--project <id>] [--commit <rev>] [--product <key>] [--dry-run]
+feedbackkit release --build <n> [--project <id>] [--commit <rev>] [--product <key>] [--channel beta|production] [--token <fkr_…>] [--dry-run]
+feedbackkit promote --build <n> [--product <key>] [--token <fkr_…>]   # a beta went to production
+feedbackkit token create <name> | list | revoke <id>                  # release tokens for CI
 feedbackkit docs [topic]                    # print FeedbackKit's own docs (no topic = list topics)
 feedbackkit mcp                             # run an MCP server over stdio
 ```
@@ -261,6 +263,15 @@ they're on that build or newer. `--dry-run` shows what would ship and why.
 Fixes with no recorded commit are included; use `--include <ids...>` to
 ship specific reports regardless of git. See `feedbackkit docs loop` and
 DESIGN.md §7.
+
+**In CI**, pass a project release token instead of logging in:
+`FEEDBACKKIT_RELEASE_TOKEN=fkr_… feedbackkit release --build "$BUILD"` (check
+out with full history so the ancestry check works). The token can only list
+waiting fixes, record releases and promote them, for one project. Create one
+with `feedbackkit token create github-actions | gh secret set
+FEEDBACKKIT_RELEASE_TOKEN`, or in project Settings → Release tokens.
+`FEEDBACKKIT_API_URL` points token mode at a self-hosted backend. See
+DESIGN.md §8.
 
 ## Developing
 

@@ -533,6 +533,66 @@ project-scoped release token, which doesn't exist yet. The macOS/watchOS
 verification UIs and the "still broken → capture" handoff are covered by
 builds and a manual simulator check (iOS), not automated UI tests.
 
+## 8. Push-to-main delivery: agents commit, every push is a beta, the owner promotes
+
+With coding agents doing the fixing, a pull request per fix is ceremony: the
+real quality gate is the person who reported the bug confirming the fix on
+their device (§7). So the default workflow is:
+
+```
+agent commit on main ("FeedbackKit: <id>" trailer) ──push──▶ github-webhook: fix_stage merged
+      │
+      ▼  beta.yml: tests → TestFlight (iOS Portal) + beta-portal-mac prerelease (macOS Portal)
+feedbackkit_announce.sh (release token) ──▶ ci-release: shipped in build N (beta channel)
+      │
+      ▼  reporters on build N: "is it fixed?" → verified / reopened
+owner: Releases tab says "ready" ──▶ promotes in App Store Connect ──▶ `feedbackkit promote` / "Mark as released"
+```
+
+**Commit trailers replace PR descriptions.** The webhook's `push` handler
+reads `FeedbackKit: <id>` (and `Fixes #n` for a report's GitHub issue) from
+each commit on the default branch; `FeedbackKit-Summary:` sets the sentence
+the reporter sees. PRs still work exactly as before — this is additive.
+
+**CI authenticates with a release token, not a session.** A CI job has no
+dashboard user to act as, and minting user sessions for robots would blur
+RLS's "a request is a person" model. A release token
+(`0015_push_to_main_releases.sql`) is project-scoped, stored only as a
+SHA-256 hash, revocable, and can do exactly three things through the
+`ci-release` Edge Function: list fixes waiting to ship, record a release,
+promote one. Deciding *which* fixes are in a build still happens in the CI
+checkout (git ancestry), so the token never needs repository access.
+
+**One announcement step for every pipeline.** `scripts/feedbackkit_announce.sh`
+is called at the end of every release script, locally (login session) and in
+CI (token), and never fails a release that already shipped. CI runs this
+repo's own CLI build rather than npm's, so pipelines use the CLI they ship.
+
+**Build numbers are UTC timestamps everywhere** (`yyyyMMddHHmm`), because fix
+verification orders the build on the device against the build a fix shipped
+in. This surfaced a real bug: XcodeGen had hardcoded `CFBundleVersion` 1 in
+every app, so release scripts' build numbers never reached the binary, and
+App Store Connect renumbered TestFlight uploads. Plists now read the build
+settings and App Store exports set `manageAppVersionAndBuildNumber` false.
+A TestFlight build promoted to the App Store keeps its number, so production
+reporters on that build are asked too.
+
+**Channels, not branches.** A release is `beta` until the owner marks it
+`production` (the Releases tab, `feedbackkit promote`, or the token API —
+e.g. from a future App Store Connect webhook). The `release_readiness` view
+rolls each build's fixes into verified / awaiting / reopened, and the
+dashboard turns that into a verdict: any reopened fix blocks, all verified
+is "ready". For the macOS Portal, "production" is the tagged GitHub release
+cut with `cut_release.sh`; betas are one rolling `beta-portal-mac`
+prerelease (every release workflow ignores `beta-*` tags).
+
+**Known gaps.** Reporters only verify what they reported, so a fix that
+breaks something else isn't caught by the loop — CI tests gate every beta,
+and new reports after a beta are the regression signal. Concurrent agents
+pushing to main need to rebase and retry. External TestFlight groups can
+still wait on Beta App Review; the internal group gets every build at once.
+Demo apps ship on releases only, not betas.
+
 ## Repo layout
 
 ```

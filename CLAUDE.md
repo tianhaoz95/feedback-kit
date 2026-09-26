@@ -166,6 +166,7 @@ xcodebuild test -project FeedbackPortal.xcodeproj -scheme FeedbackPortal -destin
 ./scripts/release_portal_macos.sh --version X.Y.Z [--no-upload]   # notarized DMG → GitHub Release vX.Y.Z (local)
 ./scripts/cut_release.sh X.Y.Z                # CI: unified release — every pipeline, incl. both Portals
 ./scripts/cut_release.sh X.Y.Z --mac-portal   # CI: macOS Portal only (tag portal-mac-vX.Y.Z)
+./scripts/release_portal_macos.sh --beta [--no-upload]   # rolling beta prerelease (what beta.yml runs on every push)
 ```
 
 One `project.yml`, two apps sharing `Sources/`; the Mac target adds `SourcesMac/`
@@ -506,6 +507,19 @@ Rules for skills:
   End-to-end test against a local stack:
   `cli/test/closed-loop.integration.mjs` (needs `supabase functions serve`
   with `GITHUB_WEBHOOK_SECRET=testsecret`; header comment has the steps).
+- **Push-to-main delivery (`0015_push_to_main_releases.sql`, DESIGN.md §8).**
+  Every push to main touching the SDK/Portal runs `beta.yml`: tests, then
+  TestFlight (iOS Portal) and the rolling `beta-portal-mac` prerelease
+  (macOS Portal). Each release script ends with `scripts/feedbackkit_announce.sh`,
+  which records the build with `FEEDBACKKIT_RELEASE_TOKEN` (CI) or a login
+  session. Release tokens are hash-only, and inserts go through the
+  `create_release_token` RPC, never directly. `record_release_system` is
+  service-role only. Build numbers are UTC timestamps in every release
+  script, and app plists take `CFBundleVersion`/`CFBundleShortVersionString`
+  from the build settings. Don't hardcode them in `project.yml` `info:`,
+  and keep `manageAppVersionAndBuildNumber` false in App Store exports, or
+  fix verification silently stops matching builds. A new release workflow
+  must also skip `beta-*` tags.
 - **The web SDK's report is the Swift contract, not a lookalike.**
   Annotation points are `[x, y]` tuples (how `CGPoint` encodes), and every
   required `FeedbackEnvironment` field is always sent, because the Developer

@@ -13,6 +13,18 @@ reporter's device  ←  reporter-updates  ←  feedbackkit release  ←  merged 
   "is it fixed?"  →  verified   |   still broken (+ new screenshot) → reopened → re-dispatched
 ```
 
+## Push-to-main and betas
+
+Agents commit to main with a `FeedbackKit: <id>` trailer. `github-webhook`'s push handler moves the report to `merged`. `beta.yml` runs the tests, ships the iOS Portal to TestFlight and the macOS Portal as the `beta-portal-mac` prerelease, and `scripts/feedbackkit_announce.sh` records each build through `ci-release` with the project's release token. The owner promotes a verified beta (Releases tab, `feedbackkit promote`). See DESIGN.md §8.
+
+| Piece | Path |
+|---|---|
+| Release tokens, channels, readiness view | `supabase/migrations/0015_push_to_main_releases.sql` |
+| Token-authenticated release API | `supabase/functions/ci-release/` |
+| Push trailer linking | `supabase/functions/github-webhook/` (`handlePush`) |
+| Beta pipeline | `.github/workflows/beta.yml`, `scripts/feedbackkit_announce.sh`, `.github/actions/setup-feedbackkit-cli` |
+| Readiness UI | `web/src/components/ReleasesPanel.tsx`, `ReleaseTokensCard.tsx` |
+
 ## Fix stages
 
 `feedback_items.fix_stage` (checked text, `0014_closed_loop.sql`) — kept **separate from `status`** because shipped Portal builds decode `status` strictly.
@@ -21,7 +33,7 @@ reporter's device  ←  reporter-updates  ←  feedbackkit release  ←  merged 
 |---|---|---|
 | `agent_working` | MCP `claim_feedback`, dispatch in `create-github-issue` | `in_progress` |
 | `pr_open` | `github-webhook` (PR opened), MCP/CLI `link_fix` | `in_progress` |
-| `merged` | `github-webhook` (PR merged), `link_fix` with a commit | `in_progress` |
+| `merged` | `github-webhook` (PR merged, or a trailer on a push to main), `link_fix` with a commit | `in_progress` |
 | `shipped` | `record_release` RPC via `feedbackkit release` | `in_progress` |
 | `verified` | `reporter-updates` (reporter taps "Yes, it's fixed") | `resolved` |
 | `reopened` | `reporter-updates` (reporter taps "Still broken") | `in_progress` |

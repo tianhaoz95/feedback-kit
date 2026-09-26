@@ -429,7 +429,9 @@ feedbackkit login --dashboard-url http://localhost:3000
 | \`feedbackkit prompt <feedbackId>\` | Print the generated coding-agent prompt for one report. |
 | \`feedbackkit timeline <feedbackId>\` | A report's fix-loop activity: agent progress, PRs, releases, the reporter's replies. |
 | \`feedbackkit link <feedbackId> --pr <url> \\| --commit <sha>\` | Record the fix for a report by hand (PRs mentioning \`FeedbackKit: <id>\` are linked automatically). |
-| \`feedbackkit release --build <n> [--project <id>] [--commit <rev>] [--product <key>] [--dry-run]\` | Announce a build: marks merged fixes it contains as shipped so reporters are asked "is it fixed?" — see the \`loop\` doc topic. |
+| \`feedbackkit release --build <n> [--project <id>] [--commit <rev>] [--product <key>] [--channel <c>] [--token <t>] [--dry-run]\` | Announce a build: marks merged fixes it contains as shipped so reporters are asked "is it fixed?" — see the \`loop\` doc topic. |
+| \`feedbackkit promote --build <n>\` | Record that a beta build went to production. |
+| \`feedbackkit token create <name> \\| list \\| revoke <id>\` | Project release tokens, so CI can run \`release\` without a login. |
 | \`feedbackkit docs [topic]\` | Print this documentation (no topic = list topics). |
 | \`feedbackkit mcp [--project <id>]\` | Run an MCP server over stdio, optionally scoped to one project — see the \`mcp\` doc topic. |
 
@@ -740,7 +742,11 @@ After uploading a build, from the repo:
 npx feedbackkit-cli release --build "$BUILD_NUMBER"      # --project <id> if you have several; --dry-run to preview
 \`\`\`
 
-It ships every merged fix whose commit is in the release commit (default HEAD), so reporters on that build or newer get asked. Builds compare numerically when dotted-numeric (\`42\`, \`1.2.10\`, timestamps); anything else (e.g. a web deploy's git SHA) counts as live once released. \`scripts/release_testflight.sh\` does this automatically when \`FEEDBACKKIT_PROJECT_ID\` is set.`,
+It ships every merged fix whose commit is in the release commit (default HEAD), so reporters on that build or newer get asked. In CI, use a release token instead of a login: \`FEEDBACKKIT_RELEASE_TOKEN=fkr_… feedbackkit release --build …\` (create one with \`feedbackkit token create <name>\` or in project Settings → Release tokens). When a beta goes to production, record it with \`feedbackkit promote --build <n>\`. Builds compare numerically when dotted-numeric (\`42\`, \`1.2.10\`, timestamps); anything else (e.g. a web deploy's git SHA) counts as live once released. Every release script in this repo announces its build automatically when \`FEEDBACKKIT_RELEASE_TOKEN\` (CI) or \`FEEDBACKKIT_PROJECT_ID\` (logged in) is set.
+
+## Push-to-main (no PRs)
+
+Agents can commit straight to the default branch. Add \`FeedbackKit: <id>\` as a commit-message trailer, plus an optional \`FeedbackKit-Summary: <sentence for the reporter>\`, and the GitHub webhook links the commit when it lands. \`Fixes #<issue>\` also works for reports with a GitHub issue. A beta pipeline on every push then ships and announces the build, and the owner promotes a verified beta from the dashboard's Releases tab.`,
   },
   {
     slug: "skills",

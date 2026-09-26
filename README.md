@@ -296,6 +296,20 @@ team that owns the `com.feedbackkit.demo` app record in App Store Connect.
 An app record with that bundle ID must already exist there before you run
 this; the script doesn't create one.
 
+## Betas on every push, production by the owner
+
+Coding agents commit fixes straight to `main` with a `FeedbackKit: <id>`
+commit trailer. Every push that touches the SDK or Portal runs
+`.github/workflows/beta.yml`: tests, then a TestFlight build of the iOS
+Portal and a rolling `beta-portal-mac` prerelease of the macOS Portal. With
+the `FEEDBACKKIT_RELEASE_TOKEN` secret set (project Settings → Release
+tokens, or `feedbackkit token create github-actions | gh secret set
+FEEDBACKKIT_RELEASE_TOKEN`), each beta is announced, and the people who
+reported the bugs it fixes are asked "is it fixed?" in that build. The
+project's **Releases** tab shows which beta is ready to promote. You
+promote it in App Store Connect, then mark it released there or run
+`feedbackkit promote --build <n>`. See DESIGN.md §8.
+
 ## Cutting a release
 
 Release the entire suite with a single command:
