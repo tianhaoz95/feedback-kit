@@ -19,14 +19,22 @@
 #   ./scripts/release_portal_macos.sh --version 1.0.0                # attach to the unified release v1.0.0
 #   ./scripts/release_portal_macos.sh --version 1.0.0 --no-upload    # build+sign+notarize only
 #   ./scripts/release_portal_macos.sh --tag portal-mac-v1.0.0        # a Portal-only release
+#   ./scripts/release_portal_macos.sh --beta                         # rolling beta prerelease (CI, every push to main)
+#
+# --beta replaces the `beta-portal-mac` GitHub prerelease with this build (one
+# always-current beta download rather than a prerelease per push) and
+# announces it on FeedbackKit's beta channel. A tagged release is the Mac's
+# production channel — the owner cuts it with scripts/cut_release.sh.
 #
 # Tags follow the same scheme as every other release pipeline (see
 # scripts/cut_release.sh): a unified vX.Y.Z release ships everything,
 # including this DMG; a prefixed portal-mac-vX.Y.Z release ships only the
 # macOS Portal.
 #
-# The build number (CFBundleVersion) is the version itself (e.g. 1.2.0), so
-# FeedbackKit's fix verification can order builds (DESIGN.md §7).
+# The build number (CFBundleVersion) is a UTC timestamp (yyyyMMddHHmm) — the
+# same scheme as the TestFlight scripts — so betas and releases order
+# correctly for FeedbackKit's fix verification (DESIGN.md §7). Override with
+# --build N.
 #
 # Credentials (first match wins per line — the FA_* names are this machine's
 # default App Store Connect API key, set in ~/.zshrc; same key
@@ -50,20 +58,30 @@ APP_NAME="FeedbackKit Portal.app"
 
 VERSION=""
 TAG=""
+BUILD_NUMBER=""
+BETA=0
 NO_UPLOAD=0
 CHECK_ONLY=0
+BETA_TAG="beta-portal-mac"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --version)   VERSION="${2:-}"; shift 2 ;;
     --tag)       TAG="${2:-}"; shift 2 ;;
+    --build)     BUILD_NUMBER="${2:-}"; shift 2 ;;
+    --beta)      BETA=1; shift ;;
     --no-upload) NO_UPLOAD=1; shift ;;
     --check)     CHECK_ONLY=1; shift ;;
-    -h|--help)   sed -n '2,42p' "$0"; exit 0 ;;
+    -h|--help)   sed -n '2,50p' "$0"; exit 0 ;;
     *) echo "error: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
 
-if [[ "$CHECK_ONLY" -eq 0 ]]; then
+if [[ "$CHECK_ONLY" -eq 0 && "$BETA" -eq 1 ]]; then
+  # Betas keep the project's marketing version; only the build number moves.
+  VERSION="$(sed -n 's/^ *MARKETING_VERSION: *"\{0,1\}\([0-9.]*\)"\{0,1\}.*$/\1/p' "$REPO_ROOT/DeveloperApp/project.yml" | tail -1)"
+  [[ -n "$VERSION" ]] || VERSION="1.0.0"
+  TAG="$BETA_TAG"
+elif [[ "$CHECK_ONLY" -eq 0 ]]; then
   if [[ -n "$TAG" ]]; then
     if [[ "$TAG" =~ ^portal-mac-v ]]; then
       VERSION="${TAG#portal-mac-v}"
@@ -80,6 +98,9 @@ if [[ "$CHECK_ONLY" -eq 0 ]]; then
   [[ -n "$VERSION" ]] || { echo "error: --version X.Y.Z or --tag vX.Y.Z is required" >&2; exit 1; }
   echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "error: version must be X.Y.Z, got: $VERSION" >&2; exit 1; }
 fi
+
+BUILD_NUMBER="${BUILD_NUMBER:-$(date -u +%Y%m%d%H%M)}"
+echo "$BUILD_NUMBER" | grep -qE '^[0-9]+(\.[0-9]+)*$' || { echo "error: --build must be numeric (e.g. 202609251830), got: $BUILD_NUMBER" >&2; exit 1; }
 
 ASC_KEY_ID="${ASC_KEY_ID:-${FA_ASC_KEY_ID:-}}"
 ASC_ISSUER_ID="${ASC_ISSUER_ID:-${FA_ASC_ISSUER_ID:-}}"
@@ -132,7 +153,7 @@ if [[ "$CHECK_ONLY" -eq 1 ]]; then
   echo "✅ Preflight check passed: all macOS release credentials and tools are configured and ready."
   exit 0
 fi
-echo "-> version:  $VERSION (tag $TAG)"
+echo "-> version:  $VERSION (build $BUILD_NUMBER, tag $TAG$([[ "$BETA" -eq 1 ]] && echo ", beta"))"
 
 if [[ "$NO_UPLOAD" -eq 0 ]]; then
   command -v gh >/dev/null 2>&1 || { echo "error: gh CLI not found (needed to upload; use --no-upload to skip)" >&2; exit 1; }
@@ -172,7 +193,7 @@ xcodebuild archive \
   OTHER_CODE_SIGN_FLAGS="--timestamp" \
   ENABLE_HARDENED_RUNTIME=YES \
   MARKETING_VERSION="$VERSION" \
-  CURRENT_PROJECT_VERSION="$VERSION"
+  CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
 
 cat > "$EXPORT_OPTIONS_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -208,7 +229,11 @@ codesign --verify --deep --strict --verbose=2 "$APP" 2>&1 | sed 's/^/   /'
 # --- DMG ------------------------------------------------------------------
 
 echo "-> Building a DMG"
-DMG_NAME="FeedbackKit-Portal-$VERSION.dmg"
+if [[ "$BETA" -eq 1 ]]; then
+  DMG_NAME="FeedbackKit-Portal-beta-$BUILD_NUMBER.dmg"
+else
+  DMG_NAME="FeedbackKit-Portal-$VERSION.dmg"
+fi
 OUT_DMG="$BUILD_DIR/$DMG_NAME"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
@@ -241,7 +266,20 @@ fi
 # --- Publish ------------------------------------------------------------
 
 echo "-> Publishing $TAG"
-NOTES="FeedbackKit Portal for macOS $VERSION — triage feedback, hand it to your
+if [[ "$BETA" -eq 1 ]]; then
+  COMMIT_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD)"
+  NOTES="Beta build $BUILD_NUMBER of FeedbackKit Portal for macOS, from $COMMIT_SHA.
+
+Built automatically from every push to main. Fixes to reported problems land
+here first — if you reported one, the Portal asks you to confirm it once
+you're on this build. Stable releases are the non-prerelease ones."
+  # One rolling prerelease: replace the previous beta (and its tag) with this
+  # build so the download link always points at the newest one.
+  gh release delete "$TAG" --repo "$GH_REPO" --yes --cleanup-tag >/dev/null 2>&1 || true
+  gh release create "$TAG" --repo "$GH_REPO" --prerelease --target "$COMMIT_SHA" \
+    --title "macOS Portal beta ($BUILD_NUMBER)" --notes "$NOTES"
+else
+  NOTES="FeedbackKit Portal for macOS $VERSION — triage feedback, hand it to your
 coding agent, and verify fixes, from your Mac.
 
 Signed with a Developer ID Application certificate and notarized by Apple —
@@ -249,12 +287,13 @@ download the DMG, drag FeedbackKit Portal.app to Applications, and it will
 open without a Gatekeeper warning. Found a problem? Help › Report a Problem…
 (⇧⌘R) sends it straight to the FeedbackKit team."
 
-if gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
-  echo "   release $TAG already exists — attaching to it"
-else
-  TITLE="FeedbackKit $VERSION"
-  [[ "$TAG" =~ ^portal-mac-v ]] && TITLE="macOS Portal $VERSION"
-  gh release create "$TAG" --repo "$GH_REPO" --title "$TITLE" --notes "$NOTES"
+  if gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+    echo "   release $TAG already exists — attaching to it"
+  else
+    TITLE="FeedbackKit $VERSION"
+    [[ "$TAG" =~ ^portal-mac-v ]] && TITLE="macOS Portal $VERSION"
+    gh release create "$TAG" --repo "$GH_REPO" --title "$TITLE" --notes "$NOTES"
+  fi
 fi
 gh release upload "$TAG" --repo "$GH_REPO" --clobber "$OUT_DMG#$DMG_NAME"
 
@@ -267,12 +306,9 @@ EOF
 # --- Close the loop -------------------------------------------------------
 #
 # Mark every merged Portal fix contained in this commit as shipped in this
-# build, so their reporters are asked to confirm it in the Portal. Opt-in and
-# best-effort, like release_testflight.sh: needs a `feedbackkit login`
-# session, and must never fail a release that already published.
-if [[ -n "${FEEDBACKKIT_PROJECT_ID:-}" ]]; then
-  echo "-> Announcing build $VERSION to FeedbackKit reporters..."
-  npx --yes feedbackkit-cli release --project "$FEEDBACKKIT_PROJECT_ID" --build "$VERSION" \
-    --app-version "$VERSION" --product developer-portal-macos --commit HEAD \
-    || echo "   ⚠️  feedbackkit release failed (not logged in?) — run it by hand: npx feedbackkit-cli release --build $VERSION --product developer-portal-macos"
-fi
+# build, so their reporters are asked to confirm it in the Portal. A beta is
+# FeedbackKit's beta channel; a tagged release is production.
+CHANNEL="production"
+[[ "$BETA" -eq 1 ]] && CHANNEL="beta"
+"$REPO_ROOT/scripts/feedbackkit_announce.sh" "$BUILD_NUMBER" \
+  --channel "$CHANNEL" --app-version "$VERSION" --product developer-portal-macos

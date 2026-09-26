@@ -20,7 +20,7 @@ concurrency:
 jobs:
   publish-npm:
     name: Publish to npm
-    if: github.event_name != 'release' || (!startsWith(github.event.release.tag_name, 'mac-demo-') && !startsWith(github.event.release.tag_name, 'cli-') && !startsWith(github.event.release.tag_name, 'web-sdk-') && !startsWith(github.event.release.tag_name, 'portal-mac-'))
+    if: github.event_name != 'release' || (!startsWith(github.event.release.tag_name, 'beta-') && !startsWith(github.event.release.tag_name, 'mac-demo-') && !startsWith(github.event.release.tag_name, 'cli-') && !startsWith(github.event.release.tag_name, 'web-sdk-') && !startsWith(github.event.release.tag_name, 'portal-mac-'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -89,7 +89,7 @@ jobs:
 
   publish-github-packages:
     name: Publish to GitHub Packages
-    if: github.event_name != 'release' || (!startsWith(github.event.release.tag_name, 'mac-demo-') && !startsWith(github.event.release.tag_name, 'cli-') && !startsWith(github.event.release.tag_name, 'web-sdk-') && !startsWith(github.event.release.tag_name, 'portal-mac-'))
+    if: github.event_name != 'release' || (!startsWith(github.event.release.tag_name, 'beta-') && !startsWith(github.event.release.tag_name, 'mac-demo-') && !startsWith(github.event.release.tag_name, 'cli-') && !startsWith(github.event.release.tag_name, 'web-sdk-') && !startsWith(github.event.release.tag_name, 'portal-mac-'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

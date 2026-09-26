@@ -1,0 +1,91 @@
+name: Beta
+
+# Push-to-main delivery (DESIGN.md §8): coding agents commit fixes straight to
+# main with a `FeedbackKit: <id>` trailer, and every such push — once the tests
+# pass — ships beta builds of the apps that dogfood FeedbackKit:
+#
+#   - iOS Developer Portal  → TestFlight          (testflight-portal.yml)
+#   - macOS Developer Portal → rolling `beta-portal-mac` prerelease DMG
+#                                                  (release-portal-macos.yml, beta)
+#
+# Each build is announced to FeedbackKit with the FEEDBACKKIT_RELEASE_TOKEN
+# secret, so the people who reported the bugs it fixes are asked "is it
+# fixed?" in that build. The owner then promotes a verified build to
+# production themselves — App Store Connect for iOS, `cut_release.sh` for the
+# Mac DMG — and records it with `feedbackkit promote` (or the dashboard).
+#
+# Demo apps aren't betas: they ship on releases only. Add `[skip ci]` to a
+# commit message to push without building a beta.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Sources/**"
+      - "Package.swift"
+      - "DeveloperApp/**"
+      - "scripts/release_portal_testflight.sh"
+      - "scripts/release_portal_macos.sh"
+      - "scripts/feedbackkit_announce.sh"
+      - ".github/workflows/beta.yml"
+      - ".github/workflows/testflight-portal.yml"
+      - ".github/workflows/release-portal-macos.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write     # the macOS beta replaces the beta-portal-mac prerelease
+  deployments: write
+
+# A newer push supersedes a beta that's still building.
+concurrency:
+  group: beta-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests (gate for beta builds)
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "latest-stable"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: FeedbackKit SDK tests (macOS)
+        run: swift test
+
+      - name: Developer Portal tests (macOS target — same test file as iOS)
+        run: |
+          cd DeveloperApp
+          xcodegen generate
+          xcodebuild test \
+            -project FeedbackPortal.xcodeproj \
+            -scheme FeedbackPortalMac \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: CLI tests
+        run: |
+          cd cli
+          npm ci --no-audit --no-fund
+          npm test
+
+  testflight-portal:
+    name: iOS Portal → TestFlight
+    needs: test
+    uses: ./.github/workflows/testflight-portal.yml
+    secrets: inherit
+
+  macos-portal:
+    name: macOS Portal → beta prerelease
+    needs: test
+    uses: ./.github/workflows/release-portal-macos.yml
+    with:
+      beta: true
+    secrets: inherit

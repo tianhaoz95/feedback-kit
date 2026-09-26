@@ -1,9 +1,13 @@
 name: Release Portal to TestFlight
 
+# Also called by beta.yml on every push to main (after tests pass): TestFlight
+# is the Portal's beta channel, and the owner promotes a verified build to
+# the App Store in App Store Connect (DESIGN.md §8).
 on:
   release:
     types: [published]
   workflow_dispatch: {}
+  workflow_call: {}
 
 permissions:
   contents: read
@@ -16,7 +20,7 @@ concurrency:
 jobs:
   release:
     name: Build & Upload FeedbackPortal to TestFlight
-    if: github.event_name != 'release' || (!startsWith(github.event.release.tag_name, 'mac-demo-') && !startsWith(github.event.release.tag_name, 'cli-') && !startsWith(github.event.release.tag_name, 'skills-') && !startsWith(github.event.release.tag_name, 'web-sdk-') && !startsWith(github.event.release.tag_name, 'portal-mac-'))
+    if: github.event_name != 'release' || (!startsWith(github.event.release.tag_name, 'beta-') && !startsWith(github.event.release.tag_name, 'mac-demo-') && !startsWith(github.event.release.tag_name, 'cli-') && !startsWith(github.event.release.tag_name, 'skills-') && !startsWith(github.event.release.tag_name, 'web-sdk-') && !startsWith(github.event.release.tag_name, 'portal-mac-'))
     runs-on: macos-15
     timeout-minutes: 45
     environment:
@@ -25,6 +29,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Full history: `feedbackkit release` checks each fix commit is an
+          # ancestor of this build's commit (scripts/feedbackkit_announce.sh).
+          fetch-depth: 0
 
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -82,11 +90,16 @@ jobs:
             echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           fi
 
+      - name: Set up FeedbackKit CLI (build announcement)
+        uses: ./.github/actions/setup-feedbackkit-cli
+
       - name: Build and upload FeedbackPortal to TestFlight
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID || secrets.APPLE_API_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID || secrets.APPLE_API_ISSUER }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Announces the build to FeedbackKit reporters when set (optional).
+          FEEDBACKKIT_RELEASE_TOKEN: ${{ secrets.FEEDBACKKIT_RELEASE_TOKEN }}
         run: ./scripts/release_portal_testflight.sh
 
       - name: Clean up secrets

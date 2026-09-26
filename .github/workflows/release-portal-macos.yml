@@ -30,6 +30,13 @@ on:
         description: "Build, sign and notarize only — don't create/attach to a release (pipeline validation)"
         type: boolean
         default: false
+  # beta.yml calls this on every push to main with beta: true — the rolling
+  # beta-portal-mac prerelease (scripts/release_portal_macos.sh --beta).
+  workflow_call:
+    inputs:
+      beta:
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -42,7 +49,7 @@ concurrency:
 jobs:
   release:
     name: Build, Sign, Notarize & Publish
-    if: github.event_name != 'release' || (!startsWith(github.event.release.tag_name, 'mac-demo-') && !startsWith(github.event.release.tag_name, 'cli-') && !startsWith(github.event.release.tag_name, 'skills-') && !startsWith(github.event.release.tag_name, 'web-sdk-'))
+    if: github.event_name != 'release' || (!startsWith(github.event.release.tag_name, 'beta-') && !startsWith(github.event.release.tag_name, 'mac-demo-') && !startsWith(github.event.release.tag_name, 'cli-') && !startsWith(github.event.release.tag_name, 'skills-') && !startsWith(github.event.release.tag_name, 'web-sdk-'))
     runs-on: macos-15
     timeout-minutes: 45
     environment:
@@ -51,6 +58,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Full history: `feedbackkit release` checks each fix commit is an
+          # ancestor of this build's commit (scripts/feedbackkit_announce.sh).
+          fetch-depth: 0
 
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -106,8 +117,12 @@ jobs:
           rm -f "$CERT_PATH"
           echo "SIGNING_KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
 
+      - name: Set up FeedbackKit CLI (build announcement)
+        uses: ./.github/actions/setup-feedbackkit-cli
+
       - name: Resolve version/tag
         id: version
+        if: ${{ inputs.beta != true }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -144,8 +159,14 @@ jobs:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID || secrets.APPLE_API_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID || secrets.APPLE_API_ISSUER }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Announces the build to FeedbackKit reporters when set (optional).
+          FEEDBACKKIT_RELEASE_TOKEN: ${{ secrets.FEEDBACKKIT_RELEASE_TOKEN }}
         run: |
-          ARGS=(--version "${{ steps.version.outputs.version }}" --tag "${{ steps.version.outputs.tag }}")
+          if [ "${{ inputs.beta }}" = "true" ]; then
+            ARGS=(--beta)
+          else
+            ARGS=(--version "${{ steps.version.outputs.version }}" --tag "${{ steps.version.outputs.tag }}")
+          fi
           [ "${{ inputs.no_upload }}" = "true" ] && ARGS+=(--no-upload)
           ./scripts/release_portal_macos.sh "${ARGS[@]}"
 

@@ -21,6 +21,11 @@ targets:
     info:
       path: Generated/Info.plist
       properties:
+        # From the build settings, so release scripts' MARKETING_VERSION /
+        # CURRENT_PROJECT_VERSION overrides reach the app (FeedbackKit's fix
+        # verification compares the device's CFBundleVersion to the build a fix shipped in).
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen: {}
         UIApplicationSupportsIndirectInputEvents: true
         UISupportedInterfaceOrientations:
@@ -68,6 +73,11 @@ targets:
     info:
       path: Generated/Info-Mac.plist
       properties:
+        # From the build settings, so release scripts' MARKETING_VERSION /
+        # CURRENT_PROJECT_VERSION overrides reach the app (FeedbackKit's fix
+        # verification compares the device's CFBundleVersion to the build a fix shipped in).
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         # Same reasoning as the iOS target's NSAppTransportSecurity above.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
@@ -95,6 +105,11 @@ targets:
     info:
       path: Generated/Info-Watch.plist
       properties:
+        # From the build settings, so release scripts' MARKETING_VERSION /
+        # CURRENT_PROJECT_VERSION overrides reach the app (FeedbackKit's fix
+        # verification compares the device's CFBundleVersion to the build a fix shipped in).
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         # Both required for a truly standalone watch app (no iOS host, no
         # WKCompanionAppBundleIdentifier): WKApplication marks it as a watch
         # app at all, WKWatchOnly says it has no iOS companion. Confirmed by

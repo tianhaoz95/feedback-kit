@@ -1,0 +1,19 @@
+name: Set up FeedbackKit CLI
+description: >
+  Builds this repo's own feedbackkit CLI and exports FEEDBACKKIT_CLI, so a
+  release pipeline announces its build (scripts/feedbackkit_announce.sh)
+  with the CLI version it ships alongside, not whatever is on npm.
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "22"
+        cache: npm
+        cache-dependency-path: cli/package-lock.json
+    - shell: bash
+      run: |
+        cd cli
+        npm ci --no-audit --no-fund
+        npm run build
+        echo "FEEDBACKKIT_CLI=node $GITHUB_WORKSPACE/cli/dist/index.js" >> "$GITHUB_ENV"
