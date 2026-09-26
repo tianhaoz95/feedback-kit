@@ -51,6 +51,25 @@ function webContextSection(feedback: FeedbackItem): string {
   ].join("\n");
 }
 
+/**
+ * Appended when a prompt is *copied* from the dashboard (never saved into
+ * `edited_prompt`), mirroring cli/src/loop.ts `loopInstructions`: without the
+ * report id a pasted prompt gives the agent no way to move the fix stage, so
+ * the report would sit at "New" even after the fix lands.
+ */
+export function closingTheLoopSection(feedback: Pick<FeedbackItem, "id">): string {
+  return `
+
+---
+## Closing the loop (FeedbackKit report \`${feedback.id}\`)
+
+1. If the FeedbackKit MCP server is connected, call \`claim_feedback\` with \`feedback_id: "${feedback.id}"\` before you start, so the team sees it's being worked on.
+2. Add this trailer to your fix commit's message (last paragraph, like \`Co-Authored-By\`) — when the commit reaches the default branch, FeedbackKit links it and ships it with the next beta build:
+   \`FeedbackKit: ${feedback.id}\`
+   If you open a pull request instead, put the same line in its description. Without the GitHub App, call \`link_fix\` with the commit sha.
+3. Don't mark it resolved yourself: once the fix ships in a build, the reporter confirms it on their device.`;
+}
+
 const WEB_PLACEHOLDERS = /{{\s*(page_url|console_logs|browser)\s*}}/;
 
 export function renderPromptTemplate(

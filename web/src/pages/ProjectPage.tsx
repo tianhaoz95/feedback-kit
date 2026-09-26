@@ -4,7 +4,7 @@ import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { getErrorMessage } from "@/lib/errors";
 import type { FeedbackItem, FeedbackStatus, Product, Project, PromptTemplate } from "@/lib/types";
-import { renderPromptTemplate } from "@/lib/prompt-template";
+import { closingTheLoopSection, renderPromptTemplate } from "@/lib/prompt-template";
 import { TemplateEditorForm } from "@/components/TemplateEditorForm";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusSelect } from "@/components/StatusSelect";
@@ -1272,13 +1272,15 @@ export function ProjectPage() {
                       </div>
                       <p className="mt-1 text-xs text-neutral-500">
                         Generated from the project template. Edit as needed, then copy into Claude Code,
-                        Cursor, Antigravity, or Codex.
+                        Cursor, Antigravity, or Codex. The copy includes this report's ID and steps that let
+                        the agent update its fix status.
                       </p>
                       <div className="mt-3 flex flex-1 flex-col min-h-0">
                         <FeedbackPromptEditor
                           key={`${selectedFeedback.id}-${promptValue}`}
                           initialValue={promptValue}
                           isEdited={selectedFeedback.edited_prompt !== null}
+                          copySuffix={closingTheLoopSection(selectedFeedback)}
                           onSave={(formData) => saveEditedPrompt(selectedFeedback.id, formData)}
                           onReset={() => resetEditedPrompt(selectedFeedback.id)}
                         />

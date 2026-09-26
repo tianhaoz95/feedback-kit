@@ -6,12 +6,15 @@ import { CheckIcon, CopyIcon } from "@/components/icons";
 export function FeedbackPromptEditor({
   initialValue,
   isEdited,
+  copySuffix = "",
   onSave,
   onReset,
   className,
 }: {
   initialValue: string;
   isEdited: boolean;
+  /** Appended to the copied text only, so it's never saved into the edited prompt. */
+  copySuffix?: string;
   onSave: (formData: FormData) => Promise<void>;
   onReset: () => Promise<void>;
   className?: string;
@@ -33,7 +36,7 @@ export function FeedbackPromptEditor({
         <Button
           size="sm"
           onClick={async () => {
-            await navigator.clipboard.writeText(value);
+            await navigator.clipboard.writeText(value + copySuffix);
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
           }}

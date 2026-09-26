@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { renderPromptTemplate, renderMergedPrompt } from "./prompt-template.ts";
+import { closingTheLoopSection, renderPromptTemplate, renderMergedPrompt } from "./prompt-template.ts";
 import type { FeedbackItem } from "./types.ts";
 
 type MockFeedbackOverrides = Omit<Partial<FeedbackItem>, "environment"> & {
@@ -206,4 +206,10 @@ test("renderMergedPrompt includes page URL and logs for web reports", () => {
   const result = renderMergedPrompt([web, createMockFeedback({ id: "fb_ios" })], {});
   assert.ok(result.includes("Page URL: https://app.example.com/projects/1?tab=settings"));
   assert.ok(result.includes("[network] POST /api/save → 500"));
+});
+
+test("closingTheLoopSection tells the agent how to move the report's fix stage", () => {
+  const result = closingTheLoopSection({ id: "fb_123" });
+  assert.ok(result.includes('`claim_feedback` with `feedback_id: "fb_123"`'));
+  assert.ok(result.includes("`FeedbackKit: fb_123`"));
 });
