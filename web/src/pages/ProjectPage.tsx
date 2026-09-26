@@ -20,6 +20,7 @@ import {
   ExternalLinkIcon,
   GitHubIcon,
   InboxIcon,
+  LayersIcon,
   PaperclipIcon,
   SettingsIcon,
   SparkleIcon,
@@ -37,21 +38,24 @@ import { MergedPromptView } from "@/components/MergedPromptView";
 import { DeleteProjectCard } from "@/components/DeleteProjectCard";
 import { AllowedOriginsCard } from "@/components/AllowedOriginsCard";
 import { AgentDispatchCard } from "@/components/AgentDispatchCard";
+import { ReleasesPanel } from "@/components/ReleasesPanel";
+import { ReleaseTokensCard } from "@/components/ReleaseTokensCard";
 import { FixLoopPanel } from "@/components/FixLoopPanel";
 import { FixStageBadge } from "@/components/FixStageBadge";
 import { ConsoleLogsPanel } from "@/components/ConsoleLogsPanel";
 import { PlatformBadge } from "@/components/PlatformBadge";
 import { ScreenshotViewer } from "@/components/ScreenshotViewer";
 
-type TabKey = "feedback" | "settings" | "sdk" | "agent";
+type TabKey = "feedback" | "releases" | "settings" | "sdk" | "agent";
 
 const TABS: {
   id: TabKey;
   label: string;
   shortLabel?: string;
-  icon: typeof InboxIcon | typeof SettingsIcon;
+  icon: typeof InboxIcon | typeof SettingsIcon | typeof LayersIcon;
 }[] = [
   { id: "feedback", label: "Feedback", icon: InboxIcon },
+  { id: "releases", label: "Releases", icon: LayersIcon },
   { id: "settings", label: "Settings", icon: SettingsIcon },
   { id: "sdk", label: "SDK setup", shortLabel: "SDK", icon: TerminalIcon },
   { id: "agent", label: "Connect AI agent", shortLabel: "AI Agent", icon: SparkleIcon },
@@ -85,7 +89,7 @@ export function ProjectPage() {
   const activeTab: TabKey =
     tabParam === "settings" || tabParam === "github" || tabParam === "template"
       ? "settings"
-      : tabParam === "sdk" || tabParam === "agent"
+      : tabParam === "sdk" || tabParam === "agent" || tabParam === "releases"
       ? tabParam
       : "feedback";
 
@@ -1337,11 +1341,31 @@ export function ProjectPage() {
             }
           />
 
+          <ReleaseTokensCard projectId={project.id} />
+
           <DeleteProjectCard
             project={project}
             feedbackItems={feedbackItems}
           />
         </div>
+      )}
+
+      {activeTab === "releases" && (
+        <ReleasesPanel
+          projectId={project.id}
+          githubRepo={project.github_repo}
+          onOpenFeedback={(id) => {
+            setSearchParams(
+              (prev) => {
+                const next = new URLSearchParams(prev);
+                next.delete("tab");
+                next.set("feedback", id);
+                return next;
+              },
+              { replace: true }
+            );
+          }}
+        />
       )}
 
       {activeTab === "sdk" && (

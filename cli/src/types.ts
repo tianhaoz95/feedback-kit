@@ -17,11 +17,13 @@ export type FeedbackEventKind =
   | "pr_opened"
   | "pr_merged"
   | "pr_closed"
+  | "fix_committed"
   | "shipped"
   | "verified"
   | "reopened"
   | "status_changed"
-  | "after_screenshot";
+  | "after_screenshot"
+  | "promoted";
 
 /** One row of a report's timeline (`feedback_events`). */
 export interface FeedbackEvent {

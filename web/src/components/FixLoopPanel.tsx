@@ -16,11 +16,13 @@ const KIND_LABEL: Record<FeedbackEventKind, string> = {
   pr_opened: "Pull request opened",
   pr_merged: "Fix merged",
   pr_closed: "Pull request closed",
+  fix_committed: "Fix pushed",
   shipped: "Shipped",
   verified: "Reporter verified the fix",
   reopened: "Reporter says it's still broken",
   status_changed: "Status changed",
   after_screenshot: "After-fix screenshot",
+  promoted: "Released to production",
 };
 
 const ACTOR_TONE: Record<FeedbackEvent["actor_type"], string> = {
@@ -185,7 +187,8 @@ export function FixLoopPanel({ feedback }: { feedback: FeedbackItem }) {
         <ol className="space-y-3 border-l border-neutral-200 pl-4">
           {events.map((e) => {
             const shotPath = (e.data?.screenshot_annotated_path ?? e.data?.screenshot_path) as string | undefined;
-            const prUrl = typeof e.data?.pr_url === "string" ? e.data.pr_url : null;
+            const prUrl =
+              typeof e.data?.pr_url === "string" ? e.data.pr_url : typeof e.data?.commit_url === "string" ? e.data.commit_url : null;
             return (
               <li key={e.id} className="relative">
                 <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-neutral-300" />

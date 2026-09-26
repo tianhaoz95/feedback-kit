@@ -16,11 +16,13 @@ export type FeedbackEventKind =
   | "pr_opened"
   | "pr_merged"
   | "pr_closed"
+  | "fix_committed"
   | "shipped"
   | "verified"
   | "reopened"
   | "status_changed"
-  | "after_screenshot";
+  | "after_screenshot"
+  | "promoted";
 
 /** One row of a report's timeline — mirrors `feedback_events` (0014_closed_loop.sql). */
 export interface FeedbackEvent {
@@ -37,7 +39,9 @@ export interface FeedbackEvent {
   created_at: string;
 }
 
-/** Mirrors `releases` (0014_closed_loop.sql) — one per `feedbackkit release`. */
+export type ReleaseChannel = "beta" | "production";
+
+/** Mirrors `releases` (0014 + 0015) — one per `feedbackkit release`. */
 export interface Release {
   id: string;
   project_id: string;
@@ -45,7 +49,41 @@ export interface Release {
   version: string | null;
   commit_sha: string | null;
   product_key: string | null;
+  channel: ReleaseChannel;
+  source: "cli" | "ci";
+  promoted_at: string | null;
   created_at: string;
+}
+
+/** Mirrors the `release_readiness` view (0015): a release plus its fixes' verification state. */
+export interface ReleaseReadiness {
+  release_id: string;
+  project_id: string;
+  build: string;
+  version: string | null;
+  commit_sha: string | null;
+  product_key: string | null;
+  channel: ReleaseChannel;
+  source: "cli" | "ci";
+  created_at: string;
+  promoted_at: string | null;
+  fixes: number;
+  verified: number;
+  reopened: number;
+  awaiting: number;
+  /** Shipped fixes whose reports have no reporter id (older SDKs) — nobody will verify these on device. */
+  unreachable: number;
+}
+
+/** Mirrors `release_tokens` (0015). The token itself is never readable — only a prefix. */
+export interface ReleaseToken {
+  id: string;
+  project_id: string;
+  name: string;
+  token_prefix: string;
+  created_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
 }
 
 /** `FeedbackKit.setUser(...)` from the reporter's app, if set. Opaque camelCase JSONB. */

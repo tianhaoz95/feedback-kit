@@ -389,6 +389,7 @@ public struct PortalFeedbackEvent: Codable, Identifiable, Hashable, Sendable {
         let screenshot_annotated_path: String?
         let screenshot_path: String?
         let pr_url: String?
+        let commit_url: String?
     }
 
     public init(from decoder: Decoder) throws {
@@ -403,7 +404,7 @@ public struct PortalFeedbackEvent: Codable, Identifiable, Hashable, Sendable {
         createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt) ?? ""
         let data = try? c.decodeIfPresent(EventData.self, forKey: .data)
         screenshotPath = data?.screenshot_annotated_path ?? data?.screenshot_path
-        prUrl = data?.pr_url
+        prUrl = data?.pr_url ?? data?.commit_url
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -429,6 +430,8 @@ public struct PortalFeedbackEvent: Codable, Identifiable, Hashable, Sendable {
         case "pr_opened": return "Pull request opened"
         case "pr_merged": return "Fix merged"
         case "pr_closed": return "Pull request closed"
+        case "fix_committed": return "Fix pushed"
+        case "promoted": return "Released to production"
         case "shipped": return "Shipped"
         case "verified": return "Reporter verified the fix"
         case "reopened": return "Reporter says it's still broken"
