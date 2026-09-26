@@ -213,3 +213,9 @@ test("closingTheLoopSection tells the agent how to move the report's fix stage",
   assert.ok(result.includes('`claim_feedback` with `feedback_id: "fb_123"`'));
   assert.ok(result.includes("`FeedbackKit: fb_123`"));
 });
+
+test("closingTheLoopSection lists a claim and trailer for every merged report", () => {
+  const result = closingTheLoopSection([{ id: "fb_a" }, { id: "fb_b" }]);
+  assert.ok(result.includes("`claim_feedback` for each report (`fb_a`, `fb_b`)"));
+  assert.ok(result.includes("`FeedbackKit: fb_a`") && result.includes("`FeedbackKit: fb_b`"));
+});

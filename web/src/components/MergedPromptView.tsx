@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FeedbackItem, FeedbackStatus } from "@/lib/types";
-import { renderMergedPrompt } from "@/lib/prompt-template";
+import { closingTheLoopSection, renderMergedPrompt } from "@/lib/prompt-template";
 import { Button } from "@/components/Button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusSelect } from "@/components/StatusSelect";
@@ -53,7 +53,8 @@ export function MergedPromptView({
   }, [generatedPrompt, isEdited]);
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(promptText);
+    // Appended on copy only, like the single-report editor, so edits never duplicate it.
+    await navigator.clipboard.writeText(promptText + closingTheLoopSection(selectedItems));
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
   }

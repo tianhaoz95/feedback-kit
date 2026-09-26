@@ -57,17 +57,25 @@ function webContextSection(feedback: FeedbackItem): string {
  * report id a pasted prompt gives the agent no way to move the fix stage, so
  * the report would sit at "New" even after the fix lands.
  */
-export function closingTheLoopSection(feedback: Pick<FeedbackItem, "id">): string {
+export function closingTheLoopSection(feedback: Pick<FeedbackItem, "id"> | Pick<FeedbackItem, "id">[]): string {
+  const ids = (Array.isArray(feedback) ? feedback : [feedback]).map((item) => item.id);
+  if (ids.length === 0) return "";
+  const single = ids.length === 1;
+  const idList = ids.map((id) => `\`${id}\``).join(", ");
+  const claim = single
+    ? `call \`claim_feedback\` with \`feedback_id: "${ids[0]}"\``
+    : `call \`claim_feedback\` for each report (${idList})`;
+  const trailers = ids.map((id) => `   \`FeedbackKit: ${id}\``).join("\n");
   return `
 
 ---
-## Closing the loop (FeedbackKit report \`${feedback.id}\`)
+## Closing the loop (FeedbackKit ${single ? "report" : "reports"} ${idList})
 
-1. If the FeedbackKit MCP server is connected, call \`claim_feedback\` with \`feedback_id: "${feedback.id}"\` before you start, so the team sees it's being worked on.
-2. Add this trailer to your fix commit's message (last paragraph, like \`Co-Authored-By\`) — when the commit reaches the default branch, FeedbackKit links it and ships it with the next beta build:
-   \`FeedbackKit: ${feedback.id}\`
-   If you open a pull request instead, put the same line in its description. Without the GitHub App, call \`link_fix\` with the commit sha.
-3. Don't mark it resolved yourself: once the fix ships in a build, the reporter confirms it on their device.`;
+1. If the FeedbackKit MCP server is connected, ${claim} before you start, so the team sees ${single ? "it's" : "they're"} being worked on.
+2. Add ${single ? "this trailer" : "one trailer per report you fixed"} to your fix commit's message (last paragraph, like \`Co-Authored-By\`) — when the commit reaches the default branch, FeedbackKit links it and ships it with the next beta build:
+${trailers}
+   If you open a pull request instead, put the same ${single ? "line" : "lines"} in its description. Without the GitHub App, call \`link_fix\` with the commit sha.
+3. Don't mark ${single ? "it" : "them"} resolved yourself: once the fix ships in a build, the reporter confirms it on their device.`;
 }
 
 const WEB_PLACEHOLDERS = /{{\s*(page_url|console_logs|browser)\s*}}/;
