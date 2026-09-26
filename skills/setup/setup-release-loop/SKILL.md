@@ -103,6 +103,8 @@ For GitHub Actions, the job also needs:
 - `env: FEEDBACKKIT_RELEASE_TOKEN: ${{ secrets.FEEDBACKKIT_RELEASE_TOKEN }}` on the step,
 - Node available (`actions/setup-node`), since the script uses `npx feedbackkit-cli`.
 
+**Deploys CI doesn't run.** A site deployed by the host's own Git integration (Cloudflare Workers/Pages Builds, Netlify, Vercel) has no release job to put the script in, so check for one explicitly (`wrangler.toml`/`wrangler.jsonc`, `netlify.toml`, `vercel.json`, a host check run on recent commits) — otherwise its fixes stay "merged" forever. Copy `templates/announce-deploy.yml.template` to `.github/workflows/announce-deploy.yml`: on each push it waits for the host's check run on that commit to succeed, then announces. Fill in the check run name (`gh api repos/<owner>/<repo>/commits/<sha>/check-runs --jq '.check_runs[].name'`), and use the same build id the web SDK reports as `appBuild` (usually the short SHA). Hosts that post GitHub *deployments* instead of check runs (Vercel) can trigger on `deployment_status` with `github.event.deployment_status.state == 'success'`. If one site serves several products, announce once per `--product`.
+
 Other CI (fastlane, Xcode Cloud, Bitrise): the same script works anywhere with git, Node and the token in the environment. In fastlane, call it with `sh("../scripts/feedbackkit_announce.sh", build_number.to_s, "--channel", "beta")` after `upload_to_testflight`.
 
 ### Step 6 -- Optional: a beta on every push to main
@@ -126,6 +128,8 @@ The `promote-release` skill walks through this.
 
 ## Verification
 
+0. `gh secret list` shows `FEEDBACKKIT_RELEASE_TOKEN`. Without it the announce script prints "Skipping FeedbackKit announcement" and exits 0 — the pipeline stays green and nothing ships.
+
 1. `npx feedbackkit-cli release --build 1 --dry-run` in the repo prints the merged fixes it would ship (and why others are skipped), without writing anything.
 2. After the next real build, `npx feedbackkit-cli releases` lists it; a report whose fix it contained shows **Shipped** in the dashboard.
 3. On a device running that build, the reporter's app shows the "is it fixed?" card. If not, compare the app's `CFBundleVersion` with the announced build (Step 3).
@@ -136,4 +140,5 @@ The `promote-release` skill walks through this.
 - **Shallow checkouts:** `fetch-depth: 1` makes every fix commit "not found locally", so nothing ships. Use `fetch-depth: 0`.
 - **The token is per project.** A repo with apps in two FeedbackKit projects needs two tokens (and two secrets).
 - **Only merged fixes ship.** A report is "merged" once its fix commit reaches the default branch (trailer or `Fixes #n`), its PR merges, or someone runs `feedbackkit link <id> --commit <sha>`.
-- **Web builds:** a git SHA as `appBuild` doesn't order, so a fix counts as live as soon as the deploy is announced. That's correct for sites replaced on deploy, but announce *after* the deploy finishes, not before.
+- **Web builds:** a git SHA as `appBuild` doesn't order, so a fix counts as live as soon as the deploy is announced. That's correct for sites replaced on deploy, but announce *after* the deploy finishes, not before — for host-deployed sites, that's what waiting on the host's check run is for (Step 5).
+- **A missing token is silent** by design (the script never fails a release), so a misconfigured pipeline looks exactly like one with nothing to ship. Check the job log for "Skipping FeedbackKit announcement".

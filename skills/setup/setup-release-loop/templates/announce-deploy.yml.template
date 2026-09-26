@@ -1,0 +1,70 @@
+name: Announce web deploy
+
+# For sites deployed by a host's own Git integration (Cloudflare Workers/Pages
+# Builds, Netlify, …) rather than by a workflow: nothing in CI knows when the
+# deploy is live, so nothing announces it and web fixes stay "merged" forever.
+# This waits for the host's check run on the pushed commit to succeed, then
+# announces the build, so reporters get asked "is it fixed?" on their next
+# page load.
+#
+# Adapt: __APP_SOURCE_DIR__, __HOST_CHECK_NAME__ (the host's check run name —
+# `gh api repos/<owner>/<repo>/commits/<sha>/check-runs --jq '.check_runs[].name'`
+# on a recent commit, e.g. "Workers Builds: <project>"), and --product.
+# The build id must equal the `appBuild` the web SDK reports (here the short
+# SHA); change BUILD if your site stamps something else.
+# Secret: FEEDBACKKIT_RELEASE_TOKEN.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "__APP_SOURCE_DIR__/**"
+      - ".github/workflows/announce-deploy.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  checks: read
+
+# A newer deploy contains every older commit, so it supersedes a pending one.
+concurrency:
+  group: announce-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the ancestry check needs history
+
+      - name: Wait for the host's deploy
+        id: deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHECK_NAME: "__HOST_CHECK_NAME__"
+        run: |
+          for _ in $(seq 1 50); do
+            result=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs" \
+              --jq ".check_runs[] | select(.name == \"$CHECK_NAME\") | \"\(.status) \(.conclusion)\"" | head -n1)
+            case "$result" in
+              "completed success") echo "live=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
+              completed*) echo "::warning::Deploy finished as '${result#completed }' — not announcing."; exit 0 ;;
+            esac
+            echo "Waiting for '$CHECK_NAME' (${result:-not started})..."
+            sleep 30
+          done
+          echo "::warning::Timed out waiting for '$CHECK_NAME' — not announcing. Rerun once it's live."
+
+      - uses: actions/setup-node@v4
+        if: steps.deploy.outputs.live == 'true'
+        with:
+          node-version: 22
+
+      - name: Announce to FeedbackKit reporters
+        if: steps.deploy.outputs.live == 'true'
+        env:
+          FEEDBACKKIT_RELEASE_TOKEN: ${{ secrets.FEEDBACKKIT_RELEASE_TOKEN }}
+        run: ./scripts/feedbackkit_announce.sh "${GITHUB_SHA::7}" --channel production --product __PRODUCT_KEY__
