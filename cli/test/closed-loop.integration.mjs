@@ -390,3 +390,119 @@ test("agent over MCP → `feedbackkit release` in a git repo → reporter sees t
   const timeline = execFileSync(process.execPath, [cliEntry, "timeline", ids[0]], { env, encoding: "utf8" });
   assert.match(timeline, /shipped/);
 });
+
+test("push to main → trailer links the fix → CI release with a token → promote", async () => {
+  const { mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join, dirname } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const cliEntry = join(dirname(fileURLToPath(import.meta.url)), "..", "dist", "index.js");
+
+  const { client } = await newUser();
+  const orgId = await waitForOrg(client);
+  const repo = `push-${randomUUID().slice(0, 8)}/app`;
+  const { data: project } = await client.from("projects").insert({ organization_id: orgId, name: "Push", github_repo: repo }).select().single();
+
+  const reporterId = randomUUID().replace(/-/g, "");
+  const [a, b, c] = [randomUUID(), randomUUID(), randomUUID()];
+  for (const [id, extra] of [[a, {}], [b, { github_issue_number: 31 }], [c, {}]]) {
+    const { error } = await admin.from("feedback_items").insert({ id, project_id: project.id, text: `bug ${id.slice(0, 4)}`, reporter_id: reporterId, ...extra });
+    assert.ifError(error);
+  }
+
+  // A real repo whose commits the push payload names, so CI's ancestry check has something to check.
+  const repoDir = mkdtempSync(join(tmpdir(), "fk-push-"));
+  const sh = (...args) => execFileSync("git", args, { cwd: repoDir, encoding: "utf8" }).trim();
+  const commit = (msg) => {
+    sh("-c", "user.email=a@b.c", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", msg);
+    return sh("rev-parse", "HEAD");
+  };
+  sh("init", "-q", "-b", "main");
+  commit("base");
+  const shaA = commit(`Fix the clipped button\n\nFeedbackKit: ${a}\nFeedbackKit-Summary: The Save button is no longer cut off.`);
+  const shaB = commit("Handle empty cart\n\nFixes #31");
+
+  const pushPayload = (ref, commits) => ({
+    ref,
+    repository: { full_name: repo, default_branch: "main" },
+    commits: commits.map(([id, message]) => ({ id, message, url: `https://github.com/${repo}/commit/${id}` })),
+  });
+
+  // Pushes to other branches don't count.
+  await webhook("push", pushPayload("refs/heads/feature", [[shaA, `x\n\nFeedbackKit: ${a}`]]));
+  let { data: rowA } = await admin.from("feedback_items").select("fix_stage").eq("id", a).single();
+  assert.equal(rowA.fix_stage, null);
+
+  const res = await webhook("push", pushPayload("refs/heads/main", [
+    [shaA, `Fix the clipped button\n\nFeedbackKit: ${a}\nFeedbackKit-Summary: The Save button is no longer cut off.`],
+    [shaB, "Handle empty cart\n\nFixes #31"],
+  ]));
+  assert.equal(res.status, 200);
+  assert.equal(res.body.linked, 2);
+  const { data: linked } = await admin.from("feedback_items").select("id, fix_stage, fix_commit_sha, fix_summary").in("id", [a, b, c]);
+  const byId = Object.fromEntries(linked.map((r) => [r.id, r]));
+  assert.equal(byId[a].fix_stage, "merged");
+  assert.equal(byId[a].fix_commit_sha, shaA);
+  assert.equal(byId[a].fix_summary, "The Save button is no longer cut off.");
+  assert.equal(byId[b].fix_stage, "merged", "Fixes #31 links via the report's GitHub issue");
+  assert.equal(byId[c].fix_stage, null);
+  const { data: ev } = await admin.from("feedback_events").select("kind, body").eq("feedback_id", a);
+  assert.deepEqual(ev.map((e) => e.kind), ["fix_committed"]);
+
+  // A fix pushed later but *not* in the build being released stays merged.
+  const { error: cErr } = await admin.from("feedback_items").update({ fix_stage: "merged", fix_commit_sha: "f".repeat(40) }).eq("id", c);
+  assert.ifError(cErr);
+
+  // Release tokens: created once by a member, useless to anyone else.
+  const { data: token, error: tokenError } = await client.rpc("create_release_token", { p_project_id: project.id, p_name: "github-actions" });
+  assert.ifError(tokenError);
+  assert.match(token, /^fkr_[0-9a-f]{48}$/);
+  const { data: stored } = await client.from("release_tokens").select("token_hash, token_prefix").eq("project_id", project.id).single();
+  assert.notEqual(stored.token_hash, token, "only the hash is stored");
+  const { client: stranger } = await newUser();
+  const { error: strangerError } = await stranger.rpc("create_release_token", { p_project_id: project.id, p_name: "nope" });
+  assert.ok(strangerError, "non-members can't mint tokens");
+  const { error: directInsert } = await client.from("release_tokens").insert({ project_id: project.id, name: "x", token_hash: "x", token_prefix: "x" });
+  assert.ok(directInsert, "tokens can only be created through create_release_token");
+
+  // CI: `feedbackkit release --token` with no login at all (empty HOME).
+  const env = { ...process.env, HOME: mkdtempSync(join(tmpdir(), "fk-ci-home-")), FEEDBACKKIT_RELEASE_TOKEN: token, FEEDBACKKIT_API_URL: API };
+  const out = execFileSync(process.execPath, [cliEntry, "release", "--build", "202609260900", "--product", "ios"], { cwd: repoDir, env, encoding: "utf8" });
+  assert.match(out, /Shipped 2 fix/);
+  const { data: afterRelease } = await admin.from("feedback_items").select("id, fix_stage, fixed_in_build").in("id", [a, b, c]);
+  const after = Object.fromEntries(afterRelease.map((r) => [r.id, r]));
+  assert.equal(after[a].fix_stage, "shipped");
+  assert.equal(after[b].fix_stage, "shipped");
+  assert.equal(after[c].fix_stage, "merged", "not an ancestor of the release commit");
+  const { data: rel } = await admin.from("releases").select("channel, source, product_key").eq("project_id", project.id).single();
+  assert.deepEqual(rel, { channel: "beta", source: "ci", product_key: "ios" });
+
+  // The reporter on that beta build is asked.
+  const updates = await reporter("GET", { project_key: project.project_key, reporter_id: reporterId, build: "202609260900" });
+  assert.equal(updates.body.updates.length, 2);
+
+  // Readiness view, as the member.
+  await reporter("POST", { project_key: project.project_key, reporter_id: reporterId, feedback_id: a, action: "verify" });
+  const { data: readiness } = await client.from("release_readiness").select("*").eq("project_id", project.id);
+  assert.equal(readiness.length, 1);
+  assert.equal(Number(readiness[0].fixes), 2);
+  assert.equal(Number(readiness[0].verified), 1);
+  assert.equal(Number(readiness[0].awaiting), 1);
+  const { data: leaked } = await stranger.from("release_readiness").select("*").eq("project_id", project.id);
+  assert.deepEqual(leaked, []);
+
+  // Owner promoted it in App Store Connect → record it.
+  const promoted = execFileSync(process.execPath, [cliEntry, "promote", "--build", "202609260900"], { cwd: repoDir, env, encoding: "utf8" });
+  assert.match(promoted, /released to production/);
+  const { data: prod } = await admin.from("releases").select("channel, promoted_at").eq("project_id", project.id).single();
+  assert.equal(prod.channel, "production");
+  assert.ok(prod.promoted_at);
+
+  // Revoked tokens stop working.
+  const { data: tokenRow } = await client.from("release_tokens").select("id").eq("project_id", project.id).single();
+  await client.from("release_tokens").update({ revoked_at: new Date().toISOString() }).eq("id", tokenRow.id);
+  assert.throws(
+    () => execFileSync(process.execPath, [cliEntry, "release", "--build", "202609261000"], { cwd: repoDir, env, encoding: "utf8", stdio: "pipe" }),
+    /invalid_token/,
+  );
+});

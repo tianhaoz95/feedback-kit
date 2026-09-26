@@ -1,6 +1,6 @@
 ---
 name: fix-feedback
-description: Fix a user-reported bug from FeedbackKit end to end — pull the report (annotated screenshot, logs, reporter's replies) over MCP, claim it, reproduce, fix, attach an after-fix screenshot, and link the PR/commit so the fix ships back to the reporter's device for verification. Also handles reports the reporter reopened as still broken.
+description: Fix a user-reported bug from FeedbackKit end to end — pull the report (annotated screenshot, logs, reporter's replies) over MCP, claim it, reproduce, fix, attach an after-fix screenshot, and commit with a `FeedbackKit:` trailer so the fix ships in the next beta build back to the reporter's device for verification. Also handles reports the reporter reopened as still broken.
 ---
 
 # fix-feedback
@@ -56,21 +56,25 @@ If you can run the app, screenshot the fixed screen (same state the reporter sho
 
 ### Step 7 -- Link the fix
 
-- **Opening a PR:** put this line in the PR description — FeedbackKit's GitHub webhook links the PR and tracks it to merge automatically:
+- **Committing to the default branch (the usual case):** end the fix commit's message with these git trailers — FeedbackKit's GitHub webhook links the commit when it lands on the default branch, and the next beta build ships it to the reporter:
   ```
+  Fix checkout button hidden behind the keyboard
+
   FeedbackKit: <feedback id>
+  FeedbackKit-Summary: The checkout button is no longer hidden behind the keyboard.
   ```
-- **Committing directly (no PR):** call `link_fix` with `commit_sha`.
-- Either way, you may call `link_fix` with a `summary` — one plain-language sentence the **reporter** will see ("The checkout button is no longer hidden behind the keyboard."). No jargon, no file names.
+  `FeedbackKit-Summary` is optional: one plain-language sentence the **reporter** will see. No jargon, no file names. (`Fixes #<issue>` also links, when the report has a GitHub issue.)
+- **Opening a PR instead:** put the `FeedbackKit: <feedback id>` line in the PR description; it's tracked to merge.
+- **No GitHub App on the repo:** call `link_fix` with `commit_sha` (and `summary`) after pushing.
 
 Optionally call `post_update` with `notify_reporter: true` for a short friendly note to the reporter; use `notify_reporter: false` for technical notes to the team.
 
 ### Step 8 -- Don't close it yourself
 
-Do **not** mark the report resolved. Once the fix is merged, the team's release step (`feedbackkit release --build <n>`) marks it shipped, and the reporter confirms on their device — that's what resolves it. `update_feedback_status` is only for non-code outcomes (e.g. `wont_fix` when the user asked for something out of scope — explain why with `post_update`).
+Do **not** mark the report resolved. Once the fix is on the default branch, the beta pipeline (or the team's `feedbackkit release --build <n>`) marks it shipped in the next build, and the reporter confirms on their device — that's what resolves it. `update_feedback_status` is only for non-code outcomes (e.g. `wont_fix` when the user asked for something out of scope — explain why with `post_update`).
 
 ## Verification
 
-- `get_feedback` timeline shows your `claimed`, optional `after_screenshot`, and a `pr_opened`/`pr_merged` entry.
-- The PR description contains `FeedbackKit: <id>` (or `link_fix` was called).
+- `get_feedback` timeline shows your `claimed`, optional `after_screenshot`, and a `fix_committed` (or `pr_opened`/`pr_merged`) entry.
+- The fix commit (or PR description) contains `FeedbackKit: <id>`, or `link_fix` was called.
 - The report is **not** marked resolved by you.

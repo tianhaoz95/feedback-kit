@@ -282,7 +282,7 @@ ${promptText}
 </details>
 
 ## Closing the loop
-When you open a pull request for this, include this line in its description so FeedbackKit can track the fix through to the reporter's device:
+Add this trailer to the fix commit's message (or, if you open a pull request, its description) so FeedbackKit can track the fix through the next beta build to the reporter's device:
 
 \`\`\`
 FeedbackKit: ${feedback.id}

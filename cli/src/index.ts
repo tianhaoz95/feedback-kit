@@ -8,6 +8,8 @@ import { listFeedback } from "./commands/list.js";
 import { printPrompt } from "./commands/prompt.js";
 import { printDocs } from "./commands/docs.js";
 import { release } from "./commands/release.js";
+import { promote } from "./commands/promote.js";
+import { createToken, listTokens, revokeToken } from "./commands/token.js";
 import { link } from "./commands/link.js";
 import { timeline } from "./commands/timeline.js";
 import { runMcpServer } from "./mcp/server.js";
@@ -109,7 +111,7 @@ program
 program
   .command("link")
   .argument("<feedbackId>", "Feedback id the fix is for.")
-  .description("Record the fix for a report (automatic for PRs mentioning `FeedbackKit: <id>` when the GitHub App is connected).")
+  .description("Record the fix for a report by hand (automatic for commits/PRs with a `FeedbackKit: <id>` trailer when the GitHub App is connected).")
   .option("--pr <url>", "Pull request URL.")
   .option("--commit <sha>", "Fix commit (without --pr, treated as already merged).")
   .option("--merged", "The PR is merged.")
@@ -132,12 +134,72 @@ program
   .option("--app-version <version>", "Marketing version, e.g. 1.4.0 (shown with the release).")
   .option("--commit <rev>", "Commit the build was made from (default HEAD). Fixes must be ancestors of it.")
   .option("--product <key>", "Only ship fixes for this product (e.g. ios); reports with no product always ship.")
-  .option("--project <id>", "Project id (default: FEEDBACKKIT_PROJECT_ID, or your only project).")
+  .option("--project <id>", "Project id (default: FEEDBACKKIT_PROJECT_ID, or your only project). Ignored with --token.")
+  .option("--channel <channel>", "beta (default) or production.")
+  .option("--token <token>", "Project release token for CI (default: FEEDBACKKIT_RELEASE_TOKEN). No login needed.")
+  .option("--api-url <url>", "FeedbackKit backend for --token (default: FEEDBACKKIT_API_URL, or the hosted one).")
   .option("--include <ids...>", "Also ship these feedback ids, skipping the git check.")
   .option("--dry-run", "Show what would ship without recording anything.")
-  .action(async (opts: { build: string; appVersion?: string; commit?: string; product?: string; project?: string; include?: string[]; dryRun?: boolean }) => {
+  .action(async (opts: { build: string; appVersion?: string; commit?: string; product?: string; project?: string; channel?: string; token?: string; apiUrl?: string; include?: string[]; dryRun?: boolean }) => {
     try {
       await release({ ...opts, version: opts.appVersion });
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+program
+  .command("promote")
+  .description("Mark a beta build as released to production (e.g. after promoting it in App Store Connect).")
+  .requiredOption("--build <build>", "The build that went to production.")
+  .option("--product <key>", "Only this product's release of the build.")
+  .option("--project <id>", "Project id (default: FEEDBACKKIT_PROJECT_ID, or your only project). Ignored with --token.")
+  .option("--token <token>", "Project release token (default: FEEDBACKKIT_RELEASE_TOKEN).")
+  .option("--api-url <url>", "FeedbackKit backend for --token.")
+  .action(async (opts: { build: string; product?: string; project?: string; token?: string; apiUrl?: string }) => {
+    try {
+      await promote(opts);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+const tokenCommand = program
+  .command("token")
+  .description("Project release tokens — how CI runs `release` without a login.");
+
+tokenCommand
+  .command("create")
+  .argument("<name>", "What it's for, e.g. github-actions.")
+  .option("--project <id>", "Project id (default: FEEDBACKKIT_PROJECT_ID, or your only project).")
+  .description("Create a token (printed once). Pipe it into your CI secrets, e.g. `| gh secret set FEEDBACKKIT_RELEASE_TOKEN`.")
+  .action(async (name: string, opts: { project?: string }) => {
+    try {
+      await createToken(name, opts);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+tokenCommand
+  .command("list")
+  .option("--project <id>", "Project id.")
+  .description("List a project's release tokens.")
+  .action(async (opts: { project?: string }) => {
+    try {
+      await listTokens(opts);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+tokenCommand
+  .command("revoke")
+  .argument("<id>", "Token id (from `token list`).")
+  .description("Revoke a release token.")
+  .action(async (id: string) => {
+    try {
+      await revokeToken(id);
     } catch (err) {
       handleError(err);
     }

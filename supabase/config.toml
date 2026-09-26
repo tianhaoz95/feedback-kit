@@ -431,6 +431,11 @@ verify_jwt = false
 [functions.reporter-updates]
 verify_jwt = false
 
+# Called by CI with a project-scoped release token (x-release-token), not a
+# Supabase session. See supabase/functions/ci-release/index.ts.
+[functions.ci-release]
+verify_jwt = false
+
 
 [analytics]
 enabled = true

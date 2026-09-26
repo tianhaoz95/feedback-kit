@@ -47,3 +47,36 @@ test("link_fix requires a PR or a commit", async () => {
   const res = await createMcpServer()._registeredTools["link_fix"].handler({ feedback_id: "x", merged: false });
   assert.equal(res.isError, true);
 });
+
+test("classifyReleaseCandidates respects product scope and missing commits", async () => {
+  const { classifyReleaseCandidates } = await import("../dist/loop.js");
+  const out = classifyReleaseCandidates(
+    [
+      { id: "a", text: "a", fix_commit_sha: null, product_keys: [] },
+      { id: "b", text: "b", fix_commit_sha: null, product_keys: ["web"] },
+      { id: "c", text: "c", fix_commit_sha: "abc1234", product_keys: ["ios"] },
+    ],
+    { releaseCommit: null, productKey: "ios", cwd: process.cwd() },
+  );
+  assert.deepEqual(out.map((c) => c.included), [true, false, true]);
+  assert.match(out[1].reason, /for web, not ios/);
+});
+
+test("release token client refuses things that aren't release tokens", async () => {
+  const { CiReleaseClient } = await import("../dist/loop.js");
+  assert.throws(() => new CiReleaseClient("ghp_nope"), /release token/);
+  assert.ok(new CiReleaseClient("fkr_" + "a".repeat(48)));
+});
+
+test("--channel accepts beta (default) and production only", async () => {
+  const { parseChannel } = await import("../dist/commands/release.js");
+  assert.equal(parseChannel(undefined), "beta");
+  assert.equal(parseChannel("production"), "production");
+  assert.throws(() => parseChannel("prod"), /beta or production/);
+});
+
+test("loop instructions ask for a commit trailer", () => {
+  const text = loopInstructions({ id: "11111111-2222-3333-4444-555555555555", fix_stage: null });
+  assert.match(text, /trailer/);
+  assert.match(text, /FeedbackKit-Summary/);
+});

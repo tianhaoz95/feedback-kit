@@ -15,11 +15,16 @@
 //   pull_request.opened/reopened/edited/ready_for_review → fix_stage 'pr_open'
 //   pull_request.closed (merged)    → fix_stage 'merged' + merge commit sha
 //   pull_request.closed (unmerged)  → back to no stage
+//   push to the default branch      → fix_stage 'merged' for every report a
+//                                     commit names in a `FeedbackKit: <id>`
+//                                     trailer (the push-to-main workflow —
+//                                     agents commit straight to main, no PR;
+//                                     see DESIGN.md §8)
 //
 // A PR is linked to feedback by (a) a FeedbackKit feedback id (uuid)
 // anywhere in its title, body or branch name — the issue body and MCP prompt
 // ask agents to include `FeedbackKit: <id>` — or (b) a closing keyword for a
-// linked issue (`Fixes #12`).
+// linked issue (`Fixes #12`). Pushes use the same two signals per commit.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { json } from "../_shared/http.ts";
 import { timingSafeEqual } from "../_shared/encoding.ts";
@@ -81,6 +86,9 @@ Deno.serve(async (req) => {
   }
   if (event === "pull_request") {
     return await handlePullRequest(adminClient, projectIds, payload);
+  }
+  if (event === "push") {
+    return await handlePush(adminClient, projectIds, payload);
   }
   return json({ status: "ignored_event", event }, 200);
 });
@@ -200,6 +208,84 @@ async function handlePullRequest(adminClient: Client, projectIds: string[], payl
   }
 
   return json({ status: "pr_sync", action, matched: items.length }, 200);
+}
+
+// `FeedbackKit: <uuid>` — one per line, git-trailer style (also accepts
+// several ids on one line, comma/space separated).
+const TRAILER = /^\s*FeedbackKit:\s*(.+)$/gim;
+// Optional plain-language line shown to the reporter with the fix.
+const SUMMARY_TRAILER = /^\s*FeedbackKit-Summary:\s*(.+)$/im;
+
+async function handlePush(adminClient: Client, projectIds: string[], payload: Payload): Promise<Response> {
+  const defaultBranch = payload.repository?.default_branch;
+  if (!defaultBranch || payload.ref !== `refs/heads/${defaultBranch}`) {
+    return json({ status: "ignored_non_default_branch", ref: payload.ref }, 200);
+  }
+  if (payload.deleted) return json({ status: "ignored_branch_deleted" }, 200);
+
+  // GitHub lists up to 20 commits per push, oldest first. Later commits win,
+  // so a follow-up fix for the same report replaces the earlier sha.
+  const commits: Payload[] = Array.isArray(payload.commits) ? payload.commits : [];
+  type Fix = { sha: string; url: string; message: string; summary: string | null };
+  const byItem = new Map<string, Fix>();
+  const byIssue = new Map<number, Fix>();
+  for (const commit of commits) {
+    const message: string = commit.message ?? "";
+    const fix: Fix = {
+      sha: commit.id,
+      url: commit.url,
+      message,
+      summary: message.match(SUMMARY_TRAILER)?.[1]?.trim().slice(0, 500) ?? null,
+    };
+    for (const line of message.matchAll(TRAILER)) {
+      for (const id of line[1].match(UUID) ?? []) byItem.set(id.toLowerCase(), fix);
+    }
+    // Agents working from a FeedbackKit-created issue often write "Fixes #12".
+    for (const ref of message.matchAll(CLOSING_REF)) byIssue.set(Number(ref[1]), fix);
+  }
+  if (byIssue.size > 0) {
+    const { data: viaIssue } = await adminClient
+      .from("feedback_items")
+      .select("id, github_issue_number")
+      .in("project_id", projectIds)
+      .in("github_issue_number", Array.from(byIssue.keys()));
+    for (const row of viaIssue ?? []) {
+      if (!byItem.has(row.id)) byItem.set(row.id, byIssue.get(row.github_issue_number)!);
+    }
+  }
+  if (byItem.size === 0) return json({ status: "no_linked_feedback" }, 200);
+
+  const { data: items } = await adminClient
+    .from("feedback_items")
+    .select("id, project_id, status, fix_stage, fix_pr_number")
+    .in("project_id", projectIds)
+    .in("id", Array.from(byItem.keys()));
+
+  let linked = 0;
+  for (const item of (items ?? []) as LinkedItem[]) {
+    // A verified fix is done; anything else (including an already-shipped
+    // one) takes the newer commit and ships again with the next build.
+    if (item.fix_stage === "verified") continue;
+    const fix = byItem.get(item.id)!;
+    const subject = fix.message.split("\n")[0].slice(0, 200);
+    await adminClient
+      .from("feedback_items")
+      .update({
+        fix_stage: "merged",
+        fix_commit_sha: fix.sha,
+        ...(fix.summary ? { fix_summary: fix.summary } : {}),
+        status: item.status === "wont_fix" ? item.status : "in_progress",
+      })
+      .eq("id", item.id);
+    await insertEvent(adminClient, item, {
+      kind: "fix_committed",
+      body: `Fix pushed to ${defaultBranch}: ${subject}`,
+      data: { commit_sha: fix.sha, commit_url: fix.url, branch: defaultBranch },
+    });
+    linked++;
+  }
+
+  return json({ status: "push_sync", linked }, 200);
 }
 
 interface LinkedItem {
