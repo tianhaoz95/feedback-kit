@@ -7,6 +7,7 @@ import { PhoneMockup } from "@/components/landing/PhoneMockup";
 import { BrowserMockup } from "@/components/landing/BrowserMockup";
 import { DashboardMockup } from "@/components/landing/DashboardMockup";
 import { Reveal } from "@/components/landing/Reveal";
+import { LifecycleLoop, LifecyclePlayer } from "@/components/docs/Lifecycle";
 
 const steps = [
   {
@@ -83,6 +84,25 @@ const platforms: { name: string; soon?: boolean }[] = [
   { name: "watchOS" },
   { name: "Web" },
   { name: "Android", soon: true },
+];
+
+// The closed loop, in three sentences, next to the animated diagram.
+const loopPoints = [
+  {
+    title: "Your agent gets the whole bug",
+    description:
+      "Screenshot, markup, device and screen arrive as one prompt over MCP. No reproduction steps to write, no copy and paste.",
+  },
+  {
+    title: "Every stage tracks itself",
+    description:
+      "Claimed, PR open, merged and shipped are recorded from what your agent, GitHub and your release already do.",
+  },
+  {
+    title: "Done means the user says so",
+    description:
+      "When the fix ships, the person who reported it is asked on their own device. Still broken sends it straight back to the agent.",
+  },
 ];
 
 const codeSamples = {
@@ -287,6 +307,54 @@ export function LandingPage() {
               ))}
             </div>
           </div>
+        </section>
+
+        {/* The closed loop: report → agent → release → the reporter confirms */}
+        <section className="mx-auto max-w-6xl px-4 py-16 sm:py-24">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+            <Reveal className="min-w-0">
+              <div>
+                <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                  The closed loop
+                </span>
+                <h2 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
+                  AI can write the fix. FeedbackKit makes sure it actually fixed the problem.
+                </h2>
+                <p className="mt-3 text-sm text-neutral-600 sm:text-base">
+                  Coding agents are fast, but a merged PR isn't a fixed product. FeedbackKit connects the user who
+                  hit the bug, the agent that fixes it, and the release that ships it, and it finishes the loop
+                  back on the same user's device.
+                </p>
+                <ul className="mt-6 space-y-4">
+                  {loopPoints.map((point) => (
+                    <li key={point.title} className="flex gap-3">
+                      <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                      <div>
+                        <p className="text-sm font-semibold text-neutral-900">{point.title}</p>
+                        <p className="mt-0.5 text-sm text-neutral-600">{point.description}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Reveal>
+            <Reveal delayMs={150} className="min-w-0">
+              <LifecycleLoop />
+            </Reveal>
+          </div>
+
+          <Reveal className="mt-14 min-w-0">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h3 className="text-lg font-semibold text-neutral-900">Follow one bug, start to finish</h3>
+                <p className="text-sm text-neutral-500">It plays by itself. Click any step to jump to it.</p>
+              </div>
+              <Link to="/docs/how-it-works" className="link-underline text-sm font-medium text-neutral-900">
+                Read the full walkthrough →
+              </Link>
+            </div>
+            <LifecyclePlayer />
+          </Reveal>
         </section>
 
         {/* Feature grid */}
