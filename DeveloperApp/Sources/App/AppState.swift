@@ -8,6 +8,23 @@ public final class AppState: ObservableObject {
 
     public static let lastSelectedProjectIdKey = "portal_last_selected_project_id"
     public static let lastSelectedProjectDataKey = "portal_last_selected_project_data"
+    public static let currentOrganizationIdKey = "portal_current_organization_id"
+
+    /// The iOS tab bar's tabs (the Mac sidebar has its own sections).
+    public enum Tab: Hashable {
+        case feedback, activity, projects, settings
+    }
+
+    // MARK: - Organizations & notifications (0016_teams.sql, 0017_notifications.sql)
+
+    /// Every organization the user belongs to; projects and feedback are scoped to `currentOrganization`.
+    @Published public var organizations: [PortalOrganization] = []
+    @Published public private(set) var currentOrganization: PortalOrganization?
+    @Published public var notifications: [PortalNotification] = []
+    @Published public var unreadNotificationCount: Int = 0
+    @Published public var selectedTab: Tab = .feedback
+    /// Set when a push notification is tapped; the Activity screen opens this report.
+    @Published public var pendingNotificationFeedbackId: String?
 
     // MARK: - Published Properties
 
@@ -112,8 +129,9 @@ public final class AppState: ObservableObject {
         isLoading = true
         isSyncingProjects = true
         errorMessage = nil
+        await loadOrganizations()
         do {
-            let loaded = try await client.fetchProjects()
+            let loaded = try await client.fetchProjects(organizationId: currentOrganization?.id)
             self.projects = loaded
             let savedId = UserDefaults.standard.string(forKey: Self.lastSelectedProjectIdKey)
                 ?? UserDefaults.standard.string(forKey: "last_selected_project_id")
@@ -135,6 +153,124 @@ public final class AppState: ObservableObject {
         }
         isSyncingProjects = false
         isLoading = false
+    }
+
+    // MARK: - Organizations
+
+    public func loadOrganizations() async {
+        guard let loaded = try? await client.fetchOrganizations() else { return }
+        organizations = loaded
+        let savedId = UserDefaults.standard.string(forKey: Self.currentOrganizationIdKey)
+        currentOrganization = loaded.first { $0.id == (currentOrganization?.id ?? savedId) } ?? loaded.first
+    }
+
+    /// Switches every list (projects, feedback) to another organization.
+    public func switchOrganization(to organization: PortalOrganization) async {
+        guard organization.id != currentOrganization?.id else { return }
+        UserDefaults.standard.set(organization.id, forKey: Self.currentOrganizationIdKey)
+        currentOrganization = organization
+        isSyncingProjects = true
+        selectedProject = nil
+        feedbackItems = []
+        isSyncingProjects = false
+        await loadProjects()
+    }
+
+    public func createOrganization(name: String) async throws {
+        let id = try await client.createOrganization(name: name)
+        await loadOrganizations()
+        if let created = organizations.first(where: { $0.id == id }) {
+            await switchOrganization(to: created)
+        }
+    }
+
+    /// After leaving (or losing access to) the current organization.
+    public func organizationMembershipChanged() async {
+        UserDefaults.standard.removeObject(forKey: Self.currentOrganizationIdKey)
+        currentOrganization = nil
+        selectedProject = nil
+        await loadProjects()
+    }
+
+    // MARK: - Notifications
+
+    public func loadNotifications() async {
+        do {
+            async let list = client.fetchNotifications()
+            async let unread = client.fetchUnreadNotificationCount()
+            let (items, count) = try await (list, unread)
+            notifications = items
+            unreadNotificationCount = count
+            PortalBadge.set(count)
+        } catch {
+            // Keep what's on screen; the next refresh will try again.
+        }
+    }
+
+    public func refreshUnreadNotificationCount() async {
+        guard let count = try? await client.fetchUnreadNotificationCount() else { return }
+        if count != unreadNotificationCount {
+            unreadNotificationCount = count
+            PortalBadge.set(count)
+            // Something new arrived: refresh the list too.
+            notifications = (try? await client.fetchNotifications()) ?? notifications
+        }
+    }
+
+    public func markNotificationRead(_ notification: PortalNotification) async {
+        guard !notification.isRead else { return }
+        if let i = notifications.firstIndex(where: { $0.id == notification.id }) {
+            notifications[i].readAt = Date()
+        }
+        unreadNotificationCount = max(0, unreadNotificationCount - 1)
+        PortalBadge.set(unreadNotificationCount)
+        try? await client.markNotificationRead(id: notification.id)
+    }
+
+    public func markAllNotificationsRead() async {
+        for i in notifications.indices where notifications[i].readAt == nil {
+            notifications[i].readAt = Date()
+        }
+        unreadNotificationCount = 0
+        PortalBadge.set(0)
+        try? await client.markAllNotificationsRead()
+    }
+
+    /// Makes a notification's organization and project current, so going
+    /// back from the report lands in the right inbox.
+    public func focus(on notification: PortalNotification) async {
+        if notification.organizationId != currentOrganization?.id,
+           let org = organizations.first(where: { $0.id == notification.organizationId }) {
+            await switchOrganization(to: org)
+        }
+        if let projectId = notification.projectId, projectId != selectedProject?.id,
+           let project = projects.first(where: { $0.id == projectId }) {
+            selectedProject = project
+        }
+    }
+
+    /// Called when a push notification is tapped.
+    public func openFromPush(notificationId: String?, feedbackId: String?) async {
+        selectedTab = .activity
+        await loadNotifications()
+        if let notificationId, let n = notifications.first(where: { $0.id == notificationId }) {
+            await markNotificationRead(n)
+            await focus(on: n)
+        }
+        pendingNotificationFeedbackId = feedbackId
+    }
+
+    /// Clears everything user-specific on sign-out.
+    public func resetForSignOut() {
+        projects = []
+        selectedProject = nil
+        feedbackItems = []
+        organizations = []
+        currentOrganization = nil
+        notifications = []
+        unreadNotificationCount = 0
+        PortalBadge.set(0)
+        UserDefaults.standard.removeObject(forKey: Self.currentOrganizationIdKey)
     }
 
     public func updateProjectGitHubRepo(projectId: String, githubRepo: String?) async throws {
@@ -204,7 +340,7 @@ public final class AppState: ObservableObject {
             try await client.updateFeedbackStatus(id: item.id, status: newStatus)
             // Reload project counts in background
             Task {
-                self.projects = (try? await client.fetchProjects()) ?? self.projects
+                self.projects = (try? await client.fetchProjects(organizationId: currentOrganization?.id)) ?? self.projects
             }
         } catch {
             // Revert on error
@@ -225,7 +361,7 @@ public final class AppState: ObservableObject {
         do {
             try await client.updateFeedbackArchive(id: item.id, isArchived: newArchived)
             Task {
-                self.projects = (try? await client.fetchProjects()) ?? self.projects
+                self.projects = (try? await client.fetchProjects(organizationId: currentOrganization?.id)) ?? self.projects
             }
         } catch {
             if let idx = feedbackItems.firstIndex(where: { $0.id == item.id }) {
@@ -243,7 +379,7 @@ public final class AppState: ObservableObject {
         do {
             try await client.deleteFeedbackItem(id: item.id)
             Task {
-                self.projects = (try? await client.fetchProjects()) ?? self.projects
+                self.projects = (try? await client.fetchProjects(organizationId: currentOrganization?.id)) ?? self.projects
             }
         } catch {
             await loadFeedback()
@@ -269,7 +405,7 @@ public final class AppState: ObservableObject {
         do {
             try await client.batchUpdateStatus(ids: ids, status: status)
             Task {
-                self.projects = (try? await client.fetchProjects()) ?? self.projects
+                self.projects = (try? await client.fetchProjects(organizationId: currentOrganization?.id)) ?? self.projects
             }
         } catch {
             await loadFeedback()
@@ -293,7 +429,7 @@ public final class AppState: ObservableObject {
         do {
             try await client.batchArchive(ids: ids, isArchived: isArchived)
             Task {
-                self.projects = (try? await client.fetchProjects()) ?? self.projects
+                self.projects = (try? await client.fetchProjects(organizationId: currentOrganization?.id)) ?? self.projects
             }
         } catch {
             await loadFeedback()
@@ -313,7 +449,7 @@ public final class AppState: ObservableObject {
         do {
             try await client.batchDelete(ids: ids)
             Task {
-                self.projects = (try? await client.fetchProjects()) ?? self.projects
+                self.projects = (try? await client.fetchProjects(organizationId: currentOrganization?.id)) ?? self.projects
             }
         } catch {
             await loadFeedback()

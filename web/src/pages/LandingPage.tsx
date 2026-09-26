@@ -52,10 +52,31 @@ const features = [
       "The optional dashboard turns a report into a ready-to-paste prompt via a plain, editable template — no templating language to learn.",
   },
   {
+    title: "Built for teams",
+    description:
+      "Invite teammates with a link, switch between organizations, and keep every project behind Postgres row-level security.",
+  },
+  {
+    title: "Notified the moment it matters",
+    description:
+      "New reports, reporter replies, and fixes confirmed or reopened show up live in the dashboard and as push notifications in the Portal app.",
+  },
+  {
     title: "Multi-project, multi-tenant",
     description:
       "Organizations, projects, and per-project prompt templates, with Postgres row-level security enforcing tenancy, not application code.",
   },
+];
+
+// Where the SDK runs today, and what's next. Android needs its own native
+// SDK (capture, annotation UI, report contract) rather than a port, so it's
+// listed as coming soon instead of pretending otherwise.
+const platforms: { name: string; soon?: boolean }[] = [
+  { name: "iOS & iPadOS" },
+  { name: "macOS" },
+  { name: "watchOS" },
+  { name: "Web" },
+  { name: "Android", soon: true },
 ];
 
 const codeSample = `FeedbackKit.configure(
@@ -173,8 +194,27 @@ export function LandingPage() {
                   View on GitHub
                 </a>
               </div>
+              <ul className="mt-6 flex flex-wrap items-center gap-2" aria-label="Supported platforms">
+                {platforms.map((platform) => (
+                  <li
+                    key={platform.name}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+                      platform.soon
+                        ? "border border-dashed border-neutral-300 text-neutral-500"
+                        : "border border-neutral-200 bg-white/70 text-neutral-700"
+                    }`}
+                  >
+                    {platform.name}
+                    {platform.soon ? (
+                      <span className="rounded-full bg-amber-100 px-1.5 py-px text-[10px] font-semibold text-amber-800">
+                        Coming soon
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
               <p className="mt-4 text-xs text-neutral-400">
-                Swift Package. No dashboard required — bring your own backend, or use ours.
+                Swift Package and npm. No dashboard required — bring your own backend, or use ours.
               </p>
             </div>
             <div className="animate-fade-up" style={{ animationDelay: "150ms" }}>

@@ -232,7 +232,8 @@ export interface CliSession {
   revoked_at: string | null;
 }
 
-export type BillingPlan = "free" | "pro";
+/** `pro` predates the per-seat Team plan; see supabase/migrations/0016_teams.sql. */
+export type BillingPlan = "free" | "pro" | "team";
 
 /** Mirrors Stripe's own subscription statuses, plus "none" — see supabase/migrations/0009_billing.sql. */
 export type BillingStatus =
@@ -255,5 +256,84 @@ export interface OrganizationBilling {
   stripe_subscription_id: string | null;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
+  /** Subscription quantity reported by Stripe (Team plan); null before any subscription. */
+  seats: number | null;
+  updated_at: string;
+}
+
+export type MembershipRole = "owner" | "member";
+
+/** An organization the signed-in user belongs to, with their role in it. */
+export interface OrganizationSummary {
+  id: string;
+  name: string;
+  role: MembershipRole;
+}
+
+/** A row from the `organization_members` RPC (0016_teams.sql). */
+export interface OrganizationMember {
+  user_id: string;
+  role: MembershipRole;
+  joined_at: string;
+  email: string | null;
+  full_name: string | null;
+  user_name: string | null;
+  avatar_url: string | null;
+}
+
+/** Mirrors `organization_invitations` (0016_teams.sql); readable by owners only. */
+export interface OrganizationInvitation {
+  id: string;
+  organization_id: string;
+  email: string | null;
+  role: MembershipRole;
+  token: string;
+  created_by: string | null;
+  created_at: string;
+  expires_at: string;
+  accepted_at: string | null;
+  accepted_by: string | null;
+  revoked_at: string | null;
+}
+
+/** What `get_invitation` returns for the invite page. */
+export interface InvitationPreview {
+  status: "pending" | "expired" | "revoked" | "accepted" | "not_found";
+  organization_id?: string;
+  organization_name?: string;
+  inviter_name?: string | null;
+  role?: MembershipRole;
+  email?: string | null;
+  expires_at?: string;
+  already_member?: boolean;
+}
+
+/** Mirrors `notifications.kind` (0017_notifications.sql). */
+export type NotificationKind =
+  | "new_feedback"
+  | "reporter_reply"
+  | "reopened"
+  | "verified"
+  | "fix_merged"
+  | "member_joined";
+
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  organization_id: string;
+  project_id: string | null;
+  feedback_id: string | null;
+  kind: NotificationKind;
+  title: string;
+  body: string | null;
+  data: Record<string, unknown>;
+  created_at: string;
+  read_at: string | null;
+}
+
+export interface NotificationPreferences {
+  user_id: string;
+  muted_kinds: NotificationKind[];
+  push_enabled: boolean;
   updated_at: string;
 }

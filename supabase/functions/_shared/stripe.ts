@@ -19,7 +19,24 @@ export function getStripe(): Stripe | null {
   return cached;
 }
 
-/** The Stripe Price id for the (currently only) paid plan. */
-export function getProPriceId(): string | null {
-  return Deno.env.get("STRIPE_PRICE_ID_PRO") ?? null;
+/**
+ * The Stripe Price id for the Team plan: a recurring per-seat price, billed
+ * with quantity = the organization's member count. STRIPE_PRICE_ID_PRO is
+ * still read as a fallback for projects configured before Team existed.
+ */
+export function getTeamPriceId(): string | null {
+  return Deno.env.get("STRIPE_PRICE_ID_TEAM") ?? Deno.env.get("STRIPE_PRICE_ID_PRO") ?? null;
+}
+
+// deno-lint-ignore no-explicit-any
+type AdminClient = { from: (table: string) => any };
+
+/** Seats billed for an organization: one per member. */
+export async function countSeats(admin: AdminClient, organizationId: string): Promise<number> {
+  const { count, error } = await admin
+    .from("memberships")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId);
+  if (error) throw new Error(`failed to count members: ${error.message}`);
+  return Math.max(1, count ?? 1);
 }

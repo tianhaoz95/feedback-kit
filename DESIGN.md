@@ -593,6 +593,49 @@ pushing to main need to rebase and retry. External TestFlight groups can
 still wait on Beta App Review; the internal group gets every build at once.
 Demo apps ship on releases only, not betas.
 
+## 9. Teams, notifications, and per-seat billing
+
+**Teams (`0016_teams.sql`).** Membership was always many-to-many; this made
+it usable. An owner creates an **invitation link** (`/invite/<token>`),
+optionally locked to an email, single-use, expiring in 7 days. There's no
+email delivery on purpose (no mail infrastructure to run), so the owner
+shares the link; the invite page is readable signed out, and the token
+survives the GitHub OAuth round trip (`web/src/lib/pendingInvite.ts`). Every
+membership write goes through SECURITY DEFINER functions
+(`create_invitation`, `accept_invitation`, `update_member_role`,
+`remove_member`, `create_organization`, `delete_organization`) instead of a
+broad owner policy, so the invariants live in one place: only owners manage
+people, anyone can leave, and an organization always keeps an owner. The old
+`for all` owner policy on `memberships` is dropped. Clients (dashboard,
+Portal) pick a **current organization** and scope list screens to it;
+screens reached by id keep working across organizations, because RLS decides.
+
+**Notifications (`0017_notifications.sql`).** One `notifications` row per
+recipient, written by **triggers** on `feedback_items`, `feedback_events`
+and `memberships`. Triggers, not the writers, because there are many
+writers (ingest, reporter-updates, github-webhook, CLI, dashboard) and none
+of them should have to know notifications exist. The actor is never
+notified about their own action; per-user muted kinds live in
+`notification_preferences`. Only `read_at` is client-writable (column grant).
+Delivery:
+
+- **Web**: Supabase Realtime on the user's rows (bell + live count), plus
+  optional browser `Notification`s while a tab is open. No web push, since
+  that needs a service worker and a push server.
+- **iOS Portal**: APNs push. An `after insert` trigger calls the `send-push`
+  Edge Function through `pg_net`, authenticated by a shared secret read from
+  Vault. Like billing it's **dormant until configured**: no Vault secrets, no
+  call; no APNs key, the function answers `push_not_configured`. The trigger
+  swallows every error, so push can never block a report from being stored.
+- **Mac Portal**: polls once a minute and badges the Dock. No push.
+
+**Per-seat billing.** The Team plan is priced per member
+(`web/src/lib/pricing.ts`, placeholder $15/member/month until a Stripe Price
+exists). Checkout sends quantity = member count, and `sync-billing-seats` (called
+best-effort after joins/leaves) keeps a live subscription's quantity in
+step. Only owners can start checkout. Still dummy until
+`STRIPE_SECRET_KEY`/`STRIPE_PRICE_ID_TEAM` are set.
+
 ## Repo layout
 
 ```
@@ -618,9 +661,12 @@ scripts/               setup.sh, run-ios.sh, start-web.sh — see README.md
   in `ProjectsPage.tsx`'s create-project flow, or an RLS policy referencing
   `organization_billing`) is real work to do once there's an actual limit to
   enforce, not before.
-- **No organization switcher.** The schema supports one user belonging to
-  multiple orgs; the dashboard UI just uses the first membership found. Fine
-  until someone is actually on two teams.
+- **No email.** Invitations are links the owner shares, and notifications
+  reach people through the dashboard, browser notifications and Portal
+  push, never email, to avoid running mail infrastructure.
+- **No Android SDK yet.** The landing page and setup screens list it as
+  coming soon. It needs its own native capture and annotation UI producing
+  the same report contract, not a port.
 - **No offline queueing in the SDK.** If `presentAndSubmit` fails (no
   network), the report is just lost unless the developer's own completion
   handler does something with it. A disk-backed retry queue is the natural

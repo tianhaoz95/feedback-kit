@@ -1,23 +1,24 @@
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { getCurrentOrganizationId } from "@/lib/organization";
+import { useOrganization } from "@/lib/organization";
 import { getErrorMessage } from "@/lib/errors";
+import { billableSeats, formatUsd, TEAM_PRICE_PER_SEAT_USD, teamMonthlyTotal } from "@/lib/pricing";
 import type { OrganizationBilling } from "@/lib/types";
 import { Button } from "@/components/Button";
-import { CheckIcon, CreditCardIcon } from "@/components/icons";
+import { CheckIcon, CreditCardIcon, UsersIcon } from "@/components/icons";
 
-// Placeholder pricing/feature copy — there's no real Stripe product yet
-// (see supabase/functions/create-checkout-session and
-// supabase/migrations/0009_billing.sql). Update this once one exists; it's
-// not read from anywhere else, just written here for the page to show.
-const PRO_PRICE = "$29/month";
+// Placeholder feature copy — there's no real Stripe product yet (see
+// supabase/functions/create-checkout-session and
+// supabase/migrations/0009_billing.sql / 0016_teams.sql). The price lives in
+// lib/pricing.ts.
 const FREE_FEATURES = ["1 project", "Up to 50 feedback reports / month", "Community support"];
-const PRO_FEATURES = [
-  "Unlimited projects",
-  "Unlimited feedback reports",
+const TEAM_FEATURES = [
+  "Unlimited projects and reports",
+  "Invite your whole team",
+  "Notifications on web and the Portal app",
   "Priority email support",
-  "Custom prompt templates per project",
 ];
 
 const STATUS_LABEL: Record<OrganizationBilling["status"], string> = {
@@ -32,34 +33,34 @@ const STATUS_LABEL: Record<OrganizationBilling["status"], string> = {
 };
 
 export function BillingPage() {
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const { current } = useOrganization();
+  const organizationId = current?.id ?? null;
+  const isOwner = current?.role === "owner";
   const [billing, setBilling] = useState<OrganizationBilling | null | undefined>(undefined);
+  const [memberCount, setMemberCount] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [billingNotConfigured, setBillingNotConfigured] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
+    if (!organizationId) return;
     let cancelled = false;
     (async () => {
       try {
-        const orgId = await getCurrentOrganizationId();
+        const [billingRes, membersRes] = await Promise.all([
+          supabase
+            .from("organization_billing")
+            .select("*")
+            .eq("organization_id", organizationId)
+            .single<OrganizationBilling>(),
+          supabase.from("memberships").select("id", { count: "exact", head: true }).eq("organization_id", organizationId),
+        ]);
         if (cancelled) return;
-        if (!orgId) {
-          setLoadError("No organization is associated with your account.");
-          setBilling(null);
-          return;
-        }
-        setOrganizationId(orgId);
-
-        const { data, error } = await supabase
-          .from("organization_billing")
-          .select("*")
-          .eq("organization_id", orgId)
-          .single<OrganizationBilling>();
-        if (cancelled) return;
-        if (error) throw error;
-        setBilling(data);
+        if (billingRes.error) throw billingRes.error;
+        setLoadError(null);
+        setBilling(billingRes.data);
+        setMemberCount(membersRes.count ?? 1);
       } catch (err) {
         if (!cancelled) {
           setLoadError(getErrorMessage(err, "Couldn't load billing information."));
@@ -70,7 +71,7 @@ export function BillingPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [organizationId]);
 
   async function handleFunctionError(error: unknown) {
     if (error instanceof FunctionsHttpError) {
@@ -125,7 +126,7 @@ export function BillingPage() {
     });
   }
 
-  if (billing === undefined) {
+  if (!current || (billing === undefined && !loadError)) {
     return (
       <div className="space-y-3">
         <div className="h-4 w-24 animate-pulse rounded bg-neutral-200" />
@@ -134,7 +135,7 @@ export function BillingPage() {
     );
   }
 
-  if (loadError || billing === null) {
+  if (loadError || !billing) {
     return (
       <div className="space-y-2">
         <h1 className="text-xl font-semibold text-neutral-900">Billing</h1>
@@ -145,21 +146,24 @@ export function BillingPage() {
     );
   }
 
-  const isPaid = billing.plan === "pro";
+  const isPaid = billing.plan !== "free";
+  const seats = billableSeats(billing.seats ?? memberCount ?? 1);
+  const total = teamMonthlyTotal(seats);
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-xl font-semibold text-neutral-900">Billing</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          FeedbackKit is free while it's early — this is where a subscription will live once
-          there's a paid plan to subscribe to.
+          Billing is per organization. You're looking at{" "}
+          <span className="font-medium text-neutral-700">{current.name}</span>. FeedbackKit is free while it's early;
+          the Team plan below isn't live yet.
         </p>
       </div>
 
       {billingNotConfigured ? (
         <div className="rounded-lg border border-dashed border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
-          Billing isn't set up yet — check back soon.
+          Payments aren't switched on yet, so nothing was charged. Check back soon.
         </div>
       ) : null}
       {actionError ? (
@@ -173,16 +177,17 @@ export function BillingPage() {
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-lg font-semibold capitalize text-neutral-900">{billing.plan}</p>
+            <p className="text-lg font-semibold text-neutral-900">{isPaid ? "Team" : "Free"}</p>
             <p className="text-sm text-neutral-500">
               {STATUS_LABEL[billing.status]}
+              {isPaid ? ` · ${seats} ${seats === 1 ? "seat" : "seats"} · ${formatUsd(total)}/month` : ""}
               {billing.current_period_end
                 ? ` · Renews ${new Date(billing.current_period_end).toLocaleDateString()}`
                 : ""}
               {billing.cancel_at_period_end ? " · Cancels at period end" : ""}
             </p>
           </div>
-          {isPaid ? (
+          {isPaid && isOwner ? (
             <Button variant="secondary" size="sm" disabled={isPending} onClick={manage}>
               {isPending ? "Opening…" : "Manage billing"}
             </Button>
@@ -194,13 +199,33 @@ export function BillingPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           <PlanCard title="Free" price="$0" features={FREE_FEATURES} current />
           <PlanCard
-            title="Pro"
-            price={PRO_PRICE}
-            features={PRO_FEATURES}
+            title="Team"
+            price={formatUsd(TEAM_PRICE_PER_SEAT_USD)}
+            priceNote="per member / month"
+            features={TEAM_FEATURES}
+            highlight
             action={
-              <Button size="sm" disabled={isPending} onClick={upgrade} className="w-full">
-                {isPending ? "Opening…" : "Upgrade to Pro"}
-              </Button>
+              <div className="space-y-3">
+                <div className="rounded-lg bg-neutral-50 p-3 text-sm">
+                  <div className="flex items-center justify-between text-neutral-600">
+                    <span className="flex items-center gap-1.5">
+                      <UsersIcon className="h-4 w-4 text-neutral-400" />
+                      {seats} {seats === 1 ? "member" : "members"} × {formatUsd(TEAM_PRICE_PER_SEAT_USD)}
+                    </span>
+                    <span className="font-semibold text-neutral-900">{formatUsd(total)}/mo</span>
+                  </div>
+                  <p className="mt-1 text-xs text-neutral-500">
+                    Seats follow your <Link to="/team" className="underline">team</Link>: adding or removing someone
+                    changes the next invoice, prorated.
+                  </p>
+                </div>
+                <Button size="sm" disabled={isPending || !isOwner} onClick={upgrade} className="w-full">
+                  {isPending ? "Opening…" : `Upgrade to Team · ${formatUsd(total)}/mo`}
+                </Button>
+                {!isOwner ? (
+                  <p className="text-center text-xs text-neutral-500">Only an owner of {current.name} can change the plan.</p>
+                ) : null}
+              </div>
             }
           />
         </div>
@@ -212,18 +237,26 @@ export function BillingPage() {
 function PlanCard({
   title,
   price,
+  priceNote,
   features,
   current = false,
+  highlight = false,
   action,
 }: {
   title: string;
   price: string;
+  priceNote?: string;
   features: string[];
   current?: boolean;
-  action?: React.ReactNode;
+  highlight?: boolean;
+  action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+    <div
+      className={`flex flex-col rounded-xl border bg-white p-5 shadow-sm ${
+        highlight ? "border-neutral-900 ring-1 ring-neutral-900" : "border-neutral-200"
+      }`}
+    >
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-neutral-900">{title}</h3>
         {current ? (
@@ -232,7 +265,10 @@ function PlanCard({
           </span>
         ) : null}
       </div>
-      <p className="mt-2 text-2xl font-semibold text-neutral-900">{price}</p>
+      <p className="mt-2 text-2xl font-semibold text-neutral-900">
+        {price}
+        {priceNote ? <span className="ml-1 text-sm font-normal text-neutral-500">{priceNote}</span> : null}
+      </p>
       <ul className="mt-4 flex-1 space-y-2 text-sm text-neutral-600">
         {features.map((feature) => (
           <li key={feature} className="flex items-start gap-2">

@@ -33,8 +33,9 @@ async function upsertFromSubscription(subscription: Stripe.Subscription, organiz
   const { error } = await admin()
     .from("organization_billing")
     .update({
-      plan: "pro",
+      plan: "team",
       status: toBillingStatus(subscription.status),
+      seats: item?.quantity ?? null,
       stripe_subscription_id: subscription.id,
       current_period_end: item ? new Date(item.current_period_end * 1000).toISOString() : null,
       cancel_at_period_end: subscription.cancel_at_period_end,

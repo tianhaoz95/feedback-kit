@@ -46,7 +46,7 @@ export function DocsOverviewPage() {
       <DocsTitle
         eyebrow="Documentation"
         title="FeedbackKit documentation"
-        description="FeedbackKit is an iOS, macOS, watchOS, and web SDK for capturing in-app feedback, plus tools to consume it: a hosted dashboard, a CLI, an MCP server, and Agent Skills for coding agents. Pick the pages you need — each piece works without the others."
+        description="FeedbackKit is an iOS, macOS, watchOS, and web SDK for capturing in-app feedback, plus tools to consume it: a hosted dashboard for your team, a CLI, an MCP server, and Agent Skills for coding agents. An Android SDK is coming soon. Pick the pages you need — each piece works without the others."
       />
 
       <DocsSection title="See the whole loop first">

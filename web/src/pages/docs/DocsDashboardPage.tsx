@@ -96,10 +96,49 @@ export function DocsDashboardPage() {
 
       <DocsSection title="Teams">
         <p>
-          An organization can have multiple members (owners and members) sharing its projects and
-          feedback — row-level security is what actually enforces that one organization can never see
-          another's data, not application-level checks. There's no organization switcher yet, so the
-          dashboard assumes one membership per user for now.
+          An organization holds projects, and everyone in it sees the same projects and reports. Signing in for
+          the first time gives you your own organization; you can belong to as many as you like and switch between
+          them from the organization menu next to the logo.
+        </p>
+        <p>
+          To add someone, open <InlineCode>Team</InlineCode>, create an invite link and send it to them. Links work
+          once and expire after 7 days. Add an email to make sure only that person can use it (they need to sign in
+          to GitHub with that email). The person opens the link, signs in with GitHub, and joins.
+        </p>
+        <DocsTable
+          columns={["", "Owner", "Member"]}
+          rows={[
+            ["See and triage projects and reports", "✓", "✓"],
+            ["Invite people, change roles, remove members", "✓", ""],
+            ["Rename or delete the organization, change the plan", "✓", ""],
+            ["Leave the organization", "✓ (if another owner remains)", "✓"],
+          ]}
+        />
+        <DocsCallout>
+          Row-level security in Postgres is what keeps one organization's data away from another's, and the
+          membership rules (for example, an organization always keeps at least one owner) are enforced in the
+          database, not only in the UI.
+        </DocsCallout>
+      </DocsSection>
+
+      <DocsSection title="Notifications">
+        <p>
+          The bell in the header shows what happened across all your organizations, live: new reports, replies from
+          reporters, reports reopened as still broken, fixes the reporter confirmed, fixes merged, and people joining.
+          You're never notified about something you did yourself.
+        </p>
+        <p>
+          On the <InlineCode>Notifications</InlineCode> page you can mute any of those, turn on desktop notifications
+          for this browser (shown while a dashboard tab is open), and choose whether the Developer Portal app on your
+          iPhone or iPad gets push notifications. The Portal's Activity tab shows the same list.
+        </p>
+      </DocsSection>
+
+      <DocsSection title="Billing">
+        <p>
+          Billing is per organization. The Team plan is priced per member per month, so adding or removing someone
+          changes the next invoice. Only owners can change the plan. Paid plans aren't switched on yet: FeedbackKit is
+          free for now.
         </p>
       </DocsSection>
 

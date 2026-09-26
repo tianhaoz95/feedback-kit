@@ -436,6 +436,11 @@ verify_jwt = false
 [functions.ci-release]
 verify_jwt = false
 
+# Called by the database (pg_net trigger in 0017_notifications.sql), not a
+# signed-in user: authenticated by the x-push-secret header instead.
+[functions.send-push]
+verify_jwt = false
+
 
 [analytics]
 enabled = true

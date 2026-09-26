@@ -140,6 +140,7 @@ public final class SupabasePortalClient: ObservableObject {
         self.demoFeedback = DemoData.sampleFeedbackItems
         self.demoTemplates = DemoData.samplePromptTemplates
         self.demoSessions = DemoData.sampleCliSessions
+        PortalDemoTeamStore.shared.reset()
         self.currentSession = PortalUserSession(
             accessToken: "demo_access_token",
             refreshToken: "demo_refresh_token",
@@ -191,7 +192,7 @@ public final class SupabasePortalClient: ObservableObject {
 
     // MARK: - HTTP Helpers
 
-    private func makeRequest(
+    func makeRequest(
         path: String,
         method: String = "GET",
         queryItems: [URLQueryItem]? = nil,
@@ -264,7 +265,7 @@ public final class SupabasePortalClient: ObservableObject {
         return false
     }
 
-    private func executeRequest(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+    func executeRequest(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw URLError(.badServerResponse)
@@ -287,10 +288,11 @@ public final class SupabasePortalClient: ObservableObject {
 
     // MARK: - Projects
 
-    public func fetchProjects() async throws -> [PortalProject] {
+    /// Projects the user can see, optionally only one organization's.
+    public func fetchProjects(organizationId: String? = nil) async throws -> [PortalProject] {
         if isDemoMode {
             // Update stats
-            return demoProjects.map { project in
+            return demoProjects.filter { organizationId == nil || $0.organizationId == organizationId }.map { project in
                 var p = project
                 let items = demoFeedback.filter { $0.projectId == project.id && !$0.isArchived }
                 p.feedbackCount = items.count
@@ -299,10 +301,14 @@ public final class SupabasePortalClient: ObservableObject {
             }
         }
 
-        let request = try makeRequest(path: "/rest/v1/projects", queryItems: [
+        var projectQuery = [
             URLQueryItem(name: "select", value: "*"),
             URLQueryItem(name: "order", value: "created_at.desc")
-        ])
+        ]
+        if let organizationId {
+            projectQuery.append(URLQueryItem(name: "organization_id", value: "eq.\(organizationId)"))
+        }
+        let request = try makeRequest(path: "/rest/v1/projects", queryItems: projectQuery)
 
         let (data, httpResponse) = try await executeRequest(request)
         guard (200...299).contains(httpResponse.statusCode) else {
@@ -334,13 +340,13 @@ public final class SupabasePortalClient: ObservableObject {
         return projects
     }
 
-    public func createProject(name: String, githubRepo: String? = nil) async throws -> PortalProject {
+    public func createProject(name: String, githubRepo: String? = nil, organizationId: String? = nil) async throws -> PortalProject {
         if isDemoMode {
             let newId = "proj-\(UUID().uuidString.prefix(6))"
             let newKey = "fk_live_\(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(24))"
             let newProj = PortalProject(
                 id: newId,
-                organizationId: "org-1",
+                organizationId: organizationId ?? "org-1",
                 name: name,
                 projectKey: newKey,
                 createdAt: Date(),
@@ -353,7 +359,17 @@ public final class SupabasePortalClient: ObservableObject {
             return newProj
         }
 
+        // organization_id is required (projects belong to one organization);
+        // fall back to the first one the user belongs to.
+        var resolvedOrganizationId = organizationId
+        if resolvedOrganizationId == nil {
+            resolvedOrganizationId = try await fetchOrganizations().first?.id
+        }
+        guard let resolvedOrganizationId else {
+            throw PortalAPIError(status: 400, message: "Join or create an organization first.")
+        }
         let payload: [String: Any] = [
+            "organization_id": resolvedOrganizationId,
             "name": name,
             "project_key": "fk_live_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))",
             "github_repo": githubRepo as Any

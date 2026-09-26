@@ -4,6 +4,7 @@ import FeedbackKit
 public struct ProjectsListView: View {
     @EnvironmentObject private var appState: AppState
     @State private var isNewProjectSheetPresented = false
+    @State private var isShowingTeam = false
     @State private var searchText = ""
 
     private var filteredProjects: [PortalProject] {
@@ -109,6 +110,11 @@ public struct ProjectsListView: View {
             .navigationTitle("Projects")
             .searchable(text: $searchText, prompt: "Search projects...")
             .toolbar {
+                if appState.organizations.count > 0 {
+                    ToolbarItem(placement: .topBarLeading) {
+                        organizationMenu
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         isNewProjectSheetPresented = true
@@ -121,10 +127,47 @@ public struct ProjectsListView: View {
             .sheet(isPresented: $isNewProjectSheetPresented) {
                 NewProjectSheet()
             }
+            .navigationDestination(isPresented: $isShowingTeam) {
+                TeamView()
+            }
             .onAppear {
                 FeedbackKit.currentScreen = "Projects"
             }
         }
+    }
+
+    /// Switches which organization's projects (and feedback) the Portal shows.
+    private var organizationMenu: some View {
+        Menu {
+            Picker("Organization", selection: Binding(
+                get: { appState.currentOrganization?.id ?? "" },
+                set: { id in
+                    if let org = appState.organizations.first(where: { $0.id == id }) {
+                        Task { await appState.switchOrganization(to: org) }
+                    }
+                }
+            )) {
+                ForEach(appState.organizations) { org in
+                    Text(org.name).tag(org.id)
+                }
+            }
+            Divider()
+            Button {
+                isShowingTeam = true
+            } label: {
+                Label("Team & Invitations", systemImage: "person.2")
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "building.2")
+                Text(appState.currentOrganization?.name ?? "Organization")
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+            }
+            .font(.subheadline.weight(.medium))
+        }
+        .accessibilityLabel("Organization: \(appState.currentOrganization?.name ?? "none")")
     }
 
     private func projectRow(project: PortalProject) -> some View {

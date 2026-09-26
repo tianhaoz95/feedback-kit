@@ -22,7 +22,7 @@ export const DOCS_TOPICS: DocTopic[] = [
     summary: "What FeedbackKit is and how its four pieces fit together. For the end-to-end walkthrough, see `lifecycle`.",
     content: `# FeedbackKit overview
 
-FeedbackKit is an iOS/macOS/watchOS SDK — plus a web SDK for websites (see the \`web-sdk\` topic) — for capturing in-app feedback, plus three optional ways to consume it: a hosted dashboard, a CLI, and an MCP server for coding agents. Each piece works without the others.
+FeedbackKit is an iOS/macOS/watchOS SDK — plus a web SDK for websites (see the \`web-sdk\` topic) — for capturing in-app feedback, plus three optional ways to consume it: a hosted dashboard for your team, a CLI, and an MCP server for coding agents. Each piece works without the others. An Android SDK is coming soon; it isn't available yet.
 
 ## The four pieces
 
@@ -355,7 +355,7 @@ The project key is visible in page source. In the dashboard, Settings → Allowe
   {
     slug: "dashboard",
     title: "Web dashboard",
-    summary: "Sign-in, projects, prompt templates, teams, and self-hosting.",
+    summary: "Sign-in, projects, prompt templates, teams and invitations, notifications, billing, and self-hosting.",
     content: `# Web dashboard
 
 An optional hosted dashboard: receive feedback the SDK submits, organize it by project, and turn it into a ready-to-paste prompt for a coding agent.
@@ -402,7 +402,17 @@ Edit the project's default template anytime in the project's Settings tab — it
 
 ## Teams
 
-An organization can have multiple members sharing its projects — row-level security enforces that one organization can never see another's data. No organization switcher yet (assumes one membership per user).
+Everyone in an organization sees the same projects and reports; row-level security keeps organizations apart. A person can belong to several and switches between them from the menu next to the logo (the CLI and MCP server see every organization you're in).
+
+To add someone: **Team** → create an invite link and send it. Links are single-use and expire after 7 days; add an email to lock one to a person (they must sign in to GitHub with that email). Owners invite, change roles, remove members, rename/delete the organization and change the plan; members can see and triage everything and leave. An organization always keeps at least one owner (enforced in the database).
+
+## Notifications
+
+The header bell shows new reports, reporter replies, reports reopened as still broken, fixes confirmed by the reporter, merged fixes, and people joining — live, across every organization, never about your own actions. The Notifications page mutes kinds, turns on browser desktop notifications, and controls push to the iOS Developer Portal (whose Activity tab shows the same list).
+
+## Billing
+
+Per organization. The Team plan is priced per member per month; only owners change it. Paid plans aren't switched on yet.
 
 ## CLI access
 

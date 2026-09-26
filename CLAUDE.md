@@ -362,7 +362,7 @@ Rules for skills:
   instead of failing weirdly, which `web/src/pages/BillingPage.tsx` renders
   as a plain "billing isn't set up yet" notice. This means turning on real
   billing later — `supabase secrets set STRIPE_SECRET_KEY=... STRIPE_WEBHOOK_SECRET=...
-  STRIPE_PRICE_ID_PRO=...` on the hosted project, then registering the
+  STRIPE_PRICE_ID_TEAM=...` on the hosted project, then registering the
   webhook URL in the Stripe Dashboard — needs zero schema or app-code
   changes. The checkout/portal functions authenticate the caller with their
   own Supabase JWT (`verify_jwt` left at its default `true`) and use an
@@ -548,6 +548,34 @@ Rules for skills:
   per-minute cap on server-set `received_at`. Both fail open if the columns
   are missing, so function and migration can deploy in either order — keep
   that property when adding checks.
+- **Teams (`0016_teams.sql`, DESIGN.md §9): membership writes only go
+  through SECURITY DEFINER functions** (`create_invitation`,
+  `accept_invitation`, `update_member_role`, `remove_member`,
+  `create_organization`, `delete_organization`, `organization_members`).
+  The old `for all` owner policy on `memberships` is gone, so a direct
+  insert/update/delete on `memberships` from a client fails. Add new
+  membership rules to those functions (they enforce "an organization always
+  keeps an owner"), not as client-side checks. The dashboard's current
+  organization is `useOrganization()` (`web/src/lib/organization.tsx`); the
+  Portal's is `AppState.currentOrganization`. List/create screens scope to
+  it, and pages reached by id don't need to.
+- **Notifications (`0017_notifications.sql`) are written by triggers**
+  on `feedback_items`, `feedback_events` and `memberships`, never by the
+  writers themselves. A new event kind worth notifying about goes in
+  `notify_feedback_event()` plus the `notifications.kind` check, and must be
+  mirrored by hand in `web/src/lib/types.ts` (`NotificationKind`),
+  `web/src/lib/notificationFormat.ts` labels, and the Portal's
+  `PortalNotification.iconName`. Push to the iOS Portal goes trigger →
+  `pg_net` → `send-push` (verify_jwt off, `x-push-secret` header) → APNs.
+  It's dormant until the Vault secrets and APNs secrets exist (README
+  "Turning on push notifications"), and the trigger must keep swallowing
+  errors so push can never fail a report insert. The Mac Portal has no push
+  and polls instead.
+- **Billing is per seat.** Team plan = member count × the price in
+  `web/src/lib/pricing.ts` (mirrored as `TeamView.teamPricePerSeat` in the
+  Portal). Checkout is owner-only and sends quantity = members;
+  `sync-billing-seats` is called best-effort after membership changes and
+  answers 501 until Stripe is configured.
 - **RLS helper functions that query the same table their policy protects
   must be PL/pgSQL, not `language sql`, and every policy on that table needs
   the same treatment.** This bit us for real: `auth_organization_ids()` (used

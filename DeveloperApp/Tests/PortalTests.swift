@@ -473,4 +473,131 @@ final class PortalTests: XCTestCase {
         let host = UIHostingController(rootView: FixLoopSectionView(item: item))
         XCTAssertNotNil(host.view)
     }
+
+    // MARK: - Teams & notifications (0016_teams.sql, 0017_notifications.sql)
+
+    func testDecodesTeamRowsFromTheServer() throws {
+        let members = try JSONDecoder().decode([PortalMember].self, from: Data("""
+        [{"user_id":"u1","role":"owner","joined_at":"2026-09-26T10:00:00.123+00:00","email":"a@x.dev",
+          "full_name":null,"user_name":"alice","avatar_url":null},
+         {"user_id":"u2","role":"billing_admin","joined_at":"2026-09-26T10:00:00+00:00","email":null,
+          "full_name":"Bob","user_name":null,"avatar_url":null}]
+        """.utf8))
+        XCTAssertEqual(members[0].displayName, "alice")
+        XCTAssertEqual(members[0].role, .owner)
+        // A role the app doesn't know yet decodes as the least-privileged one.
+        XCTAssertEqual(members[1].role, .member)
+        XCTAssertEqual(members[1].displayName, "Bob")
+
+        let rows = try JSONDecoder().decode([PortalMembershipRow].self, from: Data("""
+        [{"role":"member","organizations":{"id":"o1","name":"Acme"}},{"role":"owner","organizations":null}]
+        """.utf8))
+        XCTAssertEqual(rows.compactMap { $0.organizations?.name }, ["Acme"])
+
+        let invite = try JSONDecoder().decode(PortalInvitation.self, from: Data("""
+        {"id":"i1","organization_id":"o1","email":null,"role":"member","token":"fki_abc","created_by":"u1",
+         "created_at":"2026-09-26T10:00:00+00:00","expires_at":"2026-10-03T10:00:00+00:00",
+         "accepted_at":null,"accepted_by":null,"revoked_at":null}
+        """.utf8))
+        XCTAssertEqual(invite.url.absoluteString, "https://feedback-kit.hejitech.workers.dev/invite/fki_abc")
+    }
+
+    func testDecodesNotificationsAndToleratesNewKinds() throws {
+        let list = try JSONDecoder().decode([PortalNotification].self, from: Data("""
+        [{"id":"n1","user_id":"u","organization_id":"o","project_id":"p","feedback_id":"f","kind":"reopened",
+          "title":"Reporter says it's still broken · Acme","body":"Pay button","data":{},
+          "created_at":"2026-09-26T10:00:00+00:00","read_at":null},
+         {"id":"n2","user_id":"u","organization_id":"o","project_id":null,"feedback_id":null,"kind":"something_new",
+          "title":"Hello","body":null,"data":{},"created_at":"2026-09-26T09:00:00+00:00","read_at":"2026-09-26T09:30:00+00:00"}]
+        """.utf8))
+        XCTAssertFalse(list[0].isRead)
+        XCTAssertEqual(list[0].iconName, "arrow.uturn.backward.circle.fill")
+        XCTAssertTrue(list[1].isRead)
+        XCTAssertEqual(list[1].iconName, "bell.fill")
+    }
+
+    func testAPIErrorCarriesTheServerMessage() {
+        let error = PortalAPIError.from(
+            data: Data(#"{"code":"22023","message":"an organization needs at least one owner"}"#.utf8),
+            status: 400
+        )
+        XCTAssertEqual(error.localizedDescription, "an organization needs at least one owner")
+    }
+
+    @MainActor
+    func testDemoTeamKeepsAnOwner() async throws {
+        let client = SupabasePortalClient.shared
+        client.enableDemoMode()
+        let members = try await client.fetchMembers(organizationId: "org-1")
+        let owner = try XCTUnwrap(members.first { $0.role == .owner })
+
+        do {
+            try await client.updateMemberRole(organizationId: "org-1", userId: owner.userId, role: .member)
+            XCTFail("demoting the only owner should fail")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("at least one owner"))
+        }
+
+        let other = try XCTUnwrap(members.first { $0.role == .member })
+        try await client.updateMemberRole(organizationId: "org-1", userId: other.userId, role: .owner)
+        try await client.updateMemberRole(organizationId: "org-1", userId: owner.userId, role: .member)
+        let after = try await client.fetchMembers(organizationId: "org-1")
+        XCTAssertEqual(after.first { $0.userId == owner.userId }?.role, .member)
+
+        let invite = try await client.createInvitation(organizationId: "org-1", email: "  ", role: .member)
+        XCTAssertNil(invite.email, "a blank email means anyone with the link")
+        try await client.revokeInvitation(id: invite.id)
+        let pending = try await client.fetchInvitations(organizationId: "org-1")
+        XCTAssertFalse(pending.contains { $0.id == invite.id })
+        client.enableDemoMode()
+    }
+
+    @MainActor
+    func testAppStateScopesProjectsToTheCurrentOrganization() async {
+        let appState = AppState.shared
+        SupabasePortalClient.shared.enableDemoMode()
+        appState.resetForSignOut()
+        await appState.loadProjects()
+
+        XCTAssertEqual(appState.currentOrganization?.id, "org-1")
+        XCTAssertFalse(appState.projects.isEmpty)
+        XCTAssertTrue(appState.projects.allSatisfy { $0.organizationId == "org-1" })
+
+        // The demo's second organization has no projects.
+        let other = try? XCTUnwrap(appState.organizations.first { $0.id == "org-2" })
+        if let other { await appState.switchOrganization(to: other) }
+        XCTAssertEqual(appState.currentOrganization?.id, "org-2")
+        XCTAssertTrue(appState.projects.isEmpty)
+        XCTAssertNil(appState.selectedProject)
+
+        if let first = appState.organizations.first { await appState.switchOrganization(to: first) }
+        XCTAssertFalse(appState.projects.isEmpty)
+    }
+
+    @MainActor
+    func testAppStateNotificationsReadState() async {
+        let appState = AppState.shared
+        SupabasePortalClient.shared.enableDemoMode()
+        await appState.loadNotifications()
+        XCTAssertEqual(appState.unreadNotificationCount, 2)
+
+        let first = appState.notifications[0]
+        await appState.markNotificationRead(first)
+        XCTAssertEqual(appState.unreadNotificationCount, 1)
+        XCTAssertTrue(appState.notifications[0].isRead)
+
+        await appState.markAllNotificationsRead()
+        XCTAssertEqual(appState.unreadNotificationCount, 0)
+        await appState.loadNotifications()
+        XCTAssertEqual(appState.unreadNotificationCount, 0, "read state reaches the (demo) server")
+    }
+
+    @MainActor
+    func testTeamAndActivityViewsRender() {
+        SupabasePortalClient.shared.enableDemoMode()
+        let team = UIHostingController(rootView: NavigationStack { TeamView() }.environmentObject(AppState.shared))
+        XCTAssertNotNil(team.view)
+        let activity = UIHostingController(rootView: NotificationsListView().environmentObject(AppState.shared))
+        XCTAssertNotNil(activity.view)
+    }
 }

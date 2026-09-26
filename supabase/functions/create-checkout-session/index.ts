@@ -1,17 +1,18 @@
 // Starts a Stripe Checkout session for an organization to subscribe to the
-// Pro plan. Called by the dashboard's Billing page
+// Team plan, billed per member (quantity = current member count; kept in
+// step afterwards by sync-billing-seats). Called by the dashboard's Billing page
 // (web/src/pages/BillingPage.tsx) with the signed-in user's own Supabase
 // session — `verify_jwt` is left at its default (true, see
 // supabase/config.toml), so the platform has already rejected the request
 // by the time this code runs if the JWT isn't valid.
 //
 // Returns `{ error: "billing_not_configured" }` (501) rather than failing
-// weirdly when STRIPE_SECRET_KEY/STRIPE_PRICE_ID_PRO aren't set yet — the
+// weirdly when STRIPE_SECRET_KEY/STRIPE_PRICE_ID_TEAM aren't set yet — the
 // expected state until a real Stripe account exists. See
 // supabase/functions/_shared/stripe.ts.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsHeaders, json, notConfigured } from "../_shared/http.ts";
-import { getProPriceId, getStripe } from "../_shared/stripe.ts";
+import { countSeats, getStripe, getTeamPriceId } from "../_shared/stripe.ts";
 
 interface RequestBody {
   organization_id: string;
@@ -55,8 +56,14 @@ Deno.serve(async (req) => {
     return json({ error: "unknown organization, or you're not a member of it" }, 403);
   }
 
+  // Subscribing commits the whole organization to paying, so it's an owner's call.
+  const { data: isOwner } = await callerClient.rpc("is_org_owner", { p_org_id: body.organization_id });
+  if (!isOwner) {
+    return json({ error: "only an owner can change the plan", message: "Only an owner can change the plan." }, 403);
+  }
+
   const stripe = getStripe();
-  const priceId = getProPriceId();
+  const priceId = getTeamPriceId();
   if (!stripe || !priceId) {
     return notConfigured("Billing isn't set up yet — check back soon.");
   }
@@ -90,10 +97,11 @@ Deno.serve(async (req) => {
     }
   }
 
+  const seats = await countSeats(admin, body.organization_id);
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: [{ price: priceId, quantity: seats }],
     success_url: body.success_url,
     cancel_url: body.cancel_url,
     metadata: { organization_id: body.organization_id },

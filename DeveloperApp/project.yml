@@ -38,6 +38,13 @@ targets:
               - feedbackkit
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+    # Push notifications (supabase/functions/send-push). Automatic signing adds
+    # the capability to the App ID; App Store/TestFlight exports switch this to
+    # the production APNs environment on their own.
+    entitlements:
+      path: Generated/FeedbackPortal.entitlements
+      properties:
+        aps-environment: development
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.feedbackkit.developer

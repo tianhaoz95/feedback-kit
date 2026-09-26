@@ -3,6 +3,7 @@ import FeedbackKit
 
 @main
 struct FeedbackPortalApp: App {
+    @UIApplicationDelegateAdaptor(PortalAppDelegate.self) private var appDelegate
     @StateObject private var client = SupabasePortalClient.shared
     @StateObject private var appState = AppState.shared
 

@@ -12,6 +12,11 @@ import { CliAuthPage } from "@/pages/CliAuthPage";
 import { CliSessionsPage } from "@/pages/CliSessionsPage";
 import { BillingPage } from "@/pages/BillingPage";
 import { DocsLayout } from "@/components/docs/DocsLayout";
+import { OrganizationProvider } from "@/lib/organization";
+import { NotificationsProvider } from "@/lib/notifications";
+import { TeamPage } from "@/pages/TeamPage";
+import { InvitePage } from "@/pages/InvitePage";
+import { NotificationsPage } from "@/pages/NotificationsPage";
 import { DocsOverviewPage } from "@/pages/docs/DocsOverviewPage";
 import { DocsHowItWorksPage } from "@/pages/docs/DocsHowItWorksPage";
 import { DocsIosSdkPage } from "@/pages/docs/DocsIosSdkPage";
@@ -50,10 +55,16 @@ export default function App() {
             redirect to /login) when signed out, rather than bounce straight
             there — see CliAuthPage.tsx. */}
         <Route path="/cli-auth" element={<CliAuthPage />} />
+        {/* Readable signed out, so an invitee sees what they're joining before signing in. */}
+        <Route path="/invite/:token" element={<InvitePage />} />
         <Route
           element={
             <RequireAuth>
-              <DashboardLayout />
+              <OrganizationProvider>
+                <NotificationsProvider>
+                  <DashboardLayout />
+                </NotificationsProvider>
+              </OrganizationProvider>
             </RequireAuth>
           }
         >
@@ -62,6 +73,8 @@ export default function App() {
           <Route path="/projects/:projectId/feedback/:feedbackId" element={<FeedbackDetailPage />} />
           <Route path="/cli-sessions" element={<CliSessionsPage />} />
           <Route path="/billing" element={<BillingPage />} />
+          <Route path="/team" element={<TeamPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
         </Route>
       </Routes>
     </AuthProvider>

@@ -17,6 +17,12 @@ Tests (`Tests/PortalTests.swift`) run against both: schemes `FeedbackPortal` (iO
 - The Mac target keeps the **module name `FeedbackPortal`** so the shared tests' `@testable import FeedbackPortal` works on both.
 - It links FeedbackKit's **native AppKit implementation**, not Mac Catalyst — deliberately, see below.
 
+## Teams and notifications
+
+- **Organizations:** `AppState.currentOrganization` scopes the project list (and so the inbox). Switch or create one from the Projects toolbar menu or **Team**, which also lists members, changes roles, creates invite links (handed to the share sheet and accepted in the web dashboard), and leaves.
+- **Activity:** the notification list (a tab on iOS, a sidebar section on the Mac). Tapping one opens the report in its own organization.
+- **Push (iOS only):** `Sources/App/PortalPushNotifications.swift`. The iOS target has the `aps-environment` entitlement. Permission is asked from a card in Activity, the APNs token is registered with `register_push_device` on every launch while signed in and removed on sign-out, and Debug builds register as `sandbox`. Pushes only arrive once the backend is configured (root README, "Turning on push notifications"). The Mac app polls every minute and badges the Dock instead.
+
 ## Dogfooding: the Portal validates FeedbackKit on itself
 
 Both apps report problems *with the Portal* through FeedbackKit (`Sources/App/PortalDogfood.swift`) into the FeedbackKit team's own hosted project — the same project the web dashboard reports into — under their own product keys (`developer-portal-ios`, `developer-portal-macos`), with the signed-in developer attached as `FeedbackKit.user`:

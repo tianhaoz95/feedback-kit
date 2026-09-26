@@ -97,7 +97,7 @@ export function SdkSetupCard({
           {/* Platform selector */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-medium text-neutral-500">Target platform:</span>
-            <div className="inline-flex gap-1">
+            <div className="inline-flex flex-wrap gap-1">
               {PLATFORMS.map((p) => (
                 <button
                   key={p.id}
@@ -112,6 +112,13 @@ export function SdkSetupCard({
                   {p.label}
                 </button>
               ))}
+              <span
+                title="A native Android SDK is on the roadmap"
+                className="inline-flex cursor-default items-center gap-1 rounded-md border border-dashed border-neutral-300 px-2.5 py-1 text-xs font-medium text-neutral-400"
+              >
+                Android
+                <span className="rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-800">Soon</span>
+              </span>
             </div>
           </div>
 

@@ -6,14 +6,16 @@ import FeedbackKit
 /// window (⌘,) instead of a sidebar section.
 struct MacRootView: View {
     enum Section: String, Hashable, CaseIterable, Identifiable {
-        case feedback, projects, cliAccess
+        case feedback, activity, projects, team, cliAccess
 
         var id: String { rawValue }
 
         var title: String {
             switch self {
             case .feedback: return "Feedback"
+            case .activity: return "Activity"
             case .projects: return "Projects"
+            case .team: return "Team"
             case .cliAccess: return "CLI Access"
             }
         }
@@ -21,7 +23,9 @@ struct MacRootView: View {
         var systemImage: String {
             switch self {
             case .feedback: return "tray.full"
+            case .activity: return "bell"
             case .projects: return "folder"
+            case .team: return "person.2"
             case .cliAccess: return "terminal"
             }
         }
@@ -30,7 +34,9 @@ struct MacRootView: View {
         var screenName: String {
             switch self {
             case .feedback: return "Feedback Inbox"
+            case .activity: return "Activity"
             case .projects: return "Projects"
+            case .team: return "Team"
             case .cliAccess: return "CLI Access"
             }
         }
@@ -51,7 +57,7 @@ struct MacRootView: View {
             )) {
                 ForEach(Section.allCases) { section in
                     Label(section.title, systemImage: section.systemImage)
-                        .badge(section == .feedback && unresolvedCount > 0 ? unresolvedCount : 0)
+                        .badge(badge(for: section))
                         .tag(section)
                 }
             }
@@ -71,8 +77,14 @@ struct MacRootView: View {
             switch storedSection {
             case .feedback:
                 FeedbackInboxView()
+            case .activity:
+                NotificationsListView()
             case .projects:
                 ProjectsListView()
+            case .team:
+                NavigationStack {
+                    TeamView()
+                }
             case .cliAccess:
                 NavigationStack {
                     CliSessionsListView()
@@ -84,6 +96,22 @@ struct MacRootView: View {
         }
         .task {
             await appState.loadProjects()
+            await appState.loadNotifications()
+        }
+        .task {
+            // No push on the Mac: poll so the Activity and Dock badges stay current.
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                await appState.refreshUnreadNotificationCount()
+            }
+        }
+    }
+
+    private func badge(for section: Section) -> Int {
+        switch section {
+        case .feedback: return unresolvedCount
+        case .activity: return appState.unreadNotificationCount
+        default: return 0
         }
     }
 }

@@ -3,6 +3,7 @@ import type { User } from "@supabase/supabase-js";
 import { Navigate, useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { peekPendingCliAuth, clearPendingCliAuth } from "@/lib/cliAuth";
+import { takePendingInvite } from "@/lib/pendingInvite";
 
 interface AuthContextValue {
   user: User | null;
@@ -59,9 +60,9 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
 /**
  * Signed-in visitors hitting /login are sent to /projects — unless they were
- * on their way to authorize a CLI login (see cliAuth.ts) when they got
- * bounced here to sign in, in which case they're sent back to finish that
- * instead.
+ * on their way to authorize a CLI login (see cliAuth.ts) or accept a team
+ * invitation (see pendingInvite.ts) when they got bounced here to sign in,
+ * in which case they're sent back to finish that instead.
  */
 export function RedirectIfAuthed({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -79,7 +80,10 @@ export function RedirectIfAuthed({ children }: { children: ReactNode }) {
   const redirectTarget = useRef<string | undefined>(undefined);
   if (!loading && user && redirectTarget.current === undefined) {
     const pending = peekPendingCliAuth();
-    if (pending) {
+    const pendingInvite = pending ? null : takePendingInvite();
+    if (pendingInvite) {
+      redirectTarget.current = `/invite/${pendingInvite}`;
+    } else if (pending) {
       clearPendingCliAuth();
       const params = new URLSearchParams({
         port: pending.port,

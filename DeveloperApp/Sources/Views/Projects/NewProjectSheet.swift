@@ -63,7 +63,11 @@ public struct NewProjectSheet: View {
 
         Task {
             do {
-                let created = try await SupabasePortalClient.shared.createProject(name: trimmedName, githubRepo: repoOpt)
+                let created = try await SupabasePortalClient.shared.createProject(
+                    name: trimmedName,
+                    githubRepo: repoOpt,
+                    organizationId: appState.currentOrganization?.id
+                )
                 await appState.loadProjects()
                 appState.selectedProject = created
                 UINotificationFeedbackGenerator().notificationOccurred(.success)

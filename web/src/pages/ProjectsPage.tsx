@@ -1,7 +1,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { getCurrentOrganizationId } from "@/lib/organization";
+import { useOrganization } from "@/lib/organization";
 import { getErrorMessage } from "@/lib/errors";
 import type { Project } from "@/lib/types";
 import { Button } from "@/components/Button";
@@ -38,39 +38,34 @@ function formatCreatedDate(dateStr: string): string {
 export function ProjectsPage() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[] | null>(null);
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
-  const [orgLoadError, setOrgLoadError] = useState<string | null>(null);
+  const { current, error: orgError } = useOrganization();
+  const organizationId = current?.id ?? null;
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const orgLoadError = orgError ?? loadError;
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
+    if (!organizationId) return;
     let cancelled = false;
+    setProjects(null);
 
     (async () => {
       try {
-        const orgId = await getCurrentOrganizationId();
-        if (cancelled) return;
-
-        if (!orgId) {
-          setOrgLoadError("No organization is associated with your account.");
-          setProjects([]);
-          return;
-        }
-        setOrganizationId(orgId);
-
         const { data, error } = await supabase
           .from("projects")
           .select("*")
-          .eq("organization_id", orgId)
+          .eq("organization_id", organizationId)
           .order("created_at", { ascending: false })
           .returns<Project[]>();
 
         if (cancelled) return;
         if (error) throw error;
+        setLoadError(null);
         setProjects(data ?? []);
       } catch (err) {
         if (!cancelled) {
-          setOrgLoadError(getErrorMessage(err, "Couldn't load your organization."));
+          setLoadError(getErrorMessage(err, "Couldn't load your organization."));
           setProjects([]);
         }
       }
@@ -79,7 +74,7 @@ export function ProjectsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [organizationId]);
 
   function createProject(formData: FormData) {
     const name = String(formData.get("name") || "").trim();

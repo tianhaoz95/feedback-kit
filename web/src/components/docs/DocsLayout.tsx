@@ -89,6 +89,8 @@ const RAW_NAV: RawNavItem[] = [
       "Review feedback",
       "Prompt templates",
       "Teams",
+      "Notifications",
+      "Billing",
       "CLI access",
       "Self-hosting",
     ],

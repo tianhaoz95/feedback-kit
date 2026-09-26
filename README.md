@@ -15,8 +15,8 @@ An iOS + macOS + watchOS SDK for capturing in-app user feedback (screenshot +
 annotations + description + device/app/screen info on iOS/macOS; text +
 context only on watchOS), a web SDK that does the same for websites (plus
 the page URL and recent console errors / failed requests), and an optional
-Supabase-backed dashboard for collecting it and turning it into prompts for
-a coding agent.
+Supabase-backed dashboard for collecting it with your team and turning it
+into prompts for a coding agent. An Android SDK is coming soon.
 
 > 📖 **Developer Documentation & Contributor Guide**: [https://tianhaoz95.github.io/feedback-kit/](https://tianhaoz95.github.io/feedback-kit/)  
 > 🚀 **Live Web Dashboard**: [https://feedback-kit.hejitech.workers.dev](https://feedback-kit.hejitech.workers.dev)
@@ -260,17 +260,48 @@ billing Edge Functions are already built and deployed; they just detect the
 missing Stripe credentials and say so (`{"error": "billing_not_configured"}`)
 instead of doing anything. To make it real:
 
-1. Create the Stripe product/price for the paid plan, and a webhook
+1. Create the Stripe product with a **recurring per-unit price** for the
+   Team plan (billed per member: checkout sends quantity = member count,
+   and `sync-billing-seats` keeps it current as people join and leave —
+   match the amount to `web/src/lib/pricing.ts`), and a webhook
    endpoint pointed at
    `https://<project-ref>.supabase.co/functions/v1/stripe-webhook`
    subscribed to at least `checkout.session.completed`,
    `customer.subscription.updated`, and `customer.subscription.deleted`.
 2. Set the secrets the functions read (`supabase/functions/_shared/stripe.ts`):
    ```bash
-   supabase secrets set STRIPE_SECRET_KEY=sk_live_... STRIPE_WEBHOOK_SECRET=whsec_... STRIPE_PRICE_ID_PRO=price_...
+   supabase secrets set STRIPE_SECRET_KEY=sk_live_... STRIPE_WEBHOOK_SECRET=whsec_... STRIPE_PRICE_ID_TEAM=price_...
    ```
+   (`STRIPE_PRICE_ID_PRO` is still read as a fallback.)
 3. Nothing else — no schema change, no dashboard code change. The next
    request to any billing function picks up the new secrets immediately.
+
+### Turning on push notifications for the iOS Portal
+
+In-app notifications (the dashboard's bell, the Portal's Activity tab) work
+out of the box. Push to the iOS Developer Portal is wired up but dormant
+until you give it an APNs key, the same pattern as billing:
+
+1. Apple Developer → Certificates, Identifiers & Profiles → **Keys** →
+   create a key with *Apple Push Notifications service (APNs)* and download
+   the `.p8`. (The Portal's App ID gets the Push capability automatically
+   the next time automatic signing runs.)
+2. Set the Edge Function secrets (pick any long random string for the
+   webhook secret):
+   ```bash
+   supabase secrets set APNS_KEY_ID=XXXXXXXXXX APNS_TEAM_ID=68CTFST8W2 \
+     APNS_PRIVATE_KEY="$(cat AuthKey_XXXXXXXXXX.p8)" PUSH_WEBHOOK_SECRET=<random>
+   ```
+3. In the hosted project's SQL editor, tell the database where the function
+   is and the same secret (`supabase/migrations/0017_notifications.sql`):
+   ```sql
+   select vault.create_secret('https://<project-ref>.supabase.co/functions/v1', 'feedbackkit_functions_url');
+   select vault.create_secret('<random>', 'feedbackkit_push_secret');
+   ```
+
+From then on every notification row is also pushed to the recipient's
+signed-in iPhones and iPads (users control which kinds on the dashboard's
+Notifications page). Remove either Vault secret to switch it off again.
 
 **Auth/MFA/pooler/storage config** (`supabase config push`) isn't automated
 either, and for a sharper reason: unlike migrations or function code, it

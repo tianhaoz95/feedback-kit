@@ -66,6 +66,43 @@ public struct SettingsView: View {
                     .padding(.vertical, 4)
                 }
 
+                // Team
+                Section(header: Text("Team")) {
+                    NavigationLink(destination: TeamView()) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "person.2.fill")
+                                .foregroundColor(.accentColor)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(appState.currentOrganization?.name ?? "Team & Organizations")
+                                    .font(.body)
+                                Text("Members, invitations and switching organizations")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                #if os(iOS)
+                Section(
+                    header: Text("Notifications"),
+                    footer: Text("Which events notify you is set per account in the web dashboard (Notifications), and applies to push, the Activity tab and the browser alike.")
+                ) {
+                    Button {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "bell.badge.fill")
+                                .foregroundColor(.accentColor)
+                            Text("Notification Settings")
+                                .foregroundColor(.primary)
+                        }
+                    }
+                }
+                #endif
+
                 // Backend Configuration
                 Section(header: Text("Backend")) {
                     NavigationLink(destination: BackendConfigView()) {
@@ -198,11 +235,15 @@ public struct SettingsView: View {
             ) {
                 Button("Cancel", role: .cancel) {}
                 Button(client.isDemoMode ? "Exit Demo Mode" : "Sign Out", role: .destructive) {
-                    client.signOut()
-                    client.isDemoMode = false
-                    appState.projects = []
-                    appState.selectedProject = nil
-                    appState.feedbackItems = []
+                    Task {
+                        #if os(iOS)
+                        // While the session still exists, so the server accepts it.
+                        await PortalPushNotifications.shared.signOut()
+                        #endif
+                        client.signOut()
+                        client.isDemoMode = false
+                        appState.resetForSignOut()
+                    }
                 }
             } message: {
                 Text(client.isDemoMode ? "You will return to the sign-in screen." : "Are you sure you want to sign out?")

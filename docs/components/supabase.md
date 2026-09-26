@@ -61,4 +61,15 @@ Edge Functions run on Deno and TypeScript:
 ### 3. Billing Functions
 - `create-checkout-session`: Generates Stripe Checkout session.
 - `create-portal-session`: Generates Stripe Customer Portal session.
-- `stripe-webhook`: Verifies `Stripe-Signature` and synchronizes customer plan status.
+- `stripe-webhook`: Verifies `Stripe-Signature` and synchronizes customer plan status and seat count.
+- `create-checkout-session`: owner-only, per-seat Team plan (quantity = member count).
+- `sync-billing-seats`: Called best-effort after membership changes to keep a subscription's quantity equal to the member count. `501` until Stripe is configured.
+
+### 4. `send-push`
+- **Authentication**: `verify_jwt = false`; the caller is the database (`pg_net` trigger in `0017_notifications.sql`), authenticated by the `x-push-secret` header matching `PUSH_WEBHOOK_SECRET`.
+- **Logic**: Loads one `notifications` row and sends it over APNs to the recipient's registered iOS Portal devices, dropping tokens APNs reports as dead. Dormant until the Vault secrets and `APNS_*` secrets are set (README, "Turning on push notifications").
+
+## Teams and notifications
+
+- `0016_teams.sql`: invitations and every membership change go through SECURITY DEFINER functions (`create_invitation`, `accept_invitation`, `update_member_role`, `remove_member`, `create_organization`, `delete_organization`, `organization_members`). A client can't write `memberships` directly.
+- `0017_notifications.sql`: triggers on `feedback_items`, `feedback_events` and `memberships` fan out one `notifications` row per member (never to the actor, respecting `notification_preferences.muted_kinds`). The table is in the `supabase_realtime` publication for the dashboard's live bell. See DESIGN.md §9.
