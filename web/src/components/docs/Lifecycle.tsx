@@ -223,9 +223,10 @@ export function LifecycleLoop() {
 // Small drawing helpers
 // ---------------------------------------------------------------------------
 
+/** A 148×304 frame, close to a real iPhone's ~1:2.05 proportions. */
 function Phone({ children }: { children: ReactNode }) {
   return (
-    <div className="relative h-[260px] w-[148px] shrink-0 rounded-[1.6rem] bg-neutral-900 p-1.5 shadow-xl">
+    <div className="relative h-[304px] w-[148px] shrink-0 rounded-[1.6rem] bg-neutral-900 p-1.5 shadow-xl">
       <div className="relative h-full w-full overflow-hidden rounded-[1.25rem] bg-white">
         <div className="absolute left-1/2 top-1.5 z-10 h-2.5 w-10 -translate-x-1/2 rounded-full bg-black" />
         {children}
@@ -269,10 +270,10 @@ function CheckoutScreen({ annotate = false, fixed = false, delay = 0.2 }: { anno
         <div className="mx-auto mt-[3px] h-3.5 w-2/3 rounded-[2px] bg-white" />
       </div>
       {annotate ? (
-        <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 136 248" preserveAspectRatio="none">
+        <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 136 292" preserveAspectRatio="none">
           <rect
             x="6"
-            y="143"
+            y="187"
             width="124"
             height="36"
             rx="4"
@@ -290,7 +291,7 @@ function CheckoutScreen({ annotate = false, fixed = false, delay = 0.2 }: { anno
 
 function Window({ url, children }: { url: string; children: ReactNode }) {
   return (
-    <div className="min-h-[260px] w-full overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg">
+    <div className="min-h-[304px] w-full overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg">
       <div className="flex items-center gap-1.5 border-b border-neutral-100 bg-neutral-50 px-3 py-2">
         <span className="h-2 w-2 rounded-full bg-red-300" />
         <span className="h-2 w-2 rounded-full bg-amber-300" />
@@ -304,7 +305,7 @@ function Window({ url, children }: { url: string; children: ReactNode }) {
 
 function Terminal({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="min-h-[260px] w-full overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 font-mono text-[11px] leading-relaxed text-neutral-200 shadow-lg">
+    <div className="min-h-[304px] w-full overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 font-mono text-[11px] leading-relaxed text-neutral-200 shadow-lg">
       <div className="border-b border-neutral-800 px-3 py-1.5 text-[10px] text-neutral-500">{title}</div>
       <div className="space-y-1 break-words p-3">{children}</div>
     </div>
@@ -414,7 +415,7 @@ function InboxScene() {
 
 function PromptScene() {
   return (
-    <div className="min-h-[260px] w-full overflow-hidden rounded-xl border border-neutral-200 bg-white p-4 font-mono text-[11px] leading-6 text-neutral-800 shadow-lg">
+    <div className="min-h-[304px] w-full overflow-hidden rounded-xl border border-neutral-200 bg-white p-4 font-mono text-[11px] leading-6 text-neutral-800 shadow-lg">
       <div className="mb-2 flex items-center justify-between font-sans">
         <span className="text-[10px] uppercase tracking-wide text-neutral-400">Prompt template → merged prompt</span>
         <span className="lc-pop rounded bg-neutral-900 px-2 py-0.5 text-[10px] text-white" style={d(3.2)}>
@@ -464,7 +465,7 @@ function AgentScene() {
 
 function MergeScene() {
   return (
-    <div className="grid min-h-[260px] w-full gap-3 sm:grid-cols-2">
+    <div className="grid min-h-[304px] w-full gap-3 sm:grid-cols-2">
       <div className="rounded-xl border border-neutral-200 bg-white p-3 shadow-lg">
         <p className="text-[10px] text-neutral-400">acme/acme-shop · Pull request</p>
         <p className="mt-1 text-[13px] font-semibold text-neutral-900">
@@ -609,7 +610,7 @@ export function LifecycleScene({ step }: { step: number }) {
   }, [inView]);
   const Scene = SCENES[step];
   return (
-    <div ref={ref} className="min-h-[260px]">
+    <div ref={ref} className="min-h-[304px]">
       {played ? <Scene /> : null}
     </div>
   );
