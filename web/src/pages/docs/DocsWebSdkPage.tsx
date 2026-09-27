@@ -81,7 +81,7 @@ export function Feedback() {
 }`;
 
 const theme = `FeedbackKit.theme = {
-  primaryColorHex: "#7C3AED",   // Send, selected tool, toggles, trigger button
+  primaryColorHex: "#7C3AED",   // Send, selected tool, menu checkmarks, trigger button
   secondaryColorHex: "#F97316", // Cancel, Attach
 };`;
 
@@ -160,6 +160,10 @@ export function DocsWebSdkPage() {
           sign-up is involved. Run <InlineCode>npx feedbackkit-cli release --build &lt;id&gt;</InlineCode> after a
           deploy to mark merged fixes shipped.
         </p>
+        <p>
+          Only people who chose <strong>Notify me when it&apos;s fixed</strong> in the composer&apos;s + menu (off by
+          default) see the card or your questions. For everyone else, the dashboard offers <em>Mark verified</em>.
+        </p>
         <CodeBlock
           code={`FeedbackKit.configure({ projectKey: "pk_...", appBuild: "2026.09.25.1" }); // appBuild optional
 FeedbackKit.enableFixVerification();
@@ -208,6 +212,16 @@ FeedbackKit.setUser({ email: user.email }); // optional`}
           if you want to redraw markup yourself:
         </p>
         <CodeBlock code={renderer} label="TypeScript" />
+      </DocsSection>
+
+      <DocsSection title="The composer's + menu">
+        <p>
+          The <strong>+</strong> button under the text box opens a menu: <strong>Attach file…</strong>,{" "}
+          <strong>Take photo</strong> (on phones and tablets, where it opens the camera), and two options with
+          checkmarks, <strong>Include screenshot</strong> (on) and <strong>Notify me when it&apos;s fixed</strong>{" "}
+          (off). Options that differ from the defaults are listed next to the button. The choice is on the report as{" "}
+          <InlineCode>notifyReporter</InlineCode>, sent as <InlineCode>notify_reporter</InlineCode>.
+        </p>
       </DocsSection>
 
       <DocsSection title="Console & network logs">

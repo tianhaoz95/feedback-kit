@@ -7,11 +7,30 @@ How a report travels from a user's device, through a coding agent, into a build 
 ## The flow
 
 ```
-SDK report (+ reporter_id)  →  dashboard / MCP  →  agent: claim · ask · fix · after-shot
+SDK report (+ reporter_id, notify_reporter)  →  dashboard / MCP  →  agent: claim · ask · fix · after-shot
         ↑                                                ↓   PR description "FeedbackKit: <id>"
 reporter's device  ←  reporter-updates  ←  feedbackkit release  ←  merged (github-webhook)
   "is it fixed?"  →  verified   |   still broken (+ new screenshot) → reopened → re-dispatched
+  (only if the reporter opted in; otherwise the team's "Mark verified")
 ```
+
+## Starting the agent
+
+Five routes, all ending in the same linking/shipping/verifying steps. User-facing walkthrough: the dashboard's docs page *Hand reports to an agent* (`web/src/pages/docs/DocsAgentsPage.tsx`, mirrored as the `agents` topic in `cli/src/docs.ts`).
+
+| Route | Trigger | Code |
+|---|---|---|
+| MCP (you + your agent) | The agent calls `get_prompt` / `claim_feedback` | `cli/src/mcp/server.ts`, `loopInstructions` in `cli/src/loop.ts` |
+| GitHub-hosted Actions | *Send to agent* → issue + `projects.dispatch_labels` / `dispatch_comment` | `create-github-issue`, `dispatchIssueToAgent` in `_shared/github.ts`; the repo's own workflow (claude-code-action needs `allowed_bots: feedbackkit-app`) |
+| Self-hosted Mac runner | Same labels, `runs-on: [self-hosted, macOS, feedbackkit-agent]` | `skills/setup/setup-agent-runner/` (Claude Code and Antigravity templates) |
+| GitHub Copilot | `projects.dispatch_copilot` → assign `copilot-swe-agent[bot]` with a member's user token | `0018_copilot_dispatch.sql`, `github-user-auth`, `assignIssueToCopilot` |
+| `feedbackkit watch` | *Run on my machine* inserts a `dispatched` event with `data.target = "local"` | `cli/src/commands/watch.ts` (claims with `data.queue_event`) |
+
+On a reopen, `reporter-updates` re-applies the labels and re-assigns Copilot as the last member who dispatched it.
+
+## Reporter opt-in (`0023`)
+
+`feedback_items.notify_reporter` is the composer's "Notify Me When It's Fixed" (off by default; null = an SDK from before the option, treated as opted in). `reporter-updates` skips reports with `false`; `release_readiness` counts their shipped fixes as `unreachable` instead of `awaiting`, so they don't hold a build back; the dashboard and Portal offer *Mark verified* (a `verified` event with `actor_type = 'user'`, which `0022` keeps from being announced as the reporter's).
 
 ## Push-to-main and betas
 
@@ -35,7 +54,7 @@ Agents commit to main with a `FeedbackKit: <id>` trailer. `github-webhook`'s pus
 | `pr_open` | `github-webhook` (PR opened), MCP/CLI `link_fix` | `in_progress` |
 | `merged` | `github-webhook` (PR merged, or a trailer on a push to main), `link_fix` with a commit | `in_progress` |
 | `shipped` | `record_release` RPC via `feedbackkit release` | `in_progress` |
-| `verified` | `reporter-updates` (reporter taps "Yes, it's fixed") | `resolved` |
+| `verified` | `reporter-updates` (reporter taps "Yes, it's fixed"), or *Mark verified* in `FixLoopPanel` | `resolved` |
 | `reopened` | `reporter-updates` (reporter taps "Still broken") | `in_progress` |
 
 `wont_fix` is never overridden.
@@ -51,15 +70,19 @@ Agents commit to main with a `FeedbackKit: <id>` trailer. `github-webhook`'s pus
 | Agent MCP tools, `release`/`link`/`timeline` | `cli/src/loop.ts`, `cli/src/mcp/server.ts`, `cli/src/commands/` |
 | Swift SDK: identity, transport, card | `Model/FeedbackReporterIdentity.swift`, `Networking/FixUpdatesClient.swift`, `UI/FixVerification*.swift` |
 | Web SDK: identity, transport, card | `web-sdk/src/fixes.ts`, `web-sdk/src/ui/fixCard.ts` |
-| Dashboard | `web/src/components/FixLoopPanel.tsx`, `AgentDispatchCard.tsx` |
+| Dashboard | `web/src/components/FixLoopPanel.tsx`, `AgentDispatchCard.tsx`, `LoopChecklist.tsx`, `WatchButton.tsx`; checklist and stuck-report rules in `web/src/lib/loopHealth.ts` |
+| Watchlist | `feedback_watchers` + `notify_watchers()` (`0023`); Portal toolbar in `FeedbackDetailView.swift` |
 | Portal | `DeveloperApp/Sources/Views/Detail/FixLoopSectionView.swift` |
-| Agent Skill | `skills/workflow/fix-feedback/SKILL.md` |
+| Agent Skills | `skills/workflow/fix-feedback/`, `skills/setup/setup-release-loop/`, `skills/setup/setup-agent-runner/` |
 
 ## Keep in sync by hand
 
 - **Build ordering** — `compare_builds` in SQL, `_shared/builds.ts`, `cli/src/loop.ts`, `FeedbackBuild.compare` (Swift), `compareBuilds` (web SDK).
 - **reporter-updates wire format** — the Edge Function, `FixUpdatesClient.swift`, `web-sdk/src/fixes.ts`.
-- **Event kinds** — the `feedback_events.kind` check constraint, `FeedbackEventKind` in `web/src/lib/types.ts` and `cli/src/types.ts`, labels in `FixLoopPanel.tsx` and `PortalFeedbackEvent.title`.
+- **Event kinds** — the `feedback_events.kind` check constraint, `FeedbackEventKind` in `web/src/lib/types.ts` and `cli/src/types.ts`, labels in `FixLoopPanel.tsx` and `PortalFeedbackEvent.title`, and the watcher titles in `notify_watchers()`.
+- **Notification kinds** — the `notifications.kind` check, `NotificationKind` and its label/hint/dot maps in `web/src/`, and `PortalNotification.iconName` / the Portal's row tint.
+- **Reporter reachability** — `reporterReachable()` in `web/src/lib/loopHealth.ts`, `PortalFeedbackItem.canReachReporter`, `ask_reporter`'s message, and the `release_readiness` view.
+- **The agents page** — `DocsAgentsPage.tsx` and the `agents` topic in `cli/src/docs.ts`.
 
 ## Security notes
 

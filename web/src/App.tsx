@@ -29,6 +29,7 @@ import { DocsDashboardPage } from "@/pages/docs/DocsDashboardPage";
 import { DocsCliPage } from "@/pages/docs/DocsCliPage";
 import { DocsMcpPage } from "@/pages/docs/DocsMcpPage";
 import { DocsSkillsPage } from "@/pages/docs/DocsSkillsPage";
+import { DocsAgentsPage } from "@/pages/docs/DocsAgentsPage";
 
 /** One page_view per route change (lib/analytics.ts). */
 function PageViewTracker() {
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="dashboard" element={<DocsDashboardPage />} />
           <Route path="cli" element={<DocsCliPage />} />
           <Route path="mcp" element={<DocsMcpPage />} />
+          <Route path="agents" element={<DocsAgentsPage />} />
           <Route path="skills" element={<DocsSkillsPage />} />
         </Route>
         <Route

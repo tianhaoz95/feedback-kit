@@ -342,6 +342,10 @@ Configure from client-only code (it touches \`window\`/\`document\`): in Next.js
 - \`captureLogs\` in \`configure\` — default on: console warn/error, uncaught errors, unhandled rejections, failed/4xx/5xx fetch+XHR (method, URL, status only — never bodies; tokens and sensitive URL params redacted). \`false\` disables; users can untick logs per report.
 - \`FeedbackKit.submit(report)\`, \`FeedbackKit.captureScreenshot()\`, \`FeedbackKit.destroy()\`, and the annotation renderer (\`drawAnnotations\`).
 
+## The composer's + menu
+
+The + button under the text box opens: Attach file…, Take photo (phones/tablets — opens the camera), then two checkmarked options: Include screenshot (on) and Notify me when it's fixed (off; \`report.notifyReporter\`, sent as \`notify_reporter\`). Only reporters who opt in see the "is it fixed?" card and questions (\`enableFixVerification()\`).
+
 ## What's different from native reports
 
 \`environment\` has every native field (\`osName\` = real OS, \`deviceModel\` = browser + major version, \`screenWidthPoints\`/\`screenHeightPoints\` = viewport, \`screenScale\` = devicePixelRatio, \`bundleIdentifier\` = host) plus \`platform: "web"\`, \`pageUrl\`, \`userAgent\`, \`browserName\`, \`browserVersion\`. Reports also carry \`logs\` ({level, message, timestamp}). Prompt templates get \`{{platform}}\`, \`{{page_url}}\`, \`{{browser}}\`, \`{{console_logs}}\`; if a template uses none of the web ones, a "Web context" section is appended automatically.
@@ -372,7 +376,15 @@ From **Projects**, create one and open it. Every project gets a unique \`project
 
 ## Review feedback
 
-Each report shows the annotated screenshot (omitted if the reporter toggled it off before submitting — see the \`sdk\` topic), description, environment details, and any attachment. Status: \`new\`, \`in_progress\`, \`resolved\`, or \`wont_fix\`.
+Each report shows the annotated screenshot (omitted if the reporter turned it off in the composer's + menu — see the \`sdk\` topic), description, environment details, and any attachment. Status: \`new\`, \`in_progress\`, \`resolved\`, or \`wont_fix\`.
+
+## The fix loop on a report
+
+Next to Status, a report shows its **Fix** stage (agent working → PR open → merged → shipped → verified, or reopened), which moves on its own. The report's Fix loop panel has the timeline, notes and questions to the reporter, **Send to agent** and **Run on my machine** (see the \`agents\` topic), a hint when a report sits too long at one stage (claimed a day with no PR, merged days ago but never announced in a build, shipped a week without the reporter answering), and **Mark verified** for a shipped fix whose reporter didn't opt in to hearing back or hasn't answered — recorded as the team, not the reporter.
+
+## Closed loop setup
+
+Until every piece works, the Feedback tab starts with a checklist checked against what actually happened in the project: reports arrive, reporters can be asked, GitHub connected, an agent picks reports up, fixes get linked, builds are announced, a reporter confirmed a fix. Each open step says what to do.
 
 ## Prompt templates
 
@@ -410,11 +422,15 @@ To add someone: **Team** → create an invite link and send it. Links are single
 
 ## Notifications
 
-The header bell shows new reports, reporter replies, reports reopened as still broken, fixes confirmed by the reporter, merged fixes, and people joining — live, across every organization, never about your own actions. The Notifications page mutes kinds, turns on browser desktop notifications, and controls push to the iOS Developer Portal (whose Activity tab shows the same list).
+The header bell shows new reports, reporter replies, reports reopened as still broken, fixes confirmed by the reporter, merged fixes, and people joining — live, across every organization, never about your own actions. **Watch** a report (its page, or the eye in the Portal) to also hear about every other step of its fix: an agent picking it up, a PR opening, the fix shipping, notes and questions. The Notifications page mutes kinds, turns on browser desktop notifications, and controls push to the iOS Developer Portal (whose Activity tab shows the same list).
 
 ## Billing
 
-Per organization. The Team plan is priced per member per month; only owners change it. Paid plans aren't switched on yet.
+Per organization. Free: 1 project, 3 members, 50 reports a month, the whole fix loop included; at the report limit new reports are refused until next month (projects warn from 40). Team: unlimited, priced per member per month; only owners change it.
+
+## Your account
+
+Account (your name in the header, or Settings in the Portal) shows the GitHub account connected for Copilot and deletes your account — along with every organization where you're the only member. It refuses while you're the only owner of a shared organization or an organization that would be deleted has a paid plan.
 
 ## CLI access
 
@@ -807,7 +823,7 @@ FeedbackKit.enableFixVerification { UIApplication.shared.connectedScenes
 
 watchOS: \`ContentView().feedbackFixVerification()\`. Web: \`FeedbackKit.enableFixVerification()\` after \`configure\`.
 
-Reports now carry an anonymous per-install reporter id (no sign-up). When a fix for one of them ships in the build the device is running, the app shows the reporter's original annotated screenshot and asks "is it fixed?". **Still broken** re-opens the capture flow so they can show what's wrong now; the report is reopened with that screenshot and, if a GitHub issue is linked, handed back to the coding agent. Questions from the developer or agent (\`ask_reporter\`) show up the same way. Optional: \`FeedbackKit.user = FeedbackUser(email: …)\` / \`FeedbackKit.setUser({ email })\` to show who reported what.
+Reports now carry an anonymous per-install reporter id (no sign-up). Reporters opt in to hearing back with "Notify me when it's fixed" in the composer's + menu (off by default; \`notify_reporter\` on the report) — only they are asked; for the rest the dashboard offers **Mark verified**, and release readiness counts them as having no reporter to ask. When a fix for an opted-in report ships in the build the device is running, the app shows the reporter's original annotated screenshot and asks "is it fixed?". **Still broken** re-opens the capture flow so they can show what's wrong now; the report is reopened with that screenshot and, if a GitHub issue is linked, handed back to the coding agent. Questions from the developer or agent (\`ask_reporter\`) show up the same way. Optional: \`FeedbackKit.user = FeedbackUser(email: …)\` / \`FeedbackKit.setUser({ email })\` to show who reported what.
 
 ## 2. The agent (MCP)
 
@@ -815,7 +831,7 @@ Reports now carry an anonymous per-install reporter id (no sign-up). When a fix 
 
 ## 3. GitHub
 
-With the FeedbackKit GitHub App connected and its webhook secret set (\`GITHUB_WEBHOOK_SECRET\`), PRs that mention \`FeedbackKit: <id>\` (or close a linked issue) move the report to PR open → merged automatically. In project Settings → *Coding agent loop*, set dispatch labels (e.g. \`claude\` for claude-code-action's label trigger) and/or a trigger comment — applied to every issue FeedbackKit creates and re-applied when a reporter reopens it.
+With the FeedbackKit GitHub App connected and its webhook secret set (\`GITHUB_WEBHOOK_SECRET\`), PRs that mention \`FeedbackKit: <id>\` (or close a linked issue) move the report to PR open → merged automatically. In project Settings → *Coding agent loop*, set dispatch labels (e.g. \`claude\` for claude-code-action's label trigger, which needs \`allowed_bots: feedbackkit-app\`), a trigger comment, and/or *Assign to GitHub Copilot* — applied to every issue FeedbackKit creates and re-applied when a reporter reopens it. The \`agents\` topic compares every way to start an agent.
 
 ## 4. Release
 
@@ -832,6 +848,58 @@ It ships every merged fix whose commit is in the release commit (default HEAD), 
 Agents can commit straight to the default branch. Add \`FeedbackKit: <id>\` as a commit-message trailer, plus an optional \`FeedbackKit-Summary: <sentence for the reporter>\`, and the GitHub webhook links the commit when it lands. \`Fixes #<issue>\` also works for reports with a GitHub issue. A beta pipeline on every push then ships and announces the build, and the owner promotes a verified beta from the dashboard's Releases tab.`,
   },
   {
+    slug: "agents",
+    title: "Hand reports to an agent",
+    summary: "The five ways to start a coding agent on a report — MCP, GitHub-hosted Actions, a self-hosted Mac runner (Claude Code or Antigravity), Copilot, feedbackkit watch — and how each closes the loop.",
+    content: `# Hand reports to an agent
+
+Five ways to get a coding agent working on a report. They differ in how it starts and where it runs; all end in the same loop.
+
+| Route | Starts when | Runs on | Builds iOS/macOS apps | You set up |
+|---|---|---|---|---|
+| You + your agent (MCP) | You ask your agent to fix report <id> | Your machine | Yes | The MCP server (\`mcp\` topic) |
+| GitHub-hosted Actions | **Send to agent** labels the report's GitHub issue | GitHub's Linux runners | No | A workflow with an agent's GitHub Action |
+| Self-hosted Mac runner | **Send to agent** labels the issue | A Mac you control | Yes (and the Simulator) | The \`setup-agent-runner\` skill (Claude Code or Antigravity) |
+| GitHub Copilot | **Send to agent** assigns the issue to Copilot | GitHub's (or your) Linux runners | No | A Copilot seat, your connected GitHub account |
+| Your machine | **Run on my machine** on the report | Your laptop/Mac | Yes | \`feedbackkit watch\` in the repo |
+
+Web apps and backends suit GitHub-hosted runners; iOS/macOS apps need a Mac (self-hosted runner for a team, \`feedbackkit watch\` for one developer).
+
+## What every route shares
+
+1. **Linked:** the fix commit or PR carries \`FeedbackKit: <id>\` (plus optional \`FeedbackKit-Summary:\`); with the GitHub App a PR with it (or one closing the report's issue, \`Fixes #n\`) moves the report to PR open, merging to Merged. Without the App: \`feedbackkit link\` / \`link_fix\`.
+2. **Shipped:** \`feedbackkit release --build N\` after each build (\`setup-release-loop\` skill).
+3. **Verified:** reporters who chose "Notify me when it's fixed" are asked in the app; otherwise the team uses **Mark verified**. The project's Closed loop setup checklist shows missing pieces.
+
+## You + your agent (MCP)
+
+Tell the agent to fix report <id> (or paste the copied prompt, which includes the id and steps). It calls \`claim_feedback\` (Agent working), may \`ask_reporter\` / \`attach_after_screenshot\`, and links the fix with the trailer or \`link_fix\`. The \`fix-feedback\` skill packages this.
+
+## GitHub-hosted Actions
+
+**Send to agent** creates the GitHub issue (screenshot, environment, prompt, \`FeedbackKit:\` line) and adds the dispatch labels from Settings → Coding agent loop; the report moves to Agent working. A workflow on \`issues: labeled\` runs the agent's GitHub Action on \`ubuntu-latest\` — e.g. \`anthropics/claude-code-action@v1\` with \`label_trigger: claude\` and \`allowed_bots: feedbackkit-app\` (required: FeedbackKit's App adds the label, and the action refuses unlisted bots). No FeedbackKit MCP tools (no login on hosted runners). Its PR carries the \`FeedbackKit:\` line or closes the issue. Linux can't build iOS/macOS apps.
+
+## Self-hosted Mac runner
+
+Same label, on a Mac registered as a runner, so the agent builds the app and runs the Simulator. \`setup-agent-runner\` has two templates: **Claude Code** (token secret, \`--allowedTools\`, the action pushes its branch, FeedbackKit MCP with a login on the runner) and **Google Antigravity** (\`agy -p\` signed in once as the runner user, allow rules in \`~/.gemini/antigravity-cli/settings.json\` including \`mcp(feedbackkit/<tool>)\`; the agent only edits files and the workflow commits with the trailer and \`Fixes #n\`, pushes and opens the PR). Private repos only. Use a different label per agent if both are installed.
+
+## GitHub Copilot
+
+Tick *Assign to GitHub Copilot*; each teammate connects their GitHub account once (GitHub only accepts the assignment from a person with a Copilot seat). **Send to agent** assigns the issue to Copilot as whoever pressed it (a reopen re-assigns as the last sender); Copilot opens a PR that closes the issue and is asked to include the \`FeedbackKit:\` line. Linux only; no FeedbackKit MCP tools.
+
+## Your machine (feedbackkit watch)
+
+\`npx feedbackkit-cli watch --project <id>\` in the repo (\`--agent codex\`, or \`--agent-cmd\` for anything else). **Run on my machine** queues a report; the watcher claims it, runs the agent in a new git worktree and branch (Claude Code gets the FeedbackKit MCP tools), pushes, opens a PR with the trailer and links it (PR open). \`--auto\` takes every new report (trusted reporters only); \`--max-runs\` (10/day) and \`--timeout\` (60 min) cap it; \`--no-pr\` keeps the fix local.
+
+## When a reporter says it's still broken
+
+The report goes to Reopened with their new screenshot and a linked issue reopens. Label routes get the label again (a new run); Copilot is re-assigned; for MCP and \`feedbackkit watch\` send it again (agents find them with \`list_feedback\` and \`fix_stage: "reopened"\`).
+
+## Safety
+
+Report text is untrusted input. Prompts mark it as a bug description, not instructions; unattended agents get a short allow list of build/test commands, never blanket permission; agents open PRs and a person merges; \`feedbackkit watch\` needs a click per report unless \`--auto\`.`,
+  },
+  {
     slug: "skills",
     title: "Agent Skills",
     summary: "Agent Skills for AI coding agents to automate SDK setup, triggers, and MCP configuration.",
@@ -841,6 +909,7 @@ FeedbackKit packages Agent Skills compliant with the vercel-labs/skills open sta
 
 ## Available skills
 
+- \`setup-agent-runner\` — Runs a coding agent on reports automatically on a Mac you control: a self-hosted GitHub Actions runner with a Claude Code or Google Antigravity workflow, or \`feedbackkit watch\` for one developer. See the \`agents\` topic.
 - \`setup-ios-sdk\` — Integrates FeedbackKit into an iOS project (SwiftUI or UIKit, XcodeGen or Xcode project). Adds package dependency, initializes credentials at app launch, sets up shake or floating triggers, and configures screen tracking.
 - \`setup-macos-sdk\` — Integrates FeedbackKit into a macOS desktop app (SwiftUI or AppKit). Configures credentials, sets up floating button or menu item triggers, and configures screen tracking.
 - \`setup-watchos-sdk\` — Integrates FeedbackKit into a watchOS app using \`FeedbackQuickNoteView\` embedded in a SwiftUI sheet for text and context feedback.

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { CodeBlock } from "@/components/docs/CodeBlock";
-import { DocsCallout, DocsSection, DocsTable, DocsTitle, InlineCode } from "@/components/docs/DocsProse";
+import { DocsCallout, DocsList, DocsSection, DocsTable, DocsTitle, InlineCode } from "@/components/docs/DocsProse";
 
 const template = `Fix the bug shown in the attached screenshot, on the {{screen_name}} screen.
 
@@ -43,7 +43,7 @@ export function DocsDashboardPage() {
       <DocsSection title="Review feedback">
         <p>
           Each report shows the annotated screenshot — omitted if the reporter
-          toggled it off before submitting, see the SDK's docs — the user's description, environment
+          turned it off in the composer&apos;s + menu — the user&apos;s description, environment
           details (OS, device, app version, locale, screen size), and any attachment. Set its status —{" "}
           <InlineCode>new</InlineCode>, <InlineCode>in_progress</InlineCode>, <InlineCode>resolved</InlineCode>, or{" "}
           <InlineCode>wont_fix</InlineCode> — to track it through your workflow.
@@ -121,11 +121,52 @@ export function DocsDashboardPage() {
         </DocsCallout>
       </DocsSection>
 
+      <DocsSection title="The fix loop on a report">
+        <p>
+          Next to <strong>Status</strong>, a report shows its <strong>Fix</strong> stage (Agent working → PR open →
+          Merged → Shipped → Verified, or Reopened), which moves on its own as agents, GitHub, releases and the
+          reporter act. The report&apos;s <strong>Fix loop</strong> panel has the timeline, a box for notes or a question
+          to the reporter, and:
+        </p>
+        <DocsList
+          items={[
+            <>
+              <strong>Send to agent</strong> and <strong>Run on my machine</strong>, the hands-off ways to start a coding
+              agent. <Link to="/docs/agents" className="underline">Hand reports to an agent</Link> explains each route.
+            </>,
+            <>
+              A hint when a report sits too long at one stage: an agent claimed it a day ago with no pull request, it
+              merged days ago but no build announced it, or it shipped a week ago and the reporter hasn&apos;t answered.
+            </>,
+            <>
+              <strong>Mark verified</strong>, for a shipped fix whose reporter can&apos;t be asked (they didn&apos;t choose
+              &ldquo;Notify me when it&apos;s fixed&rdquo;) or hasn&apos;t answered. The timeline and notifications say the
+              team marked it, not the reporter.
+            </>,
+          ]}
+        />
+      </DocsSection>
+
+      <DocsSection title="Closed loop setup">
+        <p>
+          Until every piece of the loop works, the Feedback tab starts with a <strong>Closed loop setup</strong>{" "}
+          checklist, checked against what has actually happened in the project: reports arrive, reporters can be asked,
+          GitHub is connected, an agent picks reports up, fixes get linked, builds are announced, and a reporter has
+          confirmed a fix. Each open step says what to do and links to the right tab. A missing piece otherwise fails
+          quietly: fixes just sit at <strong>Merged</strong>.
+        </p>
+      </DocsSection>
+
       <DocsSection title="Notifications">
         <p>
           The bell in the header shows what happened across all your organizations, live: new reports, replies from
           reporters, reports reopened as still broken, fixes the reporter confirmed, fixes merged, and people joining.
           You're never notified about something you did yourself.
+        </p>
+        <p>
+          <strong>Watch</strong> a report (on its page here, or the eye in the Portal) to also hear about every other
+          step of its fix: an agent picking it up, a pull request opening, the fix shipping, notes and questions.
+          Watching is just for you; anyone in the organization can watch any report.
         </p>
         <p>
           On the <InlineCode>Notifications</InlineCode> page you can mute any of those, turn on desktop notifications
@@ -136,9 +177,11 @@ export function DocsDashboardPage() {
 
       <DocsSection title="Billing">
         <p>
-          Billing is per organization. The Team plan is priced per member per month, so adding or removing someone
-          changes the next invoice. Only owners can change the plan. Paid plans aren't switched on yet: FeedbackKit is
-          free for now.
+          Billing is per organization. The Free plan includes 1 project, 3 members and 50 reports a month, with the
+          whole fix loop. At the report limit, new reports are refused until the next month (the SDK tells the
+          reporter feedback is paused); projects show a warning from 40 reports on, and Billing shows the usage. The
+          Team plan is unlimited and priced per member per month, so adding or removing someone changes the next
+          invoice. Only owners can change the plan.
         </p>
       </DocsSection>
 
@@ -155,6 +198,16 @@ export function DocsDashboardPage() {
           Revoking a CLI session there stops it the next time it checks in — see that page for the
           exact guarantee.
         </DocsCallout>
+      </DocsSection>
+
+      <DocsSection title="Your account">
+        <p>
+          <strong>Account</strong> (your name in the header) shows the GitHub account connected for Copilot and lets you
+          delete your FeedbackKit account. Deleting it also deletes every organization where you&apos;re the only member,
+          with its projects and reports; organizations you share keep their data. You can&apos;t delete it while you&apos;re
+          the only owner of a shared organization, or while an organization that would be deleted has a paid plan.
+          The Portal app has the same option in Settings.
+        </p>
       </DocsSection>
 
       <DocsSection title="Self-hosting">

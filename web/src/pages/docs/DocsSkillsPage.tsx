@@ -107,6 +107,11 @@ export function DocsSkillsPage() {
               "Wires the repo's releases into the loop: GitHub fix linking and agent hand-off, a CI release token, build announcements so reporters get asked \"is it fixed?\", correct build numbers, and an optional beta on every push.",
             ],
             [
+              "setup-agent-runner",
+              "Agent runner",
+              "Runs a coding agent on reports automatically, on a Mac you control: a self-hosted GitHub Actions runner with a Claude Code or Google Antigravity workflow that builds the app and opens the PR, or feedbackkit watch for one developer.",
+            ],
+            [
               "fix-feedback",
               "Agent workflow",
               "Fixes a report end to end over MCP: claim, reproduce, fix, attach an after-fix screenshot, and commit with a FeedbackKit: trailer so the fix ships back to the reporter.",

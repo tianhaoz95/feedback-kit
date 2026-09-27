@@ -130,10 +130,12 @@ export function DocsHowItWorksPage() {
         </p>
         <p>
           Or skip opening an agent at all. <strong>Send to agent</strong> on the report page creates a GitHub issue
-          and starts Claude Code on a self-hosted Mac runner (the <Link to="/docs/skills" className={docLink}>setup-agent-runner
+          and starts Claude Code or Antigravity on a self-hosted Mac runner (the <Link to="/docs/skills" className={docLink}>setup-agent-runner
           skill</Link>), which can build and run your app, or GitHub Copilot's coding agent (Settings → Coding agent
           loop), which runs on Linux. <strong>Run on my machine</strong> queues the report for{" "}
-          <InlineCode>feedbackkit watch</InlineCode>, which runs your local Claude Code or Codex and opens the PR.
+          <InlineCode>feedbackkit watch</InlineCode>, which runs your local Claude Code or Codex and opens the PR.{" "}
+          <Link to="/docs/agents" className={docLink}>Hand reports to an agent</Link> compares the routes and shows how
+          each one closes the loop.
         </p>
       </Step>
 
@@ -164,9 +166,10 @@ export function DocsHowItWorksPage() {
 
       <Step index={6}>
         <p>
-          The next time the reporter opens the app on build 42 or newer, FeedbackKit shows them their own
-          annotated screenshot, what they wrote, and a one-line summary of what changed. They tap one of two
-          buttons:
+          If the reporter chose <b>Notify me when it&apos;s fixed</b> when they sent the report (it&apos;s off by
+          default), the next time they open the app on build 42 or newer, FeedbackKit shows them their own
+          annotated screenshot, what they wrote, and a one-line summary of what changed. (For reporters who didn&apos;t,
+          your team uses <b>Mark verified</b> on the report instead.) They tap one of two buttons:
         </p>
         <DocsTable
           columns={["They tap", "What happens"]}

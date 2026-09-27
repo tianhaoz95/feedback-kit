@@ -1,62 +1,66 @@
 # CI/CD & Automation
 
-FeedbackKit automates testing, packaging, and deployments through GitHub Actions and Cloudflare.
+FeedbackKit tests every product on its own, ships betas on every push to `main` that touches the apps, and publishes everything else from GitHub Releases.
 
 ---
 
-## Active CI/CD Workflows
+## Active workflows
 
 ```
 .github/workflows/
-├── deploy-docs.yml      # Deploys VitePress contributor docs to GitHub Pages
-├── deploy-functions.yml # Deploys Supabase Edge Functions on push to main
-├── release-cli.yml      # Publishes feedbackkit-cli to npm with provenance
-├── release-skills.yml   # Publishes feedback-kit-skills to npm with provenance
-├── publish-web-sdk.yml  # Publishes feedbackkit-web to npm (provenance) + GitHub Packages
-├── web-sdk-ci.yml       # Web SDK unit + 3-browser e2e; dashboard clean build
-├── release-testflight.yml # Builds & uploads iOS/watchOS demo to TestFlight
-└── release-mac.yml      # Builds, notarizes, and attaches signed macOS DMG
+├── sdk-ci.yml              # Swift SDK: swift test (macOS), iOS Simulator tests, watchOS build
+├── portal-ci.yml           # Developer Portal tests (Mac target)
+├── cli-ci.yml              # CLI + MCP server: lint and tests (Linux)
+├── backend-ci.yml          # Edge Function type-check, migrations from scratch, skills validation
+├── web-sdk-ci.yml          # Web SDK unit + 3-browser e2e; dashboard clean build
+├── beta.yml                # Push to main: SDK + Portal CI as the gate, then Portal betas
+├── testflight-portal.yml   # iOS Developer Portal → TestFlight
+├── release-portal-macos.yml# macOS Developer Portal → notarized DMG (release or rolling beta)
+├── testflight.yml          # Demo apps (iOS + watchOS) → TestFlight
+├── release-macos-demo.yml  # macOS demo app → notarized DMG
+├── publish-cli.yml         # feedbackkit-cli → npm (provenance) + GitHub Packages
+├── publish-web-sdk.yml     # feedbackkit-web → npm (provenance) + GitHub Packages
+├── publish-skills.yml      # feedback-kit-skills → npm + GitHub Packages
+├── deploy-functions.yml    # Supabase Edge Functions on push to main
+├── announce-web.yml        # Announces each Cloudflare web deploy as a FeedbackKit release
+└── deploy-docs.yml         # This VitePress site → GitHub Pages
 ```
 
 ---
 
-## 1. Developer Documentation (GitHub Pages)
+## 1. Tests, one workflow per product
 
-- **Workflow**: `.github/workflows/deploy-docs.yml`
-- **Trigger**: Pushes to `main` touching `docs/**`
-- **Output**: Built by VitePress to `docs/.vitepress/dist` and published via `actions/deploy-pages` to `https://tianhaoz95.github.io/feedback-kit/`.
+Each CI workflow runs on pull requests and on pushes to `main`, filtered to its own paths, so a failure names the product and a change to one product doesn't run the others' tests.
 
----
+| Workflow | Runner | Paths | Runs |
+|---|---|---|---|
+| `sdk-ci.yml` | macOS | `Sources/`, `Tests/`, `Package.swift` | `swift test`; `xcodebuild test` on the first available iPhone simulator; a watchOS Simulator build |
+| `portal-ci.yml` | macOS | `DeveloperApp/`, `Sources/`, `Package.swift` | `xcodegen generate` + `xcodebuild test` on the `FeedbackPortalMac` scheme |
+| `cli-ci.yml` | Linux | `cli/` | `npm run lint`, `npm test` |
+| `backend-ci.yml` | Linux | `supabase/`, `skills/` | `deno check --node-modules-dir=auto` on every function; `supabase db start` (applies every migration in order); `npm run validate` for skills |
+| `web-sdk-ci.yml` | Linux | `web-sdk/`, `web/` | SDK lint/unit/build and the Playwright e2e in Chromium, Firefox and WebKit; dashboard lint/test/build from a clean checkout |
 
-## 2. Web Dashboard (Cloudflare)
-
-- **Trigger**: Automatic on push to `main` via Cloudflare Git integration.
-- **Config**: Root `wrangler.jsonc` specifies `directory: "./web/dist"` with SPA fallback.
-- **Hosted At**: `https://feedback-kit.hejitech.workers.dev`
-
----
-
-## 3. Supabase Edge Functions
-
-- **Workflow**: `.github/workflows/deploy-functions.yml`
-- **Trigger**: Pushes to `main` touching `supabase/functions/**`
-- **Secret**: `SUPABASE_ACCESS_TOKEN`
+`sdk-ci.yml` and `portal-ci.yml` also have `workflow_call`, so `beta.yml` runs them as its gate. Their concurrency group includes `github.workflow`, so the gate call and the workflow's own run for the same push don't cancel each other.
 
 ---
 
-## 4. npm Package Releases
+## 2. Betas on every push to main
 
-Both CLI and Skills packages are published with cryptographic OpenID Connect (OIDC) provenance:
-
-- **`feedbackkit-cli`**: Triggered by git tags matching `v*` (e.g. `v0.1.0`).
-- **`feedback-kit-skills`**: Triggered by tag or manual dispatch.
-- **`feedbackkit-web`** (`publish-web-sdk.yml`): Triggered by any published release except `mac-demo-`/`cli-`/`skills-` tags (so `vX.Y.Z` and `web-sdk-vX.Y.Z`), or manual dispatch with dry-run. Runs lint, unit tests, build and a Chromium e2e before publishing to npm and GitHub Packages.
-
-`web-sdk-ci.yml` runs on pushes/PRs touching `web-sdk/**` or `web/**`: SDK unit tests, the Playwright e2e in Chromium, Firefox and WebKit, and a dashboard lint/test/build from a clean checkout (the dashboard imports the SDK from source).
+`beta.yml` runs on pushes touching the SDK or the Portal: `sdk-ci` and `portal-ci` must pass, then the iOS Portal goes to TestFlight and the macOS Portal to the rolling `beta-portal-mac` prerelease. Each release script ends with `scripts/feedbackkit_announce.sh`, which records the build with the `FEEDBACKKIT_RELEASE_TOKEN` secret so merged fixes move to Shipped (see [The Closed Loop](../architecture/closed-loop.md)).
 
 ---
 
-## 5. Apple Platform Releases
+## 3. Releases
 
-- **iOS & watchOS**: `.github/workflows/release-testflight.yml` uses an App Store Connect API Key to archive and upload IPA builds.
-- **macOS Desktop**: `.github/workflows/release-mac.yml` signs the macOS application with Developer ID, submits to Apple's Notary service, staples the ticket, and packages a signed DMG attached to GitHub Releases.
+`./scripts/cut_release.sh X.Y.Z` publishes a GitHub Release `vX.Y.Z`, which starts every release workflow: both Portals, both demo apps, and the CLI, web SDK and skills packages (versions come from the tag). Product-only tags exist too: `--cli`, `--web-sdk`, `--skills`, `--mac-demo`, `--mac-portal`. `publish-cli.yml` runs the CLI's lint and tests before publishing; `publish-web-sdk.yml` runs lint, unit tests, build and a Chromium e2e.
+
+Apple releases archive with an App Store Connect API key (TestFlight) or sign with Developer ID, notarize, staple and attach a DMG (macOS). Build numbers are UTC timestamps, so fix verification can compare them.
+
+---
+
+## 4. Deploys
+
+- **Web dashboard** — Cloudflare's Git integration builds `web/` on every push to `main` (`wrangler.jsonc`, SPA fallback) at `https://feedback-kit.hejitech.workers.dev`. `announce-web.yml` waits for Cloudflare's check run on the commit, then announces the short SHA as a production build for the `web-dashboard` and `website` products.
+- **Edge Functions** — `deploy-functions.yml` on pushes touching `supabase/functions/**` (`SUPABASE_ACCESS_TOKEN`).
+- **Migrations** — Supabase's own GitHub integration applies new files in `supabase/migrations/` to the hosted project.
+- **These docs** — `deploy-docs.yml` on pushes touching `docs/**`.
