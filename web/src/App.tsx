@@ -1,4 +1,6 @@
-import { Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
+import { Route, Routes, useLocation } from "react-router-dom";
+import { trackPageView } from "@/lib/analytics";
 import { AuthProvider, RequireAuth, RedirectIfAuthed } from "@/lib/auth";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { LandingPage } from "@/pages/LandingPage";
@@ -18,6 +20,7 @@ import { TeamPage } from "@/pages/TeamPage";
 import { InvitePage } from "@/pages/InvitePage";
 import { NotificationsPage } from "@/pages/NotificationsPage";
 import { GitHubCallbackPage } from "@/pages/GitHubCallbackPage";
+import { AccountPage } from "@/pages/AccountPage";
 import { DocsOverviewPage } from "@/pages/docs/DocsOverviewPage";
 import { DocsHowItWorksPage } from "@/pages/docs/DocsHowItWorksPage";
 import { DocsIosSdkPage } from "@/pages/docs/DocsIosSdkPage";
@@ -27,9 +30,19 @@ import { DocsCliPage } from "@/pages/docs/DocsCliPage";
 import { DocsMcpPage } from "@/pages/docs/DocsMcpPage";
 import { DocsSkillsPage } from "@/pages/docs/DocsSkillsPage";
 
+/** One page_view per route change (lib/analytics.ts). */
+function PageViewTracker() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    trackPageView();
+  }, [pathname]);
+  return null;
+}
+
 export default function App() {
   return (
     <AuthProvider>
+      <PageViewTracker />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
@@ -77,6 +90,7 @@ export default function App() {
           <Route path="/team" element={<TeamPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/github/callback" element={<GitHubCallbackPage />} />
+          <Route path="/account" element={<AccountPage />} />
         </Route>
       </Routes>
     </AuthProvider>

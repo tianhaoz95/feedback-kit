@@ -16,3 +16,12 @@ test("formatUsd drops cents only for whole dollars", () => {
   assert.equal(formatUsd(60), "$60");
   assert.equal(formatUsd(12.5), "$12.50");
 });
+
+test("reportUsageShare is 0 when unlimited and capped at 1", async () => {
+  const { reportUsageShare } = await import("./pricing.ts");
+  const usage = { limited: true, reports_this_month: 40, projects: 1, members: 1, limits: { projects: 1, members: 3, reports_per_month: 50 } };
+  assert.equal(reportUsageShare(usage), 0.8);
+  assert.equal(reportUsageShare({ ...usage, reports_this_month: 70 }), 1);
+  assert.equal(reportUsageShare({ ...usage, limited: false }), 0);
+  assert.equal(reportUsageShare(null), 0);
+});

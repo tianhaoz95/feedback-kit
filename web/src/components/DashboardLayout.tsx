@@ -91,16 +91,22 @@ export function DashboardLayout() {
             <div className="mx-1 hidden h-5 w-px bg-neutral-200 sm:mx-2 sm:block" />
 
             <div className="flex items-center gap-1.5 pl-1 sm:gap-2">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="" className="h-6 w-6 shrink-0 rounded-full ring-1 ring-neutral-200" />
-              ) : (
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-[10px] font-semibold text-neutral-600">
-                  {displayName.slice(0, 1).toUpperCase()}
+              <Link
+                to="/account"
+                title="Account"
+                className="flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-neutral-100 sm:gap-2"
+              >
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className="h-6 w-6 shrink-0 rounded-full ring-1 ring-neutral-200" />
+                ) : (
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-[10px] font-semibold text-neutral-600">
+                    {displayName.slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+                <span className="hidden max-w-[10rem] truncate text-sm text-neutral-600 md:inline">
+                  {displayName}
                 </span>
-              )}
-              <span className="hidden max-w-[10rem] truncate text-sm text-neutral-600 md:inline">
-                {displayName}
-              </span>
+              </Link>
               <button
                 type="button"
                 title="Sign out"

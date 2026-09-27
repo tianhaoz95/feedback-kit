@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { track } from "@/lib/analytics";
 import type { FeedbackItem, FeedbackStatus } from "@/lib/types";
 import { closingTheLoopSection, renderMergedPrompt } from "@/lib/prompt-template";
 import { Button } from "@/components/Button";
@@ -55,6 +56,7 @@ export function MergedPromptView({
   async function handleCopy() {
     // Appended on copy only, like the single-report editor, so edits never duplicate it.
     await navigator.clipboard.writeText(promptText + closingTheLoopSection(selectedItems));
+    track("prompt_copied", { merged: true, reports: selectedItems.length });
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
   }

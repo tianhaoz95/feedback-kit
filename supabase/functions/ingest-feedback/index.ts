@@ -152,6 +152,13 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Free plan: 50 reports per organization per month (0019_plan_limits.sql).
+  // Fails open if the function isn't there yet, like the checks above.
+  const { data: accepts, error: limitError } = await supabase.rpc("project_accepts_report", { p_project_id: project.id });
+  if (!limitError && accepts === false) {
+    return json({ error: "plan_limit_reached", message: "This project has reached its plan's monthly report limit." }, 402);
+  }
+
   // Resolve products for this feedback report
   let resolvedProducts: IngestProduct[] = [];
   let resolvedProductKeys: string[] = [];

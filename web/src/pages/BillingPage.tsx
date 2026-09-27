@@ -1,10 +1,19 @@
 import { useEffect, useState, useTransition, type ReactNode } from "react";
+import { track } from "@/lib/analytics";
 import { Link } from "react-router-dom";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { useOrganization } from "@/lib/organization";
 import { getErrorMessage } from "@/lib/errors";
-import { billableSeats, formatUsd, TEAM_PRICE_PER_SEAT_USD, teamMonthlyTotal } from "@/lib/pricing";
+import { SUPPORT_EMAIL } from "@/lib/company";
+import {
+  billableSeats,
+  FREE_LIMITS,
+  formatUsd,
+  TEAM_PRICE_PER_SEAT_USD,
+  teamMonthlyTotal,
+  type OrganizationUsage,
+} from "@/lib/pricing";
 import type { OrganizationBilling } from "@/lib/types";
 import { Button } from "@/components/Button";
 import { CheckIcon, CreditCardIcon, UsersIcon } from "@/components/icons";
@@ -13,7 +22,13 @@ import { CheckIcon, CreditCardIcon, UsersIcon } from "@/components/icons";
 // supabase/functions/create-checkout-session and
 // supabase/migrations/0009_billing.sql / 0016_teams.sql). The price lives in
 // lib/pricing.ts.
-const FREE_FEATURES = ["1 project", "Up to 50 feedback reports / month", "Community support"];
+const FREE_FEATURES = [
+  `${FREE_LIMITS.projects} project`,
+  `${FREE_LIMITS.reportsPerMonth} feedback reports / month`,
+  `Up to ${FREE_LIMITS.members} members`,
+  "The full fix loop: agents, releases, reporter verification",
+  "Email support",
+];
 const TEAM_FEATURES = [
   "Unlimited projects and reports",
   "Invite your whole team",
@@ -38,6 +53,7 @@ export function BillingPage() {
   const isOwner = current?.role === "owner";
   const [billing, setBilling] = useState<OrganizationBilling | null | undefined>(undefined);
   const [memberCount, setMemberCount] = useState<number | null>(null);
+  const [usage, setUsage] = useState<OrganizationUsage | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [billingNotConfigured, setBillingNotConfigured] = useState(false);
@@ -56,6 +72,10 @@ export function BillingPage() {
             .single<OrganizationBilling>(),
           supabase.from("memberships").select("id", { count: "exact", head: true }).eq("organization_id", organizationId),
         ]);
+        // Best effort: the plan card still renders if usage can't load.
+        supabase.rpc("organization_usage", { p_org_id: organizationId }).then(({ data }) => {
+          if (!cancelled) setUsage((data as OrganizationUsage | null) ?? null);
+        });
         if (cancelled) return;
         if (billingRes.error) throw billingRes.error;
         setLoadError(null);
@@ -91,6 +111,7 @@ export function BillingPage() {
     setActionError(null);
     setBillingNotConfigured(false);
     startTransition(async () => {
+      track("checkout_started", {}, organizationId);
       const base = `${window.location.origin}${import.meta.env.BASE_URL}billing`;
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: {
@@ -156,14 +177,18 @@ export function BillingPage() {
         <h1 className="text-xl font-semibold text-neutral-900">Billing</h1>
         <p className="mt-1 text-sm text-neutral-500">
           Billing is per organization. You're looking at{" "}
-          <span className="font-medium text-neutral-700">{current.name}</span>. FeedbackKit is free while it's early;
-          the Team plan below isn't live yet.
+          <span className="font-medium text-neutral-700">{current.name}</span>.
         </p>
       </div>
 
       {billingNotConfigured ? (
         <div className="rounded-lg border border-dashed border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
-          Payments aren't switched on yet, so nothing was charged. Check back soon.
+          Payments aren&apos;t switched on yet, so nothing was charged. Need more than the Free plan in the meantime?
+          Email{" "}
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="underline">
+            {SUPPORT_EMAIL}
+          </a>{" "}
+          and we&apos;ll lift the limits for your organization.
         </div>
       ) : null}
       {actionError ? (
@@ -193,6 +218,13 @@ export function BillingPage() {
             </Button>
           ) : null}
         </div>
+        {usage?.limited ? (
+          <div className="mt-4 grid gap-3 border-t border-neutral-100 pt-4 sm:grid-cols-3">
+            <UsageMeter label="Reports this month" used={usage.reports_this_month} limit={usage.limits.reports_per_month} />
+            <UsageMeter label="Projects" used={usage.projects} limit={usage.limits.projects} />
+            <UsageMeter label="Members" used={usage.members} limit={usage.limits.members} />
+          </div>
+        ) : null}
       </div>
 
       {!isPaid ? (
@@ -278,6 +310,24 @@ function PlanCard({
         ))}
       </ul>
       {action ? <div className="mt-5">{action}</div> : null}
+    </div>
+  );
+}
+
+function UsageMeter({ label, used, limit }: { label: string; used: number; limit: number }) {
+  const share = Math.min(1, used / limit);
+  const tone = share >= 1 ? "bg-red-500" : share >= 0.8 ? "bg-amber-500" : "bg-neutral-900";
+  return (
+    <div>
+      <div className="flex items-baseline justify-between text-xs">
+        <span className="text-neutral-500">{label}</span>
+        <span className="font-medium text-neutral-900">
+          {used} / {limit}
+        </span>
+      </div>
+      <div className="mt-1.5 h-1.5 rounded-full bg-neutral-100">
+        <div className={`h-1.5 rounded-full ${tone}`} style={{ width: `${share * 100}%` }} />
+      </div>
     </div>
   );
 }

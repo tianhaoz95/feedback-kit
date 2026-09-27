@@ -589,6 +589,30 @@ Rules for skills:
   "Turning on push notifications"), and the trigger must keep swallowing
   errors so push can never fail a report insert. The Mac Portal has no push
   and polls instead.
+- **Free plan limits (`0019_plan_limits.sql`) are enforced where the write
+  happens**: triggers on `projects`, `memberships` and
+  `organization_invitations`, and `ingest-feedback` asks
+  `project_accepts_report()` (402 `plan_limit_reached`, failing open if the
+  function is missing). Any plan other than `free` is unlimited, and
+  `organization_billing.limits_exempt` exempts an org (the team's dogfood org
+  is set by project key). The numbers live in `plan_limit()` and are mirrored
+  by hand in `web/src/lib/pricing.ts` `FREE_LIMITS` and the terms page.
+- **Product analytics are first-party (`0020_analytics.sql`).** The dashboard
+  writes `analytics_events` via `web/src/lib/analytics.ts` (`track()`; off in
+  dev and under DNT/GPC). Nobody but the service role can read them, and
+  `analytics_funnel()` computes the activation funnel from the product tables
+  themselves. `node scripts/analytics_report.mjs` prints it. Say so in the
+  privacy notice before adding a third-party tracker.
+- **Account deletion is `delete_my_account()` (`0021`).** It refuses while
+  it would orphan a shared org's ownership or a live paid plan. Clients remove
+  storage files first (`my_sole_organization_storage_paths()`), because SQL
+  can't delete storage objects. The Portal must keep this in Settings for App
+  Store guideline 5.1.1(v).
+- **"Mark verified" is the team's override for a silent reporter**
+  (`FixLoopPanel`). It records a `verified` event with `actor_type = 'user'`,
+  and notifications and the timeline say "marked verified" rather than
+  "reporter confirmed" (`0022`). `web/src/lib/loopHealth.ts` owns the loop
+  checklist and the stuck-report hints.
 - **Billing is per seat.** Team plan = member count × the price in
   `web/src/lib/pricing.ts` (mirrored as `TeamView.teamPricePerSeat` in the
   Portal). Checkout is owner-only and sends quantity = members;

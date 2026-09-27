@@ -132,6 +132,8 @@ export async function submitReport(
         ? `Server rejected the project key or origin (HTTP ${response.status})${detail}.`
         : response.status === 429
           ? "Too many reports right now — please try again in a minute."
+          : response.status === 402
+          ? "Feedback for this site is paused this month. Please try again later."
           : `Server returned HTTP ${response.status}${detail}.`;
     throw new FeedbackSubmissionError(message, "server", response.status);
   }

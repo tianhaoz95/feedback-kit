@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { track } from "@/lib/analytics";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
@@ -262,6 +263,7 @@ export function TeamPage() {
                     })
                     .single<OrganizationInvitation>();
                   if (error) throw error;
+                  track("invite_created", { role: inviteRole, by_email: Boolean(inviteEmail.trim()) }, current.id);
                   setNewInvite(data);
                   setInviteEmail("");
                   await load();

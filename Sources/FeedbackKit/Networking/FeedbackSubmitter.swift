@@ -18,6 +18,10 @@ public enum FeedbackSubmissionError: Error, Sendable, LocalizedError {
             if statusCode == 401 || statusCode == 403 {
                 return "Server rejected project key (HTTP \(statusCode)). Please verify your API key."
             }
+            if statusCode == 402 {
+                // The project's plan reached its monthly report limit (0019_plan_limits.sql).
+                return "Feedback for this app is paused this month. Please try again later."
+            }
             return "Server returned error (HTTP \(statusCode))."
         }
     }

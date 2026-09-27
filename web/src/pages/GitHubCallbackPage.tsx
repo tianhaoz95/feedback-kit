@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { track } from "@/lib/analytics";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { finishGitHubUserConnect } from "@/lib/githubUser";
 
@@ -20,7 +21,10 @@ export function GitHubCallbackPage() {
       return;
     }
     finishGitHubUserConnect(code, state)
-      .then(({ returnTo }) => navigate(returnTo, { replace: true }))
+      .then(({ returnTo }) => {
+        track("github_connected");
+        navigate(returnTo, { replace: true });
+      })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : "Couldn't connect your GitHub account."));
   }, [params, navigate]);
 

@@ -28,6 +28,28 @@ extension SupabasePortalClient {
 
     private static let isoFormatter = ISO8601DateFormatter()
 
+    // MARK: - Account
+
+    /// Deletes the signed-in account (supabase/migrations/0021_account_deletion.sql),
+    /// removing the screenshots of organizations that go with it first — the
+    /// database can't delete storage objects itself. The server refuses (with a
+    /// message to show) while it would leave a shared organization without an owner.
+    public func deleteAccount() async throws {
+        if isDemoMode { return }
+        let data = try await rpc("my_sole_organization_storage_paths")
+        let paths = ((try? JSONDecoder().decode([String?].self, from: data)) ?? []).compactMap { $0 }
+        for start in stride(from: 0, to: paths.count, by: 100) {
+            let batch = Array(paths[start..<min(start + 100, paths.count)])
+            let request = try makeRequest(
+                path: "/storage/v1/object/feedback-screenshots",
+                method: "DELETE",
+                body: try JSONSerialization.data(withJSONObject: ["prefixes": batch])
+            )
+            _ = try? await executeRequest(request)
+        }
+        try await rpc("delete_my_account")
+    }
+
     // MARK: - Organizations
 
     public func fetchOrganizations() async throws -> [PortalOrganization] {

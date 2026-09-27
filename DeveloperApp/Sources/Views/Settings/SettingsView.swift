@@ -5,6 +5,9 @@ public struct SettingsView: View {
     @ObservedObject private var client = SupabasePortalClient.shared
     @EnvironmentObject private var appState: AppState
     @State private var showSignOutConfirmation = false
+    @State private var showDeleteAccountConfirmation = false
+    @State private var isDeletingAccount = false
+    @State private var deleteAccountError: String?
 
     private var appVersionText: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
@@ -222,6 +225,17 @@ public struct SettingsView: View {
                                 Text(client.isDemoMode ? "Exit Demo Mode / Sign In" : "Sign Out")
                             }
                         }
+                        if !client.isDemoMode {
+                            Button(role: .destructive) {
+                                showDeleteAccountConfirmation = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "person.crop.circle.badge.xmark")
+                                    Text(isDeletingAccount ? "Deleting Account…" : "Delete Account")
+                                }
+                            }
+                            .disabled(isDeletingAccount)
+                        }
                     }
                 }
             }
@@ -247,6 +261,35 @@ public struct SettingsView: View {
                 }
             } message: {
                 Text(client.isDemoMode ? "You will return to the sign-in screen." : "Are you sure you want to sign out?")
+            }
+            .alert("Delete your account?", isPresented: $showDeleteAccountConfirmation) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete Account", role: .destructive) {
+                    isDeletingAccount = true
+                    Task {
+                        do {
+                            #if os(iOS)
+                            await PortalPushNotifications.shared.signOut()
+                            #endif
+                            try await client.deleteAccount()
+                            client.signOut()
+                            appState.resetForSignOut()
+                        } catch {
+                            deleteAccountError = error.localizedDescription
+                        }
+                        isDeletingAccount = false
+                    }
+                }
+            } message: {
+                Text("This permanently deletes your FeedbackKit account and every organization where you're the only member, with its projects and reports. Organizations you share keep their data. This can't be undone.")
+            }
+            .alert("Couldn't delete your account", isPresented: Binding(
+                get: { deleteAccountError != nil },
+                set: { if !$0 { deleteAccountError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(deleteAccountError ?? "")
             }
         }
     }

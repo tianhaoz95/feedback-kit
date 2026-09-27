@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { track } from "@/lib/analytics";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
@@ -41,6 +42,8 @@ import { AgentDispatchCard } from "@/components/AgentDispatchCard";
 import { ReleasesPanel } from "@/components/ReleasesPanel";
 import { ReleaseTokensCard } from "@/components/ReleaseTokensCard";
 import { FixLoopPanel } from "@/components/FixLoopPanel";
+import { LoopChecklist } from "@/components/LoopChecklist";
+import { UsageBanner } from "@/components/UsageBanner";
 import { FixStageBadge } from "@/components/FixStageBadge";
 import { ConsoleLogsPanel } from "@/components/ConsoleLogsPanel";
 import { PlatformBadge } from "@/components/PlatformBadge";
@@ -128,6 +131,7 @@ export function ProjectPage() {
       setIssueError({ message: getErrorMessage(error, "Couldn't queue the run.") });
       return;
     }
+    track("run_local_queued", {}, project?.organization_id);
     setLocalRunState("queued");
     setTimeout(() => setLocalRunState("idle"), 4000);
   }
@@ -144,6 +148,7 @@ export function ProjectPage() {
     }
 
     setIsCreatingIssue(true);
+    track(options.redispatch ? "send_to_agent_again" : "send_to_agent", { copilot: Boolean(project.dispatch_copilot) }, project.organization_id);
     try {
       const { data, error } = await supabase.functions.invoke("create-github-issue", {
         body: {
@@ -834,6 +839,8 @@ export function ProjectPage() {
 
       {activeTab === "feedback" && (
         <section>
+          <UsageBanner organizationId={project.organization_id} />
+          <LoopChecklist project={project} feedbackItems={feedbackItems} onGoToTab={handleTabChange} />
           {feedbackItems.length === 0 ? (
             <EmptyState
               icon={<InboxIcon className="h-6 w-6" />}
@@ -1106,7 +1113,13 @@ export function ProjectPage() {
 
                     <div className="h-4 w-px bg-neutral-200" />
 
-                    <div className="flex items-center gap-1.5">
+                    {selectedFeedback.fix_stage ? (
+                      <div className="flex items-center gap-1.5" title="Where the fix is. It moves on its own as agents, GitHub, releases and the reporter act.">
+                        <span className="text-xs font-medium text-neutral-500">Fix:</span>
+                        <FixStageBadge stage={selectedFeedback.fix_stage} />
+                      </div>
+                    ) : null}
+                    <div className="flex items-center gap-1.5" title="Your triage status. Fix-loop events update it too.">
                       <span className="text-xs font-medium text-neutral-500">Status:</span>
                       <StatusSelect
                         key={selectedFeedback.id}
@@ -1230,7 +1243,12 @@ export function ProjectPage() {
                     </div>
 
                     {/* Closed loop: agent → PR → release → reporter verifies */}
-                    <FixLoopPanel feedback={selectedFeedback} />
+                    <FixLoopPanel
+                      feedback={selectedFeedback}
+                      onUpdated={(patch) =>
+                        setFeedbackItems((current) => current.map((item) => (item.id === selectedFeedback.id ? { ...item, ...patch } : item)))
+                      }
+                    />
 
                     {/* Affected Products */}
                     <FeedbackProductsPicker

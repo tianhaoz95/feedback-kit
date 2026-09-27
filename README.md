@@ -304,6 +304,20 @@ From then on every notification row is also pushed to the recipient's
 signed-in iPhones and iPads (users control which kinds on the dashboard's
 Notifications page). Remove either Vault secret to switch it off again.
 
+### Product analytics
+
+The dashboard records first-party usage events (`supabase/migrations/0020_analytics.sql`,
+`web/src/lib/analytics.ts`): no third-party tracker, readable only with the
+service role key. For the activation funnel (organizations → project → first
+report → agent → linked fix → announced build → reporter-verified fix), active
+users, top events and top pages, run:
+
+```bash
+node scripts/analytics_report.mjs        # last 30 days; pass a number for another window
+```
+
+It uses `SUPABASE_SERVICE_ROLE_KEY` if set, otherwise your `supabase login`.
+
 ### Turning on "Assign to GitHub Copilot"
 
 Copilot's coding agent only accepts an issue assignment from a token acting

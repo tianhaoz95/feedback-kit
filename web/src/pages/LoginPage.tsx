@@ -1,4 +1,5 @@
 import { useState, useTransition } from "react";
+import { track } from "@/lib/analytics";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Logomark } from "@/components/Logomark";
@@ -10,6 +11,7 @@ export function LoginPage() {
 
   function signInWithGitHub() {
     setError(null);
+    track("sign_in_started");
     startTransition(async () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "github",

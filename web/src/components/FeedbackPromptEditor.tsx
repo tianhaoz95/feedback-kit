@@ -1,4 +1,5 @@
 import { useState, useTransition } from "react";
+import { track } from "@/lib/analytics";
 import { getErrorMessage } from "@/lib/errors";
 import { Button } from "@/components/Button";
 import { CheckIcon, CopyIcon } from "@/components/icons";
@@ -37,6 +38,7 @@ export function FeedbackPromptEditor({
           size="sm"
           onClick={async () => {
             await navigator.clipboard.writeText(value + copySuffix);
+            track("prompt_copied", { merged: false, edited: isEdited });
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
           }}

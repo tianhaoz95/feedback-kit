@@ -1,4 +1,5 @@
 import { useEffect, useState, useTransition } from "react";
+import { track } from "@/lib/analytics";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useOrganization } from "@/lib/organization";
@@ -95,6 +96,7 @@ export function ProjectsPage() {
           .single();
 
         if (error) throw error;
+        track("project_created", {}, organizationId);
         navigate(`/projects/${data.id}`);
       } catch (err) {
         setError(getErrorMessage(err, "Couldn't create the project. Try again."));

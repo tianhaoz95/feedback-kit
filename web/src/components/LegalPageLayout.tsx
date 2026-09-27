@@ -23,10 +23,6 @@ export function LegalPageLayout({
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12">
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         <p className="mt-1 text-xs text-neutral-400">Last updated: {lastUpdated}</p>
-        <div className="mt-6 rounded-md bg-amber-50 px-4 py-3 text-xs text-amber-800">
-          This is a starting template, not legal advice — have it reviewed before you rely
-          on it for a real product.
-        </div>
         <div className="mt-8 space-y-6 text-sm leading-relaxed text-neutral-700">{children}</div>
       </main>
       <SiteFooter />

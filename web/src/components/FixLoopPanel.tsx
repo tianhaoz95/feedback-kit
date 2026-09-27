@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { TextWithCode } from "@/components/TextWithCode";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { getErrorMessage } from "@/lib/errors";
 import { FIX_STAGE_META, FIX_STAGE_ORDER } from "@/lib/fixStageMeta";
+import { stuckHint } from "@/lib/loopHealth";
 import type { FeedbackEvent, FeedbackEventKind, FeedbackItem } from "@/lib/types";
 import { Button } from "@/components/Button";
 import { AlertIcon, CheckIcon, ExternalLinkIcon, GitHubIcon, MessageIcon, SparkleIcon } from "@/components/icons";
@@ -42,7 +44,14 @@ const ACTOR_TONE: Record<FeedbackEvent["actor_type"], string> = {
  * Writes go straight to `feedback_events` as the signed-in user; RLS
  * enforces project membership and that the actor is really you.
  */
-export function FixLoopPanel({ feedback }: { feedback: FeedbackItem }) {
+export function FixLoopPanel({
+  feedback,
+  onUpdated,
+}: {
+  feedback: FeedbackItem;
+  /** Called with the fields changed by an action here (e.g. Mark verified). */
+  onUpdated?: (patch: Partial<FeedbackItem>) => void;
+}) {
   const { user } = useAuth();
   const [events, setEvents] = useState<FeedbackEvent[] | null>(null);
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
@@ -51,6 +60,7 @@ export function FixLoopPanel({ feedback }: { feedback: FeedbackItem }) {
   const [mode, setMode] = useState<"note" | "reporterNote" | "question">("note");
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -113,7 +123,42 @@ export function FixLoopPanel({ feedback }: { feedback: FeedbackItem }) {
     void load();
   }
 
+  /**
+   * The developer's override when the reporter can't or won't answer: same
+   * end state as the reporter's "Yes, it's fixed" (fix_stage verified, status
+   * resolved), recorded as the developer so the timeline says who decided.
+   */
+  async function markVerified() {
+    if (!user) return;
+    setVerifying(true);
+    setPostError(null);
+    const verifiedAt = new Date().toISOString();
+    const { error } = await supabase
+      .from("feedback_items")
+      .update({ fix_stage: "verified", status: "resolved", verified_at: verifiedAt })
+      .eq("id", feedback.id);
+    if (!error) {
+      await supabase.from("feedback_events").insert({
+        feedback_id: feedback.id,
+        project_id: feedback.project_id,
+        kind: "verified",
+        actor_type: "user",
+        actor_user_id: user.id,
+        actor_label: (user.user_metadata?.user_name as string | undefined) ?? user.email ?? "Developer",
+        body: "Marked verified by the team (not confirmed by the reporter).",
+        data: { by: "team" },
+      });
+    }
+    setVerifying(false);
+    if (error) {
+      setPostError(getErrorMessage(error, "Couldn't mark it verified."));
+      return;
+    }
+    onUpdated?.({ fix_stage: "verified", status: "resolved", verified_at: verifiedAt });
+  }
+
   const stage = feedback.fix_stage ?? null;
+  const hint = events ? stuckHint(feedback, events) : null;
   const reachedIndex = stage && stage !== "reopened" ? FIX_STAGE_ORDER.indexOf(stage) : -1;
   const canReachReporter = !!feedback.reporter_id;
 
@@ -144,6 +189,26 @@ export function FixLoopPanel({ feedback }: { feedback: FeedbackItem }) {
             {(feedback.reopen_count ?? 0) > 1 ? ` (reopened ${feedback.reopen_count}×)` : ""}. Their latest screenshot is
             in the timeline below, and agents see it via <code className="font-mono">get_feedback</code>.
           </span>
+        </div>
+      ) : null}
+
+      {hint ? (
+        <div
+          className={`flex flex-wrap items-start justify-between gap-2 rounded-lg border px-3 py-2 text-xs ${
+            hint.tone === "warning" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-neutral-200 bg-neutral-50 text-neutral-700"
+          }`}
+        >
+          <span className="flex min-w-0 flex-1 items-start gap-2">
+            <AlertIcon className={`mt-0.5 h-4 w-4 shrink-0 ${hint.tone === "warning" ? "text-amber-600" : "text-neutral-400"}`} />
+            <span>
+              <TextWithCode text={hint.message} />
+            </span>
+          </span>
+          {hint.offerMarkVerified ? (
+            <Button type="button" size="sm" variant="secondary" disabled={verifying} onClick={() => void markVerified()}>
+              {verifying ? "Saving…" : "Mark verified"}
+            </Button>
+          ) : null}
         </div>
       ) : null}
 
@@ -193,7 +258,7 @@ export function FixLoopPanel({ feedback }: { feedback: FeedbackItem }) {
               <li key={e.id} className="relative">
                 <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-neutral-300" />
                 <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                  <span className="font-medium text-neutral-900">{KIND_LABEL[e.kind] ?? e.kind}</span>
+                  <span className="font-medium text-neutral-900">{e.kind === "verified" && e.actor_type !== "reporter" ? "Marked verified by the team" : (KIND_LABEL[e.kind] ?? e.kind)}</span>
                   <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${ACTOR_TONE[e.actor_type]}`}>
                     {e.actor_label ?? e.actor_type}
                   </span>
