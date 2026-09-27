@@ -51,7 +51,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned: resolving "latest" calls the GitHub API and can hit its rate limit.
+          version: 2.117.0
       # Starts Postgres in Docker and applies every migration in order —
       # the same thing a fresh project or `supabase db reset` does.
       - run: supabase db start
