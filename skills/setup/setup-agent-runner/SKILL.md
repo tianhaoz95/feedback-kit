@@ -1,6 +1,6 @@
 ---
 name: setup-agent-runner
-description: Run a coding agent automatically on FeedbackKit reports, on the team's own Mac — register a self-hosted GitHub Actions runner, add a workflow that starts Claude Code when FeedbackKit labels an issue, and let the agent build the app, run it in the Simulator and open a PR that closes the loop back to the reporter. Also covers the lighter `feedbackkit watch` alternative for solo developers.
+description: Run a coding agent automatically on FeedbackKit reports, on the team's own Mac — register a self-hosted GitHub Actions runner, add a workflow that starts Claude Code or Google Antigravity when FeedbackKit labels an issue, and let the agent build the app, run it in the Simulator and open a PR that closes the loop back to the reporter. Also covers the lighter `feedbackkit watch` alternative for solo developers.
 ---
 
 # setup-agent-runner
@@ -52,7 +52,18 @@ TOKEN=$(gh api -X POST repos/OWNER/REPO/actions/runners/registration-token --jq 
 
 (`osx-x64` on an Intel Mac.) `svc.sh` installs a LaunchAgent for the logged-in user, so the runner can use the Simulator and that user's `~/.feedbackkit` login.
 
-### Step 3 -- Give the agent credentials
+### Step 3 -- Pick the agent
+
+| Agent | Template | How it signs in | How it's fenced |
+|---|---|---|---|
+| Claude Code | `templates/feedbackkit-agent.yml.template` | `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` secret | `--allowedTools` in the workflow; FeedbackKit MCP tools included |
+| Google Antigravity | `templates/feedbackkit-agent-antigravity.yml.template` | Signed in once, interactively, as the runner's user | Allow rules in the runner user's Antigravity settings; the agent only edits files, the workflow commits, pushes and opens the PR |
+
+Use a different dispatch label per agent if the repo has both workflows, or both run.
+
+For **Claude Code**, continue with Step 3a. For **Antigravity**, skip to Step 3b.
+
+### Step 3a -- Give Claude Code credentials
 
 ```bash
 claude setup-token                      # opens a browser, prints a long-lived token (uses the team's Claude subscription)
@@ -64,7 +75,27 @@ Install the Claude GitHub App on the repo (https://github.com/apps/claude) — t
 
 Optional but recommended: on the runner Mac, `npx feedbackkit-cli login` as the runner's user. The workflow then gives the agent the FeedbackKit MCP tools (claim the report, ask the reporter, attach an "after" screenshot).
 
-### Step 4 -- Add the workflow
+### Step 3b -- Set up Antigravity on the runner Mac
+
+As the user the runner service runs as:
+
+1. Install the Antigravity CLI and run `agy` once interactively to sign in. Headless runs (`agy -p`) reuse those cached credentials; with none they exit with an auth error.
+2. Allow the commands the agent needs in `~/.gemini/antigravity-cli/settings.json`. Antigravity 1.2 reads allow rules only from this global file (not from the repository), and **a denied command ends the whole run** — even `ls` goes through this check — so list read-only commands as well as the build and test tools:
+
+   ```bash
+   S=~/.gemini/antigravity-cli/settings.json; [ -f "$S" ] || echo '{}' > "$S"
+   jq '.permissions.allow = ((.permissions.allow // []) + [
+     "command(ls)", "command(cat)", "command(grep)", "command(find)", "command(head)", "command(tail)", "command(wc)", "command(pwd)",
+     "command(xcodebuild)", "command(xcrun)", "command(swift)", "command(xcodegen)"
+   ] | unique)' "$S" > "$S.tmp" && mv "$S.tmp" "$S"
+   ```
+
+   Swap the last line for the project's tools (e.g. `command(node)`, `command(npm)` for a web app). Don't allow `git`: the workflow does all git work, so the agent never needs it. Never use `--dangerously-skip-permissions` here — report text is untrusted input.
+3. Copy `templates/feedbackkit-agent-antigravity.yml.template` to `.github/workflows/feedbackkit-agent-antigravity.yml` and replace `__DISPATCH_LABEL__` (e.g. `antigravity`). The checkout keeps no credentials (`persist-credentials: false`), so only the workflow's own step can push.
+
+Then continue at Step 5.
+
+### Step 4 -- Add the Claude Code workflow
 
 Copy `templates/feedbackkit-agent.yml.template` to `.github/workflows/feedbackkit-agent.yml`, replace `__DISPATCH_LABEL__` (e.g. `claude`), and widen `--allowedTools` only as far as the build needs (e.g. `Bash(npm test:*)` for a web app). Keep `allowed_bots: feedbackkit-app`: the label is added by FeedbackKit's GitHub App, and claude-code-action refuses bot-triggered runs otherwise.
 
@@ -99,6 +130,8 @@ Reports are queued with **Run on my machine** in the dashboard. Each run gets it
 ## Non-Obvious Pitfalls
 
 - **"Workflow initiated by non-human actor"** in the run log = `allowed_bots` is missing the FeedbackKit app.
+- **Antigravity: "a tool required the "command" permission … auto-denied"** = the agent tried a command that isn't in the allow list, and the run stopped there. Add it (if it's safe) to the runner user's `~/.gemini/antigravity-cli/settings.json` and send the report to the agent again.
+- **Antigravity PRs don't start your other workflows**: they're opened with the job's `GITHUB_TOKEN`, which GitHub doesn't let trigger workflows. FeedbackKit's webhook still sees them and links the fix.
 - **Code signing:** the runner service can't unlock the login keychain. Build for the Simulator with `CODE_SIGNING_ALLOWED=NO`.
 - **Runner offline:** a Mac that sleeps drops the runner; jobs wait in the queue until it's back. Disable sleep (System Settings → Energy) on a dedicated machine.
 - **Both triggers set:** if the project also has a trigger comment containing `@claude`, one dispatch starts two runs — the `concurrency` group cancels the older one, but pick one trigger.
