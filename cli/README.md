@@ -75,6 +75,8 @@ feedbackkit release --build <n> [--project <id>] [--commit <rev>] [--product <ke
 feedbackkit releases [--project <id>] [--json]                        # release readiness: verified / waiting / reopened per build
 feedbackkit promote --build <n> [--product <key>] [--token <fkr_…>]   # a beta went to production
 feedbackkit token create <name> | list | revoke <id>                  # release tokens for CI
+feedbackkit watch [--agent claude|codex] [--agent-cmd <cmd>] [--auto] [--max-runs <n>] [--no-pr] [--once]
+                                            # run your local agent on reports queued with "Run on my machine" (run it in the repo)
 feedbackkit docs [topic]                    # print FeedbackKit's own docs (no topic = list topics)
 feedbackkit mcp                             # run an MCP server over stdio
 ```

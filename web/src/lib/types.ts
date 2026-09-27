@@ -107,6 +107,8 @@ export interface Project {
   dispatch_labels?: string[];
   /** Comment posted on new GitHub issues to trigger a coding agent, e.g. "@claude fix this". */
   dispatch_comment?: string | null;
+  /** Assign new GitHub issues to Copilot's coding agent, as the member who sends them (0018_copilot_dispatch.sql). */
+  dispatch_copilot?: boolean;
 }
 
 export interface PromptTemplate {

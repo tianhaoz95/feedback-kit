@@ -9,7 +9,8 @@
 // reporter-updates Edge Function.
 import { execFileSync } from "node:child_process";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { FeedbackEvent, FeedbackEventKind, FeedbackItem, FixStage } from "./types.js";
+import { renderPromptTemplate } from "./promptTemplate.js";
+import type { FeedbackEvent, FeedbackEventKind, FeedbackItem, FixStage, PromptTemplate } from "./types.js";
 
 export const SCREENSHOT_BUCKET = "feedback-screenshots";
 
@@ -170,6 +171,38 @@ export async function attachAfterScreenshot(
     data: { screenshot_path: path },
   });
   return path;
+}
+
+/**
+ * The coding-agent prompt for a report: the developer's edited override if
+ * they set one, otherwise the project's template rendered with fresh signed
+ * URLs (valid for an hour). Shared by `feedbackkit prompt`, MCP `get_prompt`
+ * and `feedbackkit watch`.
+ */
+export async function renderFeedbackPrompt(client: SupabaseClient, feedback: FeedbackItem): Promise<string> {
+  if (feedback.edited_prompt) return feedback.edited_prompt;
+
+  const { data: template } = await client
+    .from("prompt_templates")
+    .select("*")
+    .eq("project_id", feedback.project_id)
+    .single<PromptTemplate>();
+
+  const [screenshotSigned, attachmentSigned] = await Promise.all([
+    feedback.screenshot_annotated_path
+      ? client.storage.from(SCREENSHOT_BUCKET).createSignedUrl(feedback.screenshot_annotated_path, 3600)
+      : Promise.resolve(null),
+    feedback.attachment_path
+      ? client.storage.from(SCREENSHOT_BUCKET).createSignedUrl(feedback.attachment_path, 3600)
+      : Promise.resolve(null),
+  ]);
+
+  return renderPromptTemplate(
+    template?.template_text ?? "",
+    feedback,
+    screenshotSigned?.data?.signedUrl ?? null,
+    attachmentSigned?.data?.signedUrl ?? null,
+  );
 }
 
 /** Downloads a stored screenshot as base64 (for MCP image content), or null. */

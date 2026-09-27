@@ -128,6 +128,13 @@ export function DocsHowItWorksPage() {
           The <Link to="/docs/skills" className={docLink}>fix-feedback skill</Link> packages this whole routine,
           so you don't have to explain it to the agent each time.
         </p>
+        <p>
+          Or skip opening an agent at all. <strong>Send to agent</strong> on the report page creates a GitHub issue
+          and starts Claude Code on a self-hosted Mac runner (the <Link to="/docs/skills" className={docLink}>setup-agent-runner
+          skill</Link>), which can build and run your app, or GitHub Copilot's coding agent (Settings → Coding agent
+          loop), which runs on Linux. <strong>Run on my machine</strong> queues the report for{" "}
+          <InlineCode>feedbackkit watch</InlineCode>, which runs your local Claude Code or Codex and opens the PR.
+        </p>
       </Step>
 
       <Step index={4}>

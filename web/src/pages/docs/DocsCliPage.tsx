@@ -100,6 +100,10 @@ export function DocsCliPage() {
             ],
             [<InlineCode>feedbackkit prompt &lt;feedbackId&gt;</InlineCode>, "Print the generated coding-agent prompt for one report."],
             [
+              <InlineCode>feedbackkit watch [--agent claude|codex] [--auto] [--no-pr]</InlineCode>,
+              "Run your own coding agent on reports queued with “Run on my machine”. Each run gets a git worktree; the fix is pushed and opened as a PR. Run it inside the repo.",
+            ],
+            [
               <InlineCode>feedbackkit docs [topic]</InlineCode>,
               "Print this documentation — no topic lists topics. Doesn't require being logged in.",
             ],

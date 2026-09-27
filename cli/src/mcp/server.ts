@@ -3,7 +3,6 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { getAuthenticatedClient } from "../supabaseClient.js";
-import { renderPromptTemplate } from "../promptTemplate.js";
 import { getDocTopic, listDocTopics } from "../docs.js";
 import {
   attachAfterScreenshot,
@@ -15,8 +14,9 @@ import {
   linkFix,
   loopInstructions,
   recordEvent,
+  renderFeedbackPrompt,
 } from "../loop.js";
-import type { FeedbackItem, PromptTemplate } from "../types.js";
+import type { FeedbackItem } from "../types.js";
 
 const STATUS_ENUM = z.enum(["new", "in_progress", "resolved", "wont_fix"]);
 const FIX_STAGE_ENUM = z.enum(["agent_working", "pr_open", "merged", "shipped", "verified", "reopened"]);
@@ -203,31 +203,7 @@ export function createMcpServer(options: McpServerOptions = {}): McpServer {
         );
       }
 
-      if (feedback.edited_prompt) return textResult(feedback.edited_prompt + loopInstructions(feedback));
-
-      const { data: template } = await client
-        .from("prompt_templates")
-        .select("*")
-        .eq("project_id", feedback.project_id)
-        .single<PromptTemplate>();
-
-      const [screenshotSigned, attachmentSigned] = await Promise.all([
-        feedback.screenshot_annotated_path
-          ? client.storage.from("feedback-screenshots").createSignedUrl(feedback.screenshot_annotated_path, 3600)
-          : Promise.resolve(null),
-        feedback.attachment_path
-          ? client.storage.from("feedback-screenshots").createSignedUrl(feedback.attachment_path, 3600)
-          : Promise.resolve(null),
-      ]);
-
-      return textResult(
-        renderPromptTemplate(
-          template?.template_text ?? "",
-          feedback,
-          screenshotSigned?.data?.signedUrl ?? null,
-          attachmentSigned?.data?.signedUrl ?? null,
-        ) + loopInstructions(feedback),
-      );
+      return textResult((await renderFeedbackPrompt(client, feedback)) + loopInstructions(feedback));
     },
   );
 

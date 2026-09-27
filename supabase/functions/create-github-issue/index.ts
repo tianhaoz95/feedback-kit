@@ -7,6 +7,8 @@ import {
   createGitHubIssue,
   dispatchIssueToAgent,
   getProjectInstallationToken,
+  getGitHubUserToken,
+  copilotInstructions,
 } from "../_shared/github.ts";
 
 interface RequestBody {
@@ -100,6 +102,17 @@ Deno.serve(async (req) => {
     // Admin client for backend updates (writing issue number/url, downloading storage)
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Copilot only accepts the assignment as the member pressing the button
+    // (0018_copilot_dispatch.sql); without a connected account the issue is
+    // still created and labeled, and the response says why Copilot wasn't.
+    let copilot: { userToken: string; instructions: string } | null = null;
+    let copilotError: string | null = null;
+    if (project.dispatch_copilot && body.dispatch !== false) {
+      const userToken = await getGitHubUserToken(adminClient, user.id);
+      if (userToken) copilot = { userToken, instructions: copilotInstructions(feedback.id) };
+      else copilotError = "github_user_not_connected";
+    }
+
     // If already linked, return the existing issue — re-dispatching it to the
     // agent only when explicitly asked (`dispatch: true`).
     if (feedback.github_issue_url) {
@@ -107,7 +120,7 @@ Deno.serve(async (req) => {
       if (body.dispatch === true && feedback.github_issue_number) {
         const token = await getProjectInstallationToken(adminClient, project);
         if (token) {
-          dispatched = await dispatchIssueToAgent(token, project.github_repo, feedback.github_issue_number, project);
+          dispatched = await dispatchIssueToAgent(token, project.github_repo, feedback.github_issue_number, project, undefined, copilot);
           if (dispatched) await recordDispatch(userClient, user.id, feedback, dispatched, feedback.github_issue_url);
         }
       }
@@ -118,6 +131,7 @@ Deno.serve(async (req) => {
           issue_number: feedback.github_issue_number,
           already_linked: true,
           dispatched,
+          copilot_error: copilotError,
         },
         200
       );
@@ -311,7 +325,7 @@ FeedbackKit: ${feedback.id}
 
     let dispatched = null;
     if (shouldDispatch) {
-      dispatched = await dispatchIssueToAgent(tokenInstall, project.github_repo, issue.number, project);
+      dispatched = await dispatchIssueToAgent(tokenInstall, project.github_repo, issue.number, project, undefined, copilot);
       if (dispatched) await recordDispatch(userClient, user.id, feedback, dispatched, issue.html_url);
     }
 
@@ -321,6 +335,7 @@ FeedbackKit: ${feedback.id}
         issue_url: issue.html_url,
         issue_number: issue.number,
         dispatched,
+        copilot_error: copilotError,
       },
       201
     );
@@ -342,12 +357,13 @@ async function recordDispatch(
   userClient: any,
   userId: string,
   feedback: { id: string; project_id: string },
-  dispatched: { labels: string[]; commented: boolean },
+  dispatched: { labels: string[]; commented: boolean; copilot: boolean },
   issueUrl: string,
 ) {
   const how = [
     dispatched.labels.length > 0 ? `labeled ${dispatched.labels.map((l) => `\`${l}\``).join(", ")}` : null,
     dispatched.commented ? "posted the trigger comment" : null,
+    dispatched.copilot ? "assigned Copilot" : null,
   ]
     .filter(Boolean)
     .join(" and ");

@@ -561,6 +561,22 @@ Rules for skills:
   organization is `useOrganization()` (`web/src/lib/organization.tsx`); the
   Portal's is `AppState.currentOrganization`. List/create screens scope to
   it, and pages reached by id don't need to.
+- **Hands-off agent runs have three routes, all ending in the same loop**
+  (issue/PR with `FeedbackKit: <id>` → merged → shipped → verified). (1)
+  Label dispatch to a workflow — `skills/setup/setup-agent-runner` puts
+  claude-code-action on a self-hosted Mac; it needs `allowed_bots:
+  feedbackkit-app` because our app adds the label. (2) Copilot
+  (`0018_copilot_dispatch.sql`): assignment to `copilot-swe-agent[bot]` is
+  rejected from an installation token, so `github-user-auth` stores each
+  member's GitHub App *user* token in `github_user_tokens` (service-role
+  only; members see `github_user_connection()`), and create-github-issue
+  assigns as the member who pressed the button; reopen re-assigns as the
+  last member who did. (3) `feedbackkit watch` (`cli/src/commands/watch.ts`)
+  polls for `dispatched` events with `data.target = "local"` (the report
+  page's "Run on my machine"), claims with `data.queue_event` so a queue
+  entry runs once, and runs the local agent in a git worktree. Report text
+  is untrusted agent input on every route — keep it fenced and the tool
+  allowlists narrow.
 - **Notifications (`0017_notifications.sql`) are written by triggers**
   on `feedback_items`, `feedback_events` and `memberships`, never by the
   writers themselves. A new event kind worth notifying about goes in

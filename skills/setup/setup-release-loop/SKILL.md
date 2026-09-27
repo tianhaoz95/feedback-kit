@@ -43,7 +43,7 @@ Summarize what you found for the user in two or three lines, then continue.
 In the FeedbackKit dashboard → project **Settings**:
 1. **GitHub Integration:** install the FeedbackKit GitHub App on the repo and connect it (`owner/repo`).
 2. Make sure the App's webhook receives **`push`**, **`pull_request`** and **`issues`** events. On a self-hosted backend, the `github-webhook` function also needs `GITHUB_WEBHOOK_SECRET` set to the App's webhook secret (it rejects unsigned deliveries).
-3. **Coding agent loop:** set dispatch labels (e.g. `claude` for claude-code-action's `label_trigger`) and/or a trigger comment. New GitHub issues get them, and a reporter's "still broken" re-applies them.
+3. **Coding agent loop:** set dispatch labels (e.g. `claude` for claude-code-action's `label_trigger`, whose workflow needs `allowed_bots: feedbackkit-app` because FeedbackKit's app adds the label) and/or a trigger comment, or tick *Assign to GitHub Copilot*. New GitHub issues get them, and a reporter's "still broken" re-applies them. To run the agent on a Mac that can build the app, use the `setup-agent-runner` skill.
 
 From then on, a commit on the default branch whose message ends with the trailer below links the fix automatically (a PR description with the same line works too):
 

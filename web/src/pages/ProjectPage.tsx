@@ -102,6 +102,35 @@ export function ProjectPage() {
 
   const [isCreatingIssue, setIsCreatingIssue] = useState(false);
   const [issueError, setIssueError] = useState<{ message: string; installUrl?: string } | null>(null);
+  const [localRunState, setLocalRunState] = useState<"idle" | "queuing" | "queued">("idle");
+
+  /**
+   * Queues a report for `feedbackkit watch` (cli/src/commands/watch.ts), which
+   * polls for `dispatched` events with `data.target = "local"` and runs the
+   * developer's own coding agent on it in a git worktree.
+   */
+  async function queueLocalRun(item: FeedbackItem) {
+    setIssueError(null);
+    setLocalRunState("queuing");
+    const { data: auth } = await supabase.auth.getUser();
+    const { error } = await supabase.from("feedback_events").insert({
+      feedback_id: item.id,
+      project_id: item.project_id,
+      kind: "dispatched",
+      actor_type: "user",
+      actor_user_id: auth.user?.id ?? null,
+      actor_label: "Dashboard",
+      body: "Queued for a coding agent on a developer's machine (feedbackkit watch).",
+      data: { target: "local" },
+    });
+    if (error) {
+      setLocalRunState("idle");
+      setIssueError({ message: getErrorMessage(error, "Couldn't queue the run.") });
+      return;
+    }
+    setLocalRunState("queued");
+    setTimeout(() => setLocalRunState("idle"), 4000);
+  }
 
   async function createIssue(feedbackId: string, options: { redispatch?: boolean } = {}) {
     if (!project) return;
@@ -144,6 +173,18 @@ export function ProjectPage() {
           message: body?.message || error.message || "Failed to create GitHub issue.",
         });
         return;
+      }
+
+      if (data?.copilot_error === "github_user_not_connected") {
+        setIssueError({
+          message:
+            "Copilot wasn't assigned: connect your GitHub account in Settings → Coding agent loop, then send it to the agent again.",
+        });
+      } else if (project.dispatch_copilot && data?.dispatched && !data.dispatched.copilot) {
+        setIssueError({
+          message:
+            "GitHub didn't accept the Copilot assignment. Check that your account has a Copilot seat and that Copilot's coding agent is enabled for this repository.",
+        });
       }
 
       if (data?.issue_url) {
@@ -1021,7 +1062,7 @@ export function ProjectPage() {
                       </a>
                     ) : null}
                     {selectedFeedback.github_issue_url &&
-                    ((project.dispatch_labels?.length ?? 0) > 0 || project.dispatch_comment) ? (
+                    ((project.dispatch_labels?.length ?? 0) > 0 || project.dispatch_comment || project.dispatch_copilot) ? (
                       <Button
                         type="button"
                         variant="secondary"
@@ -1029,7 +1070,7 @@ export function ProjectPage() {
                         disabled={isCreatingIssue}
                         onClick={() => createIssue(selectedFeedback.id, { redispatch: true })}
                         className="inline-flex items-center gap-1.5"
-                        title="Re-apply the coding-agent trigger (labels / comment from Settings) to this issue"
+                        title="Re-apply the coding-agent trigger (labels / comment / Copilot from Settings) to this issue"
                       >
                         <SparkleIcon className="h-3.5 w-3.5" />
                         <span>{isCreatingIssue ? "Sending…" : "Send to agent again"}</span>
@@ -1048,6 +1089,20 @@ export function ProjectPage() {
                         <span>{isCreatingIssue ? "Creating issue…" : "Create GitHub Issue"}</span>
                       </Button>
                     )}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={localRunState === "queuing"}
+                      onClick={() => void queueLocalRun(selectedFeedback)}
+                      className="inline-flex items-center gap-1.5"
+                      title="Queue this report for a coding agent on your own machine — run `npx feedbackkit-cli watch` in your repo"
+                    >
+                      <TerminalIcon className="h-3.5 w-3.5" />
+                      <span>
+                        {localRunState === "queuing" ? "Queuing…" : localRunState === "queued" ? "Queued for your machine" : "Run on my machine"}
+                      </span>
+                    </Button>
 
                     <div className="h-4 w-px bg-neutral-200" />
 

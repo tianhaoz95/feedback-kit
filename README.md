@@ -165,6 +165,7 @@ Claude Code, Cursor, Antigravity, Gemini CLI, and other AI coding assistants to 
 | [`setup/`](skills/setup/README.md) | [`setup-mcp-server`](skills/setup/setup-mcp-server/SKILL.md) | Configure FeedbackKit CLI and MCP server for AI coding agents. |
 | [`workflow/`](skills/workflow/README.md) | [`fix-feedback`](skills/workflow/fix-feedback/SKILL.md) | Fix a reported bug end to end and ship the fix back to the reporter's device for verification. |
 | [`setup/`](skills/setup/README.md) | [`setup-release-loop`](skills/setup/setup-release-loop/SKILL.md) | Wire a repo's release pipeline into the loop: GitHub linking, agent hand-off, release token, build announcements (including host-deployed sites like Cloudflare/Netlify/Vercel), beta on every push. |
+| [`setup/`](skills/setup/README.md) | [`setup-agent-runner`](skills/setup/setup-agent-runner/SKILL.md) | Run a coding agent automatically on reports on your own Mac: a self-hosted runner workflow, or `feedbackkit watch`. |
 | [`workflow/`](skills/workflow/README.md) | [`promote-release`](skills/workflow/promote-release/SKILL.md) | Decide which beta is ready for production from reporters' verifications, and record the promotion. |
 
 #### Layout
@@ -302,6 +303,28 @@ until you give it an APNs key, the same pattern as billing:
 From then on every notification row is also pushed to the recipient's
 signed-in iPhones and iPads (users control which kinds on the dashboard's
 Notifications page). Remove either Vault secret to switch it off again.
+
+### Turning on "Assign to GitHub Copilot"
+
+Copilot's coding agent only accepts an issue assignment from a token acting
+as a *user* with a Copilot seat, so each member connects their own GitHub
+account through the FeedbackKit GitHub App's user authorization
+(`supabase/migrations/0018_copilot_dispatch.sql`). It's dormant until the
+app's OAuth credentials are set — `github-user-auth` answers 501 until then:
+
+1. GitHub → Settings → Developer settings → GitHub Apps → the FeedbackKit
+   app → **General**: add the callback URL
+   `https://feedback-kit.hejitech.workers.dev/github/callback` (plus
+   `http://localhost:5173/github/callback` for local dev), keep *Expire user
+   authorization tokens* on, and generate a client secret.
+2. **Permissions**: repository *Actions*, *Contents*, *Issues* and *Pull
+   requests* read & write (a user token can only do what both the app and
+   the user may).
+3. `supabase secrets set GITHUB_APP_CLIENT_ID=<client id> GITHUB_APP_CLIENT_SECRET=<secret>`
+
+Then a member ticks **Assign to GitHub Copilot** in project Settings →
+Coding agent loop and connects their account; **Send to agent** assigns the
+issue to Copilot as whoever presses it.
 
 **Auth/MFA/pooler/storage config** (`supabase config push`) isn't automated
 either, and for a sharper reason: unlike migrations or function code, it

@@ -1,0 +1,57 @@
+name: FeedbackKit agent
+
+# Runs Claude Code on a self-hosted Mac whenever FeedbackKit hands it a
+# report: FeedbackKit creates a GitHub issue and adds the `__DISPATCH_LABEL__`
+# label (project Settings → Coding agent loop). Because the job runs on your
+# own Mac, the agent can build the app, run it in the Simulator and attach a
+# screenshot of the fix. Its PR carries `FeedbackKit: <id>`, so the report
+# moves to "PR open" → "merged" → shipped → verified by the reporter.
+#
+# Adapt: __DISPATCH_LABEL__, the allowed tools for your build (xcodebuild,
+# npm, …). Secrets: CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token`) or
+# ANTHROPIC_API_KEY. The Claude GitHub App must be installed on the repo.
+
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+
+# One run per issue; a re-dispatch (reporter reopened) replaces a stale one.
+concurrency:
+  group: feedbackkit-agent-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  agent:
+    # Label from FeedbackKit (or a person), or an @claude comment from someone with write access.
+    if: >-
+      (github.event_name == 'issues' && github.event.label.name == '__DISPATCH_LABEL__') ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
+    runs-on: [self-hosted, macOS, feedbackkit-agent]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          label_trigger: __DISPATCH_LABEL__
+          # FeedbackKit's GitHub App adds the label; the action rejects bot
+          # actors unless they're listed here.
+          allowed_bots: feedbackkit-app
+          # The FeedbackKit MCP server uses the runner user's `feedbackkit login`
+          # session, so the agent can claim the report, ask the reporter, and
+          # attach an "after" screenshot. Remove it if the runner isn't logged in.
+          claude_args: >-
+            --mcp-config '{"mcpServers":{"feedbackkit":{"command":"npx","args":["-y","feedbackkit-cli","mcp"]}}}'
+            --allowedTools "mcp__feedbackkit,Bash(xcodebuild:*),Bash(xcrun simctl:*),Bash(swift build:*),Bash(swift test:*),Bash(xcodegen:*)"

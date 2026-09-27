@@ -1,5 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import {
+  disconnectGitHubUser,
+  fetchGitHubUserConnection,
+  startGitHubUserConnect,
+  type GitHubUserConnection,
+} from "@/lib/githubUser";
 import { getErrorMessage } from "@/lib/errors";
 import type { Project } from "@/lib/types";
 import { Button } from "@/components/Button";
@@ -22,9 +29,40 @@ export function AgentDispatchCard({
 }) {
   const [labels, setLabels] = useState((project.dispatch_labels ?? []).join(", "));
   const [comment, setComment] = useState(project.dispatch_comment ?? "");
+  const [copilot, setCopilot] = useState(project.dispatch_copilot ?? false);
+  const [connection, setConnection] = useState<GitHubUserConnection | null | undefined>(undefined);
+  const [connecting, setConnecting] = useState(false);
+  const location = useLocation();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    fetchGitHubUserConnection()
+      .then(setConnection)
+      .catch(() => setConnection(null));
+  }, []);
+
+  async function connectGitHub() {
+    setConnecting(true);
+    setError(null);
+    try {
+      await startGitHubUserConnect(`${location.pathname}${location.search}`);
+    } catch (err) {
+      setError(getErrorMessage(err, "Couldn't start the GitHub connection."));
+      setConnecting(false);
+    }
+  }
+
+  async function disconnectGitHub() {
+    setError(null);
+    try {
+      await disconnectGitHubUser();
+      setConnection(null);
+    } catch (err) {
+      setError(getErrorMessage(err, "Couldn't disconnect."));
+    }
+  }
+
   const releaseCommand = `npx feedbackkit-cli release --project ${project.id} --build "$BUILD_NUMBER"`;
 
   async function save() {
@@ -38,14 +76,14 @@ export function AgentDispatchCard({
     setSaved(false);
     const { error: updateError } = await supabase
       .from("projects")
-      .update({ dispatch_labels: nextLabels, dispatch_comment: nextComment })
+      .update({ dispatch_labels: nextLabels, dispatch_comment: nextComment, dispatch_copilot: copilot })
       .eq("id", project.id);
     setSaving(false);
     if (updateError) {
       setError(getErrorMessage(updateError, "Failed to save."));
       return;
     }
-    onProjectUpdated({ dispatch_labels: nextLabels, dispatch_comment: nextComment });
+    onProjectUpdated({ dispatch_labels: nextLabels, dispatch_comment: nextComment, dispatch_copilot: copilot });
     setSaved(true);
   }
 
@@ -76,8 +114,10 @@ export function AgentDispatchCard({
           />
           <span className="mt-1 block font-normal text-neutral-500">
             Comma-separated. A label is the most reliable trigger — e.g. <code className="font-mono">claude</code> for
-            claude-code-action&apos;s <code className="font-mono">label_trigger</code>, or whatever your agent workflow
-            listens for.
+            claude-code-action&apos;s <code className="font-mono">label_trigger</code> (with{" "}
+            <code className="font-mono">allowed_bots: feedbackkit-app</code>, since FeedbackKit&apos;s app adds it), or
+            whatever your agent workflow listens for. The <code className="font-mono">setup-agent-runner</code> skill sets
+            this up on a self-hosted Mac, where the agent can build and run your app.
           </span>
         </label>
         <label className="block text-xs font-medium text-neutral-700">
@@ -93,9 +133,47 @@ export function AgentDispatchCard({
           />
           <span className="mt-1 block font-normal text-neutral-500">
             Optional. Posted by the FeedbackKit GitHub App, so only agents that accept mentions from apps will act on it.
-            To use GitHub&apos;s own Copilot, Claude or Codex agents, assign the issue to them on GitHub.
           </span>
         </label>
+        <div className="rounded-lg border border-neutral-200 p-3">
+          <label className="flex items-start gap-2 text-xs font-medium text-neutral-700">
+            <input
+              type="checkbox"
+              checked={copilot}
+              onChange={(e) => {
+                setCopilot(e.target.checked);
+                setSaved(false);
+              }}
+              className="mt-0.5"
+            />
+            <span>
+              Assign to GitHub Copilot
+              <span className="mt-0.5 block font-normal text-neutral-500">
+                Copilot&apos;s coding agent picks up the issue and opens a PR. GitHub only accepts this as a person with a
+                Copilot seat, so it runs as whoever presses <em>Send to agent</em> — each member connects their own GitHub
+                account once. Copilot runs on Linux, so it can&apos;t build iOS or macOS apps.
+              </span>
+            </span>
+          </label>
+          <div className="mt-2 flex flex-wrap items-center gap-2 pl-5 text-xs text-neutral-600">
+            {connection === undefined ? (
+              <span className="text-neutral-400">Checking your GitHub connection…</span>
+            ) : connection && !connection.expired ? (
+              <>
+                <span className="inline-flex items-center gap-1 text-emerald-700">
+                  <CheckIcon className="h-3.5 w-3.5" /> Connected as {connection.github_login ?? "your GitHub account"}
+                </span>
+                <button type="button" onClick={() => void disconnectGitHub()} className="text-neutral-400 hover:text-neutral-700">
+                  Disconnect
+                </button>
+              </>
+            ) : (
+              <Button type="button" size="sm" variant="secondary" disabled={connecting} onClick={() => void connectGitHub()}>
+                {connecting ? "Opening GitHub…" : connection?.expired ? "Reconnect GitHub" : "Connect your GitHub account"}
+              </Button>
+            )}
+          </div>
+        </div>
         <div className="flex items-center gap-3">
           <Button type="button" size="sm" variant="secondary" disabled={saving} onClick={() => void save()}>
             {saving ? "Saving…" : "Save"}

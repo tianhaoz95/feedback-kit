@@ -13,6 +13,7 @@ import { listReleases } from "./commands/releases.js";
 import { createToken, listTokens, revokeToken } from "./commands/token.js";
 import { link } from "./commands/link.js";
 import { timeline } from "./commands/timeline.js";
+import { watch, type WatchOptions } from "./commands/watch.js";
 import { runMcpServer } from "./mcp/server.js";
 
 function handleError(err: unknown): void {
@@ -227,6 +228,30 @@ program
   .action(async (topic: string | undefined) => {
     try {
       await printDocs(topic);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+program
+  .command("watch")
+  .description(
+    "Run your own coding agent on reports queued with \"Run on my machine\" in the dashboard: each run gets a git worktree, and the fix is pushed and opened as a PR that closes the loop. Run it inside the repo.",
+  )
+  .option("--project <id>", "Project id (default: FEEDBACKKIT_PROJECT_ID, or your only project).")
+  .option("--agent <agent>", "claude (default) or codex.")
+  .option("--agent-cmd <command>", "Any other agent: a shell command run in the worktree, with the prompt in $FEEDBACKKIT_PROMPT_FILE.")
+  .option("--allow <tools...>", "Extra Claude Code tools to allow without asking, e.g. \"Bash(make:*)\".")
+  .option("--auto", "Also run on every new report without a click. Report text is agent input: only for trusted reporters.")
+  .option("--max-runs <n>", "Runs per day before pausing (default 10).")
+  .option("--interval <seconds>", "How often to check for queued reports (default 30).")
+  .option("--timeout <minutes>", "Stop an agent run after this long (default 60).")
+  .option("--base <ref>", "Branch runs start from (default origin's default branch).")
+  .option("--no-pr", "Commit the fix on a local branch only; don't push or open a PR.")
+  .option("--once", "Handle what's queued now, then exit.")
+  .action(async (opts: WatchOptions) => {
+    try {
+      await watch(opts);
     } catch (err) {
       handleError(err);
     }

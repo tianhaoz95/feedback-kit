@@ -18,7 +18,14 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { buildIncludesFix } from "../_shared/builds.ts";
 import { decodeBase64 } from "../_shared/encoding.ts";
-import { addIssueComment, dispatchIssueToAgent, getProjectInstallationToken, setIssueState } from "../_shared/github.ts";
+import {
+  addIssueComment,
+  copilotInstructions,
+  dispatchIssueToAgent,
+  getGitHubUserToken,
+  getProjectInstallationToken,
+  setIssueState,
+} from "../_shared/github.ts";
 import { isOriginAllowed } from "../_shared/origin.ts";
 import { sanitizeReporterId } from "../_shared/reporter.ts";
 
@@ -218,8 +225,24 @@ Deno.serve(async (req) => {
         (shot ? `\n\n![Still broken](${shot})\n*(Signed URL valid for 7 days)*` : "") +
         `\n\nFeedbackKit report \`${item.id}\` — ${DASHBOARD_URL}/projects/${project.id}/feedback/${item.id}`;
       await addIssueComment(token, repo, issue, note);
-      // Hand it straight back to the agent that fixed it.
-      const dispatched = await dispatchIssueToAgent(token, repo, issue, project, "The previous fix didn't resolve this — see the comment above.");
+      // Hand it straight back to the agent that fixed it. Copilot needs a
+      // member's token (0018): reuse the one who last assigned it here.
+      let copilot: { userToken: string; instructions: string } | null = null;
+      if (project.dispatch_copilot) {
+        const { data: last } = await supabase
+          .from("feedback_events")
+          .select("actor_user_id")
+          .eq("feedback_id", item.id)
+          .eq("kind", "dispatched")
+          .eq("data->>copilot", "true")
+          .not("actor_user_id", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const userToken = last?.actor_user_id ? await getGitHubUserToken(supabase, last.actor_user_id) : null;
+        if (userToken) copilot = { userToken, instructions: copilotInstructions(item.id) };
+      }
+      const dispatched = await dispatchIssueToAgent(token, repo, issue, project, "The previous fix didn't resolve this — see the comment above.", copilot);
       if (dispatched) {
         await insertEvent(supabase, item, {
           kind: "dispatched",

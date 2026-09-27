@@ -17,6 +17,7 @@ import { NotificationsProvider } from "@/lib/notifications";
 import { TeamPage } from "@/pages/TeamPage";
 import { InvitePage } from "@/pages/InvitePage";
 import { NotificationsPage } from "@/pages/NotificationsPage";
+import { GitHubCallbackPage } from "@/pages/GitHubCallbackPage";
 import { DocsOverviewPage } from "@/pages/docs/DocsOverviewPage";
 import { DocsHowItWorksPage } from "@/pages/docs/DocsHowItWorksPage";
 import { DocsIosSdkPage } from "@/pages/docs/DocsIosSdkPage";
@@ -75,6 +76,7 @@ export default function App() {
           <Route path="/billing" element={<BillingPage />} />
           <Route path="/team" element={<TeamPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/github/callback" element={<GitHubCallbackPage />} />
         </Route>
       </Routes>
     </AuthProvider>
