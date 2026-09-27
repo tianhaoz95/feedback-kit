@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import demoScreenshot from "@/assets/demo-feedback-screen.png";
+import demoScreenshot from "@/assets/demo-feedback-screen.webp";
 
 /**
  * A real screenshot captured from the demo app (DemoApp/), mid-flow through
@@ -40,7 +40,7 @@ export function PhoneMockup({
           <div className="relative overflow-hidden rounded-[11.5%/5.3%] bg-white">
             <img
               src={demoScreenshot}
-              alt="FeedbackKit's iOS annotate screen in the demo app: a screenshot of the Home tab with a rectangle drawn around the first Add button, captured mid-report"
+              alt="FeedbackKit's iOS annotate screen in the demo app: a screenshot of the Home tab with a rectangle drawn around the first Add button, the description 'The first Add button doesn't do anything.', and 'Notify me' turned on from the composer's + menu"
               className="block w-full"
             />
             {overlay}

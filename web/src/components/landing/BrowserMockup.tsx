@@ -3,7 +3,8 @@ import demoWebScreenshot from "@/assets/demo-web-feedback.webp";
 /**
  * A real screenshot of the web SDK's annotate dialog (web-sdk/, captured in
  * Chromium over a small demo storefront with a rectangle drawn around the
- * first "Add to cart" button), in a CSS-drawn browser window. The dialog,
+ * first "Add to cart" button, and "Notify me" turned on from the composer's
+ * + menu), in a CSS-drawn browser window. The dialog,
  * toolbar and composer are the SDK's own UI, not a mockup; only the window
  * chrome around it is drawn by this page.
  */
@@ -21,7 +22,7 @@ export function BrowserMockup({ className = "" }: { className?: string }) {
       </div>
       <img
         src={demoWebScreenshot}
-        alt="FeedbackKit's web SDK dialog on a demo store: the page screenshot with a rectangle drawn around the first Add to cart button, and the description 'Add to cart does nothing on the headphones'"
+        alt="FeedbackKit's web SDK dialog on a demo store: the page screenshot with a rectangle drawn around the first Add to cart button, the description 'Add to cart does nothing on the headphones', and 'Notify me' turned on from the composer's + menu"
         className="block w-full"
       />
     </div>

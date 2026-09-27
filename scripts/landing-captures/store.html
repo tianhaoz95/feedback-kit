@@ -1,0 +1,28 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Acme Outfitters</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif; background: #fafafa; color: #111; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 18px 40px; background: #fff; border-bottom: 1px solid #eee; }
+  .brand { font-weight: 700; font-size: 17px; }
+  nav { display: flex; gap: 26px; font-size: 14px; color: #333; }
+  .cart { background: #111; color: #fff; border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; }
+  main { padding: 36px 40px; }
+  h1 { margin: 0; font-size: 26px; } .sub { margin: 4px 0 24px; font-size: 13px; color: #555; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .card { background: #fff; border: 1px solid #eee; border-radius: 14px; overflow: hidden; }
+  .img { height: 170px; display: flex; align-items: center; justify-content: center; font-size: 56px; }
+  .info { padding: 16px; } .name { font-weight: 600; font-size: 14px; } .price { font-size: 13px; color: #555; }
+  .row { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; font-size: 12px; color: #888; }
+  .add { background: #7c3aed; color: #fff; border: 0; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; }
+</style></head>
+<body>
+<header><div class="brand">Acme Outfitters</div><nav><span>New</span><span>Men</span><span>Women</span><span>Sale</span></nav><div class="cart">Cart · 3</div></header>
+<main><h1>Spring essentials</h1><p class="sub">Free shipping on orders over $50.</p>
+<div class="grid">
+  <div class="card"><div class="img" style="background:#ede9fe">🎧</div><div class="info"><div class="name">Wireless Headphones</div><div class="price">$59.99</div><div class="row"><span>★★★★☆ 214</span><button class="add" id="first-add">Add to cart</button></div></div></div>
+  <div class="card"><div class="img" style="background:#dcfce7">👜</div><div class="info"><div class="name">Canvas Tote Bag</div><div class="price">$24.99</div><div class="row"><span>★★★★★ 88</span><button class="add">Add to cart</button></div></div></div>
+  <div class="card"><div class="img" style="background:#ffedd5">👕</div><div class="info"><div class="name">Classic T-Shirt</div><div class="price">$19.99</div><div class="row"><span>★★★★☆ 301</span><button class="add">Add to cart</button></div></div></div>
+</div></main>
+<script src="../../web-sdk/dist/feedbackkit.iife.js"></script>
+</body></html>
