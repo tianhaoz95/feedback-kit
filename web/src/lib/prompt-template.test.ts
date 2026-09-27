@@ -219,3 +219,11 @@ test("closingTheLoopSection lists a claim and trailer for every merged report", 
   assert.ok(result.includes("`claim_feedback` for each report (`fb_a`, `fb_b`)"));
   assert.ok(result.includes("`FeedbackKit: fb_a`") && result.includes("`FeedbackKit: fb_b`"));
 });
+
+test("closingTheLoopSection tells branch-delivery agents to open a PR and not merge it", () => {
+  const branch = closingTheLoopSection({ id: "fb_123" }, "branch");
+  assert.match(branch, /Open a pull request/);
+  assert.match(branch, /Don't merge the PR/);
+  assert.ok(branch.includes("`FeedbackKit: fb_123`"));
+  assert.doesNotMatch(closingTheLoopSection({ id: "fb_123" }), /Don't merge the PR/);
+});

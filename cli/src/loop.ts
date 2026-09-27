@@ -293,9 +293,35 @@ export function classifyReleaseCandidates<T extends CandidateItem>(
   });
 }
 
+/**
+ * Branch delivery (0024): a preview build of pull request `prNumber` ships the
+ * fixes linked to that PR, whatever stage they're at short of verified.
+ */
+export async function selectPreviewCandidates(client: SupabaseClient, projectId: string, prNumber: number): Promise<ReleaseCandidate[]> {
+  const { data, error } = await client
+    .from("feedback_items")
+    .select("*")
+    .eq("project_id", projectId)
+    .eq("fix_pr_number", prNumber)
+    .in("fix_stage", ["agent_working", "pr_open", "shipped", "reopened"])
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as FeedbackItem[]).map((item) => ({ item, included: true, reason: `fixed in PR #${prNumber}` }));
+}
+
 export async function recordRelease(
   client: SupabaseClient,
-  input: { projectId: string; build: string; version?: string; commitSha?: string | null; productKey?: string; channel?: ReleaseChannel; feedbackIds: string[] },
+  input: {
+    projectId: string;
+    build: string;
+    version?: string;
+    commitSha?: string | null;
+    productKey?: string;
+    channel?: ReleaseChannel;
+    /** The pull request a preview build was made from. */
+    prNumber?: number;
+    feedbackIds: string[];
+  },
 ): Promise<string[]> {
   const { data, error } = await client.rpc("record_release", {
     p_project_id: input.projectId,
@@ -309,6 +335,18 @@ export async function recordRelease(
   if (error) throw new Error(error.message);
   const shipped = (data ?? []) as string[];
   // record_release predates channels (it always records a beta); set it after.
+  if (input.channel === "preview") {
+    const query = client
+      .from("releases")
+      .update({ channel: "preview", pr_number: input.prNumber ?? null })
+      .eq("project_id", input.projectId)
+      .eq("build", input.build);
+    await (input.productKey ? query.eq("product_key", input.productKey) : query.is("product_key", null));
+    // The PR's "FeedbackKit" check (branch delivery); best effort.
+    if (input.prNumber) {
+      await client.functions.invoke("pr-status", { body: { project_id: input.projectId, pr_number: input.prNumber } }).catch(() => {});
+    }
+  }
   if (input.channel === "production") {
     const query = client
       .from("releases")
@@ -320,7 +358,7 @@ export async function recordRelease(
   return shipped;
 }
 
-export type ReleaseChannel = "beta" | "production";
+export type ReleaseChannel = "beta" | "production" | "preview";
 
 // ---- CI token mode (ci-release Edge Function) ---------------------------------
 
@@ -341,8 +379,8 @@ export class CiReleaseClient {
     return `${this.apiUrl.replace(/\/+$/, "")}/functions/v1/ci-release`;
   }
 
-  private async request<T>(method: "GET" | "POST", body?: unknown): Promise<T> {
-    const res = await fetch(this.endpoint, {
+  private async request<T>(method: "GET" | "POST", body?: unknown, query = ""): Promise<T> {
+    const res = await fetch(this.endpoint + query, {
       method,
       headers: { "x-release-token": this.token, ...(body ? { "Content-Type": "application/json" } : {}) },
       body: body ? JSON.stringify(body) : undefined,
@@ -352,12 +390,22 @@ export class CiReleaseClient {
     return json;
   }
 
-  candidates(): Promise<{ project: { id: string; name: string }; candidates: CandidateItem[] }> {
-    return this.request("GET");
+  /** Merged fixes waiting for a main build, or with `prNumber`, the fixes a preview of that PR ships. */
+  candidates(prNumber?: number): Promise<{ project: { id: string; name: string }; candidates: CandidateItem[] }> {
+    return this.request("GET", undefined, prNumber ? `?pr=${prNumber}` : "");
   }
 
-  record(input: { build: string; version?: string; commitSha?: string | null; productKey?: string; channel?: ReleaseChannel; feedbackIds: string[] }): Promise<{ shipped: string[] }> {
+  record(input: {
+    build: string;
+    version?: string;
+    commitSha?: string | null;
+    productKey?: string;
+    channel?: ReleaseChannel;
+    prNumber?: number;
+    feedbackIds: string[];
+  }): Promise<{ shipped: string[] }> {
     return this.request("POST", {
+      pr_number: input.prNumber,
       build: input.build,
       version: input.version,
       commit_sha: input.commitSha ?? undefined,
@@ -404,7 +452,15 @@ export function formatTimeline(events: FeedbackEvent[]): string {
  * Appended to `get_prompt` over MCP: tells the agent how to report back
  * through the tools it already has, so the loop closes without a human.
  */
-export function loopInstructions(item: FeedbackItem): string {
+export type DeliveryMode = "batch" | "branch";
+
+/** The project's delivery mode (0024); "batch" when the column isn't there yet. */
+export async function fetchDeliveryMode(client: SupabaseClient, projectId: string): Promise<DeliveryMode> {
+  const { data } = await client.from("projects").select("*").eq("id", projectId).maybeSingle();
+  return (data as { delivery_mode?: DeliveryMode } | null)?.delivery_mode === "branch" ? "branch" : "batch";
+}
+
+export function loopInstructions(item: FeedbackItem, mode: DeliveryMode = "batch"): string {
   const reopened = item.fix_stage === "reopened"
     ? `\n**This report was reopened** — the reporter says the previous fix${item.fixed_in_build ? ` (build ${item.fixed_in_build})` : ""} didn't work. Call \`get_feedback\` to see their latest comment and screenshot before changing anything.\n`
     : "";
@@ -416,10 +472,15 @@ ${reopened}
 1. Call \`claim_feedback\` before you start, so the team sees it's being worked on.
 2. ${item.notify_reporter === false ? "The reporter chose not to hear back, so `ask_reporter` won't reach them — work from the report as it is." : "If something is ambiguous only the reporter can answer, call `ask_reporter` — the question appears on their device."}
 3. If you can run the app (e.g. an iOS simulator via XcodeBuildMCP, or a browser), reproduce the bug first, and after fixing it call \`attach_after_screenshot\` with a screenshot of the fixed screen.
-4. Add this trailer to your fix commit's message (last paragraph, like \`Co-Authored-By\`) — when the commit reaches the default branch, FeedbackKit links it and ships it with the next beta build:
+${mode === "branch"
+    ? `4. Open a pull request for the fix; don't push to the default branch. This project verifies fixes on a preview build of the PR before merging. Put this line in the PR description (and the fix commit's message):
+   \`FeedbackKit: ${item.id}\`
+   Optionally add \`FeedbackKit-Summary: <one plain-language sentence for the reporter>\`. Don't merge the PR yourself: its "FeedbackKit" check turns green once the fix is verified on the preview.
+5. Don't mark it resolved yourself: the reporter (or the team) confirms it on the preview build.`
+    : `4. Add this trailer to your fix commit's message (last paragraph, like \`Co-Authored-By\`) — when the commit reaches the default branch, FeedbackKit links it and ships it with the next beta build:
    \`FeedbackKit: ${item.id}\`
    Optionally add \`FeedbackKit-Summary: <one plain-language sentence for the reporter>\`. If you open a pull request instead, put the same \`FeedbackKit:\` line in its description. Without the GitHub App, call \`link_fix\` with the commit sha.
-5. Don't mark it resolved yourself: once the fix ships in a build, the reporter confirms it on their device.`;
+5. Don't mark it resolved yourself: once the fix ships in a build, the reporter confirms it on their device.`}`;
 }
 
 // ---- Release readiness (release_readiness view, 0015) -------------------------

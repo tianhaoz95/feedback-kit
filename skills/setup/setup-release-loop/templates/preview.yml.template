@@ -1,0 +1,54 @@
+name: Preview
+
+# Branch delivery (FeedbackKit Settings → Delivery → Branch previews): every
+# pull request gets a preview build, announced to FeedbackKit as a preview of
+# that PR. The reports the PR fixes move to "shipped" in the preview; once a
+# tester, QA or the reporter confirms them, the PR's "FeedbackKit" status check
+# turns green, and branch protection can require it before merging.
+#
+# Adapt: __APP_SOURCE_DIR__, and the build-and-upload step (TestFlight for
+# internal testers, or a preview deploy). Secret: FEEDBACKKIT_RELEASE_TOKEN
+# (`npx feedbackkit-cli token create github-actions | gh secret set FEEDBACKKIT_RELEASE_TOKEN`).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "__APP_SOURCE_DIR__/**"
+      - ".github/workflows/preview.yml"
+
+permissions:
+  contents: read
+
+# A newer push to the PR supersedes a preview still building.
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    # Fork PRs don't get repository secrets, so they can't be announced.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build number
+        run: echo "BUILD_NUMBER=$(date -u +%Y%m%d%H%M)" >> "$GITHUB_ENV"
+
+      # Replace with the project's real preview build and upload, e.g. an
+      # xcodebuild archive + TestFlight upload to an internal testing group,
+      # or a web preview deploy. Use $BUILD_NUMBER as the build in the binary.
+      - name: Build and upload the preview
+        run: echo "Build and upload preview $BUILD_NUMBER here"
+
+      - name: Announce the preview to FeedbackKit
+        env:
+          FEEDBACKKIT_RELEASE_TOKEN: ${{ secrets.FEEDBACKKIT_RELEASE_TOKEN }}
+        run: >-
+          npx --yes feedbackkit-cli release --build "$BUILD_NUMBER"
+          --channel preview --pr ${{ github.event.pull_request.number }}

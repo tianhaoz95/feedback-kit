@@ -11,7 +11,7 @@ This category contains [Agent Skills](https://github.com/vercel-labs/skills) tha
 | [`setup-watchos-sdk`](setup-watchos-sdk/SKILL.md) | Integrate FeedbackKit into a watchOS app using `FeedbackQuickNoteView`. |
 | [`setup-web-sdk`](setup-web-sdk/SKILL.md) | Integrate the FeedbackKit web SDK (`feedbackkit-web`) into a website or web app (React, Next.js, Vue, plain HTML). |
 | [`setup-mcp-server`](setup-mcp-server/SKILL.md) | Configure the FeedbackKit CLI and MCP server for Claude Code, Cursor, Antigravity, and Codex. |
-| [`setup-release-loop`](setup-release-loop/SKILL.md) | Close the loop on the repo side: GitHub fix linking and agent hand-off, a CI release token, build announcements (so reporters get asked "is it fixed?"), including sites deployed by Cloudflare/Netlify/Vercel's own Git integration, correct build numbers, and an optional beta on every push to main. |
+| [`setup-release-loop`](setup-release-loop/SKILL.md) | Asks how the team delivers fixes (batch betas, or branch previews verified before merge) and explains both, then closes the loop on the repo side: GitHub fix linking and agent hand-off, a CI release token, build announcements (so reporters get asked "is it fixed?"), including sites deployed by Cloudflare/Netlify/Vercel's own Git integration, correct build numbers, and an optional beta on every push to main. |
 | [`setup-agent-runner`](setup-agent-runner/SKILL.md) | Run a coding agent automatically on reports, on the team's own Mac: a self-hosted GitHub Actions runner that starts Claude Code or Google Antigravity when FeedbackKit labels an issue (it can build the app and run the Simulator), or `feedbackkit watch` for solo developers. |
 
 ## Prerequisites

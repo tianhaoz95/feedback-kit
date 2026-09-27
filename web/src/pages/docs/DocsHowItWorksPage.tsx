@@ -162,6 +162,11 @@ export function DocsHowItWorksPage() {
           it in for you. See <Link to="/docs/cli" className={docLink}>CLI</Link> for release tokens and{" "}
           <InlineCode>--dry-run</InlineCode>.
         </p>
+        <p>
+          This is the <b>batch</b> flow: fixes merge first and ship together in a beta. Larger teams can check each fix on
+          a preview build of its pull request before merging instead; see{" "}
+          <Link to="/docs/delivery" className={docLink}>Deliver fixes</Link>.
+        </p>
       </Step>
 
       <Step index={6}>

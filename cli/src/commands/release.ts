@@ -6,6 +6,7 @@ import {
   recordRelease,
   resolveCommit,
   resolveProjectId,
+  selectPreviewCandidates,
   selectReleaseCandidates,
   type CandidateItem,
   type ReleaseCandidate,
@@ -22,6 +23,8 @@ export interface ReleaseOptions {
   /** Project release token (CI). Falls back to FEEDBACKKIT_RELEASE_TOKEN. */
   token?: string;
   apiUrl?: string;
+  /** With `--channel preview`: the pull request the build was made from. */
+  pr?: string;
   /** Extra feedback ids to ship regardless of git ancestry. */
   include?: string[];
   dryRun?: boolean;
@@ -45,6 +48,13 @@ export async function release(options: ReleaseOptions): Promise<void> {
   if (!build) throw new Error("--build is required.");
   const channel = parseChannel(options.channel);
   const cwd = options.cwd ?? process.cwd();
+  const prNumber = options.pr === undefined ? undefined : Number(options.pr);
+  if (channel === "preview" && !(Number.isInteger(prNumber) && prNumber! > 0)) {
+    throw new Error("--channel preview needs --pr <number>: the pull request this preview build was made from.");
+  }
+  if (channel !== "preview" && prNumber !== undefined) {
+    throw new Error("--pr only applies to --channel preview.");
+  }
 
   const rev = options.commit ?? "HEAD";
   const releaseCommit = resolveCommit(rev, cwd);
@@ -64,16 +74,22 @@ export async function release(options: ReleaseOptions): Promise<void> {
 
   if (token) {
     const ci = new CiReleaseClient(token, options.apiUrl ?? process.env.FEEDBACKKIT_API_URL ?? DEFAULT_API_URL);
-    const { project, candidates } = await ci.candidates();
+    const { project, candidates } = await ci.candidates(prNumber);
     console.log(`Project: ${project.name} (release token)`);
     items = candidates;
-    classify = (list) => classifyReleaseCandidates(list, { releaseCommit, productKey: options.product, cwd });
+    // A preview ships every fix linked to its PR: the PR's branch is the build.
+    classify = (list) =>
+      prNumber
+        ? list.map((item) => ({ item, included: true, reason: `fixed in PR #${prNumber}` }))
+        : classifyReleaseCandidates(list, { releaseCommit, productKey: options.product, cwd });
     record = async (feedbackIds) =>
-      (await ci.record({ build, version: options.version, commitSha: releaseCommit, productKey: options.product, channel, feedbackIds })).shipped;
+      (await ci.record({ build, version: options.version, commitSha: releaseCommit, productKey: options.product, channel, prNumber, feedbackIds })).shipped;
   } else {
     const client = await getAuthenticatedClient();
     const projectId = await resolveProjectId(client, options.project ?? process.env.FEEDBACKKIT_PROJECT_ID);
-    const candidates = await selectReleaseCandidates(client, projectId, { releaseCommit, productKey: options.product, cwd });
+    const candidates = prNumber
+      ? await selectPreviewCandidates(client, projectId, prNumber)
+      : await selectReleaseCandidates(client, projectId, { releaseCommit, productKey: options.product, cwd });
     items = candidates.map((c) => c.item);
     classify = () => candidates;
     record = (feedbackIds) =>
@@ -84,6 +100,7 @@ export async function release(options: ReleaseOptions): Promise<void> {
         commitSha: releaseCommit,
         productKey: options.product,
         channel,
+        prNumber,
         feedbackIds,
       });
   }
@@ -95,10 +112,10 @@ export async function release(options: ReleaseOptions): Promise<void> {
   }
 
   console.log(
-    `Build ${build}${options.version ? ` (${options.version})` : ""}${releaseCommit ? ` @ ${releaseCommit.slice(0, 7)}` : ""} — ${channel}`,
+    `Build ${build}${options.version ? ` (${options.version})` : ""}${releaseCommit ? ` @ ${releaseCommit.slice(0, 7)}` : ""} — ${channel}${prNumber ? ` of PR #${prNumber}` : ""}`,
   );
   if (candidates.length === 0 && include.size === 0) {
-    console.log("No merged fixes waiting to ship.");
+    console.log(prNumber ? `No reports linked to PR #${prNumber} are waiting to be checked.` : "No merged fixes waiting to ship.");
   }
   for (const c of candidates) {
     const mark = c.included || include.has(c.item.id) ? "ship" : "skip";
@@ -115,14 +132,16 @@ export async function release(options: ReleaseOptions): Promise<void> {
   // reporters are on, and the release-readiness view lists it.
   const shipped = await record(shipping);
   console.log(
-    shipped.length > 0
-      ? `Shipped ${shipped.length} fix(es). Their reporters will be asked to confirm on build ${build} or newer.`
-      : "Release recorded; no fixes shipped.",
+    shipped.length === 0
+      ? "Release recorded; no fixes shipped."
+      : prNumber
+        ? `Shipped ${shipped.length} fix(es) in preview ${build}. Once they're verified on it, PR #${prNumber}'s FeedbackKit check turns green.`
+        : `Shipped ${shipped.length} fix(es). Their reporters will be asked to confirm on build ${build} or newer.`,
   );
 }
 
 export function parseChannel(value: string | undefined): ReleaseChannel {
   if (value === undefined || value === "beta") return "beta";
-  if (value === "production") return "production";
-  throw new Error(`--channel must be beta or production, not "${value}".`);
+  if (value === "production" || value === "preview") return value;
+  throw new Error(`--channel must be beta, production or preview, not "${value}".`);
 }

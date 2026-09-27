@@ -14,6 +14,7 @@ import { createToken, listTokens, revokeToken } from "./commands/token.js";
 import { link } from "./commands/link.js";
 import { timeline } from "./commands/timeline.js";
 import { watch, type WatchOptions } from "./commands/watch.js";
+import { delivery } from "./commands/delivery.js";
 import { runMcpServer } from "./mcp/server.js";
 
 function handleError(err: unknown): void {
@@ -137,12 +138,13 @@ program
   .option("--commit <rev>", "Commit the build was made from (default HEAD). Fixes must be ancestors of it.")
   .option("--product <key>", "Only ship fixes for this product (e.g. ios); reports with no product always ship.")
   .option("--project <id>", "Project id (default: FEEDBACKKIT_PROJECT_ID, or your only project). Ignored with --token.")
-  .option("--channel <channel>", "beta (default) or production.")
+  .option("--channel <channel>", "beta (default), production, or preview (a build of one pull request; needs --pr).")
+  .option("--pr <number>", "With --channel preview: the pull request the build was made from. Ships the reports linked to it.")
   .option("--token <token>", "Project release token for CI (default: FEEDBACKKIT_RELEASE_TOKEN). No login needed.")
   .option("--api-url <url>", "FeedbackKit backend for --token (default: FEEDBACKKIT_API_URL, or the hosted one).")
   .option("--include <ids...>", "Also ship these feedback ids, skipping the git check.")
   .option("--dry-run", "Show what would ship without recording anything.")
-  .action(async (opts: { build: string; appVersion?: string; commit?: string; product?: string; project?: string; channel?: string; token?: string; apiUrl?: string; include?: string[]; dryRun?: boolean }) => {
+  .action(async (opts: { build: string; appVersion?: string; commit?: string; product?: string; project?: string; channel?: string; pr?: string; token?: string; apiUrl?: string; include?: string[]; dryRun?: boolean }) => {
     try {
       await release({ ...opts, version: opts.appVersion });
     } catch (err) {
@@ -228,6 +230,19 @@ program
   .action(async (topic: string | undefined) => {
     try {
       await printDocs(topic);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+program
+  .command("delivery")
+  .argument("[mode]", "batch or branch. Leave out to show the current mode.")
+  .description("Show or set how the project delivers fixes: batch (merge, then ship in a beta) or branch (verify on a PR preview, then merge).")
+  .option("--project <id>", "Project id (default: FEEDBACKKIT_PROJECT_ID, or your only project).")
+  .action(async (mode: string | undefined, opts: { project?: string }) => {
+    try {
+      await delivery(mode, opts);
     } catch (err) {
       handleError(err);
     }

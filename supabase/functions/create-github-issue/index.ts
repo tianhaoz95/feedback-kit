@@ -296,7 +296,9 @@ ${promptText}
 </details>
 
 ## Closing the loop
-Add this trailer to the fix commit's message (or, if you open a pull request, its description) so FeedbackKit can track the fix through the next beta build to the reporter's device:
+${project.delivery_mode === "branch"
+  ? "Open a pull request for the fix (don't push to the default branch) and put this line in its description. The PR is merged once the fix is verified on a preview build:"
+  : "Add this trailer to the fix commit's message (or, if you open a pull request, its description) so FeedbackKit can track the fix through the next beta build to the reporter's device:"}
 
 \`\`\`
 FeedbackKit: ${feedback.id}

@@ -100,6 +100,11 @@ export function DocsCliPage() {
             ],
             [<InlineCode>feedbackkit prompt &lt;feedbackId&gt;</InlineCode>, "Print the generated coding-agent prompt for one report."],
             [
+              <InlineCode>feedbackkit release --build &lt;n&gt; [--channel beta|production|preview] [--pr &lt;n&gt;]</InlineCode>,
+              "Announce a build so the fixes in it move to Shipped. A preview of one pull request uses --channel preview --pr <n> (branch delivery).",
+            ],
+            [<InlineCode>feedbackkit delivery [batch|branch]</InlineCode>, "Show or set how the project delivers fixes (Settings → Delivery)."],
+            [
               <InlineCode>feedbackkit watch [--agent claude|codex] [--auto] [--no-pr]</InlineCode>,
               "Run your own coding agent on reports queued with “Run on my machine”. Each run gets a git worktree; the fix is pushed and opened as a PR. Run it inside the repo.",
             ],

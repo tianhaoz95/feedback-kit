@@ -623,6 +623,20 @@ Rules for skills:
   and the web and CLI types. `reporter-updates` hides reports with
   `notify_reporter = false` (null = an older SDK, still asked), and
   `release_readiness` counts them as `unreachable`, not `awaiting`.
+- **Delivery modes (`0024_delivery_modes.sql`): `projects.delivery_mode` is
+  `batch` (default) or `branch`.** Branch means agents always open PRs (the
+  prompt's loop section in `web/src/lib/prompt-template.ts`
+  `closingTheLoopSection`, `cli/src/loop.ts` `loopInstructions`, and the
+  create-github-issue body all switch on it). A preview build announces
+  `feedbackkit release --channel preview --pr <n>` (ci-release `GET ?pr=`),
+  and `_shared/prStatus.ts` `syncPrStatus` posts the PR's "FeedbackKit"
+  commit status. That status is recomputed by github-webhook (PR events incl.
+  `synchronize`), ci-release (after a preview), reporter-updates
+  (verify/reopen) and the `pr-status` function (dashboard *Mark verified*,
+  session-mode preview releases). It needs the GitHub App's *Commit statuses:
+  write*. A PR merging after verification keeps the report `verified` (the
+  webhook never moves a report backwards). Docs: `/docs/delivery` uses
+  `DocsTabs` (the choice is remembered per group, or set by `?delivery=`).
 - **Watchlist (`feedback_watchers`, 0023).** A member watches a report (web
   WatchButton, Portal toolbar) and gets a `watched_update` notification for
   every event 0017 doesn't already send to the whole org. The fan-out is

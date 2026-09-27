@@ -155,6 +155,12 @@ export function FixLoopPanel({
       return;
     }
     onUpdated?.({ fix_stage: "verified", status: "resolved", verified_at: verifiedAt });
+    // Branch delivery: this may be what the PR's "FeedbackKit" check waits for.
+    if (feedback.fix_pr_number) {
+      void supabase.functions
+        .invoke("pr-status", { body: { project_id: feedback.project_id, pr_number: feedback.fix_pr_number } })
+        .catch(() => {});
+    }
   }
 
   const stage = feedback.fix_stage ?? null;

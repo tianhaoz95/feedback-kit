@@ -139,6 +139,11 @@ const RAW_NAV: RawNavItem[] = [
     ],
   },
   {
+    to: "/docs/delivery",
+    label: "Deliver fixes",
+    sections: ["Choose how you deliver fixes", "What stays the same", "Switching modes"],
+  },
+  {
     to: "/docs/skills",
     label: "Agent Skills",
     sections: [

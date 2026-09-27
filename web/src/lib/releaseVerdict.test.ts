@@ -32,3 +32,11 @@ test("fixes with no reporter to ask don't hold a build back", async () => {
   assert.equal(v.tone, "green");
   assert.match(v.label, /1 with no reporter to ask/);
 });
+
+test("a preview release answers whether to merge its PR", async () => {
+  const { verdictFor } = await import("./releaseVerdict.ts");
+  const base = { channel: "preview" as const, promoted_at: null, awaiting: 0, pr_number: 42 };
+  assert.match(verdictFor({ ...base, fixes: 2, verified: 1, reopened: 0 }).label, /1\/2 verified — waiting/);
+  assert.equal(verdictFor({ ...base, fixes: 2, verified: 2, reopened: 0 }).label, "All 2 verified — ready to merge");
+  assert.equal(verdictFor({ ...base, fixes: 2, verified: 1, reopened: 1 }).tone, "red");
+});

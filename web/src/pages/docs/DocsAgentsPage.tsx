@@ -115,7 +115,8 @@ export function DocsAgentsPage() {
           <li>
             <b>A build ships it.</b> Your release pipeline runs <InlineCode>feedbackkit release --build N</InlineCode>{" "}
             (the <InlineCode>setup-release-loop</InlineCode> skill wires it in), and every merged fix in that build
-            moves to <b>Shipped</b>.
+            moves to <b>Shipped</b>. With <Link to="/docs/delivery?delivery=branch" className={docLink}>branch previews</Link>,
+            a preview build of the PR does this before it merges.
           </li>
           <li>
             <b>The reporter confirms it</b>, if they chose <b>Notify me when it&apos;s fixed</b> in the composer&apos;s

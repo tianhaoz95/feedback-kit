@@ -27,6 +27,7 @@ import {
   setIssueState,
 } from "../_shared/github.ts";
 import { isOriginAllowed } from "../_shared/origin.ts";
+import { syncPrStatus } from "../_shared/prStatus.ts";
 import { sanitizeReporterId } from "../_shared/reporter.ts";
 
 const corsHeaders = {
@@ -160,6 +161,8 @@ Deno.serve(async (req) => {
         );
         await setIssueState(token, repo, issue, "closed");
       });
+      // Branch delivery: a verified preview may unblock the PR's merge check.
+      if (item.fix_pr_number) await syncPrStatus(supabase, project.id, item.fix_pr_number);
 
       return json({ ok: true, fix_stage: "verified" }, 200);
     }
@@ -254,6 +257,8 @@ Deno.serve(async (req) => {
         });
       }
     });
+
+    if (item.fix_pr_number) await syncPrStatus(supabase, project.id, item.fix_pr_number);
 
     return json({ ok: true, fix_stage: "reopened" }, 200);
   } catch (err) {

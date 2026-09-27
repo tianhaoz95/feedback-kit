@@ -10,13 +10,15 @@
 // ingest-feedback — the token check below is the whole trust boundary.
 //
 //   GET                              → { project, candidates: [...merged fixes] }
-//   POST { build, version?, commit_sha?, product_key?, channel?, feedback_ids } → { release_id, shipped }
+//   GET ?pr=<n>                      → { project, candidates: [...fixes linked to PR n] } (preview builds)
+//   POST { build, version?, commit_sha?, product_key?, channel?, pr_number?, feedback_ids } → { release_id, shipped }
 //   POST { action: "promote", build, product_key? }  → { promoted }
 //
 // `feedbackkit release --token` is the client: it fetches candidates, keeps
 // the ones whose fix commit is in the build (git ancestry, checked locally in
 // the CI checkout), and records the release with those ids.
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { syncPrStatus } from "../_shared/prStatus.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -52,13 +54,17 @@ Deno.serve(async (req) => {
     if (!project) return json({ error: "project_not_found" }, 404);
 
     if (req.method === "GET") {
-      const { data: candidates, error } = await supabase
+      // A preview build of PR n ships the fixes linked to that PR, whatever
+      // stage they're at (not verified yet); a main build ships merged ones.
+      const pr = Number(new URL(req.url).searchParams.get("pr"));
+      let query = supabase
         .from("feedback_items")
         .select("id, text, fix_commit_sha, fix_summary, product_keys, created_at")
-        .eq("project_id", project.id)
-        .eq("fix_stage", "merged")
-        .order("created_at", { ascending: true })
-        .limit(MAX_IDS);
+        .eq("project_id", project.id);
+      query = Number.isInteger(pr) && pr > 0
+        ? query.eq("fix_pr_number", pr).in("fix_stage", ["agent_working", "pr_open", "shipped", "reopened"])
+        : query.eq("fix_stage", "merged");
+      const { data: candidates, error } = await query.order("created_at", { ascending: true }).limit(MAX_IDS);
       if (error) return json({ error: "query_failed", message: error.message }, 500);
       return json({ project, candidates: candidates ?? [] }, 200);
     }
@@ -95,7 +101,9 @@ Deno.serve(async (req) => {
     if (!Array.isArray(ids) || ids.length > MAX_IDS || ids.some((id) => typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id))) {
       return json({ error: "invalid_feedback_ids" }, 400);
     }
-    const channel = body.channel === "production" ? "production" : "beta";
+    const channel = body.channel === "production" || body.channel === "preview" ? body.channel : "beta";
+    const prNumber = Number.isInteger(body.pr_number) && body.pr_number > 0 ? body.pr_number : null;
+    if (channel === "preview" && !prNumber) return json({ error: "pr_number_required" }, 400);
 
     const { data: shipped, error } = await supabase.rpc("record_release_system", {
       p_project_id: project.id,
@@ -108,6 +116,11 @@ Deno.serve(async (req) => {
       p_actor_label: `CI (${tokenRow.name})`,
     });
     if (error) return json({ error: "record_failed", message: error.message }, 500);
+    if (prNumber) {
+      await supabase.from("releases").update({ pr_number: prNumber })
+        .eq("project_id", project.id).eq("build", build).eq("channel", "preview");
+      await syncPrStatus(supabase, project.id, prNumber);
+    }
     return json({ shipped: shipped ?? [] }, 200);
   } catch (err) {
     console.error("ci-release error:", err);

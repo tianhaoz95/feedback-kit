@@ -56,7 +56,10 @@ If you can run the app, screenshot the fixed screen (same state the reporter sho
 
 ### Step 7 -- Link the fix
 
-- **Committing to the default branch (the usual case):** end the fix commit's message with these git trailers — FeedbackKit's GitHub webhook links the commit when it lands on the default branch, and the next beta build ships it to the reporter:
+First check how the project delivers fixes: the "Closing the loop" section at the end of `get_prompt` says so, or run `npx feedbackkit-cli delivery`.
+
+- **Branch previews** (the prompt says to open a pull request): always open a PR, never push to the default branch. Put the `FeedbackKit: <feedback id>` line (and an optional `FeedbackKit-Summary:`) in the PR description and the commit message. Don't merge it: CI builds a preview of the PR, someone confirms the fix on it, and the PR's **FeedbackKit** check turns green before a person merges.
+- **Committing to the default branch (batch, the default):** end the fix commit's message with these git trailers — FeedbackKit's GitHub webhook links the commit when it lands on the default branch, and the next beta build ships it to the reporter:
   ```
   Fix checkout button hidden behind the keyboard
 
@@ -71,7 +74,7 @@ Optionally call `post_update` with `notify_reporter: true` for a short friendly 
 
 ### Step 8 -- Don't close it yourself
 
-Do **not** mark the report resolved. Once the fix is on the default branch, the beta pipeline (or the team's `feedbackkit release --build <n>`) marks it shipped in the next build, and the reporter confirms on their device — that's what resolves it. `update_feedback_status` is only for non-code outcomes (e.g. `wont_fix` when the user asked for something out of scope — explain why with `post_update`).
+Do **not** mark the report resolved. With branch previews, it's verified on the PR's preview build. Otherwise, once the fix is on the default branch, the beta pipeline (or the team's `feedbackkit release --build <n>`) marks it shipped in the next build, and the reporter confirms on their device — that's what resolves it. `update_feedback_status` is only for non-code outcomes (e.g. `wont_fix` when the user asked for something out of scope — explain why with `post_update`).
 
 ## Verification
 

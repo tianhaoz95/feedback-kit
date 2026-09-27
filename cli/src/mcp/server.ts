@@ -15,6 +15,7 @@ import {
   loopInstructions,
   recordEvent,
   renderFeedbackPrompt,
+  fetchDeliveryMode,
 } from "../loop.js";
 import type { FeedbackItem } from "../types.js";
 
@@ -203,7 +204,8 @@ export function createMcpServer(options: McpServerOptions = {}): McpServer {
         );
       }
 
-      return textResult((await renderFeedbackPrompt(client, feedback)) + loopInstructions(feedback));
+      const mode = await fetchDeliveryMode(client, feedback.project_id);
+      return textResult((await renderFeedbackPrompt(client, feedback)) + loopInstructions(feedback, mode));
     },
   );
 

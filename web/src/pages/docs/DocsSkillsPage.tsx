@@ -104,7 +104,7 @@ export function DocsSkillsPage() {
             [
               "setup-release-loop",
               "Release loop",
-              "Wires the repo's releases into the loop: GitHub fix linking and agent hand-off, a CI release token, build announcements so reporters get asked \"is it fixed?\", correct build numbers, and an optional beta on every push.",
+              "Explains the two delivery modes (batch betas, or branch previews verified before merge), asks which one you use, then wires the repo's releases into the loop: GitHub fix linking, agent hand-off, a CI release token, build announcements, build numbers, and the beta or preview workflow.",
             ],
             [
               "setup-agent-runner",

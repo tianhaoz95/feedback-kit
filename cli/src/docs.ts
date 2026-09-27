@@ -525,11 +525,12 @@ feedbackkit login --dashboard-url http://localhost:3000
 | \`feedbackkit prompt <feedbackId>\` | Print the generated coding-agent prompt for one report. |
 | \`feedbackkit timeline <feedbackId>\` | A report's fix-loop activity: agent progress, PRs, releases, the reporter's replies. |
 | \`feedbackkit link <feedbackId> --pr <url> \\| --commit <sha>\` | Record the fix for a report by hand (PRs mentioning \`FeedbackKit: <id>\` are linked automatically). |
-| \`feedbackkit release --build <n> [--project <id>] [--commit <rev>] [--product <key>] [--channel <c>] [--token <t>] [--dry-run]\` | Announce a build: marks merged fixes it contains as shipped so reporters are asked "is it fixed?" — see the \`loop\` doc topic. |
+| \`feedbackkit release --build <n> [--project <id>] [--commit <rev>] [--product <key>] [--channel beta\|production\|preview] [--pr <n>] [--token <t>] [--dry-run]\` | Announce a build: marks merged fixes it contains as shipped so reporters are asked "is it fixed?" — see the \`loop\` doc topic. \`--channel preview --pr <n>\` announces a preview of one pull request instead (branch delivery, see the \`delivery\` topic). |
 | \`feedbackkit releases [--json]\` | Release readiness: each build's fixes (verified / awaiting reporter / reopened) and whether it's ready to promote. |
 | \`feedbackkit promote --build <n>\` | Record that a beta build went to production. |
 | \`feedbackkit token create <name> \\| list \\| revoke <id>\` | Project release tokens, so CI can run \`release\` without a login. |
 | \`feedbackkit watch [--project <id>] [--agent claude\|codex] [--agent-cmd <cmd>] [--auto] [--max-runs <n>] [--no-pr] [--once]\` | Run your own coding agent on reports queued with **Run on my machine**: each run gets a git worktree, and the fix is pushed and opened as a PR with the \`FeedbackKit:\` trailer. \`--auto\` also takes every new report (report text is agent input, so only for trusted reporters). |
+| \`feedbackkit delivery [batch\|branch]\` | Show or set how the project delivers fixes (see the \`delivery\` topic). |
 | \`feedbackkit docs [topic]\` | Print this documentation (no topic = list topics). |
 | \`feedbackkit mcp [--project <id>]\` | Run an MCP server over stdio, optionally scoped to one project — see the \`mcp\` doc topic. |
 
@@ -841,7 +842,7 @@ After uploading a build, from the repo:
 npx feedbackkit-cli release --build "$BUILD_NUMBER"      # --project <id> if you have several; --dry-run to preview
 \`\`\`
 
-It ships every merged fix whose commit is in the release commit (default HEAD), so reporters on that build or newer get asked. In CI, use a release token instead of a login: \`FEEDBACKKIT_RELEASE_TOKEN=fkr_… feedbackkit release --build …\` (create one with \`feedbackkit token create <name>\` or in project Settings → Release tokens). When a beta goes to production, record it with \`feedbackkit promote --build <n>\`. Builds compare numerically when dotted-numeric (\`42\`, \`1.2.10\`, timestamps); anything else (e.g. a web deploy's git SHA) counts as live once released. Every release script in this repo announces its build automatically when \`FEEDBACKKIT_RELEASE_TOKEN\` (CI) or \`FEEDBACKKIT_PROJECT_ID\` (logged in) is set.
+It ships every merged fix whose commit is in the release commit (default HEAD), so reporters on that build or newer get asked. Teams that check each fix before merging use \`--channel preview --pr <n>\` on a preview build of the PR instead (see the \`delivery\` topic). In CI, use a release token instead of a login: \`FEEDBACKKIT_RELEASE_TOKEN=fkr_… feedbackkit release --build …\` (create one with \`feedbackkit token create <name>\` or in project Settings → Release tokens). When a beta goes to production, record it with \`feedbackkit promote --build <n>\`. Builds compare numerically when dotted-numeric (\`42\`, \`1.2.10\`, timestamps); anything else (e.g. a web deploy's git SHA) counts as live once released. Every release script in this repo announces its build automatically when \`FEEDBACKKIT_RELEASE_TOKEN\` (CI) or \`FEEDBACKKIT_PROJECT_ID\` (logged in) is set.
 
 ## Push-to-main (no PRs)
 
@@ -898,6 +899,35 @@ The report goes to Reopened with their new screenshot and a linked issue reopens
 ## Safety
 
 Report text is untrusted input. Prompts mark it as a bug description, not instructions; unattended agents get a short allow list of build/test commands, never blanket permission; agents open PRs and a person merges; \`feedbackkit watch\` needs a click per report unless \`--auto\`.`,
+  },
+  {
+    slug: "delivery",
+    title: "Deliver fixes: batch or branch previews",
+    summary: "Two ways a fix reaches users: batch (merge, ship in the next beta, promote) or branch previews (check each fix on its PR's preview build before merging).",
+    content: `# Deliver fixes: batch or branch previews
+
+Choose per project in Settings → Delivery. Both end with the reporter (if they chose "Notify me when it's fixed") or your team confirming the fix; the mode changes when that happens and what agents are told.
+
+## Batch (default) — small teams
+
+1. The agent commits the fix to main with \`FeedbackKit: <id>\` (or a PR you merge) → Merged.
+2. A beta (every push, or on a schedule such as every 4 hours) runs \`feedbackkit release --build N --channel beta\` → every merged fix in that build is Shipped.
+3. Reporters confirm on the beta → Verified / Reopened (or the team's Mark verified).
+4. The Releases tab shows each beta's verified / waiting / reopened counts; promote the ready one: \`feedbackkit promote --build N\`.
+
+Set up: Settings → Delivery = Batch; a release token (\`feedbackkit token create github-actions | gh secret set FEEDBACKKIT_RELEASE_TOKEN\`); a beta workflow ending in the release command (\`actions/checkout\` with \`fetch-depth: 0\`). The \`setup-release-loop\` skill does it (choose Batch).
+
+## Branch previews — larger teams, verify before merge
+
+1. The agent always opens a pull request with \`FeedbackKit: <id>\` in its description (never pushes to main) → PR open. Prompts in this mode say so.
+2. CI builds a preview of the PR (TestFlight build for internal testers, or a preview deploy) and runs \`feedbackkit release --build N --channel preview --pr <n>\` → the PR's reports are Shipped in that preview.
+3. A tester, QA, or the reporter (if they can install the preview) confirms → Verified; the team can Mark verified.
+4. A "FeedbackKit" commit status on the PR: pending ("1/2 reports verified") until every linked report is verified, failure while one is reopened. Make it a required status check so the PR can't merge before.
+5. Production builds come from main as usual; the report is already verified.
+
+Set up: Settings → Delivery = Branch previews; the FeedbackKit GitHub App needs *Commit statuses: Read and write*; branch protection on main → require the "FeedbackKit" check; a release token and a \`pull_request\` workflow that builds the preview and runs the preview release command. The \`setup-release-loop\` skill does it (choose Branch previews).
+
+Good to know: public users usually can't install previews, so checks are typically testers/QA/team; a report verified on the preview isn't asked about again in production; later pushes to the PR keep the check green; fork PRs don't get the release token.`,
   },
   {
     slug: "skills",

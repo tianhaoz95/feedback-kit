@@ -39,6 +39,7 @@ import { MergedPromptView } from "@/components/MergedPromptView";
 import { DeleteProjectCard } from "@/components/DeleteProjectCard";
 import { AllowedOriginsCard } from "@/components/AllowedOriginsCard";
 import { AgentDispatchCard } from "@/components/AgentDispatchCard";
+import { DeliveryModeCard } from "@/components/DeliveryModeCard";
 import { ReleasesPanel } from "@/components/ReleasesPanel";
 import { ReleaseTokensCard } from "@/components/ReleaseTokensCard";
 import { FixLoopPanel } from "@/components/FixLoopPanel";
@@ -998,6 +999,7 @@ export function ProjectPage() {
               <div id="feedback-detail" className="flex-1 min-w-0 w-full space-y-5">
                 {viewMode === "merged" && selectedIds.size > 0 ? (
                   <MergedPromptView
+                    deliveryMode={project.delivery_mode}
                     selectedItems={feedbackItems.filter((item) => selectedIds.has(item.id))}
                     signedUrls={signedUrls}
                     templateText={template?.template_text}
@@ -1355,7 +1357,7 @@ export function ProjectPage() {
                           key={`${selectedFeedback.id}-${promptValue}`}
                           initialValue={promptValue}
                           isEdited={selectedFeedback.edited_prompt !== null}
-                          copySuffix={closingTheLoopSection(selectedFeedback)}
+                          copySuffix={closingTheLoopSection(selectedFeedback, project.delivery_mode)}
                           onSave={(formData) => saveEditedPrompt(selectedFeedback.id, formData)}
                           onReset={() => resetEditedPrompt(selectedFeedback.id)}
                         />
@@ -1412,6 +1414,13 @@ export function ProjectPage() {
           />
 
           <AgentDispatchCard
+            project={project}
+            onProjectUpdated={(updated) =>
+              setProject((prev) => (prev ? { ...prev, ...updated } : prev))
+            }
+          />
+
+          <DeliveryModeCard
             project={project}
             onProjectUpdated={(updated) =>
               setProject((prev) => (prev ? { ...prev, ...updated } : prev))

@@ -28,6 +28,10 @@ Five routes, all ending in the same linking/shipping/verifying steps. User-facin
 
 On a reopen, `reporter-updates` re-applies the labels and re-assigns Copilot as the last member who dispatched it.
 
+## Delivery modes (`0024`)
+
+`projects.delivery_mode`: **batch** (merge → a beta ships every merged fix → verified → promote) or **branch** (PR → a preview build ships the PR's fixes via `release --channel preview --pr <n>` → verified → the PR's "FeedbackKit" commit status passes → merge). The status is computed by `prVerification()` in `supabase/functions/_shared/prStatus.ts` (pending / success / failure from the linked reports' stages) and posted on the PR's current head by `syncPrStatus`, called from github-webhook, ci-release, reporter-updates and `pr-status`. Agent instructions switch on the mode in three places (see *Keep in sync*). User docs: `/docs/delivery`; setup: the `setup-release-loop` skill asks which mode first.
+
 ## Reporter opt-in (`0023`)
 
 `feedback_items.notify_reporter` is the composer's "Notify Me When It's Fixed" (off by default; null = an SDK from before the option, treated as opted in). `reporter-updates` skips reports with `false`; `release_readiness` counts their shipped fixes as `unreachable` instead of `awaiting`, so they don't hold a build back; the dashboard and Portal offer *Mark verified* (a `verified` event with `actor_type = 'user'`, which `0022` keeps from being announced as the reporter's).
@@ -83,6 +87,7 @@ Agents commit to main with a `FeedbackKit: <id>` trailer. `github-webhook`'s pus
 - **Notification kinds** — the `notifications.kind` check, `NotificationKind` and its label/hint/dot maps in `web/src/`, and `PortalNotification.iconName` / the Portal's row tint.
 - **Reporter reachability** — `reporterReachable()` in `web/src/lib/loopHealth.ts`, `PortalFeedbackItem.canReachReporter`, `ask_reporter`'s message, and the `release_readiness` view.
 - **The agents page** — `DocsAgentsPage.tsx` and the `agents` topic in `cli/src/docs.ts`.
+- **Delivery-mode agent instructions** — `closingTheLoopSection` (web), `loopInstructions` (CLI/MCP), and the create-github-issue body; and the delivery docs page vs. the `delivery` topic in `cli/src/docs.ts`.
 
 ## Security notes
 

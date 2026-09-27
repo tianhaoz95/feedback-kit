@@ -39,6 +39,9 @@ jobs:
       - name: deno check
         working-directory: supabase/functions
         run: deno check --node-modules-dir=auto */index.ts
+      - name: deno test
+        working-directory: supabase/functions
+        run: deno test --allow-env --node-modules-dir=auto _shared/
 
   migrations:
     name: Migrations (apply from scratch)

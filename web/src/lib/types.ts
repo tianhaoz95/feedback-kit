@@ -39,7 +39,15 @@ export interface FeedbackEvent {
   created_at: string;
 }
 
-export type ReleaseChannel = "beta" | "production";
+/** `preview` = a build of one pull request, for branch delivery (0024_delivery_modes.sql). */
+export type ReleaseChannel = "beta" | "production" | "preview";
+
+/**
+ * How a project delivers fixes (0024): `batch` = agents may push to main and
+ * betas ship merged fixes; `branch` = agents open PRs, previews ship them, and
+ * the PR's "FeedbackKit" check turns green once they're verified.
+ */
+export type DeliveryMode = "batch" | "branch";
 
 /** Mirrors `releases` (0014 + 0015) — one per `feedbackkit release`. */
 export interface Release {
@@ -73,6 +81,8 @@ export interface ReleaseReadiness {
   awaiting: number;
   /** Shipped fixes whose reports have no reporter id (older SDKs) — nobody will verify these on device. */
   unreachable: number;
+  /** The pull request a preview release was built from. */
+  pr_number?: number | null;
 }
 
 /** Mirrors `release_tokens` (0015). The token itself is never readable — only a prefix. */
@@ -109,6 +119,7 @@ export interface Project {
   dispatch_comment?: string | null;
   /** Assign new GitHub issues to Copilot's coding agent, as the member who sends them (0018_copilot_dispatch.sql). */
   dispatch_copilot?: boolean;
+  delivery_mode?: DeliveryMode;
 }
 
 export interface PromptTemplate {

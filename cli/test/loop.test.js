@@ -68,11 +68,18 @@ test("release token client refuses things that aren't release tokens", async () 
   assert.ok(new CiReleaseClient("fkr_" + "a".repeat(48)));
 });
 
-test("--channel accepts beta (default) and production only", async () => {
+test("--channel accepts beta (default), production and preview only", async () => {
   const { parseChannel } = await import("../dist/commands/release.js");
   assert.equal(parseChannel(undefined), "beta");
   assert.equal(parseChannel("production"), "production");
-  assert.throws(() => parseChannel("prod"), /beta or production/);
+  assert.equal(parseChannel("preview"), "preview");
+  assert.throws(() => parseChannel("prod"), /beta, production or preview/);
+});
+
+test("a preview release needs the PR it was built from", async () => {
+  const { release } = await import("../dist/commands/release.js");
+  await assert.rejects(release({ build: "1", channel: "preview" }), /--pr <number>/);
+  await assert.rejects(release({ build: "1", channel: "beta", pr: "3" }), /only applies to --channel preview/);
 });
 
 test("loop instructions ask for a commit trailer", () => {
@@ -97,4 +104,13 @@ test("list_releases is registered and respects project scoping", async () => {
   assert.ok(tool);
   const res = await tool.handler({ project_id: "other", limit: 5 });
   assert.equal(res.isError, true);
+});
+
+test("loopInstructions tells branch-delivery agents to open a PR and not merge it", () => {
+  const item = { id: "11111111-2222-3333-4444-555555555555", fix_stage: null };
+  const branch = loopInstructions(item, "branch");
+  assert.match(branch, /Open a pull request/);
+  assert.match(branch, /don't push to the default branch/);
+  assert.match(branch, /FeedbackKit: 11111111-2222-3333-4444-555555555555/);
+  assert.doesNotMatch(loopInstructions(item), /don't push to the default branch/);
 });

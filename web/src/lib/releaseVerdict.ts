@@ -9,8 +9,15 @@ export type Verdict = { tone: "green" | "amber" | "red" | "neutral"; label: stri
  */
 export function verdictFor(
   r: Pick<ReleaseReadiness, "fixes" | "verified" | "reopened" | "awaiting" | "promoted_at" | "channel"> &
-    Partial<Pick<ReleaseReadiness, "unreachable">>,
+    Partial<Pick<ReleaseReadiness, "unreachable" | "pr_number">>,
 ): Verdict {
+  // A preview of one PR (branch delivery): the question is whether to merge it.
+  if (r.channel === "preview") {
+    if (Number(r.reopened) > 0) return { tone: "red", label: `${r.reopened} still broken — don't merge` };
+    if (Number(r.fixes) === 0) return { tone: "neutral", label: "No reports linked to this PR" };
+    if (Number(r.verified) < Number(r.fixes)) return { tone: "amber", label: `${r.verified}/${r.fixes} verified — waiting` };
+    return { tone: "green", label: `All ${r.fixes} verified — ready to merge` };
+  }
   if (r.channel === "production") {
     return {
       tone: "neutral",

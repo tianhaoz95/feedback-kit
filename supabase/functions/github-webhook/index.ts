@@ -15,6 +15,8 @@
 //   pull_request.opened/reopened/edited/ready_for_review → fix_stage 'pr_open'
 //   pull_request.closed (merged)    → fix_stage 'merged' + merge commit sha
 //   pull_request.closed (unmerged)  → back to no stage
+//   any open-PR event (incl. synchronize) → the PR's "FeedbackKit" status,
+//                                     for branch delivery (_shared/prStatus.ts)
 //   push to the default branch      → fix_stage 'merged' for every report a
 //                                     commit names in a `FeedbackKit: <id>`
 //                                     trailer (the push-to-main workflow —
@@ -25,6 +27,7 @@
 // anywhere in its title, body or branch name — the issue body and MCP prompt
 // ask agents to include `FeedbackKit: <id>` — or (b) a closing keyword for a
 // linked issue (`Fixes #12`). Pushes use the same two signals per commit.
+import { syncPrStatus } from "../_shared/prStatus.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { json } from "../_shared/http.ts";
 import { timingSafeEqual } from "../_shared/encoding.ts";
@@ -158,7 +161,9 @@ async function handlePullRequest(adminClient: Client, projectIds: string[], payl
   const { action, pull_request: pr } = payload;
   if (!pr?.number) return json({ error: "invalid_payload" }, 400);
 
-  const tracked = ["opened", "reopened", "edited", "ready_for_review", "closed"];
+  // `synchronize` (new commits pushed) changes no stage, but moves the PR's
+  // head, which needs the FeedbackKit status again (branch delivery, 0024).
+  const tracked = ["opened", "reopened", "edited", "ready_for_review", "synchronize", "closed"];
   if (!tracked.includes(action)) return json({ status: "unhandled_action", action }, 200);
 
   const items = await findLinkedFeedback(adminClient, projectIds, pr);
@@ -204,6 +209,12 @@ async function handlePullRequest(adminClient: Client, projectIds: string[], payl
         })
         .eq("id", item.id);
       await insertEvent(adminClient, item, { kind: "pr_opened", body: `PR #${pr.number} opened: ${pr.title}`, data: prData });
+    }
+  }
+
+  if (action !== "closed") {
+    for (const projectId of new Set(items.map((i: { project_id: string }) => i.project_id))) {
+      await syncPrStatus(adminClient, projectId, pr.number);
     }
   }
 

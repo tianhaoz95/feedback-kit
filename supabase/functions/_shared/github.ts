@@ -136,7 +136,7 @@ export async function createGitHubIssue(
 }
 
 
-async function githubRequest(token: string, method: string, path: string, body?: unknown): Promise<Response> {
+export async function githubRequest(token: string, method: string, path: string, body?: unknown): Promise<Response> {
   return await fetch(`https://api.github.com${path}`, {
     method,
     headers: {

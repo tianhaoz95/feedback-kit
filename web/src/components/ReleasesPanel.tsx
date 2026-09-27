@@ -257,6 +257,13 @@ function VerdictBadge({ verdict }: { verdict: Verdict }) {
 }
 
 function ChannelBadge({ release }: { release: ReleaseReadiness }) {
+  if (release.channel === "preview") {
+    return (
+      <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+        Preview{release.pr_number ? ` · PR #${release.pr_number}` : ""}
+      </span>
+    );
+  }
   return release.channel === "production" ? (
     <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-semibold text-white">Production</span>
   ) : (

@@ -1,4 +1,4 @@
-import type { FeedbackItem } from "@/lib/types";
+import type { DeliveryMode, FeedbackItem } from "@/lib/types";
 
 /**
  * Fills a `{{placeholder}}` template with a feedback item's data. Deliberately
@@ -57,7 +57,10 @@ function webContextSection(feedback: FeedbackItem): string {
  * report id a pasted prompt gives the agent no way to move the fix stage, so
  * the report would sit at "New" even after the fix lands.
  */
-export function closingTheLoopSection(feedback: Pick<FeedbackItem, "id"> | Pick<FeedbackItem, "id">[]): string {
+export function closingTheLoopSection(
+  feedback: Pick<FeedbackItem, "id"> | Pick<FeedbackItem, "id">[],
+  mode: DeliveryMode = "batch",
+): string {
   const ids = (Array.isArray(feedback) ? feedback : [feedback]).map((item) => item.id);
   if (ids.length === 0) return "";
   const single = ids.length === 1;
@@ -72,10 +75,14 @@ export function closingTheLoopSection(feedback: Pick<FeedbackItem, "id"> | Pick<
 ## Closing the loop (FeedbackKit ${single ? "report" : "reports"} ${idList})
 
 1. If the FeedbackKit MCP server is connected, ${claim} before you start, so the team sees ${single ? "it's" : "they're"} being worked on.
-2. Add ${single ? "this trailer" : "one trailer per report you fixed"} to your fix commit's message (last paragraph, like \`Co-Authored-By\`) — when the commit reaches the default branch, FeedbackKit links it and ships it with the next beta build:
+${mode === "branch"
+    ? `2. Open a pull request for the fix; don't push to the default branch. This project checks fixes on a preview build of the PR before merging. Put ${single ? "this line" : "one line per report you fixed"} in the PR description (and the fix commit's message):
+${trailers}
+3. Don't merge the PR or mark ${single ? "it" : "them"} resolved yourself: the PR's "FeedbackKit" check turns green once ${single ? "the fix is" : "the fixes are"} verified on the preview.`
+    : `2. Add ${single ? "this trailer" : "one trailer per report you fixed"} to your fix commit's message (last paragraph, like \`Co-Authored-By\`) — when the commit reaches the default branch, FeedbackKit links it and ships it with the next beta build:
 ${trailers}
    If you open a pull request instead, put the same ${single ? "line" : "lines"} in its description. Without the GitHub App, call \`link_fix\` with the commit sha.
-3. Don't mark ${single ? "it" : "them"} resolved yourself: once the fix ships in a build, the reporter confirms it on their device.`;
+3. Don't mark ${single ? "it" : "them"} resolved yourself: once the fix ships in a build, the reporter confirms it on their device.`}`;
 }
 
 const WEB_PLACEHOLDERS = /{{\s*(page_url|console_logs|browser)\s*}}/;
