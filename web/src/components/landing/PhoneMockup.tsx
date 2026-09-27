@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import demoScreenshot from "@/assets/demo-feedback-screen.png";
 
 /**
@@ -15,7 +16,14 @@ import demoScreenshot from "@/assets/demo-feedback-screen.png";
  * ellipse on a tall box; the vertical value is the horizontal one scaled by
  * the box's aspect ratio (~0.46), which keeps the corners circular.
  */
-export function PhoneMockup({ className = "mx-auto max-w-[300px]" }: { className?: string }) {
+export function PhoneMockup({
+  className = "mx-auto max-w-[300px]",
+  overlay,
+}: {
+  className?: string;
+  /** Drawn over the screen, inside its rounded corners (e.g. a sheet sliding up). */
+  overlay?: ReactNode;
+}) {
   return (
     <div className={`relative w-full select-none ${className}`}>
       {/* Hardware buttons: action + volume on the left, side button on the right. */}
@@ -35,6 +43,7 @@ export function PhoneMockup({ className = "mx-auto max-w-[300px]" }: { className
               alt="FeedbackKit's iOS annotate screen in the demo app: a screenshot of the Home tab with a rectangle drawn around the first Add button, captured mid-report"
               className="block w-full"
             />
+            {overlay}
             {/* Dynamic Island, over the screenshot's own (real) status bar */}
             <div className="pointer-events-none absolute left-1/2 top-[1.3%] aspect-[3.4/1] w-[31%] -translate-x-1/2 rounded-full bg-black" />
           </div>

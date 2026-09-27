@@ -4,12 +4,13 @@ import { useAuth } from "@/lib/auth";
 import { FeedbackKit, setUpFeedbackKit } from "@/lib/feedbackkit";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Logomark } from "@/components/Logomark";
-import { PhoneMockup } from "@/components/landing/PhoneMockup";
 import { BrowserMockup } from "@/components/landing/BrowserMockup";
 import { DashboardMockup } from "@/components/landing/DashboardMockup";
 import { Reveal } from "@/components/landing/Reveal";
 import { LifecycleLoop, LifecyclePlayer } from "@/components/docs/Lifecycle";
+import { HeroLoop } from "@/components/landing/HeroLoop";
 
+// Capture, framed as the input to the loop rather than the product itself.
 const steps = [
   {
     title: "Capture",
@@ -19,13 +20,40 @@ const steps = [
   {
     title: "Annotate & describe",
     description:
-      "The user draws on the screenshot — freehand, rectangle, arrow, or text — and writes what went wrong.",
+      "The user draws on the screenshot (freehand, rectangle, arrow, or text), writes what went wrong, and can ask to hear back when it's fixed.",
   },
   {
-    title: "Ship it",
+    title: "Hand it to your agent",
     description:
-      "You get a structured report with the screenshot, the drawing, and device context. Keep it, send it to your own backend, or hand it to the hosted dashboard.",
+      "Screenshot, markup, device, build and screen arrive as one structured report, ready for a coding agent without anyone rewriting it.",
   },
+];
+
+// Agents FeedbackKit hands reports to (names only, no logos).
+const agents = ["Claude Code", "Codex", "Cursor", "GitHub Copilot", "Antigravity"];
+
+const agentRoutes = [
+  {
+    title: "Copy the prompt",
+    description: "Every report renders into a ready-to-paste prompt, with the report's id and the steps that let your agent update it.",
+  },
+  {
+    title: "Connect over MCP",
+    description: "Ask your agent to fix report 8c2. It reads the report, claims it, asks the reporter if it must, and links its fix.",
+  },
+  {
+    title: "Let FeedbackKit start it",
+    description: "Send to agent starts one on GitHub Actions, Copilot or your own Mac. Run on my machine hands it to your local agent.",
+  },
+];
+
+// What other tools do and don't do. No competitor named: the point is the
+// shape of the loop, and it holds across the category.
+const comparisonRows: { label: string; typical: boolean; agent: boolean }[] = [
+  { label: "Capture an annotated screenshot with device context", typical: true, agent: true },
+  { label: "Hand the report to a coding agent", typical: false, agent: true },
+  { label: "Track the fix to the build that ships it", typical: false, agent: false },
+  { label: "Ask the person who reported it to confirm the fix", typical: false, agent: false },
 ];
 
 const features = [
@@ -50,29 +78,14 @@ const features = [
       "Device, OS, app version and build, locale and screen name travel with the image and every shape drawn on it. On the web: the page URL, browser, and recent console errors and failed requests.",
   },
   {
-    title: "No dashboard required",
+    title: "Prompts you control",
     description:
-      "The SDK hands the report to your code. Where it goes next is up to you: the dashboard is one option, not a requirement.",
-  },
-  {
-    title: "Prompt generation for coding agents",
-    description:
-      "The optional dashboard turns a report into a ready-to-paste prompt via a plain, editable template — no templating language to learn.",
-  },
-  {
-    title: "Closes the loop with the reporter",
-    description:
-      "When a fix ships, the person who reported the bug sees their own screenshot and confirms it's fixed, or shows you what's still broken.",
+      "Each project's prompt is a plain, editable template filled from the report, with a per-report override when one bug needs more.",
   },
   {
     title: "Built for teams",
     description:
-      "Invite teammates with a link, switch between organizations, and keep every project behind Postgres row-level security.",
-  },
-  {
-    title: "Notified the moment it matters",
-    description:
-      "New reports, reporter replies, and fixes confirmed or reopened show up live in the dashboard and as push notifications in the Portal app.",
+      "Invite teammates with a link, watch the reports you care about, and get notified live in the dashboard or the Portal app. Every project stays behind Postgres row-level security.",
   },
 ];
 
@@ -139,8 +152,8 @@ export function LandingPage() {
   // shortLabel is what the compact header nav shows on narrow screens — the
   // hero's own CTA button (full-width, its own line) always uses `label`.
   const primaryCta = !loading && user
-    ? { to: "/projects", label: "Go to your projects", shortLabel: "Projects" }
-    : { to: "/login", label: "Sign in", shortLabel: "Sign in" };
+    ? { to: "/projects", label: "Go to your projects", shortLabel: "Projects", heroLabel: "Go to your projects" }
+    : { to: "/login", label: "Sign in", shortLabel: "Sign in", heroLabel: "Close your first loop" };
 
   // Dogfooding: the landing page collects feedback with FeedbackKit's own web
   // SDK, via a floating button (and ⌘⇧F / Ctrl+Shift+F). Reports go to the
@@ -228,31 +241,27 @@ export function LandingPage() {
           <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 sm:py-24 lg:grid-cols-2">
             <div className="animate-fade-up">
               <span className="inline-flex items-center rounded-full border border-neutral-200 bg-white/70 px-3 py-1 text-xs font-medium text-neutral-600 backdrop-blur">
-                Source available &middot; PolyForm Perimeter
+                Works with Claude Code, Codex, Copilot &amp; more
               </span>
               <h1 className="mt-5 text-4xl font-semibold tracking-tight text-neutral-900 sm:text-5xl">
-                In-app feedback for your apps and websites, turned into prompts your coding agent can act on.
+                Your users report the bug. Your agent fixes it. They confirm it&apos;s fixed.
               </h1>
               <p className="mt-5 text-base text-neutral-600 sm:text-lg">
-                Add the SDK to your iOS, macOS or watchOS app, or your website.
-                Users mark up the screen and describe the problem. You get a
-                structured report and, if you want it, a hosted dashboard that
-                turns it into a ready-to-paste prompt.
+                FeedbackKit connects the people using your app or website to the coding agent working on it,
+                and tracks every fix to the build that ships it, then back to the person who reported it.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <Link
                   to={primaryCta.to}
                   className="rounded-md bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition-all duration-150 hover:-translate-y-0.5 hover:bg-neutral-800 hover:shadow-lg hover:shadow-neutral-900/10 active:translate-y-0 active:scale-95"
                 >
-                  {primaryCta.label}
+                  {primaryCta.heroLabel}
                 </Link>
                 <a
-                  href="https://github.com/tianhaoz95/feedback-kit"
-                  target="_blank"
-                  rel="noreferrer"
+                  href="#the-loop"
                   className="rounded-md border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition-all duration-150 hover:-translate-y-0.5 hover:bg-neutral-50 active:translate-y-0 active:scale-95"
                 >
-                  View on GitHub
+                  Follow one bug end to end
                 </a>
               </div>
               <ul className="mt-6 flex flex-wrap items-center gap-2" aria-label="Supported platforms">
@@ -275,57 +284,57 @@ export function LandingPage() {
                 ))}
               </ul>
               <p className="mt-4 text-xs text-neutral-400">
-                Swift Package and npm. No dashboard required — bring your own backend, or use ours.
+                Swift Package and npm, source available. The fix loop is free for your first project.
               </p>
             </div>
-            {/* The same capture → annotate step on the web and on iOS, both real
-                captures of the SDKs' own UI. The phone sits in front, overlapping
-                the browser's right edge. */}
+            {/* The loop in three beats, opening on the real iOS capture. */}
             <div className="animate-fade-up" style={{ animationDelay: "150ms" }}>
-              <div className="relative mx-auto max-w-[560px]">
-                <div className="absolute left-0 top-1/2 w-[86%] -translate-y-1/2">
-                  <div className="animate-float-delayed">
-                    <BrowserMockup />
-                  </div>
-                </div>
-                <div className="relative z-10 ml-auto w-[38%]">
-                  <div className="animate-float">
-                    <PhoneMockup className="" />
-                  </div>
-                </div>
-              </div>
+              <HeroLoop />
             </div>
           </div>
         </section>
 
-        {/* How it works */}
+        {/* Works with the agent you already use */}
         <section className="border-t border-neutral-100 bg-neutral-50/60">
-          <div className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
+          <div className="mx-auto max-w-6xl px-4 py-14 sm:py-16">
             <Reveal>
-              <h2 className="text-center text-sm font-semibold uppercase tracking-wide text-neutral-500">
-                How it works
-              </h2>
+              <div className="mx-auto max-w-2xl text-center">
+                <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
+                  Works with the agent you already use
+                </h2>
+                <ul className="mt-5 flex flex-wrap justify-center gap-2" aria-label="Supported coding agents">
+                  {agents.map((agent) => (
+                    <li
+                      key={agent}
+                      className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-sm font-medium text-neutral-700"
+                    >
+                      {agent}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </Reveal>
-            <div className="mt-10 grid gap-8 sm:grid-cols-3">
-              {steps.map((step, i) => (
-                <Reveal key={step.title} delayMs={i * 120}>
-                  <div className="relative">
-                    <span className="text-3xl font-semibold text-neutral-200">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <h3 className="mt-2 text-base font-semibold text-neutral-900">
-                      {step.title}
-                    </h3>
-                    <p className="mt-2 text-sm text-neutral-600">{step.description}</p>
+            <div className="mt-10 grid gap-6 sm:grid-cols-3">
+              {agentRoutes.map((route, i) => (
+                <Reveal key={route.title} delayMs={i * 120}>
+                  <div>
+                    <span className="text-3xl font-semibold text-neutral-200">{String(i + 1).padStart(2, "0")}</span>
+                    <h3 className="mt-2 text-base font-semibold text-neutral-900">{route.title}</h3>
+                    <p className="mt-2 text-sm text-neutral-600">{route.description}</p>
                   </div>
                 </Reveal>
               ))}
             </div>
+            <Reveal className="mt-8 text-center">
+              <Link to="/docs/agents" className="link-underline text-sm font-medium text-neutral-900">
+                Compare the ways to hand a report to an agent →
+              </Link>
+            </Reveal>
           </div>
         </section>
 
         {/* The closed loop: report → agent → release → the reporter confirms */}
-        <section className="mx-auto max-w-6xl px-4 py-16 sm:py-24">
+        <section id="the-loop" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:py-24">
           <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
             <Reveal className="min-w-0">
               <div>
@@ -372,6 +381,81 @@ export function LandingPage() {
           </Reveal>
         </section>
 
+        {/* Other tools stop at the ticket */}
+        <section className="border-t border-neutral-100 bg-neutral-50/60">
+          <div className="mx-auto max-w-4xl px-4 py-16 sm:py-20">
+            <Reveal>
+              <div className="text-center">
+                <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
+                  Other tools stop at the ticket
+                </h2>
+                <p className="mt-3 text-sm text-neutral-600 sm:text-base">
+                  Capturing the bug is where most feedback tools end, and handing it to an agent is where the newest
+                  ones do. A merged pull request still isn&apos;t a fixed product.
+                </p>
+              </div>
+            </Reveal>
+            <Reveal delayMs={120} className="mt-10">
+              <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
+                <table className="w-full min-w-[520px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-neutral-100 text-xs text-neutral-500">
+                      <th className="px-4 py-3 font-medium" />
+                      <th className="px-3 py-3 text-center font-medium">Bug-report tools</th>
+                      <th className="px-3 py-3 text-center font-medium">…with an agent integration</th>
+                      <th className="px-3 py-3 text-center font-semibold text-neutral-900">FeedbackKit</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100">
+                    {comparisonRows.map((row) => (
+                      <tr key={row.label}>
+                        <td className="px-4 py-3 text-neutral-800">{row.label}</td>
+                        <td className="px-3 py-3 text-center">{row.typical ? <Yes /> : <No />}</td>
+                        <td className="px-3 py-3 text-center">{row.agent ? <Yes /> : <No />}</td>
+                        <td className="bg-emerald-50/50 px-3 py-3 text-center">
+                          <Yes />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* Capture: the report your agent needs */}
+        <section className="mx-auto max-w-6xl px-4 py-16 sm:py-24">
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            <Reveal className="min-w-0">
+              <div>
+                <span className="inline-flex items-center rounded-full border border-neutral-200 px-3 py-1 text-xs font-medium text-neutral-600">
+                  Capture
+                </span>
+                <h2 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
+                  The report your agent needs, in one tap
+                </h2>
+                <ol className="mt-6 space-y-5">
+                  {steps.map((step, i) => (
+                    <li key={step.title} className="flex gap-4">
+                      <span className="text-2xl font-semibold text-neutral-200">{String(i + 1).padStart(2, "0")}</span>
+                      <div>
+                        <h3 className="text-base font-semibold text-neutral-900">{step.title}</h3>
+                        <p className="mt-1 text-sm text-neutral-600">{step.description}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </Reveal>
+            <Reveal delayMs={150} className="min-w-0">
+              <div className="animate-float-delayed">
+                <BrowserMockup />
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
         {/* Feature grid */}
         <section className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
           <Reveal>
@@ -380,9 +464,9 @@ export function LandingPage() {
                 Everything the report needs, nothing it doesn't
               </h2>
               <p className="mt-3 text-sm text-neutral-600 sm:text-base">
-                Native and web SDKs that share one report format and never
-                require the dashboard, plus a dashboard, CLI and MCP server
-                that are optional ways to use what they produce.
+                Native and web SDKs that share one report format, and a
+                dashboard, CLI and MCP server that carry it to your coding
+                agent.
               </p>
             </div>
           </Reveal>
@@ -479,16 +563,14 @@ export function LandingPage() {
             <Reveal delayMs={150} className="min-w-0">
               <div>
                 <span className="inline-flex items-center rounded-full border border-neutral-200 px-3 py-1 text-xs font-medium text-neutral-600">
-                  Optional
+                  Dashboard
                 </span>
                 <h2 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
-                  A dashboard that turns reports into prompts
+                  Where the loop runs
                 </h2>
                 <p className="mt-3 text-sm text-neutral-600 sm:text-base">
-                  Receive feedback, organize it by project, and generate a
-                  ready-to-paste prompt for whatever coding agent you use — via
-                  a plain, editable template, not a templating language to
-                  learn.
+                  Every report, its prompt and its fix in one place: see where each fix is, hand reports to an agent,
+                  and promote a build only once the people who reported its bugs have confirmed the fixes.
                 </p>
                 <ul className="mt-6 space-y-3 text-sm text-neutral-600">
                   <li className="flex gap-2">
@@ -521,19 +603,18 @@ export function LandingPage() {
           <Reveal>
             <div className="mx-auto max-w-4xl px-4 py-16 text-center sm:py-20">
               <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                Add it to your app in an afternoon
+                Close your first loop this afternoon
               </h2>
               <p className="mt-3 text-sm text-neutral-300 sm:text-base">
-                A Swift Package for Apple platforms and an npm package for the
-                web, with Android coming soon. The dashboard is optional, and
-                free to self-host from this repo.
+                Add the Swift Package or the npm package, connect your coding agent, and the next bug your users
+                report can come back to them fixed. Free for your first project.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                 <Link
                   to={primaryCta.to}
                   className="rounded-md bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 transition-all duration-150 hover:-translate-y-0.5 hover:bg-neutral-100 active:translate-y-0 active:scale-95"
                 >
-                  {primaryCta.label}
+                  {primaryCta.heroLabel}
                 </Link>
                 <a
                   href="https://github.com/tianhaoz95/feedback-kit"
@@ -551,4 +632,18 @@ export function LandingPage() {
       <SiteFooter />
     </div>
   );
+}
+
+function Yes() {
+  return (
+    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white" aria-label="Yes">
+      <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+        <path d="M3.5 8.5l3 3 6-7" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
+
+function No() {
+  return <span className="inline-block h-0.5 w-3 rounded bg-neutral-300 align-middle" aria-label="No" />;
 }
