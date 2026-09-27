@@ -55,7 +55,9 @@ function waitForCallback(expectedState: string): {
 
       const valid = state === expectedState && accessToken && refreshToken && supabaseUrl && supabaseAnonKey;
 
-      res.writeHead(valid ? 200 : 400, { "Content-Type": "text/html" });
+      // `Connection: close` so the browser doesn't hold a keep-alive socket
+      // that keeps this process running after login.
+      res.writeHead(valid ? 200 : 400, { "Content-Type": "text/html", Connection: "close" });
       res.end(valid ? SUCCESS_HTML : ERROR_HTML);
 
       if (valid) {
@@ -82,7 +84,14 @@ function waitForCallback(expectedState: string): {
     });
   });
 
-  return { port, result, close: () => server.close() };
+  return {
+    port,
+    result,
+    close: () => {
+      server.close();
+      server.closeAllConnections();
+    },
+  };
 }
 
 export async function login(options: { dashboardUrl?: string }): Promise<void> {
@@ -96,6 +105,7 @@ export async function login(options: { dashboardUrl?: string }): Promise<void> {
   const label = `CLI on ${hostname()}`;
 
   const { port, result, close } = waitForCallback(state);
+  let timer: NodeJS.Timeout | undefined;
 
   try {
     const authorizeUrl = new URL(`${dashboardUrl}/cli-auth`);
@@ -109,12 +119,12 @@ export async function login(options: { dashboardUrl?: string }): Promise<void> {
       /* the URL was already printed above */
     });
 
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(
         () => reject(new Error("Timed out waiting for browser authorization (5 minutes).")),
         AUTH_TIMEOUT_MS,
-      ),
-    );
+      );
+    });
 
     const callback = await Promise.race([result, timeout]);
 
@@ -128,6 +138,9 @@ export async function login(options: { dashboardUrl?: string }): Promise<void> {
 
     console.log(`Logged in. Credentials saved to ${CREDENTIALS_PATH}.`);
   } finally {
+    // Nothing may outlive login: a pending timer or open socket would keep
+    // the process alive after "Logged in." is printed.
+    clearTimeout(timer);
     close();
   }
 }
