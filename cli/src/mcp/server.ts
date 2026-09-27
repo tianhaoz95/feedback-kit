@@ -364,14 +364,16 @@ export function createMcpServer(options: McpServerOptions = {}): McpServer {
     },
     async ({ feedback_id, question }) => {
       try {
-        const reporterId = await withItem(feedback_id, async (client, item) => {
+        const item = await withItem(feedback_id, async (client, item) => {
           await recordEvent(client, item, { ...agentActor(), kind: "question", body: question, visibleToReporter: true });
-          return item.reporter_id;
+          return item;
         });
         return textResult(
-          reporterId
-            ? "Question sent. The reporter will see it next time they open the app."
-            : "Question recorded, but this report has no reporter id (it was filed by an older SDK), so it can't reach their device — the team will see it in the dashboard.",
+          !item.reporter_id
+            ? "Question recorded, but this report has no reporter id (it was filed by an older SDK), so it can't reach their device — the team will see it in the dashboard."
+            : item.notify_reporter === false
+              ? "Question recorded, but the reporter chose not to hear back, so it won't reach them — the team will see it in the dashboard. Work from the report as it is."
+              : "Question sent. The reporter will see it next time they open the app.",
         );
       } catch (err) {
         return errorResult((err as Error).message);

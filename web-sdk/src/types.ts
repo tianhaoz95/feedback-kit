@@ -115,6 +115,13 @@ export interface FeedbackReport {
   products: FeedbackProduct[];
   /** Recent console output / errors / failed requests (web only). Empty if log capture is off. */
   logs: FeedbackLogEntry[];
+  /**
+   * The reporter asked to hear back ("Notify me when it's fixed" in the
+   * composer's menu; off by default). The hosted service only shows fix
+   * updates and questions for this report in their browser when it's true.
+   * Mirrors Swift's `FeedbackReport.notifyReporter`.
+   */
+  notifyReporter?: boolean;
 }
 
 /** Brand colors for the widget, as hex strings (`#RRGGBB`). Mirrors Swift's `FeedbackTheme`. */

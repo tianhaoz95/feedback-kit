@@ -41,6 +41,8 @@ export interface IngestPayload {
   reporter_id?: string;
   /** `FeedbackKit.setUser(...)`, camelCase JSONB like `environment`. */
   reporter?: FeedbackUser;
+  /** "Notify me when it's fixed"; always sent, false unless the reporter opted in. */
+  notify_reporter: boolean;
 }
 
 export async function blobToBase64(blob: Blob): Promise<string> {
@@ -65,6 +67,7 @@ export async function encodePayload(
     text: report.text,
     annotations: report.annotations,
     environment: report.environment,
+    notify_reporter: report.notifyReporter ?? false,
   };
   if (report.screenshotRaw && report.screenshotAnnotated) {
     const [raw, annotated] = await Promise.all([

@@ -236,6 +236,13 @@ class Dialog {
   private stage!: HTMLDivElement;
   private includeScreenshot: boolean;
   private includeLogs = true;
+  /** "Notify me when it's fixed" — off by default, like the native composers. */
+  private notifyReporter = false;
+  private optionsMenu: HTMLDivElement | null = null;
+  private readonly onPointerDownOutsideMenu = (e: PointerEvent) => {
+    const anchor = this.optionsMenu?.parentElement;
+    if (anchor && !e.composedPath().includes(anchor)) this.closeOptionsMenu();
+  };
   private attachment: FeedbackAttachment | null = null;
   private selectedProducts = new Set<string>();
   private products: FeedbackProduct[] = [];
@@ -395,26 +402,22 @@ class Dialog {
     productsGroup.dataset.role = "products";
     productsGroup.hidden = true;
 
-    // Screenshot toggle + attach
+    // One "+" button opens a menu with the ways to attach and the report
+    // options (screenshot, notify me) — the same layout as the iOS/macOS
+    // composers, where a row of switches didn't fit.
     const optionsRow = el("div", "fk-row");
-    const toggle = switchControl("Screenshot", this.includeScreenshot, (on) => {
-      this.includeScreenshot = on;
-      this.stage.dataset.screenshot = on ? "on" : "off";
-      this.refreshState();
-    });
-    if (!this.shot) toggle.querySelector("input")!.disabled = true;
-    const attachGroup = el("div");
     const fileInput = document.createElement("input");
     fileInput.type = "file";
     fileInput.hidden = true;
-    const attachButton = document.createElement("button");
-    attachButton.type = "button";
-    attachButton.className = "fk-attach";
-    attachButton.innerHTML = `${icons.paperclip}<span>Attach file</span>`;
-    attachButton.addEventListener("click", () => fileInput.click());
-    fileInput.addEventListener("change", () => {
-      const file = fileInput.files?.[0];
-      fileInput.value = "";
+    // `capture` opens the camera on phones and tablets; desktop browsers ignore it.
+    const cameraInput = document.createElement("input");
+    cameraInput.type = "file";
+    cameraInput.accept = "image/*";
+    cameraInput.setAttribute("capture", "environment");
+    cameraInput.hidden = true;
+    const onFile = (input: HTMLInputElement) => {
+      const file = input.files?.[0];
+      input.value = "";
       if (!file) return;
       if (file.size > MAX_ATTACHMENT_BYTES) {
         this.showError(`"${file.name}" is larger than 10 MB.`);
@@ -422,26 +425,87 @@ class Dialog {
       }
       this.attachment = { filename: file.name, mimeType: file.type || "application/octet-stream", data: file };
       renderAttachment();
-    });
-    const renderAttachment = () => {
-      attachGroup.replaceChildren(fileInput);
-      if (this.attachment) {
-        const chip = el("span", "fk-file");
-        const name = el("span");
-        name.textContent = this.attachment.filename;
-        const remove = iconButton("", icons.close, `Remove ${this.attachment.filename}`);
-        remove.addEventListener("click", () => {
-          this.attachment = null;
-          renderAttachment();
+    };
+    fileInput.addEventListener("change", () => onFile(fileInput));
+    cameraInput.addEventListener("change", () => onFile(cameraInput));
+
+    const menuAnchor = el("div", "fk-menu-anchor");
+    const menuButton = iconButton("fk-plus", icons.plus, "Options and attachments");
+    menuButton.setAttribute("aria-haspopup", "menu");
+    menuButton.setAttribute("aria-expanded", "false");
+    menuButton.addEventListener("click", () => (this.optionsMenu ? this.closeOptionsMenu() : openMenu()));
+    const summary = el("span", "fk-options-summary");
+    const renderSummary = () => {
+      const parts: string[] = [];
+      if (this.shot && !this.includeScreenshot) parts.push("No screenshot");
+      if (this.notifyReporter) parts.push("Notify me");
+      summary.textContent = parts.join(" · ");
+    };
+
+    const openMenu = () => {
+      const menu = el("div", "fk-menu");
+      menu.setAttribute("role", "menu");
+      const item = (label: string, onSelect: () => void, checked?: boolean) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "fk-menu-item";
+        b.setAttribute("role", checked === undefined ? "menuitem" : "menuitemcheckbox");
+        if (checked !== undefined) b.setAttribute("aria-checked", String(checked));
+        b.innerHTML = `<span class="fk-menu-check">${checked ? icons.check : ""}</span><span></span>`;
+        b.lastElementChild!.textContent = label;
+        b.addEventListener("click", () => {
+          this.closeOptionsMenu();
+          onSelect();
         });
-        chip.append(name, remove);
-        attachGroup.append(chip);
-      } else {
-        attachGroup.append(attachButton);
+        return b;
+      };
+      menu.append(item("Attach file…", () => fileInput.click()));
+      if (window.matchMedia?.("(pointer: coarse)").matches) menu.append(item("Take photo", () => cameraInput.click()));
+      menu.append(el("hr", "fk-menu-sep"));
+      if (this.shot) {
+        menu.append(
+          item("Include screenshot", () => {
+            this.includeScreenshot = !this.includeScreenshot;
+            this.stage.dataset.screenshot = this.includeScreenshot ? "on" : "off";
+            renderSummary();
+            this.refreshState();
+          }, this.includeScreenshot),
+        );
       }
+      menu.append(
+        item("Notify me when it's fixed", () => {
+          this.notifyReporter = !this.notifyReporter;
+          renderSummary();
+        }, this.notifyReporter),
+      );
+      menuAnchor.append(menu);
+      menuButton.setAttribute("aria-expanded", "true");
+      this.optionsMenu = menu;
+      this.overlay.addEventListener("pointerdown", this.onPointerDownOutsideMenu, true);
+      (menu.querySelector(".fk-menu-item") as HTMLButtonElement | null)?.focus();
+    };
+
+    const attachGroup = el("div", "fk-attach-group");
+    const renderAttachment = () => {
+      attachGroup.replaceChildren();
+      if (!this.attachment) return;
+      const chip = el("span", "fk-file");
+      const name = el("span");
+      name.textContent = this.attachment.filename;
+      const remove = iconButton("", icons.close, `Remove ${this.attachment.filename}`);
+      remove.addEventListener("click", () => {
+        this.attachment = null;
+        renderAttachment();
+      });
+      chip.append(name, remove);
+      attachGroup.append(chip);
     };
     renderAttachment();
-    optionsRow.append(attachGroup, toggle);
+    renderSummary();
+    menuAnchor.append(menuButton, fileInput, cameraInput);
+    const left = el("div", "fk-options-left");
+    left.append(menuAnchor, attachGroup);
+    optionsRow.append(left, summary);
 
     const meta = this.buildDiagnostics();
 
@@ -543,6 +607,13 @@ class Dialog {
     if (this.clearButton) this.clearButton.disabled = !(this.editor && this.editor.annotations.length > 0);
   }
 
+  private closeOptionsMenu(): void {
+    this.optionsMenu?.remove();
+    this.optionsMenu = null;
+    this.overlay?.removeEventListener("pointerdown", this.onPointerDownOutsideMenu, true);
+    this.overlay?.querySelector(".fk-plus")?.setAttribute("aria-expanded", "false");
+  }
+
   // ---------------------------------------------------------------- keyboard
 
   private handleKey(e: KeyboardEvent): void {
@@ -553,7 +624,11 @@ class Dialog {
     // The on-canvas note input handles its own Enter/Escape (commit/cancel the note).
     if (active instanceof HTMLInputElement && active.classList.contains("fk-text-input")) return;
 
-    if (e.key === "Escape") {
+    if (e.key === "Escape" && this.optionsMenu) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.closeOptionsMenu();
+    } else if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
       this.cancel();
@@ -622,6 +697,7 @@ class Dialog {
       attachment: this.attachment,
       products: this.products.filter((p) => this.selectedProducts.has(p.key)),
       logs: this.includeLogs ? this.logs : [],
+      notifyReporter: this.notifyReporter,
     };
   }
 

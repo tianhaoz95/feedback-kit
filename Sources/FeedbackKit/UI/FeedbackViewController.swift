@@ -28,9 +28,17 @@ final class FeedbackViewController: UIViewController {
     // Not `private` — see the comment on `attachButton`/`sendButton` below;
     // FeedbackViewControllerThemeTests reads this too.
     let cancelButton = UIButton(type: .system)
-    private let includeScreenshotLabel = UILabel()
-    // Not `private` — same reasoning, for the toggle's `onTintColor`.
-    let includeScreenshotToggle = UISwitch()
+    /// The two report options, set from the attach button's menu (see
+    /// `makeAttachMenu()`) rather than switches in the composer row, which
+    /// had no room for a second one. Not `private` — the composer tests read them.
+    private(set) var includesScreenshot = true
+    /// "Notify me when it's fixed" — off by default. When off, the reporter
+    /// is never shown fix updates or questions for this report (see
+    /// `FeedbackReport.notifyReporter`).
+    private(set) var notifyReporter = false
+    /// Shows the options that differ from the defaults next to the send
+    /// button, so a hidden menu choice is still visible at a glance.
+    private let optionsSummaryLabel = UILabel()
 
     private let screenshotBoundsView = UIView()
     private let imageView = UIImageView()
@@ -268,26 +276,25 @@ final class FeedbackViewController: UIViewController {
         attachButton.setImage(UIImage(systemName: "plus.circle.fill"), for: .normal)
         attachButton.setPreferredSymbolConfiguration(iconConfig, forImageIn: .normal)
         attachButton.tintColor = secondaryColor ?? .secondaryLabel
-        attachButton.addAction(UIAction { [weak self] _ in self?.attachTapped() }, for: .touchUpInside)
+        attachButton.accessibilityLabel = "Options and attachments"
+        attachButton.showsMenuAsPrimaryAction = true
+        attachButton.menu = makeAttachMenu()
 
         sendButton.setImage(UIImage(systemName: "arrow.up.circle.fill"), for: .normal)
         sendButton.setPreferredSymbolConfiguration(iconConfig, forImageIn: .normal)
         sendButton.tintColor = primaryColor ?? .systemBlue
         sendButton.addAction(UIAction { [weak self] _ in self?.submitTapped() }, for: .touchUpInside)
 
-        includeScreenshotLabel.text = "Screenshot"
-        includeScreenshotLabel.font = .preferredFont(forTextStyle: .footnote)
-        includeScreenshotLabel.textColor = .secondaryLabel
-        includeScreenshotToggle.isOn = true
-        // Left `nil` (the system default green) when no theme is set, same
-        // as every other control here.
-        includeScreenshotToggle.onTintColor = primaryColor
-        includeScreenshotToggle.addAction(UIAction { [weak self] _ in self?.toggleScreenshotChanged() }, for: .valueChanged)
+        optionsSummaryLabel.font = .preferredFont(forTextStyle: .footnote)
+        optionsSummaryLabel.textColor = .secondaryLabel
+        optionsSummaryLabel.adjustsFontForContentSizeCategory = true
+        updateOptionsSummary()
 
-        // Attach on the left, the screenshot toggle and send on the right —
-        // the composer's "second row", under the text input.
+        // The options/attach menu on the left, a summary of non-default
+        // options and send on the right — the composer's "second row", under
+        // the text input.
         let buttonRow = UIStackView(arrangedSubviews: [
-            attachButton, UIView(), includeScreenshotLabel, includeScreenshotToggle, sendButton
+            attachButton, UIView(), optionsSummaryLabel, sendButton
         ])
         buttonRow.axis = .horizontal
         buttonRow.alignment = .center
@@ -481,10 +488,87 @@ final class FeedbackViewController: UIViewController {
         view.endEditing(true)
     }
 
-    private func attachTapped() {
+    /// The attach button's menu: the report options as checkmarked toggles,
+    /// then the ways to attach something. Rebuilt after every toggle so the
+    /// checkmarks stay current (`UIMenu` elements are immutable).
+    func makeAttachMenu() -> UIMenu {
+        let screenshot = UIAction(
+            title: "Include Screenshot",
+            image: UIImage(systemName: "photo"),
+            state: includesScreenshot ? .on : .off
+        ) { [weak self] _ in self?.setIncludesScreenshot(!(self?.includesScreenshot ?? true)) }
+        let notify = UIAction(
+            title: "Notify Me When It's Fixed",
+            subtitle: "You'll be asked in this app once a fix ships",
+            image: UIImage(systemName: "bell"),
+            state: notifyReporter ? .on : .off
+        ) { [weak self] _ in self?.setNotifyReporter(!(self?.notifyReporter ?? false)) }
+
+        var attach: [UIMenuElement] = [
+            UIAction(title: "Attach File…", image: UIImage(systemName: "paperclip")) { [weak self] _ in
+                self?.attachFileTapped()
+            }
+        ]
+        if Self.canTakePhoto {
+            attach.append(UIAction(title: "Take Photo", image: UIImage(systemName: "camera")) { [weak self] _ in
+                self?.takePhotoTapped()
+            })
+        }
+        return UIMenu(children: [
+            UIMenu(options: .displayInline, children: attach),
+            UIMenu(options: .displayInline, children: [screenshot, notify]),
+        ])
+    }
+
+    /// The camera needs hardware and the host app's `NSCameraUsageDescription`
+    /// (without it, presenting the camera crashes the app) — the SDK can't add
+    /// that key itself, so the item only appears when the app has it.
+    static var canTakePhoto: Bool {
+        UIImagePickerController.isSourceTypeAvailable(.camera)
+            && Bundle.main.object(forInfoDictionaryKey: "NSCameraUsageDescription") != nil
+    }
+
+    func setIncludesScreenshot(_ included: Bool) {
+        includesScreenshot = included
+        toggleScreenshotChanged()
+        refreshOptions()
+    }
+
+    func setNotifyReporter(_ notify: Bool) {
+        notifyReporter = notify
+        refreshOptions()
+    }
+
+    private func refreshOptions() {
+        attachButton.menu = makeAttachMenu()
+        updateOptionsSummary()
+    }
+
+    private func updateOptionsSummary() {
+        var parts: [String] = []
+        if !includesScreenshot { parts.append("No screenshot") }
+        if notifyReporter { parts.append("Notify me") }
+        optionsSummaryLabel.text = parts.joined(separator: " · ")
+        optionsSummaryLabel.isHidden = parts.isEmpty
+    }
+
+    private func attachFileTapped() {
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.item], asCopy: true)
         picker.delegate = self
         present(picker, animated: true)
+    }
+
+    private func takePhotoTapped() {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.delegate = self
+        present(picker, animated: true)
+    }
+
+    private func setAttachment(filename: String, mimeType: String, data: Data) {
+        pickedAttachment = (filename: filename, mimeType: mimeType, data: data)
+        attachmentNameLabel.text = filename
+        attachmentChipView.isHidden = false
     }
 
     private func clearAttachment() {
@@ -520,7 +604,7 @@ final class FeedbackViewController: UIViewController {
         // it and disables drawing, rather than collapsing the layout, so the
         // toggle can't be flipped back and forth mid-annotation without
         // losing anything on screen.
-        let included = includeScreenshotToggle.isOn
+        let included = includesScreenshot
         canvasView.isUserInteractionEnabled = included
         toolbar.isUserInteractionEnabled = included
         UIView.animate(withDuration: 0.2) { [self] in
@@ -534,7 +618,7 @@ final class FeedbackViewController: UIViewController {
         var annotatedPNG: Data?
         var annotations: [FeedbackAnnotation] = []
 
-        if includeScreenshotToggle.isOn {
+        if includesScreenshot {
             let flattened = canvasView.flattenedImage(baseImage: rawScreenshot)
             guard let raw = rawScreenshot.pngData(), let annotated = flattened.pngData() else {
                 dismiss(animated: true) { [weak self] in self?.onComplete(nil) }
@@ -558,7 +642,8 @@ final class FeedbackViewController: UIViewController {
             annotations: annotations,
             environment: EnvironmentInfo.current(screenName: screenNameOverride),
             attachment: attachment,
-            products: selectedProducts
+            products: selectedProducts,
+            notifyReporter: notifyReporter
         )
 
         dismiss(animated: true) { [weak self] in self?.onComplete(report) }
@@ -579,9 +664,19 @@ extension FeedbackViewController: UIDocumentPickerDelegate {
         guard let url = urls.first, let data = try? Data(contentsOf: url) else { return }
         let filename = url.lastPathComponent
         let mimeType = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
-        pickedAttachment = (filename: filename, mimeType: mimeType, data: data)
-        attachmentNameLabel.text = filename
-        attachmentChipView.isHidden = false
+        setAttachment(filename: filename, mimeType: mimeType, data: data)
+    }
+}
+
+extension FeedbackViewController: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+    func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+        picker.dismiss(animated: true)
+        guard let image = info[.originalImage] as? UIImage, let data = image.jpegData(compressionQuality: 0.85) else { return }
+        setAttachment(filename: "Photo.jpg", mimeType: "image/jpeg", data: data)
+    }
+
+    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        picker.dismiss(animated: true)
     }
 }
 

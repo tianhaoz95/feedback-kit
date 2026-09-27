@@ -173,6 +173,7 @@ struct NotificationRowView: View {
         case "verified": return .green
         case "fix_merged": return .indigo
         case "member_joined": return .orange
+        case "watched_update": return .teal
         default: return .gray
         }
     }

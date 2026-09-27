@@ -414,7 +414,7 @@ export function loopInstructions(item: FeedbackItem): string {
 ## Closing the loop (FeedbackKit report \`${item.id}\`)
 ${reopened}
 1. Call \`claim_feedback\` before you start, so the team sees it's being worked on.
-2. If something is ambiguous only the reporter can answer, call \`ask_reporter\` — the question appears on their device.
+2. ${item.notify_reporter === false ? "The reporter chose not to hear back, so `ask_reporter` won't reach them — work from the report as it is." : "If something is ambiguous only the reporter can answer, call `ask_reporter` — the question appears on their device."}
 3. If you can run the app (e.g. an iOS simulator via XcodeBuildMCP, or a browser), reproduce the bug first, and after fixing it call \`attach_after_screenshot\` with a screenshot of the fixed screen.
 4. Add this trailer to your fix commit's message (last paragraph, like \`Co-Authored-By\`) — when the commit reaches the default branch, FeedbackKit links it and ships it with the next beta build:
    \`FeedbackKit: ${item.id}\`

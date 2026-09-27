@@ -27,7 +27,7 @@ public struct FixLoopSectionView: View {
     }
 
     private var stage: PortalFixStage? { item.fixStage.flatMap(PortalFixStage.init(rawValue:)) }
-    private var canReachReporter: Bool { item.reporterId != nil }
+    private var canReachReporter: Bool { item.canReachReporter }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -140,7 +140,9 @@ public struct FixLoopSectionView: View {
             .disabled(!canReachReporter && mode != .note)
 
             if !canReachReporter && mode != .note {
-                Text("This report came from an older SDK without a reporter id, so it can't reach their device.")
+                Text(item.reporterId == nil
+                     ? "This report came from an older SDK without a reporter id, so it can't reach their device."
+                     : "The reporter chose not to hear back, so questions and fix updates won't reach them.")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }

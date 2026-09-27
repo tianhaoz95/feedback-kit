@@ -47,6 +47,12 @@ interface IngestPayload {
   reporter_id?: string;
   /** Optional host-app identity from `FeedbackKit.setUser` (camelCase JSONB). */
   reporter?: unknown;
+  /**
+   * "Notify me when it's fixed" from the composer (0023_notify_and_watchlist.sql).
+   * Sent by every current SDK; absent from older ones, which keeps the old
+   * behavior (the reporter is asked).
+   */
+  notify_reporter?: boolean;
 }
 
 interface IngestLogEntry {
@@ -236,7 +242,7 @@ Deno.serve(async (req) => {
   const reporterId = sanitizeReporterId(payload.reporter_id);
   const reporter = sanitizeReporter(payload.reporter);
 
-  const { error: insertError } = await supabase.from("feedback_items").insert({
+  const row = {
     id: payload.id,
     project_id: project.id,
     text: payload.text,
@@ -254,7 +260,15 @@ Deno.serve(async (req) => {
     ...(logs.length > 0 ? { logs } : {}),
     ...(reporterId ? { reporter_id: reporterId } : {}),
     ...(reporter ? { reporter } : {}),
-  });
+    ...(typeof payload.notify_reporter === "boolean" ? { notify_reporter: payload.notify_reporter } : {}),
+  };
+  let { error: insertError } = await supabase.from("feedback_items").insert(row);
+  // Function deployed before its migration: store the report without the
+  // new column rather than dropping it.
+  if (insertError && /notify_reporter/.test(insertError.message)) {
+    const { notify_reporter: _unused, ...withoutOptIn } = row as Record<string, unknown>;
+    ({ error: insertError } = await supabase.from("feedback_items").insert(withoutOptIn));
+  }
 
   if (insertError) {
     return json({ error: "failed to record feedback", detail: insertError.message }, 500);

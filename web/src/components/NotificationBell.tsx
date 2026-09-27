@@ -13,6 +13,7 @@ const KIND_DOT: Record<AppNotification["kind"], string> = {
   verified: "bg-emerald-500",
   fix_merged: "bg-indigo-500",
   member_joined: "bg-amber-500",
+  watched_update: "bg-sky-500",
 };
 
 /** Opens a notification: switches to its organization first so list pages match, then navigates. */

@@ -194,17 +194,28 @@ export function DocsIosSdkPage() {
         </DocsCallout>
       </DocsSection>
 
-      <DocsSection title="Making the screenshot optional">
+      <DocsSection title="The composer's + menu">
         <p>
-          A "Screenshot" switch in the composer's second row, next to the send button — on by
-          default — lets the user exclude it entirely, for a report that's pure description with nothing worth
-          screenshotting. Turning it off dims the screenshot/annotation area and toolbar and
-          disables drawing, rather than hiding them — the screen stays visible for context, it's
-          just not editable or included anymore. This is a submission-time choice only — the SDK
-          still captures the screenshot up front (window-level capture is what lets it show the
-          annotate UI at all); it's simply discarded rather than included in the report if the
-          switch is off, along with any annotations.
+          The <strong>+</strong> button next to the text field opens a menu: <strong>Attach File…</strong>,{" "}
+          <strong>Take Photo</strong>, and two options with checkmarks, <strong>Include Screenshot</strong> (on by
+          default) and <strong>Notify Me When It&apos;s Fixed</strong> (off by default). Options that differ from
+          the defaults are listed next to the send button.
         </p>
+        <p>
+          Turning the screenshot off dims the screenshot/annotation area and disables drawing rather than hiding it,
+          and the report is sent without the screenshot or annotations. The SDK still captures the screenshot up front
+          (that's what lets it show the annotate UI at all); it's discarded at submission.
+        </p>
+        <p>
+          <strong>Notify Me When It&apos;s Fixed</strong> sets <InlineCode>FeedbackReport.notifyReporter</InlineCode>.
+          Only reporters who turn it on see the &ldquo;is it fixed?&rdquo; card and your questions in the app; for
+          everyone else the dashboard offers <em>Mark verified</em>.
+        </p>
+        <DocsCallout>
+          <strong>Take Photo</strong> appears only if your app&apos;s Info.plist has{" "}
+          <InlineCode>NSCameraUsageDescription</InlineCode>. The SDK can&apos;t add that key, and iOS terminates an app
+          that opens the camera without it.
+        </DocsCallout>
       </DocsSection>
 
       <DocsSection title="Theming">
@@ -216,16 +227,12 @@ export function DocsIosSdkPage() {
         <CodeBlock code={themeUsage} label="Swift" />
         <p>
           <strong>Primary</strong> drives the flow's main call-to-action controls — the send button, the selected
-          annotation tool, and the screenshot toggle's on-tint. <strong>Secondary</strong> drives less prominent
+          annotation tool. <strong>Secondary</strong> drives less prominent
           controls — Cancel and the attach button. Leave <InlineCode>theme</InlineCode> unset (the default) to keep
           the system accent color exactly as before. Set it any time before{" "}
           <InlineCode>present(from:)</InlineCode>/<InlineCode>presentAndSubmit(from:)</InlineCode> — or before
           presenting <InlineCode>FeedbackQuickNoteView</InlineCode> on watchOS, which reads it directly.
         </p>
-        <DocsCallout tone="warning">
-          <InlineCode>NSSwitch</InlineCode> has no tint/on-color API at all, unlike <InlineCode>UISwitch</InlineCode>
-          — the screenshot toggle's on-tint only picks up the primary color on iOS.
-        </DocsCallout>
       </DocsSection>
 
       <DocsSection title="Sending to the hosted dashboard">
@@ -294,7 +301,7 @@ export function DocsIosSdkPage() {
           rows={[
             ["id / createdAt", "A generated identifier and timestamp."],
             ["text", "The user's free-text description."],
-            ["screenshot (raw + annotated)", "Both PNGs — raw for record-keeping, annotated for actually looking at the bug — or both nil if the user toggled the screenshot off (or on watchOS, which never captures one)."],
+            ["screenshot (raw + annotated)", "Both PNGs — raw for record-keeping, annotated for actually looking at the bug — or both nil if the user turned the screenshot off in the + menu (or on watchOS, which never captures one)."],
             ["annotations", "Each shape's kind, normalized points, color, and (for rectangle/arrow) scale/rotation. Empty whenever there's no screenshot."],
             ["environment", "OS name/version, device model, app version/build, bundle id, locale, screen size/scale, and the current screen name if set."],
             ["attachment", "An optional extra file the user picked from the composer's attach button."],

@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { getErrorMessage } from "@/lib/errors";
 import { FIX_STAGE_META, FIX_STAGE_ORDER } from "@/lib/fixStageMeta";
-import { stuckHint } from "@/lib/loopHealth";
+import { reporterReachable, stuckHint } from "@/lib/loopHealth";
 import type { FeedbackEvent, FeedbackEventKind, FeedbackItem } from "@/lib/types";
 import { Button } from "@/components/Button";
 import { AlertIcon, CheckIcon, ExternalLinkIcon, GitHubIcon, MessageIcon, SparkleIcon } from "@/components/icons";
@@ -160,7 +160,7 @@ export function FixLoopPanel({
   const stage = feedback.fix_stage ?? null;
   const hint = events ? stuckHint(feedback, events) : null;
   const reachedIndex = stage && stage !== "reopened" ? FIX_STAGE_ORDER.indexOf(stage) : -1;
-  const canReachReporter = !!feedback.reporter_id;
+  const canReachReporter = reporterReachable(feedback);
 
   return (
     <div className="space-y-4 rounded-xl border border-neutral-200 bg-white p-4 shadow-xs">
@@ -234,8 +234,9 @@ export function FixLoopPanel({
 
       {!canReachReporter ? (
         <p className="rounded-lg border border-dashed border-neutral-200 bg-neutral-50 px-3 py-2 text-[11px] text-neutral-500">
-          This report came from an older SDK without a reporter id, so its reporter can&apos;t be asked to verify a fix
-          on their device. Reports from current SDKs can.
+          {feedback.reporter_id
+            ? "The reporter chose not to hear back (\u201cNotify me when it\u2019s fixed\u201d was off), so they won\u2019t be asked to verify a fix or see questions."
+            : "This report came from an older SDK without a reporter id, so its reporter can\u2019t be asked to verify a fix on their device. Reports from current SDKs can."}
         </p>
       ) : null}
 

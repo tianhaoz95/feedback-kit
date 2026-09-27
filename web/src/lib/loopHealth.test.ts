@@ -47,3 +47,11 @@ test("stuckHint flags an agent claim with no PR after a day", () => {
   const now = Date.parse("2026-09-26T12:00:00Z");
   assert.match(stuckHint({ fix_stage: "agent_working", shipped_at: null, reporter_id: null }, [ev("claimed", 2, now)], now)!.message, /2d ago/);
 });
+
+test("reporters who opted out can't be asked, so the team is offered Mark verified", () => {
+  const now = Date.parse("2026-09-26T12:00:00Z");
+  const hint = stuckHint({ fix_stage: "shipped", shipped_at: new Date(now - 3600_000).toISOString(), reporter_id: "r", notify_reporter: false }, [], now);
+  assert.equal(hint!.offerMarkVerified, true);
+  assert.match(hint!.message, /chose not to hear back/);
+  assert.equal(stuckHint({ fix_stage: "shipped", shipped_at: new Date(now - 3600_000).toISOString(), reporter_id: "r", notify_reporter: null }, [], now), null);
+});

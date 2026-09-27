@@ -158,6 +158,10 @@ public struct FeedbackReport: Codable, Equatable, Sendable {
     public var attachment: FeedbackAttachment?
     /// Products associated with or affected by this report.
     public var products: [FeedbackProduct]
+    /// The reporter asked to hear back ("Notify me when it's fixed" in the
+    /// composer's menu; off by default). The hosted service only shows this
+    /// report's fix updates and questions on their device when it's true.
+    public var notifyReporter: Bool
 
     public init(
         id: UUID = UUID(),
@@ -168,7 +172,8 @@ public struct FeedbackReport: Codable, Equatable, Sendable {
         annotations: [FeedbackAnnotation],
         environment: FeedbackEnvironment,
         attachment: FeedbackAttachment? = nil,
-        products: [FeedbackProduct] = []
+        products: [FeedbackProduct] = [],
+        notifyReporter: Bool = false
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -179,5 +184,21 @@ public struct FeedbackReport: Codable, Equatable, Sendable {
         self.environment = environment
         self.attachment = attachment
         self.products = products
+        self.notifyReporter = notifyReporter
+    }
+
+    /// Reports encoded before `notifyReporter` existed decode with it off.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        text = try container.decode(String.self, forKey: .text)
+        screenshotRawPNG = try container.decodeIfPresent(Data.self, forKey: .screenshotRawPNG)
+        screenshotAnnotatedPNG = try container.decodeIfPresent(Data.self, forKey: .screenshotAnnotatedPNG)
+        annotations = try container.decode([FeedbackAnnotation].self, forKey: .annotations)
+        environment = try container.decode(FeedbackEnvironment.self, forKey: .environment)
+        attachment = try container.decodeIfPresent(FeedbackAttachment.self, forKey: .attachment)
+        products = try container.decodeIfPresent([FeedbackProduct].self, forKey: .products) ?? []
+        notifyReporter = try container.decodeIfPresent(Bool.self, forKey: .notifyReporter) ?? false
     }
 }

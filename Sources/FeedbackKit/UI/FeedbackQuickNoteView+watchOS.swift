@@ -27,6 +27,8 @@ public struct FeedbackQuickNoteView: View {
     private let onComplete: (FeedbackReport?) -> Void
 
     @State private var text = ""
+    /// "Notify me when it's fixed" — off by default, as in the iOS/macOS composer.
+    @State private var notifyReporter = false
     @Environment(\.dismiss) private var dismiss
 
     public init(onComplete: @escaping (FeedbackReport?) -> Void) {
@@ -41,6 +43,8 @@ public struct FeedbackQuickNoteView: View {
                         .font(.headline)
                     TextField("Describe the issue", text: $text)
                         .textFieldStyle(.plain)
+                    Toggle("Notify me when it's fixed", isOn: $notifyReporter)
+                        .font(.footnote)
                 }
                 .padding()
             }
@@ -98,7 +102,8 @@ public struct FeedbackQuickNoteView: View {
             screenshotAnnotatedPNG: pngData,
             annotations: [],
             environment: EnvironmentInfo.current(screenName: FeedbackKit.currentScreen),
-            products: defaultProducts
+            products: defaultProducts,
+            notifyReporter: notifyReporter
         )
         onComplete(report)
         dismiss()

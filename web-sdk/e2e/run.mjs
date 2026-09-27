@@ -143,6 +143,7 @@ async function runSuite(name, browser) {
   const p = posted[0];
   assert.equal(p.project_key, "pk_e2e");
   assert.match(p.reporter_id, /^[A-Za-z0-9_-]{16,128}$/, "reports carry the per-browser reporter id");
+  assert.equal(p.notify_reporter, false, "notify me is off by default");
   assert.match(p.id, /^[0-9a-f-]{36}$/i);
   assert.equal(p.text, "Clicking “Save changes” does nothing.");
   assert.ok(!Number.isNaN(Date.parse(p.created_at)));
@@ -191,7 +192,13 @@ async function runSuite(name, browser) {
   // ---- 2. screenshot toggled off, logs opted out → no screenshot fields
   await page.locator(".fk-trigger").click();
   await page.locator(".fk-ink").waitFor();
-  await page.locator('.fk-switch:has-text("Screenshot")').click();
+  // Both report options live in the "+" menu now; the menu closes after each choice.
+  await page.locator(".fk-plus").click();
+  await page.screenshot({ path: path.join(outDir, `${name}-menu.png`) });
+  await page.locator('.fk-menu-item:has-text("Include screenshot")').click();
+  await page.locator(".fk-plus").click();
+  await page.locator('.fk-menu-item:has-text("Notify me")').click();
+  assert.equal(await page.locator(".fk-options-summary").textContent(), "No screenshot · Notify me");
   await page.locator('.fk-switch:has-text("Include console")').click();
   await page.locator("#fk-text").fill("Text only");
   await page.keyboard.press(process.platform === "darwin" ? "Meta+Enter" : "Control+Enter");
@@ -201,6 +208,7 @@ async function runSuite(name, browser) {
   assert.ok(!("screenshot_raw_png_base64" in q) && !("screenshot_annotated_png_base64" in q));
   assert.deepEqual(q.annotations, []);
   assert.ok(!("logs" in q), "logs opted out");
+  assert.equal(q.notify_reporter, true, "notify me opted in from the menu");
 
   // ---- 3. Escape cancels; present() resolves null and sends nothing
   const cancelled = page.evaluate(() => window.FeedbackKit.present());

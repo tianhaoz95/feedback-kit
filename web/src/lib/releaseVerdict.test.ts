@@ -25,3 +25,10 @@ test("a build with no fixes and production builds are neutral", () => {
     "neutral",
   );
 });
+
+test("fixes with no reporter to ask don't hold a build back", async () => {
+  const { verdictFor } = await import("./releaseVerdict.ts");
+  const v = verdictFor({ fixes: 3, verified: 2, reopened: 0, awaiting: 0, unreachable: 1, promoted_at: null, channel: "beta" });
+  assert.equal(v.tone, "green");
+  assert.match(v.label, /1 with no reporter to ask/);
+});

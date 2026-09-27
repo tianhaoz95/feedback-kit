@@ -185,7 +185,7 @@ point of use via `PlatformColor.init(hex:)` (already used by the annotation
 tool's color swatches). The mapping is deliberately asymmetric with how
 prominent each control is, not a literal "primary=this, secondary=that"
 pair: primary drives the flow's call-to-action affordances (the send
-button, the selected annotation tool, the screenshot toggle's on-tint);
+button and the selected annotation tool);
 secondary drives the less prominent ones (Cancel, the attach button).
 Every themed call site falls back to its own *existing* hardcoded default
 (`.systemBlue`, `.controlAccentColor`, `.secondaryLabel`, …) when `theme` is

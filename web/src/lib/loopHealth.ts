@@ -99,7 +99,16 @@ function lastEventTime(events: FeedbackEvent[], kinds: string[]): number | null 
 }
 
 /** Why a report has sat at its stage too long, and what usually unsticks it. */
-export function stuckHint(item: Pick<FeedbackItem, "fix_stage" | "shipped_at" | "reporter_id">, events: FeedbackEvent[], now = Date.now()): StuckHint | null {
+/** Whether the reporter can be asked on their device: they have an id and didn't opt out (0023). */
+export function reporterReachable(item: Pick<FeedbackItem, "reporter_id" | "notify_reporter">): boolean {
+  return !!item.reporter_id && item.notify_reporter !== false;
+}
+
+export function stuckHint(
+  item: Pick<FeedbackItem, "fix_stage" | "shipped_at" | "reporter_id" | "notify_reporter">,
+  events: FeedbackEvent[],
+  now = Date.now(),
+): StuckHint | null {
   const stage = item.fix_stage ?? null;
   if (stage === "agent_working") {
     const since = lastEventTime(events, ["claimed", "dispatched"]);
@@ -121,10 +130,12 @@ export function stuckHint(item: Pick<FeedbackItem, "fix_stage" | "shipped_at" | 
   }
   if (stage === "shipped") {
     const since = item.shipped_at ? Date.parse(item.shipped_at) : lastEventTime(events, ["shipped"]);
-    if (!item.reporter_id) {
+    if (!reporterReachable(item)) {
       return {
         tone: "info",
-        message: "This report has no reporter id, so nobody can be asked to confirm. Mark it verified once you've checked it yourself.",
+        message: item.reporter_id
+          ? "The reporter chose not to hear back, so nobody will be asked to confirm. Mark it verified once you've checked it yourself."
+          : "This report has no reporter id, so nobody can be asked to confirm. Mark it verified once you've checked it yourself.",
         offerMarkVerified: true,
       };
     }

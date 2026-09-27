@@ -154,4 +154,25 @@ final class FeedbackReportTests: XCTestCase {
         XCTAssertFalse(json.contains("platform"))
         XCTAssertFalse(json.contains("pageUrl"))
     }
+
+    /// "Notify me when it's fixed" is opt-in: off unless the reporter chose it,
+    /// sent as `notify_reporter`, and missing (older encoded reports) means off.
+    func testNotifyReporterIsOptInAndOnTheWire() throws {
+        let environment = FeedbackEnvironment(
+            osName: "iOS", osVersion: "26.0", deviceModel: "iPhone", appVersion: "1.0", appBuild: "1",
+            bundleIdentifier: "x", screenName: nil, locale: "en_US", screenWidthPoints: 1, screenHeightPoints: 1, screenScale: 1
+        )
+        let report = FeedbackReport(text: "t", screenshotRawPNG: nil, screenshotAnnotatedPNG: nil, annotations: [], environment: environment)
+        XCTAssertFalse(report.notifyReporter)
+
+        var optedIn = report
+        optedIn.notifyReporter = true
+        let wire = try JSONSerialization.jsonObject(with: IngestPayload.encoder.encode(IngestPayload(report: optedIn, projectKey: "pk"))) as? [String: Any]
+        XCTAssertEqual(wire?["notify_reporter"] as? Bool, true)
+
+        var legacy = try JSONSerialization.jsonObject(with: JSONEncoder().encode(report)) as! [String: Any]
+        legacy.removeValue(forKey: "notifyReporter")
+        let decoded = try JSONDecoder().decode(FeedbackReport.self, from: JSONSerialization.data(withJSONObject: legacy))
+        XCTAssertFalse(decoded.notifyReporter)
+    }
 }

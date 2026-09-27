@@ -140,5 +140,7 @@ export interface FeedbackItem {
   verified_at?: string | null;
   reopen_count?: number;
   reporter_id?: string | null;
+  /** "Notify me when it's fixed" (0023): false = the reporter won't see updates or questions; null = older SDK (they do). */
+  notify_reporter?: boolean | null;
   reporter?: FeedbackReporter | null;
 }

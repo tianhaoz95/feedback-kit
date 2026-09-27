@@ -278,14 +278,22 @@ async function findProject(supabase: Client, projectKey: string) {
  */
 // deno-lint-ignore no-explicit-any
 async function listUpdates(supabase: Client, projectId: string, reporterId: string, build: string | null): Promise<any[]> {
-  const { data: items } = await supabase
-    .from("feedback_items")
-    .select("id, text, created_at, environment, fix_stage, fixed_in_build, fix_summary, shipped_at, screenshot_annotated_path, is_archived")
-    .eq("project_id", projectId)
-    .eq("reporter_id", reporterId)
-    .eq("is_archived", false)
-    .order("created_at", { ascending: false })
-    .limit(50);
+  const columns = "id, text, created_at, environment, fix_stage, fixed_in_build, fix_summary, shipped_at, screenshot_annotated_path, is_archived";
+  const query = (select: string) =>
+    supabase
+      .from("feedback_items")
+      .select(select)
+      .eq("project_id", projectId)
+      .eq("reporter_id", reporterId)
+      .eq("is_archived", false)
+      .order("created_at", { ascending: false })
+      .limit(50);
+  // `notify_reporter` (0023): only reporters who chose "Notify me when it's
+  // fixed" hear back; null (reports from SDKs before the option) keeps the
+  // old behavior. Falls back to the old select if the column isn't there yet.
+  let { data: items, error } = await query(`${columns}, notify_reporter`);
+  if (error) ({ data: items } = await query(columns));
+  items = (items ?? []).filter((i: { notify_reporter?: boolean | null }) => i.notify_reporter !== false);
   if (!items || items.length === 0) return [];
 
   const ids = items.map((i: { id: string }) => i.id);

@@ -186,6 +186,7 @@ public struct PortalNotification: Codable, Identifiable, Hashable, Sendable {
         case "verified": return "checkmark.seal.fill"
         case "fix_merged": return "arrow.triangle.merge"
         case "member_joined": return "person.badge.plus"
+        case "watched_update": return "eye.fill"
         default: return "bell.fill"
         }
     }

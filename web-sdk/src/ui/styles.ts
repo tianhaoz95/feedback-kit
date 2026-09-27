@@ -231,6 +231,16 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   color: var(--fk-secondary);
   font-size: 13px;
 }
+.fk-options-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.fk-menu-anchor { position: relative; display: inline-flex; }
+.fk-plus { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px dashed var(--fk-secondary); border-radius: 8px; background: transparent; color: var(--fk-secondary); cursor: pointer; }
+.fk-options-summary { font-size: 12px; color: var(--fk-muted); white-space: nowrap; }
+.fk-menu { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 5; min-width: 230px; padding: 4px; border: 1px solid var(--fk-border); border-radius: 10px; background: var(--fk-bg); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); }
+.fk-menu-item { display: flex; align-items: center; gap: 6px; width: 100%; padding: 7px 10px 7px 6px; border: 0; border-radius: 6px; background: transparent; color: var(--fk-text); font-size: 13px; text-align: left; cursor: pointer; }
+.fk-menu-item:hover, .fk-menu-item:focus-visible { background: var(--fk-surface); outline: none; }
+.fk-menu-check { display: inline-flex; width: 16px; height: 16px; color: var(--fk-primary); }
+.fk-menu-check svg { width: 16px; height: 16px; }
+.fk-menu-sep { margin: 4px 0; border: 0; border-top: 1px solid var(--fk-border); }
 .fk-file { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 6px 4px 10px; border-radius: 8px; background: var(--fk-surface); font-size: 12px; }
 .fk-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fk-file button { display: inline-flex; border: 0; background: transparent; color: var(--fk-muted); padding: 2px; }

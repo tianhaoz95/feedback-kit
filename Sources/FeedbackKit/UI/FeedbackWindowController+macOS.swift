@@ -27,8 +27,11 @@ final class FeedbackWindowController: NSWindowController {
     }
 
     private let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
-    private let includeScreenshotLabel = NSTextField(labelWithString: "Screenshot")
-    private let includeScreenshotToggle = NSSwitch()
+    /// Report options, set from the attach button's menu like on iOS (see
+    /// `FeedbackViewController.makeAttachMenu()`); "notify me" is off by default.
+    private(set) var includesScreenshot = true
+    private(set) var notifyReporter = false
+    private let optionsSummaryLabel = NSTextField(labelWithString: "")
     private let screenshotBoundsView = ScreenshotBoundsView()
     private let toolbar = AnnotationToolbar()
 
@@ -174,7 +177,8 @@ final class FeedbackWindowController: NSWindowController {
         attachButton.imagePosition = .imageOnly
         attachButton.contentTintColor = secondaryColor ?? .secondaryLabelColor
         attachButton.target = self
-        attachButton.action = #selector(attachTapped)
+        attachButton.action = #selector(showAttachMenu)
+        attachButton.toolTip = "Options and attachments"
         attachButton.widthAnchor.constraint(equalToConstant: 24).isActive = true
         attachButton.heightAnchor.constraint(equalToConstant: 24).isActive = true
 
@@ -189,24 +193,17 @@ final class FeedbackWindowController: NSWindowController {
         sendButton.widthAnchor.constraint(equalToConstant: 24).isActive = true
         sendButton.heightAnchor.constraint(equalToConstant: 24).isActive = true
 
-        includeScreenshotLabel.translatesAutoresizingMaskIntoConstraints = false
-        includeScreenshotLabel.textColor = .secondaryLabelColor
-        includeScreenshotLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-        includeScreenshotToggle.translatesAutoresizingMaskIntoConstraints = false
-        // Unlike UISwitch, NSSwitch exposes no tint/on-color API at all, so
-        // `theme.primaryColorHex` can't reach this control on macOS — known,
-        // accepted platform gap, not an oversight.
-        includeScreenshotToggle.state = .on
-        includeScreenshotToggle.target = self
-        includeScreenshotToggle.action = #selector(toggleScreenshotChanged)
+        optionsSummaryLabel.translatesAutoresizingMaskIntoConstraints = false
+        optionsSummaryLabel.textColor = .secondaryLabelColor
+        optionsSummaryLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        updateOptionsSummary()
 
-        // Attach on the left, the screenshot toggle and send on the right —
-        // the composer's "second row", under the text input.
+        // The options/attach menu on the left, a summary of non-default
+        // options and send on the right — the composer's "second row".
         let buttonRow = NSView()
         buttonRow.translatesAutoresizingMaskIntoConstraints = false
         buttonRow.addSubview(attachButton)
-        buttonRow.addSubview(includeScreenshotLabel)
-        buttonRow.addSubview(includeScreenshotToggle)
+        buttonRow.addSubview(optionsSummaryLabel)
         buttonRow.addSubview(sendButton)
 
         NSLayoutConstraint.activate([
@@ -218,12 +215,8 @@ final class FeedbackWindowController: NSWindowController {
             sendButton.topAnchor.constraint(equalTo: buttonRow.topAnchor),
             sendButton.bottomAnchor.constraint(equalTo: buttonRow.bottomAnchor),
 
-            includeScreenshotToggle.trailingAnchor.constraint(equalTo: sendButton.leadingAnchor, constant: -10),
-            includeScreenshotToggle.centerYAnchor.constraint(equalTo: buttonRow.centerYAnchor),
-            includeScreenshotLabel.trailingAnchor.constraint(
-                equalTo: includeScreenshotToggle.leadingAnchor, constant: -6
-            ),
-            includeScreenshotLabel.centerYAnchor.constraint(equalTo: buttonRow.centerYAnchor),
+            optionsSummaryLabel.trailingAnchor.constraint(equalTo: sendButton.leadingAnchor, constant: -10),
+            optionsSummaryLabel.centerYAnchor.constraint(equalTo: buttonRow.centerYAnchor),
 
             buttonRow.heightAnchor.constraint(equalToConstant: 24)
         ])
@@ -446,6 +439,48 @@ final class FeedbackWindowController: NSWindowController {
         onComplete(nil)
     }
 
+    /// The attach button's menu: ways to attach, then the report options as
+    /// checkmarked items. Built fresh each time so the checkmarks are current.
+    func makeAttachMenu() -> NSMenu {
+        let menu = NSMenu()
+        let attach = NSMenuItem(title: "Attach File…", action: #selector(attachTapped), keyEquivalent: "")
+        attach.image = NSImage(systemSymbolName: "paperclip", accessibilityDescription: nil)
+        menu.addItem(attach)
+        menu.addItem(.separator())
+        let screenshot = NSMenuItem(title: "Include Screenshot", action: #selector(toggleIncludesScreenshot), keyEquivalent: "")
+        screenshot.state = includesScreenshot ? .on : .off
+        menu.addItem(screenshot)
+        let notify = NSMenuItem(title: "Notify Me When It's Fixed", action: #selector(toggleNotifyReporter), keyEquivalent: "")
+        notify.state = notifyReporter ? .on : .off
+        notify.toolTip = "You'll be asked in this app once a fix ships"
+        menu.addItem(notify)
+        for item in menu.items { item.target = self }
+        return menu
+    }
+
+    @objc private func showAttachMenu() {
+        makeAttachMenu().popUp(positioning: nil, at: NSPoint(x: 0, y: attachButton.bounds.height + 4), in: attachButton)
+    }
+
+    @objc func toggleIncludesScreenshot() {
+        includesScreenshot.toggle()
+        toggleScreenshotChanged()
+        updateOptionsSummary()
+    }
+
+    @objc func toggleNotifyReporter() {
+        notifyReporter.toggle()
+        updateOptionsSummary()
+    }
+
+    private func updateOptionsSummary() {
+        var parts: [String] = []
+        if !includesScreenshot { parts.append("No screenshot") }
+        if notifyReporter { parts.append("Notify me") }
+        optionsSummaryLabel.stringValue = parts.joined(separator: " · ")
+        optionsSummaryLabel.isHidden = parts.isEmpty
+    }
+
     @objc private func attachTapped() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
@@ -467,12 +502,12 @@ final class FeedbackWindowController: NSWindowController {
         attachmentChipView.isHidden = true
     }
 
-    @objc private func toggleScreenshotChanged() {
+    private func toggleScreenshotChanged() {
         // The screenshot stays visible either way — turning it off just
         // dims it and disables drawing, rather than collapsing the layout,
         // so the toggle can't be flipped back and forth mid-annotation
         // without losing anything on screen.
-        let included = includeScreenshotToggle.state == .on
+        let included = includesScreenshot
         screenshotBoundsView.canvasView.isEnabled = included
         toolbar.isEnabled = included
         screenshotBoundsView.alphaValue = included ? 1.0 : 0.4
@@ -484,7 +519,7 @@ final class FeedbackWindowController: NSWindowController {
         var annotatedPNG: Data?
         var annotations: [FeedbackAnnotation] = []
 
-        if includeScreenshotToggle.state == .on {
+        if includesScreenshot {
             let flattened = screenshotBoundsView.canvasView.flattenedImage(baseImage: rawScreenshot)
             guard let raw = rawScreenshot.pngData(), let annotated = flattened.pngData() else {
                 dismiss()
@@ -509,7 +544,8 @@ final class FeedbackWindowController: NSWindowController {
             annotations: annotations,
             environment: EnvironmentInfo.current(screenName: screenNameOverride),
             attachment: attachment,
-            products: selectedProducts
+            products: selectedProducts,
+            notifyReporter: notifyReporter
         )
 
         dismiss()

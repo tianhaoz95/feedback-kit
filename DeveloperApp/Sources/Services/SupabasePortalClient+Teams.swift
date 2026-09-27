@@ -28,6 +28,42 @@ extension SupabasePortalClient {
 
     private static let isoFormatter = ISO8601DateFormatter()
 
+    // MARK: - Watchlist (0023_notify_and_watchlist.sql)
+
+    /// Whether the signed-in member watches a report — every step of its fix
+    /// then arrives as a notification (and a push on iOS).
+    public func isWatching(feedbackId: String) async throws -> Bool {
+        if isDemoMode { return PortalDemoTeamStore.shared.watched.contains(feedbackId) }
+        guard let userId = currentSession?.userId, !userId.isEmpty else { return false }
+        let request = try makeRequest(path: "/rest/v1/feedback_watchers", queryItems: [
+            URLQueryItem(name: "select", value: "feedback_id"),
+            URLQueryItem(name: "feedback_id", value: "eq.\(feedbackId)"),
+            URLQueryItem(name: "user_id", value: "eq.\(userId)")
+        ])
+        let (data, _) = try await send(request)
+        return !((try? JSONSerialization.jsonObject(with: data) as? [Any]) ?? []).isEmpty
+    }
+
+    public func setWatching(feedbackId: String, _ watching: Bool) async throws {
+        if isDemoMode {
+            if watching { PortalDemoTeamStore.shared.watched.insert(feedbackId) } else { PortalDemoTeamStore.shared.watched.remove(feedbackId) }
+            return
+        }
+        guard let userId = currentSession?.userId, !userId.isEmpty else { throw URLError(.userAuthenticationRequired) }
+        let request = watching
+            ? try makeRequest(
+                path: "/rest/v1/feedback_watchers",
+                method: "POST",
+                body: try JSONSerialization.data(withJSONObject: ["feedback_id": feedbackId, "user_id": userId]),
+                preferReturn: "return=minimal"
+            )
+            : try makeRequest(path: "/rest/v1/feedback_watchers", method: "DELETE", queryItems: [
+                URLQueryItem(name: "feedback_id", value: "eq.\(feedbackId)"),
+                URLQueryItem(name: "user_id", value: "eq.\(userId)")
+            ])
+        _ = try await send(request)
+    }
+
     // MARK: - Account
 
     /// Deletes the signed-in account (supabase/migrations/0021_account_deletion.sql),
@@ -255,6 +291,7 @@ final class PortalDemoTeamStore {
     var members: [PortalMember] = []
     var invitations: [PortalInvitation] = []
     var notifications: [PortalNotification] = []
+    var watched: Set<String> = []
 
     private init() { reset() }
 

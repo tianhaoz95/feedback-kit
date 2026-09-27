@@ -12,6 +12,9 @@ public struct FeedbackDetailView: View {
     @State private var isPromptEditorPresented = false
     @State private var didCopyPrompt = false
     @State private var showDeleteConfirmation = false
+    /// nil while loading. Watching sends every step of this report's fix as a
+    /// notification (0023_notify_and_watchlist.sql).
+    @State private var isWatching: Bool?
 
     public init(item: PortalFeedbackItem) {
         self.item = item
@@ -78,6 +81,15 @@ public struct FeedbackDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    toggleWatching()
+                } label: {
+                    Label(isWatching == true ? "Watching" : "Watch", systemImage: isWatching == true ? "eye.fill" : "eye")
+                }
+                .disabled(isWatching == nil)
+                .help(isWatching == true ? "Stop getting notified about this report" : "Get notified about every step of this report's fix")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button {
                         Task {
@@ -126,6 +138,22 @@ public struct FeedbackDetailView: View {
         }
         .onAppear {
             FeedbackKit.currentScreen = "Feedback Detail"
+        }
+        .task(id: item.id) {
+            isWatching = (try? await SupabasePortalClient.shared.isWatching(feedbackId: item.id)) ?? false
+        }
+    }
+
+    private func toggleWatching() {
+        guard let current = isWatching else { return }
+        isWatching = nil
+        Task {
+            do {
+                try await SupabasePortalClient.shared.setWatching(feedbackId: item.id, !current)
+                isWatching = !current
+            } catch {
+                isWatching = current
+            }
         }
     }
 

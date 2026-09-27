@@ -16,6 +16,7 @@ const KIND_HINT: Record<NotificationKind, string> = {
   verified: "A reporter confirms a fix on their device.",
   fix_merged: "A fix for a report is merged or committed.",
   member_joined: "Someone joins an organization you own.",
+  watched_update: "Any step on a report you watch: an agent picks it up, a PR opens, it ships, a note or question is added.",
 };
 
 const KINDS = Object.keys(NOTIFICATION_KIND_LABEL) as NotificationKind[];

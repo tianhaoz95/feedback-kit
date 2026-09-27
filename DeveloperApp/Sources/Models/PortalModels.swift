@@ -176,6 +176,12 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
     public var fixedInBuild: String?
     public var reopenCount: Int
     public var reporterId: String?
+    /// "Notify me when it's fixed" (0023_notify_and_watchlist.sql): false = the
+    /// reporter won't see fix updates or questions; nil = older SDK (they do).
+    public var notifyReporter: Bool?
+
+    /// Whether the reporter can be asked on their device (mirrors web/src/lib/loopHealth.ts).
+    public var canReachReporter: Bool { reporterId != nil && notifyReporter != false }
 
     // Transient signed URLs resolved at runtime
     public var signedScreenshotUrl: String?
@@ -209,6 +215,7 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
         case fixedInBuild = "fixed_in_build"
         case reopenCount = "reopen_count"
         case reporterId = "reporter_id"
+        case notifyReporter = "notify_reporter"
     }
 
     public init(
@@ -315,6 +322,7 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
         fixedInBuild = try? container.decodeIfPresent(String.self, forKey: .fixedInBuild)
         reopenCount = (try? container.decodeIfPresent(Int.self, forKey: .reopenCount)) ?? 0
         reporterId = try? container.decodeIfPresent(String.self, forKey: .reporterId)
+        notifyReporter = try? container.decodeIfPresent(Bool.self, forKey: .notifyReporter)
     }
 
     public func hash(into hasher: inout Hasher) {

@@ -44,7 +44,13 @@ describe("encodePayload — the ingest-feedback wire contract", () => {
       screenshot_annotated_png_base64: "BAUG",
       annotations: [{ kind: "arrow", points: [[0.1, 0.2], [0.3, 0.4]], colorHex: "#FF3B30", scale: 1, rotation: 0 }],
       environment: report().environment,
+      notify_reporter: false,
     });
+  });
+
+  it("sends notify_reporter only as the reporter chose it (opt-in)", async () => {
+    expect((await encodePayload(report({ notifyReporter: true }), "pk")).notify_reporter).toBe(true);
+    expect((await encodePayload(report({ notifyReporter: false }), "pk")).notify_reporter).toBe(false);
   });
 
   it("omits optional fields entirely rather than sending nulls (like encodeIfPresent)", async () => {

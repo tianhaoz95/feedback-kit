@@ -613,6 +613,21 @@ Rules for skills:
   and notifications and the timeline say "marked verified" rather than
   "reporter confirmed" (`0022`). `web/src/lib/loopHealth.ts` owns the loop
   checklist and the stuck-report hints.
+- **Reporters opt in to hearing back (`0023_notify_and_watchlist.sql`).**
+  The composer's attach (**+**) button is a menu on every platform: Attach
+  File, Take Photo (iOS, only with the host app's `NSCameraUsageDescription`;
+  touch devices on the web), then the "Include Screenshot" and "Notify Me
+  When It's Fixed" toggles. There's no switch in the composer row any more.
+  `FeedbackReport.notifyReporter` defaults to false and goes on the wire as
+  `notify_reporter`, which is mirrored in `IngestPayload`, the ingest function,
+  and the web and CLI types. `reporter-updates` hides reports with
+  `notify_reporter = false` (null = an older SDK, still asked), and
+  `release_readiness` counts them as `unreachable`, not `awaiting`.
+- **Watchlist (`feedback_watchers`, 0023).** A member watches a report (web
+  WatchButton, Portal toolbar) and gets a `watched_update` notification for
+  every event 0017 doesn't already send to the whole org. The fan-out is
+  `notify_watchers()`, called from `notify_feedback_event()`, and a new kind
+  must be mirrored in the same places as the other notification kinds.
 - **Billing is per seat.** Team plan = member count × the price in
   `web/src/lib/pricing.ts` (mirrored as `TeamView.teamPricePerSeat` in the
   Portal). Checkout is owner-only and sends quantity = members;

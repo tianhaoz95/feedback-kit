@@ -7,6 +7,7 @@ export const NOTIFICATION_KIND_LABEL: Record<NotificationKind, string> = {
   verified: "Fixes verified",
   fix_merged: "Fixes merged",
   member_joined: "People joining",
+  watched_update: "Reports you watch",
 };
 
 /** Where clicking a notification goes. */

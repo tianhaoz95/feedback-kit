@@ -100,6 +100,7 @@ struct IngestPayload: Encodable {
         case products
         case reporterID = "reporter_id"
         case reporter
+        case notifyReporter = "notify_reporter"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -121,5 +122,6 @@ struct IngestPayload: Encodable {
         }
         try container.encodeIfPresent(reporterID, forKey: .reporterID)
         try container.encodeIfPresent(reporter, forKey: .reporter)
+        try container.encode(report.notifyReporter, forKey: .notifyReporter)
     }
 }

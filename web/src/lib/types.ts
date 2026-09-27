@@ -221,6 +221,12 @@ export interface FeedbackItem {
   reopen_count?: number;
   /** Anonymous per-install id — present means the reporter's device can be asked "is it fixed?". */
   reporter_id?: string | null;
+  /**
+   * The reporter's "Notify me when it's fixed" choice (0023). false = they
+   * won't be shown fix updates or questions; null = sent by an SDK before the
+   * option existed, which keeps the old behavior (they're asked).
+   */
+  notify_reporter?: boolean | null;
   reporter?: FeedbackReporter | null;
 }
 
@@ -317,7 +323,9 @@ export type NotificationKind =
   | "reopened"
   | "verified"
   | "fix_merged"
-  | "member_joined";
+  | "member_joined"
+  /** A step on a report you watch (0023_notify_and_watchlist.sql). */
+  | "watched_update";
 
 export interface AppNotification {
   id: string;

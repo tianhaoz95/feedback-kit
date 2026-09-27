@@ -74,5 +74,5 @@ FeedbackKit.theme = FeedbackTheme(
 )
 ```
 
-- Primary color drives call-to-action buttons (Send, selected tool, screenshot switch tint).
+- Primary color drives call-to-action buttons (Send, selected tool).
 - Secondary color drives secondary controls (Cancel, Attach file).

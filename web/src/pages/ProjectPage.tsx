@@ -44,6 +44,7 @@ import { ReleaseTokensCard } from "@/components/ReleaseTokensCard";
 import { FixLoopPanel } from "@/components/FixLoopPanel";
 import { LoopChecklist } from "@/components/LoopChecklist";
 import { UsageBanner } from "@/components/UsageBanner";
+import { WatchButton } from "@/components/WatchButton";
 import { FixStageBadge } from "@/components/FixStageBadge";
 import { ConsoleLogsPanel } from "@/components/ConsoleLogsPanel";
 import { PlatformBadge } from "@/components/PlatformBadge";
@@ -1096,6 +1097,7 @@ export function ProjectPage() {
                         <span>{isCreatingIssue ? "Creating issue…" : "Create GitHub Issue"}</span>
                       </Button>
                     )}
+                    <WatchButton feedbackId={selectedFeedback.id} organizationId={project.organization_id} />
                     <Button
                       type="button"
                       variant="secondary"

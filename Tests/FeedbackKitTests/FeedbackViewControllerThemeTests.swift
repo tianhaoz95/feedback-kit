@@ -5,7 +5,7 @@ import XCTest
 /// Covers `FeedbackTheme` reaching every themed control on
 /// `FeedbackViewController`: the send button and toolbar accent (primary),
 /// and Cancel/attach (secondary). `sendButton`/`cancelButton`/`attachButton`/
-/// `toolbar`/`includeScreenshotToggle` are widened from `private` (see their
+/// `toolbar` are widened from `private` (see their
 /// declarations) specifically so this test can read them directly.
 final class FeedbackViewControllerThemeTests: XCTestCase {
     private func makeScreenshot() -> UIImage {
@@ -21,7 +21,6 @@ final class FeedbackViewControllerThemeTests: XCTestCase {
 
         XCTAssertEqual(viewController.sendButton.tintColor, .systemBlue)
         XCTAssertEqual(viewController.toolbar.accentColor, .systemBlue)
-        XCTAssertNil(viewController.includeScreenshotToggle.onTintColor)
     }
 
     func testThemeAppliesPrimaryAndSecondaryColorsToComposerControls() {
@@ -36,7 +35,6 @@ final class FeedbackViewControllerThemeTests: XCTestCase {
 
         XCTAssertEqual(viewController.sendButton.tintColor, expectedPrimary)
         XCTAssertEqual(viewController.toolbar.accentColor, expectedPrimary)
-        XCTAssertEqual(viewController.includeScreenshotToggle.onTintColor, expectedPrimary)
         XCTAssertEqual(viewController.cancelButton.tintColor, expectedSecondary)
         XCTAssertEqual(viewController.attachButton.tintColor, expectedSecondary)
     }

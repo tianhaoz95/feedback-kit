@@ -130,7 +130,7 @@ The Releases tab (or MCP \`list_releases\` / \`feedbackkit releases\`) shows eac
     summary: "How to add FeedbackKit to an iOS, macOS, or watchOS app — install, trigger, submit.",
     content: `# SDK — iOS, macOS, watchOS
 
-One Swift Package. On iOS and macOS it captures a screenshot, lets the user annotate it, and hands your app a structured report — a toggle in the composer (next to the send button) lets the user exclude the screenshot entirely for a pure-description report. watchOS gets a deliberately smaller version: no screenshot, no annotation tools, just a text description and device/app context.
+One Swift Package. On iOS and macOS it captures a screenshot, lets the user annotate it, and hands your app a structured report — the composer's + menu lets the user leave the screenshot out, attach a file or photo, and opt in to hearing back about the fix. watchOS gets a deliberately smaller version: no screenshot, no annotation tools, just a text description and device/app context.
 
 ## Requirements
 
@@ -245,7 +245,7 @@ Four tools — freehand, rectangle, arrow, text — plus a drag tool for reposit
 
 ## Making the screenshot optional (iOS/macOS only)
 
-A "Screenshot" switch in the composer's second row, next to the send button (on by default), lets the user exclude it entirely — useful for a report that's pure description, with nothing worth screenshotting. Turning it off dims the screenshot/annotation area and toolbar and disables drawing, rather than hiding them — the screen stays visible for context, it's just not editable or included anymore; \`FeedbackReport.screenshotRawPNG\`, \`screenshotAnnotatedPNG\`, and \`annotations\` all come back nil/empty in that case (see the field table below). This is purely a submission-time choice — the SDK still captures the screenshot up front (window-level capture is what lets it show the annotate UI at all), it just discards it rather than including it in the report if the switch is off.
+The composer's + menu has "Include Screenshot" (on by default) and "Notify Me When It's Fixed" (off by default; sets \`FeedbackReport.notifyReporter\`, and only reporters who opt in see the "is it fixed?" card and questions). "Take Photo" appears only if the app's Info.plist has \`NSCameraUsageDescription\`. Turning the screenshot off excludes it entirely — useful for a report that's pure description, with nothing worth screenshotting. Turning it off dims the screenshot/annotation area and toolbar and disables drawing, rather than hiding them — the screen stays visible for context, it's just not editable or included anymore; \`FeedbackReport.screenshotRawPNG\`, \`screenshotAnnotatedPNG\`, and \`annotations\` all come back nil/empty in that case (see the field table below). This is purely a submission-time choice — the SDK still captures the screenshot up front (window-level capture is what lets it show the annotate UI at all), it just discards it rather than including it in the report if the option is off.
 
 ## Theming
 
@@ -255,7 +255,7 @@ A "Screenshot" switch in the composer's second row, next to the send button (on 
 FeedbackKit.theme = .init(primaryColorHex: "#7C3AED", secondaryColorHex: "#F97316")
 \`\`\`
 
-Primary drives the flow's main call-to-action controls — the send button, the selected annotation tool, and the screenshot toggle's on-tint. Secondary drives less prominent controls — Cancel and the attach button. Leave \`theme\` unset (the default) to keep the system accent color exactly as before. \`NSSwitch\` has no tint API at all, so the screenshot toggle's on-tint is iOS-only. Set it any time before \`present(from:)\`/\`presentAndSubmit(from:)\` — or before presenting \`FeedbackQuickNoteView\` on watchOS, which reads it directly.
+Primary drives the flow's main call-to-action controls — the send button and the selected annotation tool. Secondary drives less prominent controls — Cancel and the attach button. Leave \`theme\` unset (the default) to keep the system accent color exactly as before. Set it any time before \`present(from:)\`/\`presentAndSubmit(from:)\` — or before presenting \`FeedbackQuickNoteView\` on watchOS, which reads it directly.
 
 ## Sending to the hosted dashboard (optional)
 
@@ -287,7 +287,7 @@ The project key is a routing key, not a secret — it can only ever *create* fee
 |---|---|
 | id / createdAt | A generated identifier and timestamp. |
 | text | The user's free-text description. |
-| screenshotRawPNG / screenshotAnnotatedPNG | Both PNGs, or both nil (iOS/macOS: real capture, unless the user toggles the screenshot off; watchOS: always nil — it never captures one, see the placeholder-card note above). |
+| screenshotRawPNG / screenshotAnnotatedPNG | Both PNGs, or both nil (iOS/macOS: real capture, unless the user turns the screenshot off in the + menu; watchOS: always nil — it never captures one, see the placeholder-card note above). |
 | annotations | Each shape's kind, normalized points, color, scale/rotation. Empty on watchOS, and whenever the screenshot was toggled off. |
 | environment | OS name/version, device model, app version/build, bundle id, locale, screen size/scale, current screen name. |
 | attachment | An optional extra file (iOS/macOS only). |`,
