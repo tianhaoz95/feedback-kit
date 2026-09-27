@@ -39,6 +39,26 @@ export async function getAuthenticatedClient(): Promise<SupabaseClient> {
       refresh_token: credentials.refreshToken,
     });
     if (error || !data.session) {
+      // Another CLI process (e.g. the MCP server `feedbackkit watch` starts for
+      // its agent) may have refreshed first: refresh tokens are single-use, so
+      // ours is now spent but the file holds a fresh session. Use that rather
+      // than logging the user out.
+      // The winner may still be writing it, so give it a moment.
+      let latest = loadCredentials();
+      for (let i = 0; i < 10 && latest?.refreshToken === credentials.refreshToken; i++) {
+        await new Promise((r) => setTimeout(r, 200));
+        latest = loadCredentials();
+      }
+      if (latest && latest.refreshToken !== credentials.refreshToken) {
+        const { error: retryError } = await client.auth.setSession({
+          access_token: latest.accessToken,
+          refresh_token: latest.refreshToken,
+        });
+        if (!retryError) {
+          await assertNotRevoked(client, latest.accessToken);
+          return client;
+        }
+      }
       clearCredentials();
       throw new NotLoggedInError(error?.message ?? "session expired");
     }
