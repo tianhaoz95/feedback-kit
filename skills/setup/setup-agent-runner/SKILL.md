@@ -57,7 +57,7 @@ TOKEN=$(gh api -X POST repos/OWNER/REPO/actions/runners/registration-token --jq 
 | Agent | Template | How it signs in | How it's fenced |
 |---|---|---|---|
 | Claude Code | `templates/feedbackkit-agent.yml.template` | `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` secret | `--allowedTools` in the workflow; FeedbackKit MCP tools included |
-| Google Antigravity | `templates/feedbackkit-agent-antigravity.yml.template` | Signed in once, interactively, as the runner's user | Allow rules in the runner user's Antigravity settings; the agent only edits files, the workflow commits, pushes and opens the PR |
+| Google Antigravity | `templates/feedbackkit-agent-antigravity.yml.template` | Signed in once, interactively, as the runner's user | Allow rules (commands and FeedbackKit MCP tools) in the runner user's Antigravity settings; the agent only edits files, the workflow commits, pushes and opens the PR |
 
 Use a different dispatch label per agent if the repo has both workflows, or both run.
 
@@ -91,7 +91,19 @@ As the user the runner service runs as:
    ```
 
    Swap the last line for the project's tools (e.g. `command(node)`, `command(npm)` for a web app). Don't allow `git`: the workflow does all git work, so the agent never needs it. Never use `--dangerously-skip-permissions` here — report text is untrusted input.
-3. Copy `templates/feedbackkit-agent-antigravity.yml.template` to `.github/workflows/feedbackkit-agent-antigravity.yml` and replace `__DISPATCH_LABEL__` (e.g. `antigravity`). The checkout keeps no credentials (`persist-credentials: false`), so only the workflow's own step can push.
+3. Optional but recommended — the FeedbackKit MCP tools, so the agent claims the report, can ask the reporter, and attaches an "after" screenshot (the loop works without them, through the PR's `FeedbackKit:` line):
+
+   ```bash
+   npx feedbackkit-cli login                                   # as the runner's user
+   agy mcp add feedbackkit -- npx -y feedbackkit-cli mcp --project <project-id>
+   jq '.permissions.allow = ((.permissions.allow // []) + [
+     "mcp(feedbackkit/claim_feedback)", "mcp(feedbackkit/post_update)", "mcp(feedbackkit/ask_reporter)",
+     "mcp(feedbackkit/attach_after_screenshot)", "mcp(feedbackkit/get_feedback)", "mcp(feedbackkit/get_prompt)"
+   ] | unique)' "$S" > "$S.tmp" && mv "$S.tmp" "$S"
+   ```
+
+   MCP calls need allow rules like commands do, one per tool as `mcp(<server>/<tool>)` (`mcp(feedbackkit/*)` allows them all; a bare `mcp(feedbackkit)` matches nothing). Leave out `update_feedback_status` and `link_fix`: the workflow links the fix itself.
+4. Copy `templates/feedbackkit-agent-antigravity.yml.template` to `.github/workflows/feedbackkit-agent-antigravity.yml` and replace `__DISPATCH_LABEL__` (e.g. `antigravity`). The checkout keeps no credentials (`persist-credentials: false`), so only the workflow's own step can push.
 
 Then continue at Step 5.
 
@@ -130,7 +142,7 @@ Reports are queued with **Run on my machine** in the dashboard. Each run gets it
 ## Non-Obvious Pitfalls
 
 - **"Workflow initiated by non-human actor"** in the run log = `allowed_bots` is missing the FeedbackKit app.
-- **Antigravity: "a tool required the "command" permission … auto-denied"** = the agent tried a command that isn't in the allow list, and the run stopped there. Add it (if it's safe) to the runner user's `~/.gemini/antigravity-cli/settings.json` and send the report to the agent again.
+- **Antigravity: "a tool required the "command" (or "mcp") permission … auto-denied"** = the agent tried a command or MCP tool that isn't in the allow list, and the run stopped there. Add it (if it's safe) to the runner user's `~/.gemini/antigravity-cli/settings.json` and send the report to the agent again.
 - **Antigravity PRs don't start your other workflows**: they're opened with the job's `GITHUB_TOKEN`, which GitHub doesn't let trigger workflows. FeedbackKit's webhook still sees them and links the fix.
 - **Code signing:** the runner service can't unlock the login keychain. Build for the Simulator with `CODE_SIGNING_ALLOWED=NO`.
 - **Runner offline:** a Mac that sleeps drops the runner; jobs wait in the queue until it's back. Disable sleep (System Settings → Energy) on a dedicated machine.
