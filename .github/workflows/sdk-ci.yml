@@ -1,0 +1,68 @@
+name: SDK CI
+
+# FeedbackKit's Swift package (Sources/, Tests/) on all three platforms it
+# supports. Also the gate for beta builds: beta.yml calls this workflow.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Sources/**"
+      - "Tests/**"
+      - "Package.swift"
+      - ".github/workflows/sdk-ci.yml"
+  pull_request:
+    paths:
+      - "Sources/**"
+      - "Tests/**"
+      - "Package.swift"
+      - ".github/workflows/sdk-ci.yml"
+  workflow_call: {}
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# Keyed on the calling workflow too, so beta.yml's call doesn't cancel (or get
+# cancelled by) this workflow's own run for the same push.
+concurrency:
+  group: sdk-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    name: macOS (swift test)
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "latest-stable"
+      - run: swift test
+
+  ios:
+    name: iOS (Simulator tests)
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "latest-stable"
+      - name: Test on an iPhone simulator
+        run: |
+          UDID=$(xcrun simctl list devices available -j | jq -r '[.devices[][] | select(.name | startswith("iPhone"))][0].udid')
+          echo "Simulator: $UDID"
+          xcodebuild test -scheme FeedbackKit -destination "id=$UDID" CODE_SIGNING_ALLOWED=NO
+
+  watchos:
+    name: watchOS (build)
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "latest-stable"
+      - name: Build for the watch simulator
+        run: xcodebuild build -scheme FeedbackKit -destination 'generic/platform=watchOS Simulator' CODE_SIGNING_ALLOWED=NO -quiet

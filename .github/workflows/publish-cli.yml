@@ -67,10 +67,11 @@ jobs:
         run: |
           npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
 
-      - name: Lint and build
+      - name: Lint, test and build
         working-directory: cli
         run: |
           npm run lint
+          npm test
           npm run build
 
       - name: Publish package to npm
@@ -144,10 +145,11 @@ jobs:
           npm pkg set name="@${SCOPE_OWNER}/feedbackkit-cli"
           npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
 
-      - name: Lint and build
+      - name: Lint, test and build
         working-directory: cli
         run: |
           npm run lint
+          npm test
           npm run build
 
       - name: Publish package to GitHub Packages

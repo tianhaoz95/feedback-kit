@@ -1,0 +1,67 @@
+name: Backend CI
+
+# Supabase (migrations + Edge Functions) and the Agent Skills catalog.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/**"
+      - "skills/**"
+      - "scripts/validate-skills.mjs"
+      - "package.json"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "supabase/**"
+      - "skills/**"
+      - "scripts/validate-skills.mjs"
+      - "package.json"
+      - ".github/workflows/backend-ci.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  functions:
+    name: Edge Functions (type-check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: deno check
+        working-directory: supabase/functions
+        run: deno check --node-modules-dir=auto */index.ts
+
+  migrations:
+    name: Migrations (apply from scratch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      # Starts Postgres in Docker and applies every migration in order —
+      # the same thing a fresh project or `supabase db reset` does.
+      - run: supabase db start
+
+  skills:
+    name: Agent Skills (validate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run validate

@@ -3,7 +3,7 @@
 // set — that's the expected, default state until a real Stripe account
 // exists — so callers can respond with `notConfigured()` (see http.ts)
 // instead of a raw exception.
-import Stripe from "npm:stripe@17";
+import Stripe from "npm:stripe@18.5.0";
 
 let cached: Stripe | null | undefined;
 

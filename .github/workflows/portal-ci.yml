@@ -1,0 +1,49 @@
+name: Portal CI
+
+# The Developer Portal apps (DeveloperApp/), which also compile the SDK from
+# source. The Mac target runs the same test file as iOS without a simulator.
+# Also a gate for beta builds: beta.yml calls this workflow.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "DeveloperApp/**"
+      - "Sources/**"
+      - "Package.swift"
+      - ".github/workflows/portal-ci.yml"
+  pull_request:
+    paths:
+      - "DeveloperApp/**"
+      - "Sources/**"
+      - "Package.swift"
+      - ".github/workflows/portal-ci.yml"
+  workflow_call: {}
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Portal tests (macOS target)
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "latest-stable"
+      - run: brew install xcodegen
+      - name: Test
+        working-directory: DeveloperApp
+        run: |
+          xcodegen generate
+          xcodebuild test \
+            -project FeedbackPortal.xcodeproj \
+            -scheme FeedbackPortalMac \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO

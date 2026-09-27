@@ -42,49 +42,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Tests (gate for beta builds)
-    runs-on: macos-15
-    timeout-minutes: 40
-    steps:
-      - uses: actions/checkout@v4
+  # The gate: no beta unless the SDK (macOS, iOS, watchOS) and Portal tests
+  # pass. Same workflows that run on pull requests. CLI tests live in cli-ci.yml.
+  sdk:
+    name: SDK tests
+    uses: ./.github/workflows/sdk-ci.yml
 
-      - name: Select Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: "latest-stable"
-
-      - name: Install XcodeGen
-        run: brew install xcodegen
-
-      - name: FeedbackKit SDK tests (macOS)
-        run: swift test
-
-      - name: Developer Portal tests (macOS target — same test file as iOS)
-        run: |
-          cd DeveloperApp
-          xcodegen generate
-          xcodebuild test \
-            -project FeedbackPortal.xcodeproj \
-            -scheme FeedbackPortalMac \
-            -destination 'platform=macOS' \
-            CODE_SIGNING_ALLOWED=NO
-
-      - name: CLI tests
-        run: |
-          cd cli
-          npm ci --no-audit --no-fund
-          npm test
+  portal:
+    name: Portal tests
+    uses: ./.github/workflows/portal-ci.yml
 
   testflight-portal:
     name: iOS Portal → TestFlight
-    needs: test
+    needs: [sdk, portal]
     uses: ./.github/workflows/testflight-portal.yml
     secrets: inherit
 
   macos-portal:
     name: macOS Portal → beta prerelease
-    needs: test
+    needs: [sdk, portal]
     uses: ./.github/workflows/release-portal-macos.yml
     with:
       beta: true

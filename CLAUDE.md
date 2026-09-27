@@ -47,7 +47,7 @@ file is about how to build/test/run things day to day.
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function, billing (Stripe) Edge Functions |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) — reads feedback/prompts as a logged-in user |
 | `skills/` | Agent Skills catalog (`vercel-labs/skills`) for automated setup via AI coding agents |
-| `.github/workflows/` | Release/deploy pipelines, incl. `publish-web-sdk.yml` (npm + GitHub Packages) and `web-sdk-ci.yml` (SDK unit + 3-browser e2e, dashboard clean build) |
+| `.github/workflows/` | Release/deploy pipelines, plus one CI workflow per product, each on PRs and pushes filtered to its paths: `sdk-ci.yml` (Swift SDK on macOS, iOS Simulator, watchOS build), `portal-ci.yml` (Portal tests), `cli-ci.yml`, `backend-ci.yml` (Edge Function type-check, migrations applied from scratch, skills validation) and `web-sdk-ci.yml` (web SDK unit + 3-browser e2e, dashboard clean build). `beta.yml` calls the SDK and Portal workflows as its gate, and `publish-cli.yml` runs the CLI tests before publishing |
 | `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `run-portal-ios.sh`, `run-portal-macos.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `generate_social_preview.py`, `release_testflight.sh`, `release_portal_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh`, `release_portal_macos.sh` |
 | `branding/` | FeedbackKit logo assets (SVG source + PNG exports) — reused for the iOS app icon and the GitHub OAuth App's logo |
 
