@@ -108,6 +108,7 @@ As the user the runner service runs as:
 
    MCP calls need allow rules like commands do, one per tool as `mcp(<server>/<tool>)` (`mcp(feedbackkit/*)` allows them all; a bare `mcp(feedbackkit)` matches nothing). Leave out `update_feedback_status` and `link_fix`: the workflow links the fix itself.
 4. Copy `templates/feedbackkit-agent-antigravity.yml.template` to `.github/workflows/feedbackkit-agent-antigravity.yml` and replace `__DISPATCH_LABEL__` (e.g. `antigravity`). The checkout keeps no credentials (`persist-credentials: false`), so only the workflow's own step can push.
+5. The workflow opens the pull request with the run's own token, which GitHub blocks unless the repository allows it: **Settings → Actions → General → Workflow permissions → "Allow GitHub Actions to create and approve pull requests"**. Ask the user before turning it on (it also lets any workflow approve PRs). If they say no, the run still pushes its branch and fails at the last step; they open the PR from that branch by hand.
 
 Then continue at Step 5.
 
@@ -122,7 +123,7 @@ Dashboard → project **Settings → Coding agent loop** → dispatch labels = t
 ### Step 6 -- Tell the user what's guarded
 
 - Only people with write access, or FeedbackKit's app, can add the label.
-- Report text is written by app users. It reaches the agent as issue text, so a malicious report could try to steer it. The allowed-tools list is the fence: no network tools, no credentials on the runner beyond what the build needs, and the agent opens a PR — it never merges.
+- Report text is written by app users. It reaches the agent as issue text, so a malicious report could try to steer it. The allowed-tools list is the fence: no credentials on the runner beyond what the build needs, and the agent opens a PR — it never merges. Say plainly that allowing an interpreter or package manager (`node`, `npm`, `python`, `swift` running scripts) lets the agent run any code and reach the network through it (Antigravity has been seen running `node -e "fetch(...)"` to download assets), so on a Mac that holds personal credentials the real boundary is the runner's user account.
 - Every run is visible in the repo's Actions tab.
 
 ### Step 7 -- Alternative: `feedbackkit watch` (no CI)
