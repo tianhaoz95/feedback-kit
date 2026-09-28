@@ -23,7 +23,7 @@ const KIND_LABEL: Record<FeedbackEventKind, string> = {
   verified: "Reporter verified the fix",
   reopened: "Reporter says it's still broken",
   status_changed: "Status changed",
-  after_screenshot: "After-fix screenshot",
+  after_screenshot: "After-fix preview",
   promoted: "Released to production",
 };
 
@@ -78,7 +78,7 @@ export function FixLoopPanel({
     setEvents(rows);
 
     const paths = rows.flatMap((e) => {
-      const p = e.data?.screenshot_annotated_path ?? e.data?.screenshot_path;
+      const p = e.data?.media_path ?? e.data?.screenshot_annotated_path ?? e.data?.screenshot_path;
       return typeof p === "string" ? [p] : [];
     });
     if (paths.length > 0) {
@@ -258,7 +258,8 @@ export function FixLoopPanel({
       ) : (
         <ol className="space-y-3 border-l border-neutral-200 pl-4">
           {events.map((e) => {
-            const shotPath = (e.data?.screenshot_annotated_path ?? e.data?.screenshot_path) as string | undefined;
+            const shotPath = (e.data?.media_path ?? e.data?.screenshot_annotated_path ?? e.data?.screenshot_path) as string | undefined;
+            const isVideo = typeof e.data?.media_type === "string" && e.data.media_type.startsWith("video/");
             const prUrl =
               typeof e.data?.pr_url === "string" ? e.data.pr_url : typeof e.data?.commit_url === "string" ? e.data.commit_url : null;
             return (
@@ -283,7 +284,12 @@ export function FixLoopPanel({
                     <ExternalLinkIcon className="h-3 w-3" />
                   </a>
                 ) : null}
-                {shotPath && imageUrls[shotPath] ? (
+                {e.kind === "after_screenshot" && e.data?.expired_at ? (
+                  <p className="mt-1 text-[11px] italic text-neutral-400">Preview expired (deleted 14 days after the report was resolved).</p>
+                ) : null}
+                {shotPath && imageUrls[shotPath] && isVideo ? (
+                  <video src={imageUrls[shotPath]} controls playsInline className="mt-2 block max-h-56 w-56 rounded-md border border-neutral-200 bg-black" />
+                ) : shotPath && imageUrls[shotPath] ? (
                   <a href={imageUrls[shotPath]} target="_blank" rel="noreferrer" className="mt-2 block w-40">
                     <img
                       src={imageUrls[shotPath]}

@@ -86,16 +86,6 @@ export interface ReleaseReadiness {
 }
 
 /** Mirrors `release_tokens` (0015). The token itself is never readable — only a prefix. */
-export interface ReleaseToken {
-  id: string;
-  project_id: string;
-  name: string;
-  token_prefix: string;
-  created_at: string;
-  last_used_at: string | null;
-  revoked_at: string | null;
-}
-
 /** `FeedbackKit.setUser(...)` from the reporter's app, if set. Opaque camelCase JSONB. */
 export interface FeedbackReporter {
   id?: string;
@@ -229,6 +219,8 @@ export interface FeedbackItem {
   fixed_in_build?: string | null;
   shipped_at?: string | null;
   verified_at?: string | null;
+  /** When it was verified or its status became resolved/wont_fix (0025); previews are deleted 14 days later. */
+  resolved_at?: string | null;
   reopen_count?: number;
   /** Anonymous per-install id — present means the reporter's device can be asked "is it fixed?". */
   reporter_id?: string | null;

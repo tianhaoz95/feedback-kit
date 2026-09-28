@@ -1,4 +1,5 @@
 import SwiftUI
+import AVKit
 import FeedbackKit
 
 public struct ZoomableScreenshotView: View {
@@ -8,6 +9,8 @@ public struct ZoomableScreenshotView: View {
         case annotated = "Annotated"
         case raw = "Raw"
         case markup = "Vector Markup"
+        /// After-fix previews a coding agent attached (0025).
+        case after = "After"
 
         public var id: String { rawValue }
     }
@@ -18,6 +21,23 @@ public struct ZoomableScreenshotView: View {
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
     @State private var isFullScreenPresented: Bool = false
+    @State private var previews: [PortalFeedbackEvent] = []
+    @State private var previewURLs: [String: URL] = [:]
+    /// nil = the latest preview.
+    @State private var previewIndex: Int?
+
+    private var availableModes: [DisplayMode] {
+        var modes: [DisplayMode] = [.annotated, .raw]
+        if !item.annotations.isEmpty { modes.append(.markup) }
+        if !previews.isEmpty { modes.append(.after) }
+        return modes
+    }
+
+    private var currentPreview: PortalFeedbackEvent? {
+        guard !previews.isEmpty else { return nil }
+        let index = min(previewIndex ?? previews.count - 1, previews.count - 1)
+        return previews[index]
+    }
 
     public init(item: PortalFeedbackItem) {
         self.item = item
@@ -31,14 +51,14 @@ public struct ZoomableScreenshotView: View {
                     .font(.headline)
                 Spacer()
 
-                if !item.annotations.isEmpty {
+                if availableModes.count > 2 {
                     Picker("Mode", selection: $displayMode) {
-                        ForEach(DisplayMode.allCases) { mode in
-                            Text(mode.rawValue).tag(mode)
+                        ForEach(availableModes) { mode in
+                            Text(mode == .markup ? "Markup" : mode.rawValue).tag(mode)
                         }
                     }
                     .pickerStyle(.segmented)
-                    .frame(maxWidth: 240)
+                    .frame(maxWidth: 300)
                 }
 
                 Button {
@@ -57,6 +77,9 @@ public struct ZoomableScreenshotView: View {
             ZStack {
                 Color(UIColor.secondarySystemBackground)
 
+                if displayMode == .after, let preview = currentPreview {
+                    afterContent(preview)
+                } else {
                 imageContent(for: displayMode)
                     .scaleEffect(currentScale)
                     .offset(offset)
@@ -101,6 +124,7 @@ public struct ZoomableScreenshotView: View {
                             }
                         }
                     }
+                }
 
                 // Zoom reset badge if zoomed
                 if currentScale > 1.05 {
@@ -135,8 +159,12 @@ public struct ZoomableScreenshotView: View {
                     .stroke(Color(UIColor.separator).opacity(0.5), lineWidth: 0.5)
             )
 
+            if displayMode == .after, let preview = currentPreview {
+                afterDetails(preview)
+            }
+
             // Annotation chips breakdown
-            if !item.annotations.isEmpty {
+            if !item.annotations.isEmpty && displayMode != .after {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         Text("Markup:")
@@ -170,6 +198,86 @@ public struct ZoomableScreenshotView: View {
         }
         .fullScreenCover(isPresented: $isFullScreenPresented) {
             FullScreenScreenshotModal(item: item)
+        }
+        .task(id: "\(item.id):\(item.fixStage ?? ""):\(item.status.rawValue)") {
+            await loadPreviews()
+        }
+    }
+
+    private func loadPreviews() async {
+        let client = SupabasePortalClient.shared
+        guard let events = try? await client.fetchFeedbackEvents(feedbackId: item.id) else { return }
+        let found = events.filter { $0.kind == "after_screenshot" }
+        var urls: [String: URL] = [:]
+        for path in Set(found.compactMap(\.mediaPath)) {
+            if let signed = try? await client.getSignedUrl(path: path), let url = URL(string: signed) {
+                urls[path] = url
+            }
+        }
+        previews = found
+        previewURLs = urls
+    }
+
+    @ViewBuilder
+    private func afterContent(_ preview: PortalFeedbackEvent) -> some View {
+        if preview.expiredAt != nil || preview.mediaPath == nil {
+            VStack(spacing: 8) {
+                Image(systemName: "clock.badge.xmark")
+                    .font(.largeTitle)
+                    .foregroundColor(.secondary)
+                Text("Preview expired: deleted \(AfterPreviewRetention.days) days after the report was resolved.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+        } else if let path = preview.mediaPath, let url = previewURLs[path] {
+            if preview.isVideo {
+                VideoPlayer(player: AVPlayer(url: url))
+            } else {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFit()
+                    case .failure:
+                        Text("Preview unavailable").font(.caption).foregroundColor(.secondary)
+                    default:
+                        ProgressView()
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        } else {
+            ProgressView()
+        }
+    }
+
+    private func afterDetails(_ preview: PortalFeedbackEvent) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    if let caption = preview.body, !caption.isEmpty {
+                        Text(caption).font(.caption.weight(.semibold))
+                    }
+                    Text("Captured by \(preview.actorLabel ?? "a coding agent")\(preview.durationSeconds.map { " · \(Int($0.rounded()))s" } ?? "")")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                if previews.count > 1 {
+                    HStack(spacing: 4) {
+                        ForEach(Array(previews.enumerated()), id: \.element.id) { index, event in
+                            Button("\(index + 1)") { previewIndex = index }
+                                .font(.caption2.weight(.semibold))
+                                .buttonStyle(.bordered)
+                                .tint(event.id == preview.id ? .accentColor : .secondary)
+                        }
+                    }
+                }
+            }
+            Text("An agent's capture, not a confirmation: the report is only verified by its reporter or your team. \(AfterPreviewRetention.note(resolvedAt: item.resolvedAt))")
+                .font(.caption2)
+                .foregroundColor(.secondary)
         }
     }
 

@@ -600,4 +600,37 @@ final class PortalTests: XCTestCase {
         let activity = UIHostingController(rootView: NotificationsListView().environmentObject(AppState.shared))
         XCTAssertNotNil(activity.view)
     }
+
+    // MARK: - After-fix previews (0025)
+
+    func testAfterPreviewEventsDecodeImagesVideosLegacyAndExpired() throws {
+        func decode(_ data: String) throws -> PortalFeedbackEvent {
+            let json = """
+            {"id":"e","feedback_id":"f","kind":"after_screenshot","actor_type":"agent","actor_label":"claude-code",
+             "body":"After","visible_to_reporter":false,"created_at":"2026-09-28T10:00:00.123456+00:00","data":\(data)}
+            """
+            return try JSONDecoder().decode(PortalFeedbackEvent.self, from: Data(json.utf8))
+        }
+        let video = try decode(#"{"media_path":"p/f/after/1.mp4","media_type":"video/mp4","duration_seconds":12.5}"#)
+        XCTAssertEqual(video.mediaPath, "p/f/after/1.mp4")
+        XCTAssertTrue(video.isVideo)
+        XCTAssertEqual(video.durationSeconds, 12.5)
+        XCTAssertNil(video.screenshotPath)
+
+        let legacy = try decode(#"{"screenshot_path":"p/f/after/0.png"}"#)
+        XCTAssertEqual(legacy.mediaPath, "p/f/after/0.png")
+        XCTAssertEqual(legacy.mediaType, "image/png")
+        XCTAssertFalse(legacy.isVideo)
+
+        let expired = try decode(#"{"media_type":"image/png","expired_at":"2026-10-20T00:00:00Z"}"#)
+        XCTAssertNil(expired.mediaPath)
+        XCTAssertNotNil(expired.expiredAt)
+    }
+
+    func testAfterPreviewRetentionNote() {
+        let now = AfterPreviewRetention.parseISODate("2026-09-28T00:00:00Z")!
+        XCTAssertTrue(AfterPreviewRetention.note(resolvedAt: nil, now: now).contains("kept until 14 days"))
+        XCTAssertTrue(AfterPreviewRetention.note(resolvedAt: "2026-09-20T00:00:00.123456+00:00", now: now).contains("deleted on"))
+        XCTAssertTrue(AfterPreviewRetention.note(resolvedAt: "2026-09-01T00:00:00+00:00", now: now).contains("due for deletion"))
+    }
 }
