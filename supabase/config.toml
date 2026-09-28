@@ -159,10 +159,13 @@ site_url = "https://feedback-kit.hejitech.workers.dev/"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-# Includes both the deployed Cloudflare site and local dev (`npm run dev`, port 3000).
+# Includes the deployed Cloudflare site, its PR previews, and local dev (`npm run dev`, port 3000).
 additional_redirect_urls = [
   "https://feedback-kit.hejitech.workers.dev/login",
   "https://feedback-kit.hejitech.workers.dev/**",
+  # Cloudflare PR previews (`<preview>-feedback-kit.hejitech.workers.dev`), so
+  # signing in on a preview returns to the preview instead of production.
+  "https://*-feedback-kit.hejitech.workers.dev/**",
   "http://localhost:3000/login",
   "http://127.0.0.1:3000/login",
   "feedbackkit://auth-callback",
