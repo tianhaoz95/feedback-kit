@@ -4,6 +4,13 @@ import { useAuth } from "@/lib/auth";
 import { FeedbackKit, setUpFeedbackKit } from "@/lib/feedbackkit";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Logomark } from "@/components/Logomark";
+import {
+  ClaudeIcon,
+  CodexIcon,
+  CursorIcon,
+  CopilotIcon,
+  AntigravityIcon,
+} from "@/components/icons";
 import { BrowserMockup } from "@/components/landing/BrowserMockup";
 import { DashboardMockup } from "@/components/landing/DashboardMockup";
 import { Reveal } from "@/components/landing/Reveal";
@@ -29,8 +36,14 @@ const steps = [
   },
 ];
 
-// Agents FeedbackKit hands reports to (names only, no logos).
-const agents = ["Claude Code", "Codex", "Cursor", "GitHub Copilot", "Antigravity"];
+// Agents FeedbackKit hands reports to, with their respective brand marks.
+const agents = [
+  { name: "Claude Code", icon: ClaudeIcon, colorClass: "text-[#D97757]" },
+  { name: "Codex", icon: CodexIcon, colorClass: "text-[#10A37F]" },
+  { name: "Cursor", icon: CursorIcon, colorClass: "text-neutral-900" },
+  { name: "GitHub Copilot", icon: CopilotIcon, colorClass: "text-neutral-900" },
+  { name: "Antigravity", icon: AntigravityIcon, colorClass: "text-[#3186FF]" },
+];
 
 const agentRoutes = [
   {
@@ -305,10 +318,11 @@ export function LandingPage() {
                 <ul className="mt-5 flex flex-wrap justify-center gap-2" aria-label="Supported coding agents">
                   {agents.map((agent) => (
                     <li
-                      key={agent}
-                      className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-sm font-medium text-neutral-700"
+                      key={agent.name}
+                      className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3.5 py-1.5 text-sm font-medium text-neutral-700 shadow-2xs"
                     >
-                      {agent}
+                      <agent.icon className={`h-4 w-4 shrink-0 ${agent.colorClass}`} />
+                      <span>{agent.name}</span>
                     </li>
                   ))}
                 </ul>
