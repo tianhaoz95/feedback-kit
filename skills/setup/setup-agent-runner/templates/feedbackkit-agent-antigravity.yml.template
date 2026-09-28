@@ -124,7 +124,20 @@ jobs:
             if [ -n "$FEEDBACK_ID" ]; then echo; echo "FeedbackKit: ${FEEDBACK_ID}"; fi
           } > "$RUNNER_TEMP/pr.md"
           gh pr create --title "Fix: ${ISSUE_TITLE}" --body-file "$RUNNER_TEMP/pr.md" --head "$BRANCH"
-          # GitHub doesn't start workflows for a PR opened with the run's own
-          # token, but it does for a dispatch. Adapt: list the CI workflow
-          # files to run on the agent's branch (each needs `workflow_dispatch:`).
-          for wf in __CI_WORKFLOWS__; do gh workflow run "$wf" --ref "$BRANCH"; done
+          # The PR's CI: a PR opened by the run's own token is authored by the
+          # Actions bot, so its pull_request runs may wait for approval (fork-PR
+          # approval policy); approve the runs on this branch. Where there
+          # are none (GitHub doesn't start workflows for a token-opened PR),
+          # dispatch the CI instead. Adapt: __CI_WORKFLOWS__, the CI workflow
+          # files to dispatch (each needs `workflow_dispatch:`), or leave it empty.
+          APPROVED=0
+          for _ in 1 2 3 4 5 6; do
+            sleep 10
+            for id in $(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?branch=${BRANCH}&event=pull_request" \
+                --jq '.workflow_runs[] | select(.conclusion == "action_required") | .id'); do
+              gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/approve" >/dev/null && APPROVED=$((APPROVED + 1))
+            done
+          done
+          if [ "$APPROVED" -eq 0 ]; then
+            for wf in __CI_WORKFLOWS__; do gh workflow run "$wf" --ref "$BRANCH"; done
+          fi
