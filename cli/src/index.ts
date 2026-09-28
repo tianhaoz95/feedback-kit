@@ -191,7 +191,7 @@ const collect = (value: string, previous: string[] = []) => [...previous, value]
 tokenCommand
   .command("create")
   .argument("<name>", "What it's for, e.g. github-actions.")
-  .option("--preset <preset>", "ci (announce releases), agent (agent runner: read, update, ask, previews, issue run tokens), or read.")
+  .option("--preset <preset>", "ci (announce releases; the default), agent (agent runner: read, update, ask, previews, issue run tokens), or read.")
   .option("--scope <scope>", "Add a scope (repeatable): releases:write, feedback:read, feedback:write, reporter:ask, previews:write, tokens:issue.", collect)
   .option("--expires <when>", "90d, 12h, 1y, a date (2027-01-31), or never (default).")
   .option("--project <id>", "Project id (default: FEEDBACKKIT_PROJECT_ID, or your only project).")

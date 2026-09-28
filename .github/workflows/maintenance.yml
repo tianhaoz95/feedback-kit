@@ -1,0 +1,32 @@
+name: Maintenance
+
+# Daily housekeeping for the hosted backend: deletes after-fix previews past
+# their retention (14 days after the report resolved, 90 days at most) and
+# expired run tokens, through the cleanup-previews Edge Function (see
+# 0025_access_tokens_and_previews.sql). Needs the MAINTENANCE_SECRET repo
+# secret, the same value as the function's `supabase secrets set
+# MAINTENANCE_SECRET=…`; without it the job does nothing.
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  cleanup-previews:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Delete expired previews and run tokens
+        env:
+          MAINTENANCE_SECRET: ${{ secrets.MAINTENANCE_SECRET }}
+          API_URL: ${{ vars.FEEDBACKKIT_API_URL || 'https://gpucoladcyvijefdjudf.supabase.co' }}
+        run: |
+          set -euo pipefail
+          if [ -z "$MAINTENANCE_SECRET" ]; then
+            echo "::notice::MAINTENANCE_SECRET isn't set; skipping."
+            exit 0
+          fi
+          curl -fsS -X POST "$API_URL/functions/v1/cleanup-previews" -H "x-maintenance-secret: $MAINTENANCE_SECRET"

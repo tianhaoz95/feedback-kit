@@ -15,7 +15,7 @@ report ──▶ "Send to agent" ──▶ GitHub issue + label ──▶ self-h
 
 Hosted agents (Copilot, Codex cloud) run on Linux and can't build an iOS or macOS app. A Mac runner can, so the agent can reproduce the bug and attach an "after" screenshot.
 
-**No Mac to spare, or a public repo?** Antigravity can also run on a **GitHub-hosted** macOS (or Linux) runner, signed in with a Gemini API key (Step 3c). Nothing to register or keep awake, and each run gets a clean VM; the trade-offs are API billing instead of a subscription and no FeedbackKit MCP tools.
+**No Mac to spare, or a public repo?** Antigravity can also run on a **GitHub-hosted** macOS (or Linux) runner, signed in with a Gemini API key (Step 3c). Nothing to register or keep awake, and each run gets a clean VM; the trade-off is API billing instead of a subscription.
 
 ## When to Use
 
@@ -59,9 +59,9 @@ TOKEN=$(gh api -X POST repos/OWNER/REPO/actions/runners/registration-token --jq 
 
 | Agent | Template | How it signs in | How it's fenced |
 |---|---|---|---|
-| Claude Code | `templates/feedbackkit-agent.yml.template` | `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` secret | `--allowedTools` in the workflow; FeedbackKit MCP tools included |
+| Claude Code | `templates/feedbackkit-agent.yml.template` | `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` secret | `--allowedTools` in the workflow; FeedbackKit MCP tools through a per-run token |
 | Google Antigravity (self-hosted Mac) | `templates/feedbackkit-agent-antigravity.yml.template` | Signed in once, interactively, as the runner's user (uses their Google AI Pro/Ultra subscription) | Allow rules (commands and FeedbackKit MCP tools) in the runner user's Antigravity settings; the agent only edits files, the workflow commits, pushes and opens the PR |
-| Google Antigravity (GitHub-hosted) | `templates/feedbackkit-agent-antigravity-hosted.yml.template` | `GEMINI_API_KEY` secret, billed per token to that key's Google project | Allow rules written by the workflow itself (version-controlled); fresh VM per run; no MCP tools |
+| Google Antigravity (GitHub-hosted) | `templates/feedbackkit-agent-antigravity-hosted.yml.template` | `GEMINI_API_KEY` secret, billed per token to that key's Google project | Allow rules written by the workflow itself (version-controlled); fresh VM per run; FeedbackKit MCP tools through a per-run token |
 
 Use a different dispatch label per agent if the repo has both workflows, or both run.
 
@@ -79,7 +79,7 @@ gh secret set CLAUDE_CODE_OAUTH_TOKEN   # paste it when prompted
 
 Install the Claude GitHub App on the repo (https://github.com/apps/claude) — the action uses it to push branches and open PRs.
 
-Optional but recommended: on the runner Mac, `npx feedbackkit-cli login` as the runner's user. The workflow then gives the agent the FeedbackKit MCP tools (claim the report, ask the reporter, attach an "after" screenshot).
+Optional but recommended: the FeedbackKit MCP tools (claim the report, ask the reporter, attach a preview of the fix). See **The agent-runner token** below.
 
 ### Step 3b -- Set up Antigravity on the runner Mac
 
@@ -101,14 +101,13 @@ As the user the runner service runs as:
    ```
 
    The `read_url` rules let it open the report's screenshot, which FeedbackKit stores in the repository and links from the issue; without them the run stops the moment it tries. Swap the last line for the project's tools (e.g. `command(node)`, `command(npm)` for a web app). Allow only git's read subcommands, as above (agents look up history often, and a denied `git log` ends the run); never plain `command(git)`: the workflow does all commits and pushes. Never use `--dangerously-skip-permissions` here — report text is untrusted input.
-3. Optional but recommended — the FeedbackKit MCP tools, so the agent claims the report, can ask the reporter, and attaches an "after" screenshot (the loop works without them, through the PR's `FeedbackKit:` line):
+3. Optional but recommended — the FeedbackKit MCP tools, so the agent claims the report, can ask the reporter, and attaches a screenshot or short video of the fix (the loop works without them, through the PR's `FeedbackKit:` line). Register the server and allow its tools, then create the agent-runner token (below):
 
    ```bash
-   npx feedbackkit-cli login                                   # as the runner's user
-   agy mcp add feedbackkit -- npx -y feedbackkit-cli mcp --project <project-id>
+   agy mcp add feedbackkit -- npx -y feedbackkit-cli@latest mcp   # as the runner's user
    jq '.permissions.allow = ((.permissions.allow // []) + [
      "mcp(feedbackkit/claim_feedback)", "mcp(feedbackkit/post_update)", "mcp(feedbackkit/ask_reporter)",
-     "mcp(feedbackkit/attach_after_screenshot)", "mcp(feedbackkit/get_feedback)", "mcp(feedbackkit/get_prompt)"
+     "mcp(feedbackkit/attach_preview)", "mcp(feedbackkit/get_feedback)", "mcp(feedbackkit/get_prompt)"
    ] | unique)' "$S" > "$S.tmp" && mv "$S.tmp" "$S"
    ```
 
@@ -131,9 +130,21 @@ No runner to register (skip Step 2). Each run installs `agy` with the official i
 4. Edit the allow list in the workflow's **Configure Antigravity** step: it starts with read-only commands, read-only git and the Apple build tools; swap the last line for the project's tools (e.g. `command(npm)`, `command(node)` for a web app). Same rules as Step 3b: never plain `command(git)`, never `--dangerously-skip-permissions`. The settings need `"modelProvider": "gemini"`; the key alone does nothing.
 5. The same repository setting as Step 3b's item 5 (Actions may create pull requests), asked the same way.
 
-No FeedbackKit MCP tools on this route (they need an interactive `feedbackkit login`); the loop still closes through the PR's `FeedbackKit:` line.
+For the FeedbackKit MCP tools, create the agent-runner token (below); the workflow registers the MCP server and its allow rules itself. Without it the loop still closes through the PR's `FeedbackKit:` line.
 
 Then continue at Step 5.
+
+### The agent-runner token (every route)
+
+The FeedbackKit MCP tools need to act on the report. No login on the runner: store an **Agent runner** access token as a secret, and each workflow run trades it for a token limited to that run's report that expires in 90 minutes (`feedbackkit token issue`). Only that run token reaches the agent, so a report that talks the agent into leaking it exposes one report for an hour, not the project.
+
+```bash
+npx feedbackkit-cli token create agent-runner --preset agent --project <project-id> | gh secret set FEEDBACKKIT_AGENT_TOKEN
+```
+
+(Or project Settings → **Access tokens** → **Agent runner**.) The preset's scopes: read reports, work on them (claim, progress, link — never verify), ask the reporter, attach previews, and issue run tokens. Every template already has the "Issue a FeedbackKit token for this report" step; it's skipped while the secret isn't set.
+
+**Previews of the fix:** when the agent can run the fixed app (the iOS Simulator on a Mac runner; a browser for a web app), it captures the screen the reporter showed and calls `attach_preview` with a screenshot or a short video (MP4, up to 30 s and 20 MB). The team sees it in the report's **After** view in the dashboard and the Portal, next to the reporter's original and annotated screenshots. Previews are deleted 14 days after the report resolves (90 days at most). For iOS, allow `xcrun` (Claude: `Bash(xcrun simctl:*)`, already in the template) so it can run `xcrun simctl io booted screenshot`.
 
 ### Step 4 -- Add the Claude Code workflow
 

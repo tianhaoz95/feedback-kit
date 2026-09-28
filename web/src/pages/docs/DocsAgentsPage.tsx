@@ -142,7 +142,7 @@ export function DocsAgentsPage() {
           rows={[
             ["Start", <>You, in Claude Code, Codex, Cursor or Antigravity. Or paste the prompt copied from the report page, which includes the report id and these steps.</>],
             ["Claimed", <>The agent calls <InlineCode>claim_feedback</InlineCode>: <b>Agent working</b>.</>],
-            ["While fixing", <><InlineCode>ask_reporter</InlineCode> for something only the reporter knows, <InlineCode>attach_after_screenshot</InlineCode> after a visual fix.</>],
+            ["While fixing", <><InlineCode>ask_reporter</InlineCode> for something only the reporter knows, <InlineCode>attach_preview</InlineCode> (a screenshot or short video of the fixed app) when it can run it.</>],
             ["Linked", <>The <InlineCode>FeedbackKit:</InlineCode> line on the commit or PR, or <InlineCode>link_fix</InlineCode>.</>],
           ]}
         />

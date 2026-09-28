@@ -25,7 +25,7 @@ Branch previews
 - The app already sends reports to FeedbackKit and the team wants fixes to flow back to reporters.
 - Setting up CI/CD (TestFlight, App Store, a DMG, a web deploy) for an app that uses FeedbackKit.
 - Moving to "agents push to main, every push is a beta, the owner promotes to production".
-- Trigger phrases: "close the loop", "announce builds to FeedbackKit", "set up the beta pipeline", "FeedbackKit release token", "reporters never get asked if it's fixed".
+- Trigger phrases: "close the loop", "announce builds to FeedbackKit", "set up the beta pipeline", "FeedbackKit release token", "FeedbackKit access token", "reporters never get asked if it's fixed".
 
 ## Prerequisites
 
@@ -115,15 +115,15 @@ Fix verification compares the build on the reporter's device with the build the 
 
 A TestFlight build promoted to the App Store keeps its number, so production users who reported the bug are asked too.
 
-### Step 4 -- Create a release token for CI
+### Step 4 -- Create an access token for CI
 
-CI has no FeedbackKit login; it uses a project release token. Tokens are hash-only and revocable, and can only list waiting fixes, record releases and promote builds. Create one and store it as a CI secret in one go:
+CI has no FeedbackKit login; it uses a project access token with only the `releases:write` scope (the **ci** preset). Tokens are hash-only and revocable, and this one can only list waiting fixes, record releases and promote builds. Create one and store it as a CI secret in one go:
 
 ```bash
-npx feedbackkit-cli token create github-actions --project <project-id> | gh secret set FEEDBACKKIT_RELEASE_TOKEN
+npx feedbackkit-cli token create github-actions --preset ci --project <project-id> | gh secret set FEEDBACKKIT_RELEASE_TOKEN
 ```
 
-(Or project Settings → **Release tokens** in the dashboard, which shows the token once.) Self-hosted backend: also set `FEEDBACKKIT_API_URL` (the Supabase project URL) as a CI variable.
+(Or project Settings → **Access tokens** → **CI release** in the dashboard, which shows the token once.) It has no expiry by default so CI doesn't break unexpectedly; add `--expires 1y` if the team rotates secrets. Self-hosted backend: also set `FEEDBACKKIT_API_URL` (the Supabase project URL) as a CI variable.
 
 ### Step 5 -- Announce every build
 
@@ -194,7 +194,7 @@ The `promote-release` skill walks through this.
 ## Non-Obvious Pitfalls
 
 - **(Branch) No check on the PR:** the project is still in batch mode (`feedbackkit delivery`), the PR has no linked report (its description lacks `FeedbackKit: <id>`), or the GitHub App lacks *Commit statuses* permission.
-- **(Branch) Fork PRs** don't receive repository secrets, so their previews can't be announced with the release token.
+- **(Branch) Fork PRs** don't receive repository secrets, so their previews can't be announced with the access token.
 
 - **Wrong build number in the binary** is the #1 reason reporters are never asked (Step 3). Check the installed app's `CFBundleVersion`, not the one in the script.
 - **Shallow checkouts:** `fetch-depth: 1` makes every fix commit "not found locally", so nothing ships. Use `fetch-depth: 0`.

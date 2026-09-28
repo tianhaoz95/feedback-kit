@@ -15,8 +15,11 @@ name: FeedbackKit agent (Antigravity, hosted)
 # workflow, or both run), __RUNNER__ (macos-15 to build Apple apps,
 # ubuntu-latest is enough for a web app), the allow list in "Configure
 # Antigravity", the build instructions in the prompt, and __CI_WORKFLOWS__.
-# No FeedbackKit MCP tools here: they need an interactive `feedbackkit login`;
-# the loop still closes through the PR's `FeedbackKit:` line.
+# Optional: a FEEDBACKKIT_AGENT_TOKEN secret (an "Agent runner" access token)
+# gives the agent the FeedbackKit MCP tools (claim the report, ask the
+# reporter, attach a preview of the fix) through a token limited to this
+# run's report. Without it the loop still closes through the PR's
+# `FeedbackKit:` line.
 
 on:
   issues:
@@ -59,6 +62,8 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Configure Antigravity
+        env:
+          HAS_AGENT_TOKEN: ${{ secrets.FEEDBACKKIT_AGENT_TOKEN != '' && 'yes' || '' }}
         # Headless agy asks for nothing: a tool call that isn't allowed here
         # ends the run. Keep the list to what fixing a report needs, and
         # never add plain command(git) (this workflow does the commits) or
@@ -75,15 +80,42 @@ jobs:
               "command(git log)", "command(git show)", "command(git diff)", "command(git status)", "command(git blame)",
               "command(git grep)", "command(git ls-files)", "command(git rev-parse)",
               "read_url(raw.githubusercontent.com)", "read_url(github.com)",
+              "mcp(feedbackkit/claim_feedback)", "mcp(feedbackkit/post_update)", "mcp(feedbackkit/ask_reporter)",
+              "mcp(feedbackkit/attach_preview)", "mcp(feedbackkit/get_feedback)", "mcp(feedbackkit/get_prompt)",
               "command(xcodebuild)", "command(xcrun)", "command(swift)", "command(xcodegen)"
             ] }
           }' > ~/.gemini/antigravity-cli/settings.json
+          # The FeedbackKit MCP tools, authenticated per run by the token the next
+          # step issues (FEEDBACKKIT_AGENT_TOKEN); without that secret they're left out.
+          if [ -n "$HAS_AGENT_TOKEN" ]; then
+            agy mcp add feedbackkit -- npx -y feedbackkit-cli@latest mcp
+          fi
+
+      - name: Issue a FeedbackKit token for this report
+        # The agent-runner token (FEEDBACKKIT_AGENT_TOKEN: an access token with
+        # tokens:issue, from project Settings → Access tokens) never reaches the
+        # agent. It issues a token limited to this one report that expires in
+        # 90 minutes, and only that reaches the agent (and the FeedbackKit MCP
+        # server it starts). Skipped when the secret isn't set.
+        env:
+          FEEDBACKKIT_TOKEN: ${{ secrets.FEEDBACKKIT_AGENT_TOKEN }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          FEEDBACK_ID="$(printf '%s' "$ISSUE_BODY" | grep -oE 'FeedbackKit: [0-9a-fA-F-]{36}' | head -n1 | cut -d' ' -f2 || true)"
+          if [ -n "$FEEDBACKKIT_TOKEN" ] && [ -n "$FEEDBACK_ID" ]; then
+            RUN_TOKEN="$(npx -y feedbackkit-cli@latest token issue --feedback "$FEEDBACK_ID" --ttl 90 --name "run ${GITHUB_RUN_ID}")"
+            echo "::add-mask::$RUN_TOKEN"
+            echo "FEEDBACKKIT_RUN_TOKEN=$RUN_TOKEN" >> "$GITHUB_ENV"
+          fi
 
       - name: Run Antigravity
         env:
           # Only this step sees the key. The agent can read its environment,
           # so use a key from a dedicated Google project with a spending cap.
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # This run's report-limited FeedbackKit token (empty without one);
+          # the FeedbackKit MCP server agy starts inherits it.
+          FEEDBACKKIT_TOKEN: ${{ env.FEEDBACKKIT_RUN_TOKEN }}
         run: |
           set -euo pipefail
           BRANCH="feedbackkit/issue-${ISSUE_NUMBER}-${GITHUB_RUN_ID}"
@@ -116,7 +148,8 @@ jobs:
               echo "- This machine lets you use only these tools (rule syntax: command(<command prefix>), read_url(<domain>), mcp(<server>/<tool>)): ${ALLOWED}. Anything else, including a pipe or && into an unlisted command or \$(...) substitution, ends the run immediately with nothing saved. Stay inside this repository; if the fix needs something you can't do with these (e.g. downloading an asset), make the rest of the change and explain what's missing."
             fi
             if [ -n "$FEEDBACK_ID" ]; then
-              echo "- If the feedbackkit MCP tools are available, this is FeedbackKit report ${FEEDBACK_ID}: call claim_feedback first; use ask_reporter only for something only the reporter can answer (then stop without changes); after fixing a visual bug, call attach_after_screenshot with a screenshot of the fixed screen."
+              echo "- If the feedbackkit MCP tools are available, this is FeedbackKit report ${FEEDBACK_ID}: call claim_feedback first; use ask_reporter only for something only the reporter can answer (then stop without changes)."
+              echo "- After fixing it, if you can run the fixed app here, capture the screen the reporter showed and call attach_preview with the file, so the team can see the result without running it: a screenshot (e.g. \`xcrun simctl io booted screenshot /tmp/after.png\` for the iOS Simulator) or a short video (MP4, up to 30 s). It's optional: skip it when you can't run the app, and only attach captures of your fixed build."
             fi
           } > "$PROMPT"
           agy -p "$(cat "$PROMPT")" --mode accept-edits --print-timeout 50m < /dev/null 2>&1 | tee "$RUNNER_TEMP/summary.md"

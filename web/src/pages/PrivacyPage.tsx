@@ -48,7 +48,7 @@ export function PrivacyPage() {
           </li>
           <li>
             <strong>Connected tools:</strong> records of command-line sessions you authorize (so you can revoke
-            them), project release tokens (stored only as hashes), and, if you connect your GitHub account for
+            them), project access tokens (stored only as hashes), and, if you connect your GitHub account for
             Copilot, a GitHub access token that only our servers can read. The Portal iOS app stores a device push
             token so we can send you notifications.
           </li>

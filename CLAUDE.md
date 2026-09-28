@@ -582,6 +582,33 @@ Rules for skills:
   entry runs once, and runs the local agent in a git worktree. Report text
   is untrusted agent input on every route — keep it fenced and the tool
   allowlists narrow.
+- **Access tokens (`0025_access_tokens_and_previews.sql`, DESIGN.md §10)
+  are enforced by RLS from the `x-feedbackkit-token` header**, not by bot
+  users (the hosted project only allows GitHub sign-in and signs sessions
+  with a key only Supabase holds). `request_access_token()` /
+  `token_project(scope)` / `token_feedback()` read the header; every token
+  policy is `to anon` and deny-by-default, so a new table is invisible to
+  tokens until you add one. Wrap the helpers in `(select …)` in policies so
+  they run once per statement. A trigger limits token updates on
+  `feedback_items` to the fix stage/status/fix details and never to
+  shipped/verified. Scopes are mirrored by hand in
+  `cli/src/commands/token.ts` and `web/src/lib/accessTokens.ts`.
+  `release_tokens` is now a view (old ci-release/CLI keep working);
+  `create_release_token` still returns `fkr_` tokens for old CLIs. CLI token
+  mode is `FEEDBACKKIT_TOKEN` (`getAuthenticatedClient`); agent workflows
+  store an Agent runner token as `FEEDBACKKIT_AGENT_TOKEN` and hand the agent
+  only `feedbackkit token issue --feedback <id>`'s one-report run token.
+- **After-fix previews go through `attach-preview`** (member session or a
+  token with `previews:write`), which sniffs the type from the bytes and
+  reads an MP4's duration from `mvhd` (`_shared/media.ts`) before storing it
+  as an `after_screenshot` event (`media_path`/`media_type`, plus
+  `screenshot_path` for images so older Portal builds still show them).
+  Retention is `previews_to_expire()`: 14 days after `resolved_at` (a trigger
+  keeps it in step with verified/resolved/wont_fix), 90 days at most;
+  `cleanup-previews` deletes the files (`maintenance.yml`, daily,
+  `MAINTENANCE_SECRET`). The dashboard's After view and the Portal's After
+  mode both show the retention note; keep `PREVIEW_RETENTION_DAYS` /
+  `AfterPreviewRetention.days` in step with the SQL.
 - **Notifications (`0017_notifications.sql`) are written by triggers**
   on `feedback_items`, `feedback_events` and `memberships`, never by the
   writers themselves. A new event kind worth notifying about goes in

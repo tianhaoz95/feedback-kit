@@ -114,3 +114,32 @@ test("loopInstructions tells branch-delivery agents to open a PR and not merge i
   assert.match(branch, /FeedbackKit: 11111111-2222-3333-4444-555555555555/);
   assert.doesNotMatch(loopInstructions(item), /don't push to the default branch/);
 });
+
+test("token create: presets, scopes and expiry", async () => {
+  const { parseScopes, parseExpiry } = await import("../dist/commands/token.js");
+  assert.deepEqual(parseScopes(undefined, undefined), ["releases:write"]);
+  assert.deepEqual(parseScopes("agent", undefined), ["feedback:read", "feedback:write", "previews:write", "reporter:ask", "tokens:issue"]);
+  assert.deepEqual(parseScopes("read", ["previews:write"]), ["feedback:read", "previews:write"]);
+  assert.throws(() => parseScopes("admin", undefined), /--preset/);
+  assert.throws(() => parseScopes(undefined, ["everything"]), /Unknown scope/);
+  const now = new Date("2026-09-28T00:00:00Z");
+  assert.equal(parseExpiry(undefined, now), null);
+  assert.equal(parseExpiry("never", now), null);
+  assert.equal(parseExpiry("90d", now)?.toISOString(), "2026-12-27T00:00:00.000Z");
+  assert.equal(parseExpiry("12h", now)?.toISOString(), "2026-09-28T12:00:00.000Z");
+  assert.equal(parseExpiry("2027-01-31", now)?.toISOString().slice(0, 10), "2027-01-31");
+  assert.throws(() => parseExpiry("2020-01-01", now), /future/);
+  assert.throws(() => parseExpiry("soon", now), /--expires/);
+});
+
+test("the MCP server registers attach_preview and keeps attach_after_screenshot", () => {
+  const tools = createMcpServer()._registeredTools;
+  assert.ok(tools["attach_preview"]);
+  assert.ok(tools["attach_after_screenshot"]);
+});
+
+test("attach_preview refuses unsupported files before uploading", async () => {
+  const res = await createMcpServer()._registeredTools["attach_preview"].handler({ feedback_id: "x", path: "/tmp/notes.txt" });
+  assert.equal(res.isError, true);
+  assert.match(res.content[0].text, /PNG, JPEG, GIF or WebP image, or an MP4/);
+});

@@ -31,7 +31,8 @@ export function parseScopes(preset: string | undefined, scopes: string[] | undef
     }
     picked.add(s as TokenScope);
   }
-  if (picked.size === 0) throw new Error("Pick what the token may do: --preset ci|agent|read, or --scope <scope> (repeatable).");
+  // No preset or scope: a CI release token, what `token create` always made.
+  if (picked.size === 0) TOKEN_PRESETS.ci.forEach((s) => picked.add(s));
   return [...picked].sort();
 }
 

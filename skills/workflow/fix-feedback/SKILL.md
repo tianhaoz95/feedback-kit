@@ -52,7 +52,7 @@ If something only the reporter can answer blocks you (which device, which accoun
 
 ### Step 6 -- Prove it
 
-If you can run the app, screenshot the fixed screen (same state the reporter showed) to a PNG and call `attach_after_screenshot` with its absolute path and a short caption. Reviewers see it side by side with the reporter's screenshot.
+If you can run the app, screenshot the fixed screen (same state the reporter showed) to a PNG and call `attach_preview` with its absolute path and a short caption. A short screen recording (MP4, up to 30 s and 20 MB) works too, e.g. `xcrun simctl io booted recordVideo --codec=h264 /tmp/after.mp4`; it's shown in the report's After view next to the reporter's screenshots. Reviewers see it side by side with the reporter's screenshot.
 
 ### Step 7 -- Link the fix
 

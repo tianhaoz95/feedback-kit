@@ -38,11 +38,25 @@ Deno.serve(async (req) => {
     const token = req.headers.get("x-release-token") ?? req.headers.get("x-feedbackkit-token") ?? "";
     if (!/^fk[rt]_[0-9a-f]{48}$/.test(token)) return json({ error: "missing_or_malformed_token" }, 401);
 
-    const { data: tokenRow } = await supabase
+    const hash = await sha256Hex(token);
+    let { data: tokenRow, error: lookupError } = await supabase
       .from("access_tokens")
       .select("id, project_id, name, scopes, revoked_at, expires_at, parent_id")
-      .eq("token_hash", await sha256Hex(token))
+      .eq("token_hash", hash)
       .maybeSingle();
+    let table = "access_tokens";
+    if (lookupError) {
+      // Deployed before 0025: the old release_tokens table, release-only.
+      const legacy = await supabase
+        .from("release_tokens")
+        .select("id, project_id, name, revoked_at")
+        .eq("token_hash", hash)
+        .maybeSingle();
+      tokenRow = legacy.data
+        ? { ...legacy.data, scopes: ["releases:write"], expires_at: null, parent_id: null }
+        : null;
+      table = "release_tokens";
+    }
     if (!tokenRow || tokenRow.revoked_at || tokenRow.parent_id) return json({ error: "invalid_token" }, 401);
     if (tokenRow.expires_at && new Date(tokenRow.expires_at).getTime() <= Date.now()) {
       return json({ error: "token_expired" }, 401);
@@ -51,7 +65,7 @@ Deno.serve(async (req) => {
       return json({ error: "missing_scope", message: "This token can't record releases (needs releases:write)." }, 403);
     }
 
-    await supabase.from("access_tokens").update({ last_used_at: new Date().toISOString() }).eq("id", tokenRow.id);
+    await supabase.from(table).update({ last_used_at: new Date().toISOString() }).eq("id", tokenRow.id);
 
     const { data: project } = await supabase
       .from("projects")
