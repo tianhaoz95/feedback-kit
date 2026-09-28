@@ -87,11 +87,12 @@ As the user the runner service runs as:
    jq '.permissions.allow = ((.permissions.allow // []) + [
      "command(ls)", "command(cat)", "command(grep)", "command(find)", "command(head)", "command(tail)", "command(wc)", "command(pwd)",
      "read_url(raw.githubusercontent.com)", "read_url(github.com)",
+     "command(git log)", "command(git show)", "command(git diff)", "command(git status)", "command(git blame)",
      "command(xcodebuild)", "command(xcrun)", "command(swift)", "command(xcodegen)"
    ] | unique)' "$S" > "$S.tmp" && mv "$S.tmp" "$S"
    ```
 
-   The `read_url` rules let it open the report's screenshot, which FeedbackKit stores in the repository and links from the issue; without them the run stops the moment it tries. Swap the last line for the project's tools (e.g. `command(node)`, `command(npm)` for a web app). Don't allow `git`: the workflow does all git work, so the agent never needs it. Never use `--dangerously-skip-permissions` here — report text is untrusted input.
+   The `read_url` rules let it open the report's screenshot, which FeedbackKit stores in the repository and links from the issue; without them the run stops the moment it tries. Swap the last line for the project's tools (e.g. `command(node)`, `command(npm)` for a web app). Allow only git's read subcommands, as above (agents look up history often, and a denied `git log` ends the run); never plain `command(git)`: the workflow does all commits and pushes. Never use `--dangerously-skip-permissions` here — report text is untrusted input.
 3. Optional but recommended — the FeedbackKit MCP tools, so the agent claims the report, can ask the reporter, and attaches an "after" screenshot (the loop works without them, through the PR's `FeedbackKit:` line):
 
    ```bash

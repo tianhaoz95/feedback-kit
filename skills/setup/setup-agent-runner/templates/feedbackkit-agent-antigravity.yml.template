@@ -73,14 +73,14 @@ jobs:
             echo
             echo "How this run works:"
             echo "- Reproduce the bug first if you can (build and run the app or its tests), then fix it by editing files."
-            echo "- Don't run git and don't commit: this workflow commits, pushes and opens the pull request after you finish."
+            echo "- Read-only git (log, show, diff, status, blame) is fine; don't commit, branch or push: this workflow commits, pushes and opens the pull request after you finish."
             echo "- End with one short paragraph, in plain language, describing what you changed and why; it becomes the pull request description."
             echo "- If you can't fix it, change nothing and explain why."
             if [ -n "$FEEDBACK_ID" ]; then
               echo "- If the feedbackkit MCP tools are available, this is FeedbackKit report ${FEEDBACK_ID}: call claim_feedback first; use ask_reporter only for something only the reporter can answer (then stop without changes); after fixing a visual bug, call attach_after_screenshot with a screenshot of the fixed screen."
             fi
           } > "$PROMPT"
-          agy -p "$(cat "$PROMPT")" --mode accept-edits --print-timeout 50m < /dev/null | tee "$RUNNER_TEMP/summary.md"
+          agy -p "$(cat "$PROMPT")" --mode accept-edits --print-timeout 50m < /dev/null 2>&1 | tee "$RUNNER_TEMP/summary.md"
           # Headless agy stops at the first tool it isn't allowed to use and
           # still exits 0; fail the run, and say so on the issue, instead of
           # reporting "finished without changes".
