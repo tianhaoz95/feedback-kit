@@ -5,5 +5,8 @@
   "assets": {
     "directory": "./web/dist",
     "not_found_handling": "single-page-application"
-  }
+  },
+  // Pull-request builds run `wrangler preview`, which needs this block (it
+  // can stay empty: assets and compatibility settings stay at the top level).
+  "previews": {}
 }
