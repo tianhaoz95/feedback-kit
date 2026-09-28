@@ -107,7 +107,7 @@ As the user the runner service runs as:
    ```
 
    MCP calls need allow rules like commands do, one per tool as `mcp(<server>/<tool>)` (`mcp(feedbackkit/*)` allows them all; a bare `mcp(feedbackkit)` matches nothing). Leave out `update_feedback_status` and `link_fix`: the workflow links the fix itself.
-4. Copy `templates/feedbackkit-agent-antigravity.yml.template` to `.github/workflows/feedbackkit-agent-antigravity.yml` and replace `__DISPATCH_LABEL__` (e.g. `antigravity`). The checkout keeps no credentials (`persist-credentials: false`), so only the workflow's own step can push.
+4. Copy `templates/feedbackkit-agent-antigravity.yml.template` to `.github/workflows/feedbackkit-agent-antigravity.yml` and replace `__DISPATCH_LABEL__` (e.g. `antigravity`) and `__CI_WORKFLOWS__` with the repository's CI workflow files (e.g. `ci.yml`; add `workflow_dispatch:` to each if missing, since a PR opened by the run's own token doesn't start workflows by itself — or leave it empty). The checkout keeps no credentials (`persist-credentials: false`), so only the workflow's own step can push.
 5. The workflow opens the pull request with the run's own token, which GitHub blocks unless the repository allows it: **Settings → Actions → General → Workflow permissions → "Allow GitHub Actions to create and approve pull requests"**. Ask the user before turning it on (it also lets any workflow approve PRs). If they say no, the run still pushes its branch and fails at the last step; they open the PR from that branch by hand.
 
 Then continue at Step 5.

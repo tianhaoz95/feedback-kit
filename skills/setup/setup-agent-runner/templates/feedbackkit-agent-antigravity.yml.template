@@ -26,6 +26,8 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
+  # Starts CI on the agent's PR (see the last step).
+  actions: write
 
 # One run per issue; a re-dispatch (reporter reopened) replaces a stale one.
 concurrency:
@@ -113,10 +115,16 @@ jobs:
             commit "${MESSAGE[@]}"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${BRANCH}"
           {
-            # The agent links files as file:///… paths on the runner; keep just the link text.
-            sed -E 's#\[([^]]*)\]\(file://[^)]*\)#\1#g' "$RUNNER_TEMP/summary.md"
+            # agy prints progress lines ("I am waiting for…") before its summary;
+            # keep the last paragraph, and turn file:///… links on the runner
+            # into plain text.
+            awk 'NF{l=$0} END{print l}' "$RUNNER_TEMP/summary.md" | sed -E 's#\[([^]]*)\]\(file://[^)]*\)#\1#g'
             echo
             echo "Fixes #${ISSUE_NUMBER}"
             if [ -n "$FEEDBACK_ID" ]; then echo; echo "FeedbackKit: ${FEEDBACK_ID}"; fi
           } > "$RUNNER_TEMP/pr.md"
           gh pr create --title "Fix: ${ISSUE_TITLE}" --body-file "$RUNNER_TEMP/pr.md" --head "$BRANCH"
+          # GitHub doesn't start workflows for a PR opened with the run's own
+          # token, but it does for a dispatch. Adapt: list the CI workflow
+          # files to run on the agent's branch (each needs `workflow_dispatch:`).
+          for wf in __CI_WORKFLOWS__; do gh workflow run "$wf" --ref "$BRANCH"; done
