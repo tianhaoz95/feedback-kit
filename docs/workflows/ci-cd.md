@@ -23,6 +23,7 @@ FeedbackKit tests every product on its own, ships betas on every push to `main` 
 ├── publish-skills.yml      # feedback-kit-skills → npm + GitHub Packages
 ├── deploy-functions.yml    # Supabase Edge Functions on push to main
 ├── announce-web.yml        # Announces each Cloudflare web deploy as a FeedbackKit release
+├── feedbackkit-agent-antigravity.yml # Antigravity on the self-hosted Mac runner, when an issue gets the "antigravity" label
 └── deploy-docs.yml         # This VitePress site → GitHub Pages
 ```
 
