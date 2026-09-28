@@ -87,7 +87,9 @@ As the user the runner service runs as:
    jq '.permissions.allow = ((.permissions.allow // []) + [
      "command(ls)", "command(cat)", "command(grep)", "command(find)", "command(head)", "command(tail)", "command(wc)", "command(pwd)",
      "read_url(raw.githubusercontent.com)", "read_url(github.com)",
+     "command(rg)", "command(sort)", "command(uniq)", "command(diff)", "command(stat)", "command(file)", "command(which)",
      "command(git log)", "command(git show)", "command(git diff)", "command(git status)", "command(git blame)",
+     "command(git grep)", "command(git ls-files)", "command(git rev-parse)",
      "command(xcodebuild)", "command(xcrun)", "command(swift)", "command(xcodegen)"
    ] | unique)' "$S" > "$S.tmp" && mv "$S.tmp" "$S"
    ```

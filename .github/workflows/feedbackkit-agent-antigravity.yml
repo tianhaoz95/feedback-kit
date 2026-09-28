@@ -73,7 +73,7 @@ jobs:
             echo
             echo "How this run works:"
             echo "- Reproduce the bug first if you can, then fix it by editing files. This repo: the Swift SDK builds with \`swift build\` / \`swift test\`; the dashboard (web/), CLI (cli/) and web SDK (web-sdk/) each build and test with \`npm run build\` / \`npm test\` in their folder. Read CLAUDE.md first."
-            echo "- Read-only git (log, show, diff, status, blame) is fine; don't commit, branch or push: this workflow commits, pushes and opens the pull request after you finish."
+            echo "- Read-only git (log, show, diff, status, blame, grep, ls-files) is fine; don't commit, branch or push: this workflow commits, pushes and opens the pull request after you finish."
             echo "- End with one short paragraph, in plain language, describing what you changed and why; it becomes the pull request description."
             echo "- If you can't fix it, change nothing and explain why."
             if [ -n "$FEEDBACK_ID" ]; then
