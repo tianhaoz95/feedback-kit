@@ -434,14 +434,25 @@ verify_jwt = false
 [functions.reporter-updates]
 verify_jwt = false
 
-# Called by CI with a project-scoped release token (x-release-token), not a
-# Supabase session. See supabase/functions/ci-release/index.ts.
+# Called by CI with a project access token that has releases:write
+# (x-release-token), not a Supabase session. See supabase/functions/ci-release/index.ts.
 [functions.ci-release]
 verify_jwt = false
 
 # Called by the database (pg_net trigger in 0017_notifications.sql), not a
 # signed-in user: authenticated by the x-push-secret header instead.
 [functions.send-push]
+verify_jwt = false
+
+# Called with a member's session or an access token (x-feedbackkit-token),
+# which isn't a JWT; the function checks both itself. See
+# supabase/functions/attach-preview/index.ts.
+[functions.attach-preview]
+verify_jwt = false
+
+# Called once a day by .github/workflows/maintenance.yml, authenticated by
+# the x-maintenance-secret header.
+[functions.cleanup-previews]
 verify_jwt = false
 
 

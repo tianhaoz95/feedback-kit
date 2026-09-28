@@ -15,7 +15,7 @@ export async function promote(options: {
 }): Promise<void> {
   const build = options.build.trim();
   if (!build) throw new Error("--build is required.");
-  const token = options.token ?? process.env.FEEDBACKKIT_RELEASE_TOKEN;
+  const token = options.token ?? process.env.FEEDBACKKIT_RELEASE_TOKEN ?? process.env.FEEDBACKKIT_TOKEN;
 
   if (token) {
     const ci = new CiReleaseClient(token, options.apiUrl ?? process.env.FEEDBACKKIT_API_URL ?? DEFAULT_API_URL);

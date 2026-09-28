@@ -1,11 +1,14 @@
 import { readFile } from "node:fs/promises";
+import { extname } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { getAuthenticatedClient } from "../supabaseClient.js";
 import { getDocTopic, listDocTopics } from "../docs.js";
 import {
-  attachAfterScreenshot,
+  attachPreview,
+  PREVIEW_TYPES,
+  MAX_PREVIEW_BYTES,
   claimFeedback,
   downloadBase64,
   fetchFeedback,
@@ -416,33 +419,57 @@ export function createMcpServer(options: McpServerOptions = {}): McpServer {
     },
   );
 
+  const attachPreviewHandler = async ({ feedback_id, path, caption }: { feedback_id: string; path: string; caption?: string }) => {
+    const ext = extname(path).slice(1).toLowerCase();
+    if (!PREVIEW_TYPES[ext]) {
+      return errorResult(`${path}: attach a PNG, JPEG, GIF or WebP image, or an MP4 video (up to 30 s).`);
+    }
+    let bytes: Buffer;
+    try {
+      bytes = await readFile(path);
+    } catch (err) {
+      return errorResult(`Couldn't read ${path}: ${(err as Error).message}`);
+    }
+    if (bytes.length > MAX_PREVIEW_BYTES) return errorResult(`${path} is over 20 MB; attach a smaller capture.`);
+    try {
+      const result = await withItem(feedback_id, (client, item) => attachPreview(client, item, bytes, agentActor(), { caption }));
+      return textResult(
+        `Attached (${result.media_type}). The team sees it in the report's After view; it's kept until 14 days after the report resolves.`,
+      );
+    } catch (err) {
+      return errorResult((err as Error).message);
+    }
+  };
+
+  server.registerTool(
+    "attach_preview",
+    {
+      description:
+        "Attach a preview of the fixed app to a feedback report: a screenshot, or a short screen recording (MP4, up to 30 s " +
+        "and 20 MB), captured after your change (e.g. from the iOS Simulator or a browser). The team compares it with the " +
+        "reporter's original and annotated screenshots without running the build. Only attach captures of your fixed build; " +
+        "skip it when you can't run the app.",
+      inputSchema: {
+        feedback_id: z.string(),
+        path: z.string().describe("Absolute path to a .png, .jpg, .gif, .webp or .mp4 file on this machine."),
+        caption: z.string().optional().describe("What the preview shows, e.g. \"Cart after tapping Add\"."),
+      },
+    },
+    attachPreviewHandler,
+  );
+
+  // The original name, kept so existing agent allow lists and prompts work.
   server.registerTool(
     "attach_after_screenshot",
     {
-      description:
-        "Attach a screenshot showing the fixed screen (e.g. taken from the iOS simulator or a browser after " +
-        "your change) to a feedback report, so reviewers see before/after side by side. Pass a local PNG path.",
+      description: "Same as attach_preview (kept for compatibility): attach a screenshot or short video of the fixed screen.",
       inputSchema: {
         feedback_id: z.string(),
-        png_path: z.string().describe("Absolute path to a PNG file on this machine."),
+        png_path: z.string().describe("Absolute path to the image or video file."),
         caption: z.string().optional(),
       },
     },
-    async ({ feedback_id, png_path, caption }) => {
-      let png: Buffer;
-      try {
-        png = await readFile(png_path);
-      } catch (err) {
-        return errorResult(`Couldn't read ${png_path}: ${(err as Error).message}`);
-      }
-      if (png.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a") return errorResult(`${png_path} isn't a PNG file.`);
-      try {
-        await withItem(feedback_id, (client, item) => attachAfterScreenshot(client, item, png, caption, agentActor()));
-        return textResult("Attached.");
-      } catch (err) {
-        return errorResult((err as Error).message);
-      }
-    },
+    ({ feedback_id, png_path, caption }) => attachPreviewHandler({ feedback_id, path: png_path, caption }),
   );
 
   return server;

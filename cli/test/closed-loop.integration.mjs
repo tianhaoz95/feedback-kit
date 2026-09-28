@@ -52,7 +52,11 @@ async function newUser() {
 async function waitForOrg(client) {
   for (let i = 0; i < 20; i++) {
     const { data } = await client.from("organizations").select("id").limit(1);
-    if (data?.length) return data[0].id;
+    if (data?.length) {
+      // Some tests need several projects, past the free plan's limit (0019).
+      await admin.from("organization_billing").update({ limits_exempt: true }).eq("organization_id", data[0].id);
+      return data[0].id;
+    }
     await new Promise((r) => setTimeout(r, 100));
   }
   throw new Error("no organization created for user");

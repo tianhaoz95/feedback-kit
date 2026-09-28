@@ -10,7 +10,7 @@ import { printDocs } from "./commands/docs.js";
 import { release } from "./commands/release.js";
 import { promote } from "./commands/promote.js";
 import { listReleases } from "./commands/releases.js";
-import { createToken, listTokens, revokeToken } from "./commands/token.js";
+import { createToken, issueToken, listTokens, revokeToken } from "./commands/token.js";
 import { link } from "./commands/link.js";
 import { timeline } from "./commands/timeline.js";
 import { watch, type WatchOptions } from "./commands/watch.js";
@@ -140,7 +140,7 @@ program
   .option("--project <id>", "Project id (default: FEEDBACKKIT_PROJECT_ID, or your only project). Ignored with --token.")
   .option("--channel <channel>", "beta (default), production, or preview (a build of one pull request; needs --pr).")
   .option("--pr <number>", "With --channel preview: the pull request the build was made from. Ships the reports linked to it.")
-  .option("--token <token>", "Project release token for CI (default: FEEDBACKKIT_RELEASE_TOKEN). No login needed.")
+  .option("--token <token>", "Access token with releases:write, for CI (default: FEEDBACKKIT_RELEASE_TOKEN or FEEDBACKKIT_TOKEN). No login needed.")
   .option("--api-url <url>", "FeedbackKit backend for --token (default: FEEDBACKKIT_API_URL, or the hosted one).")
   .option("--include <ids...>", "Also ship these feedback ids, skipping the git check.")
   .option("--dry-run", "Show what would ship without recording anything.")
@@ -172,7 +172,7 @@ program
   .requiredOption("--build <build>", "The build that went to production.")
   .option("--product <key>", "Only this product's release of the build.")
   .option("--project <id>", "Project id (default: FEEDBACKKIT_PROJECT_ID, or your only project). Ignored with --token.")
-  .option("--token <token>", "Project release token (default: FEEDBACKKIT_RELEASE_TOKEN).")
+  .option("--token <token>", "Access token with releases:write (default: FEEDBACKKIT_RELEASE_TOKEN or FEEDBACKKIT_TOKEN).")
   .option("--api-url <url>", "FeedbackKit backend for --token.")
   .action(async (opts: { build: string; product?: string; project?: string; token?: string; apiUrl?: string }) => {
     try {
@@ -184,14 +184,19 @@ program
 
 const tokenCommand = program
   .command("token")
-  .description("Project release tokens — how CI runs `release` without a login.");
+  .description("Project access tokens — how CI and agent runners use FeedbackKit without a login (set FEEDBACKKIT_TOKEN).");
+
+const collect = (value: string, previous: string[] = []) => [...previous, value];
 
 tokenCommand
   .command("create")
   .argument("<name>", "What it's for, e.g. github-actions.")
+  .option("--preset <preset>", "ci (announce releases), agent (agent runner: read, update, ask, previews, issue run tokens), or read.")
+  .option("--scope <scope>", "Add a scope (repeatable): releases:write, feedback:read, feedback:write, reporter:ask, previews:write, tokens:issue.", collect)
+  .option("--expires <when>", "90d, 12h, 1y, a date (2027-01-31), or never (default).")
   .option("--project <id>", "Project id (default: FEEDBACKKIT_PROJECT_ID, or your only project).")
-  .description("Create a token (printed once). Pipe it into your CI secrets, e.g. `| gh secret set FEEDBACKKIT_RELEASE_TOKEN`.")
-  .action(async (name: string, opts: { project?: string }) => {
+  .description("Create a token (printed once), e.g. `token create github-actions --preset ci | gh secret set FEEDBACKKIT_RELEASE_TOKEN`.")
+  .action(async (name: string, opts: { project?: string; preset?: string; scope?: string[]; expires?: string }) => {
     try {
       await createToken(name, opts);
     } catch (err) {
@@ -202,7 +207,7 @@ tokenCommand
 tokenCommand
   .command("list")
   .option("--project <id>", "Project id.")
-  .description("List a project's release tokens.")
+  .description("List a project's access tokens with their scopes and expiry.")
   .action(async (opts: { project?: string }) => {
     try {
       await listTokens(opts);
@@ -214,10 +219,24 @@ tokenCommand
 tokenCommand
   .command("revoke")
   .argument("<id>", "Token id (from `token list`).")
-  .description("Revoke a release token.")
+  .description("Revoke an access token (and every run token it issued).")
   .action(async (id: string) => {
     try {
       await revokeToken(id);
+    } catch (err) {
+      handleError(err);
+    }
+  });
+
+tokenCommand
+  .command("issue")
+  .requiredOption("--feedback <id>", "The report the new token is limited to.")
+  .option("--ttl <minutes>", "Minutes until it expires (5–720, default 60).")
+  .option("--name <name>", "Label shown in the token list.")
+  .description("Issue a short-lived token limited to one report, for a coding agent's run (needs a token with tokens:issue, or a login).")
+  .action(async (opts: { feedback: string; ttl?: string; name?: string }) => {
+    try {
+      await issueToken(opts);
     } catch (err) {
       handleError(err);
     }

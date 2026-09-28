@@ -10,6 +10,7 @@
 import { execFileSync } from "node:child_process";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { renderPromptTemplate } from "./promptTemplate.js";
+import { DEFAULT_API_URL, clientContext, tokenInfo } from "./supabaseClient.js";
 import type { FeedbackEvent, FeedbackEventKind, FeedbackItem, FixStage, PromptTemplate } from "./types.js";
 
 export const SCREENSHOT_BUCKET = "feedback-screenshots";
@@ -35,7 +36,9 @@ export function compareBuilds(a: string | null | undefined, b: string | null | u
   return 0;
 }
 
-export async function currentUserId(client: SupabaseClient): Promise<string> {
+/** The logged-in user, or null when the client acts as an access token. */
+export async function currentUserId(client: SupabaseClient): Promise<string | null> {
+  if (tokenInfo(client)) return null;
   const { data, error } = await client.auth.getUser();
   if (error || !data.user) throw new Error(error?.message ?? "Not logged in.");
   return data.user.id;
@@ -150,27 +153,62 @@ export async function linkFix(client: SupabaseClient, item: FeedbackItem, input:
   return stage;
 }
 
+/** Kinds of after-fix preview attach-preview accepts, by extension (it checks the bytes itself). */
+export const PREVIEW_TYPES: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  mp4: "video/mp4",
+};
+export const MAX_PREVIEW_BYTES = 20 * 1024 * 1024;
+
+export interface AttachPreviewInput {
+  caption?: string;
+  build?: string;
+  commitSha?: string;
+}
+
 /**
- * Uploads a post-fix screenshot (e.g. the simulator after the change) next
- * to the report's own, so the dashboard can show before/after.
+ * Attaches an after-fix preview (a screenshot or a video of up to 30 s) to a
+ * report through the attach-preview Edge Function, which checks the file and
+ * records it on the timeline. Works for a logged-in user and for an access
+ * token with previews:write alike. Shown in the dashboard and Portal next to
+ * the reporter's screenshots; deleted 14 days after the report resolves.
  */
-export async function attachAfterScreenshot(
+export async function attachPreview(
   client: SupabaseClient,
-  item: FeedbackItem,
-  png: Uint8Array,
-  caption: string | undefined,
+  item: Pick<FeedbackItem, "id">,
+  bytes: Uint8Array,
   actor: Omit<EventInput, "kind">,
-): Promise<string> {
-  const path = `${item.project_id}/${item.id}/after/${Date.now()}.png`;
-  const { error } = await client.storage.from(SCREENSHOT_BUCKET).upload(path, png, { contentType: "image/png", upsert: false });
-  if (error) throw new Error(`Upload failed: ${error.message}`);
-  await recordEvent(client, item, {
-    ...actor,
-    kind: "after_screenshot",
-    body: caption ?? "Screenshot after the fix.",
-    data: { screenshot_path: path },
-  });
-  return path;
+  input: AttachPreviewInput = {},
+): Promise<{ path: string; media_type: string }> {
+  if (bytes.length > MAX_PREVIEW_BYTES) throw new Error("Previews can be up to 20 MB.");
+  const context = clientContext(client);
+  if (!context) throw new Error("No FeedbackKit connection for this client.");
+
+  const headers: Record<string, string> = { apikey: context.anonKey, "Content-Type": "application/octet-stream" };
+  if (context.token) {
+    headers["x-feedbackkit-token"] = context.token;
+  } else {
+    const { data } = await client.auth.getSession();
+    if (!data.session) throw new Error("Not logged in.");
+    headers.Authorization = `Bearer ${data.session.access_token}`;
+  }
+
+  const url = new URL(`${context.apiUrl}/functions/v1/attach-preview`);
+  url.searchParams.set("feedback_id", item.id);
+  url.searchParams.set("actor_label", actor.actorLabel);
+  url.searchParams.set("actor_type", actor.actorType);
+  if (input.caption) url.searchParams.set("caption", input.caption);
+  if (input.build) url.searchParams.set("build", input.build);
+  if (input.commitSha) url.searchParams.set("commit_sha", input.commitSha);
+
+  const res = await fetch(url, { method: "POST", headers, body: bytes });
+  const body = (await res.json().catch(() => ({}))) as { path?: string; media_type?: string; error?: string; message?: string };
+  if (!res.ok) throw new Error(`attach-preview: ${body.message ?? body.error ?? res.status}`);
+  return { path: body.path!, media_type: body.media_type! };
 }
 
 /**
@@ -362,16 +400,15 @@ export type ReleaseChannel = "beta" | "production" | "preview";
 
 // ---- CI token mode (ci-release Edge Function) ---------------------------------
 
-/** The hosted FeedbackKit backend; override with --api-url / FEEDBACKKIT_API_URL. */
-export const DEFAULT_API_URL = "https://gpucoladcyvijefdjudf.supabase.co";
+export { DEFAULT_API_URL };
 
 export class CiReleaseClient {
   constructor(
     private readonly token: string,
     private readonly apiUrl: string = DEFAULT_API_URL,
   ) {
-    if (!/^fkr_[0-9a-f]{48}$/.test(token)) {
-      throw new Error("That doesn't look like a FeedbackKit release token (fkr_…). Create one in project Settings → Release tokens.");
+    if (!/^fk[rt]_[0-9a-f]{48}$/.test(token)) {
+      throw new Error("That doesn't look like a FeedbackKit access token (fkt_…) or release token (fkr_…). Create one in project Settings → Access tokens.");
     }
   }
 
@@ -425,6 +462,13 @@ export class CiReleaseClient {
  * of. Ambiguity is an error rather than a guess — `release` writes.
  */
 export async function resolveProjectId(client: SupabaseClient, explicit?: string): Promise<string> {
+  const token = tokenInfo(client);
+  if (token) {
+    if (explicit && explicit !== token.project_id) {
+      throw new Error(`This access token is for project ${token.project_id}, not ${explicit}.`);
+    }
+    return token.project_id;
+  }
   if (explicit) return explicit;
   const { data, error } = await client.from("projects").select("id, name");
   if (error) throw new Error(error.message);
@@ -471,7 +515,7 @@ export function loopInstructions(item: FeedbackItem, mode: DeliveryMode = "batch
 ${reopened}
 1. Call \`claim_feedback\` before you start, so the team sees it's being worked on.
 2. ${item.notify_reporter === false ? "The reporter chose not to hear back, so `ask_reporter` won't reach them — work from the report as it is." : "If something is ambiguous only the reporter can answer, call `ask_reporter` — the question appears on their device."}
-3. If you can run the app (e.g. an iOS simulator via XcodeBuildMCP, or a browser), reproduce the bug first, and after fixing it call \`attach_after_screenshot\` with a screenshot of the fixed screen.
+3. If you can run the app (e.g. an iOS simulator via XcodeBuildMCP, or a browser), reproduce the bug first. After fixing it, when this environment lets you capture the fixed app, call \`attach_preview\` with a screenshot or a short video (MP4 up to 30 s, 20 MB) of the same screen the reporter showed, so the team can review the result without running it: e.g. \`xcrun simctl io booted screenshot /tmp/after.png\` (or \`recordVideo --codec=h264 /tmp/after.mp4\`) for the iOS Simulator, Playwright's \`page.screenshot()\` at the reporter's viewport size for a web app. It's optional: skip it when you can't run the app, and only attach what you captured from your fixed build.
 ${mode === "branch"
     ? `4. Open a pull request for the fix; don't push to the default branch. This project verifies fixes on a preview build of the PR before merging. Put this line in the PR description (and the fix commit's message):
    \`FeedbackKit: ${item.id}\`

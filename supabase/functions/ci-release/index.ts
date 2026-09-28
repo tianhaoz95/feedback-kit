@@ -2,11 +2,12 @@
 //
 // Every push to main ships a beta build from CI, and CI has no dashboard
 // session to act as — so instead of a user JWT it presents a project-scoped
-// release token (`x-release-token: fkr_…`, created in project Settings,
-// stored only as a SHA-256 hash). The token can do exactly three things for
-// its one project: list fixes waiting to ship, record a release that ships
-// some of them, and mark a release promoted to production. It can't read
-// anything else. `verify_jwt = false`; service-role client, like
+// access token with the releases:write scope (`x-release-token`, created in
+// project Settings; `fkr_…` release tokens from before access tokens are
+// the same thing — see 0025_access_tokens_and_previews.sql). With that scope
+// a token can do exactly three things here for its one project: list fixes
+// waiting to ship, record a release that ships some of them, and mark a
+// release promoted to production. `verify_jwt = false`; service-role client, like
 // ingest-feedback — the token check below is the whole trust boundary.
 //
 //   GET                              → { project, candidates: [...merged fixes] }
@@ -22,7 +23,7 @@ import { syncPrStatus } from "../_shared/prStatus.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type, x-release-token",
+  "Access-Control-Allow-Headers": "content-type, x-release-token, x-feedbackkit-token",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
@@ -34,17 +35,23 @@ Deno.serve(async (req) => {
   try {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    const token = req.headers.get("x-release-token") ?? "";
-    if (!/^fkr_[0-9a-f]{48}$/.test(token)) return json({ error: "missing_or_malformed_token" }, 401);
+    const token = req.headers.get("x-release-token") ?? req.headers.get("x-feedbackkit-token") ?? "";
+    if (!/^fk[rt]_[0-9a-f]{48}$/.test(token)) return json({ error: "missing_or_malformed_token" }, 401);
 
     const { data: tokenRow } = await supabase
-      .from("release_tokens")
-      .select("id, project_id, name, revoked_at")
+      .from("access_tokens")
+      .select("id, project_id, name, scopes, revoked_at, expires_at, parent_id")
       .eq("token_hash", await sha256Hex(token))
       .maybeSingle();
-    if (!tokenRow || tokenRow.revoked_at) return json({ error: "invalid_token" }, 401);
+    if (!tokenRow || tokenRow.revoked_at || tokenRow.parent_id) return json({ error: "invalid_token" }, 401);
+    if (tokenRow.expires_at && new Date(tokenRow.expires_at).getTime() <= Date.now()) {
+      return json({ error: "token_expired" }, 401);
+    }
+    if (!(tokenRow.scopes as string[]).includes("releases:write")) {
+      return json({ error: "missing_scope", message: "This token can't record releases (needs releases:write)." }, 403);
+    }
 
-    await supabase.from("release_tokens").update({ last_used_at: new Date().toISOString() }).eq("id", tokenRow.id);
+    await supabase.from("access_tokens").update({ last_used_at: new Date().toISOString() }).eq("id", tokenRow.id);
 
     const { data: project } = await supabase
       .from("projects")
