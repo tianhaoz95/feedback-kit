@@ -534,8 +534,9 @@ Rules for skills:
   infers native platforms from `osName`, since native reports never set
   `platform`. Web prompts get `{{platform}}`/`{{page_url}}`/`{{browser}}`/
   `{{console_logs}}`, and a "Web context" section is auto-appended when a
-  template uses none of them — implemented three times (web, CLI, Portal's
-  `PromptGenerator.swift`), keep them in sync by hand.
+  template uses none of them — implemented four times (web, CLI, Portal's
+  `PromptGenerator.swift`, and `supabase/functions/_shared/promptTemplate.ts`
+  for the GitHub issue's prompt), keep them in sync by hand.
 - **Web capture re-renders the DOM** (`web-sdk/src/capture.ts`) rather than
   using the Screen Capture API, for the same no-permission reason as the
   native window-level capture; it clips to the viewport and re-pins

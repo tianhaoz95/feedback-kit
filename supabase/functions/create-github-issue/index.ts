@@ -1,5 +1,6 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsHeaders, json } from "../_shared/http.ts";
+import { formatProductsList, renderPromptTemplate } from "../_shared/promptTemplate.ts";
 import {
   getInstallationIdForRepo,
   getInstallationToken,
@@ -168,6 +169,7 @@ Deno.serve(async (req) => {
 
     // 6. Handle screenshot
     let screenshotMd = "*(No screenshot included)*";
+    let screenshotUrl: string | null = null;
     if (feedback.screenshot_annotated_path) {
       try {
         const { data: fileData, error: dlErr } = await adminClient.storage
@@ -178,6 +180,7 @@ Deno.serve(async (req) => {
           const bytes = new Uint8Array(await fileData.arrayBuffer());
           const repoAssetUrl = await uploadScreenshotToRepo(tokenInstall, owner, repo, feedback.id, bytes);
           if (repoAssetUrl) {
+            screenshotUrl = repoAssetUrl;
             screenshotMd = `![Feedback Screenshot](${repoAssetUrl})`;
           } else {
             // Fallback to 7-day signed URL
@@ -185,6 +188,7 @@ Deno.serve(async (req) => {
               .from("feedback-screenshots")
               .createSignedUrl(feedback.screenshot_annotated_path, 60 * 60 * 24 * 7);
             if (signed?.signedUrl) {
+              screenshotUrl = signed.signedUrl;
               screenshotMd = `![Feedback Screenshot](${signed.signedUrl})\n*(Signed URL valid for 7 days)*`;
             }
           }
@@ -194,18 +198,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 7. Get coding-agent prompt
-    let promptText = feedback.edited_prompt;
-    const productsFormatted =
-      Array.isArray(feedback.products) && feedback.products.length > 0
-        ? feedback.products
-            .map((p: { name?: string; key: string; description?: string }) => {
-              const desc = p.description ? `: ${p.description}` : "";
-              return `- **${p.name || p.key}** (\`${p.key}\`)${desc}`;
-            })
-            .join("\n")
-        : "(none specified)";
-
+    // 7. Get coding-agent prompt: the one edited in the dashboard, else the
+    // project's template filled with this report (not the raw template).
+    let attachmentUrl: string | null = null;
+    if (feedback.attachment_path) {
+      const { data: signedAtt } = await adminClient.storage
+        .from("feedback-screenshots")
+        .createSignedUrl(feedback.attachment_path, 60 * 60 * 24 * 7);
+      attachmentUrl = signedAtt?.signedUrl ?? null;
+    }
+    const productsFormatted = formatProductsList(feedback.products);
+    let promptText: string = feedback.edited_prompt;
     if (!promptText) {
       const { data: tmpl } = await userClient
         .from("prompt_templates")
@@ -215,12 +218,9 @@ Deno.serve(async (req) => {
 
       promptText =
         tmpl?.template_text ||
-        `Fix the issue reported on the ${feedback.environment?.screenName || "app"} screen:\n\n${feedback.text}`;
+        `Fix the issue reported on the {{screen_name}} screen:\n\n{{feedback_text}}`;
     }
-
-    if (promptText) {
-      promptText = promptText.replace(/{{\s*products\s*}}/g, productsFormatted);
-    }
+    promptText = renderPromptTemplate(promptText, feedback, screenshotUrl, attachmentUrl);
 
     // 8. Construct issue content
     const env = feedback.environment || {};
@@ -238,15 +238,9 @@ Deno.serve(async (req) => {
       productsMd = `\n## Affected Products\n${productsFormatted}\n`;
     }
 
-    let attachmentMd = "";
-    if (feedback.attachment_path) {
-      const { data: signedAtt } = await adminClient.storage
-        .from("feedback-screenshots")
-        .createSignedUrl(feedback.attachment_path, 60 * 60 * 24 * 7);
-      if (signedAtt?.signedUrl) {
-        attachmentMd = `\n## Attachment\n[${feedback.attachment_filename || "Download Attachment"}](${signedAtt.signedUrl})\n`;
-      }
-    }
+    const attachmentMd = attachmentUrl
+      ? `\n## Attachment\n[${feedback.attachment_filename || "Download Attachment"}](${attachmentUrl})\n`
+      : "";
 
     const screenshotSection = screenshotMd ? `\n## Screenshot\n${screenshotMd}\n` : "";
 

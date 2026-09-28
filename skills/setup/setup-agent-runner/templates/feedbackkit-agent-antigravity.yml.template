@@ -81,6 +81,14 @@ jobs:
             fi
           } > "$PROMPT"
           agy -p "$(cat "$PROMPT")" --mode accept-edits --print-timeout 50m < /dev/null | tee "$RUNNER_TEMP/summary.md"
+          # Headless agy stops at the first tool it isn't allowed to use and
+          # still exits 0; fail the run, and say so on the issue, instead of
+          # reporting "finished without changes".
+          if grep -q 'headless mode cannot prompt for' "$RUNNER_TEMP/summary.md"; then
+            { echo "Antigravity stopped: it needed a permission the runner doesn't allow."; echo; cat "$RUNNER_TEMP/summary.md"; echo; echo "Add the rule to permissions.allow in the runner user's ~/.gemini/antigravity-cli/settings.json, then send the report to the agent again."; } > "$RUNNER_TEMP/comment.md"
+            GH_TOKEN="${{ github.token }}" gh issue comment "$ISSUE_NUMBER" --body-file "$RUNNER_TEMP/comment.md"
+            exit 1
+          fi
 
       - name: Commit and open a pull request
         env:
