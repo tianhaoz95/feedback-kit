@@ -9,6 +9,13 @@ import { DashboardMockup } from "@/components/landing/DashboardMockup";
 import { Reveal } from "@/components/landing/Reveal";
 import { LifecycleLoop, LifecyclePlayer } from "@/components/docs/Lifecycle";
 import { HeroLoop } from "@/components/landing/HeroLoop";
+import {
+  ClaudeIcon,
+  CodexIcon,
+  CursorIcon,
+  CopilotIcon,
+  AntigravityIcon,
+} from "@/components/icons";
 
 // Capture, framed as the input to the loop rather than the product itself.
 const steps = [
@@ -29,8 +36,14 @@ const steps = [
   },
 ];
 
-// Agents FeedbackKit hands reports to (names only, no logos).
-const agents = ["Claude Code", "Codex", "Cursor", "GitHub Copilot", "Antigravity"];
+// Agents FeedbackKit hands reports to.
+const agents = [
+  { name: "Claude Code", icon: ClaudeIcon },
+  { name: "Codex", icon: CodexIcon },
+  { name: "Cursor", icon: CursorIcon },
+  { name: "GitHub Copilot", icon: CopilotIcon },
+  { name: "Antigravity", icon: AntigravityIcon },
+];
 
 const agentRoutes = [
   {
@@ -305,10 +318,11 @@ export function LandingPage() {
                 <ul className="mt-5 flex flex-wrap justify-center gap-2" aria-label="Supported coding agents">
                   {agents.map((agent) => (
                     <li
-                      key={agent}
-                      className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-sm font-medium text-neutral-700"
+                      key={agent.name}
+                      className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 shadow-xs"
                     >
-                      {agent}
+                      <agent.icon className="h-4 w-4 shrink-0 text-neutral-700" />
+                      <span>{agent.name}</span>
                     </li>
                   ))}
                 </ul>
