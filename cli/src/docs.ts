@@ -851,7 +851,7 @@ Agents can commit straight to the default branch. Add \`FeedbackKit: <id>\` as a
   {
     slug: "agents",
     title: "Hand reports to an agent",
-    summary: "The five ways to start a coding agent on a report — MCP, GitHub-hosted Actions, a self-hosted Mac runner (Claude Code or Antigravity), Copilot, feedbackkit watch — and how each closes the loop.",
+    summary: "The five ways to start a coding agent on a report — MCP, GitHub-hosted Actions (incl. Antigravity with a Gemini API key), a self-hosted Mac runner (Claude Code or Antigravity), Copilot, feedbackkit watch — and how each closes the loop.",
     content: `# Hand reports to an agent
 
 Five ways to get a coding agent working on a report. They differ in how it starts and where it runs; all end in the same loop.
@@ -859,12 +859,12 @@ Five ways to get a coding agent working on a report. They differ in how it start
 | Route | Starts when | Runs on | Builds iOS/macOS apps | You set up |
 |---|---|---|---|---|
 | You + your agent (MCP) | You ask your agent to fix report <id> | Your machine | Yes | The MCP server (\`mcp\` topic) |
-| GitHub-hosted Actions | **Send to agent** labels the report's GitHub issue | GitHub's Linux runners | No | A workflow with an agent's GitHub Action |
+| GitHub-hosted Actions | **Send to agent** labels the report's GitHub issue | GitHub's runners (Linux, or macOS for Antigravity) | Only Antigravity on a macOS runner | A workflow with an agent's GitHub Action, or \`setup-agent-runner\` for Antigravity |
 | Self-hosted Mac runner | **Send to agent** labels the issue | A Mac you control | Yes (and the Simulator) | The \`setup-agent-runner\` skill (Claude Code or Antigravity) |
 | GitHub Copilot | **Send to agent** assigns the issue to Copilot | GitHub's (or your) Linux runners | No | A Copilot seat, your connected GitHub account |
 | Your machine | **Run on my machine** on the report | Your laptop/Mac | Yes | \`feedbackkit watch\` in the repo |
 
-Web apps and backends suit GitHub-hosted runners; iOS/macOS apps need a Mac (self-hosted runner for a team, \`feedbackkit watch\` for one developer).
+Web apps and backends suit GitHub-hosted runners; iOS/macOS apps need a Mac (self-hosted runner for a team, Antigravity on a GitHub-hosted macOS runner without a spare Mac, \`feedbackkit watch\` for one developer).
 
 ## What every route shares
 
@@ -880,9 +880,11 @@ Tell the agent to fix report <id> (or paste the copied prompt, which includes th
 
 **Send to agent** creates the GitHub issue (screenshot, environment, prompt, \`FeedbackKit:\` line) and adds the dispatch labels from Settings → Coding agent loop; the report moves to Agent working. A workflow on \`issues: labeled\` runs the agent's GitHub Action on \`ubuntu-latest\` — e.g. \`anthropics/claude-code-action@v1\` with \`label_trigger: claude\` and \`allowed_bots: feedbackkit-app\` (required: FeedbackKit's App adds the label, and the action refuses unlisted bots). No FeedbackKit MCP tools (no login on hosted runners). Its PR carries the \`FeedbackKit:\` line or closes the issue. Linux can't build iOS/macOS apps.
 
+**Google Antigravity on GitHub's runners:** \`setup-agent-runner\`'s hosted template installs \`agy\` on a fresh runner per report (\`macos-15\` for Apple apps, \`ubuntu-latest\` for web), signs in with a \`GEMINI_API_KEY\` secret (\`"modelProvider": "gemini"\` in its settings; billed per token to the key's Google project — a Google AI Pro/Ultra subscription only covers the interactive sign-in, so use a self-hosted Mac for that), and writes the allow list itself. The agent only edits files; the workflow commits with the trailer and \`Fixes #n\`, pushes and opens the PR. No FeedbackKit MCP tools. Fine on public repos; use a dedicated, spending-capped key, since the agent can read its environment.
+
 ## Self-hosted Mac runner
 
-Same label, on a Mac registered as a runner, so the agent builds the app and runs the Simulator. \`setup-agent-runner\` has two templates: **Claude Code** (token secret, \`--allowedTools\`, the action pushes its branch, FeedbackKit MCP with a login on the runner) and **Google Antigravity** (\`agy -p\` signed in once as the runner user, allow rules in \`~/.gemini/antigravity-cli/settings.json\` including \`mcp(feedbackkit/<tool>)\`; the agent only edits files and the workflow commits with the trailer and \`Fixes #n\`, pushes and opens the PR). Private repos only. Use a different label per agent if both are installed.
+Same label, on a Mac registered as a runner, so the agent builds the app and runs the Simulator. \`setup-agent-runner\` has two templates: **Claude Code** (token secret, \`--allowedTools\`, the action pushes its branch, FeedbackKit MCP with a login on the runner) and **Google Antigravity** (\`agy -p\` signed in once as the runner user, allow rules in \`~/.gemini/antigravity-cli/settings.json\` including \`mcp(feedbackkit/<tool>)\`; the agent only edits files and the workflow commits with the trailer and \`Fixes #n\`, pushes and opens the PR). Private repos only (use the GitHub-hosted Antigravity template on a public repo). Use a different label per agent if both are installed.
 
 ## GitHub Copilot
 
@@ -939,7 +941,7 @@ FeedbackKit packages Agent Skills compliant with the vercel-labs/skills open sta
 
 ## Available skills
 
-- \`setup-agent-runner\` — Runs a coding agent on reports automatically on a Mac you control: a self-hosted GitHub Actions runner with a Claude Code or Google Antigravity workflow, or \`feedbackkit watch\` for one developer. See the \`agents\` topic.
+- \`setup-agent-runner\` — Runs a coding agent on reports automatically: a self-hosted Mac runner with a Claude Code or Google Antigravity workflow, Antigravity on GitHub-hosted runners with a Gemini API key, or \`feedbackkit watch\` for one developer. See the \`agents\` topic.
 - \`setup-ios-sdk\` — Integrates FeedbackKit into an iOS project (SwiftUI or UIKit, XcodeGen or Xcode project). Adds package dependency, initializes credentials at app launch, sets up shake or floating triggers, and configures screen tracking.
 - \`setup-macos-sdk\` — Integrates FeedbackKit into a macOS desktop app (SwiftUI or AppKit). Configures credentials, sets up floating button or menu item triggers, and configures screen tracking.
 - \`setup-watchos-sdk\` — Integrates FeedbackKit into a watchOS app using \`FeedbackQuickNoteView\` embedded in a SwiftUI sheet for text and context feedback.

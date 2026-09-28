@@ -89,6 +89,12 @@ jobs:
             fi
           } > "$PROMPT"
           agy -p "$(cat "$PROMPT")" --mode accept-edits --print-timeout 50m < /dev/null 2>&1 | tee "$RUNNER_TEMP/summary.md"
+          # An API or sign-in error (expired login, bad key, quota) also exits 0.
+          if grep -q '^AGY_ERROR:' "$RUNNER_TEMP/summary.md"; then
+            { echo "Antigravity failed before finishing:"; echo; echo '```'; grep -m1 '^error:' "$RUNNER_TEMP/summary.md" || true; echo '```'; echo; echo "If it's a sign-in error, run \`agy\` once interactively as the runner's user to sign in again, then send the report to the agent again."; } > "$RUNNER_TEMP/comment.md"
+            GH_TOKEN="${{ github.token }}" gh issue comment "$ISSUE_NUMBER" --body-file "$RUNNER_TEMP/comment.md"
+            exit 1
+          fi
           # Headless agy stops at the first tool it isn't allowed to use and
           # still exits 0; fail the run, and say so on the issue, instead of
           # reporting "finished without changes".

@@ -1,6 +1,6 @@
 ---
 name: setup-agent-runner
-description: Run a coding agent automatically on FeedbackKit reports, on the team's own Mac — register a self-hosted GitHub Actions runner, add a workflow that starts Claude Code or Google Antigravity when FeedbackKit labels an issue, and let the agent build the app, run it in the Simulator and open a PR that closes the loop back to the reporter. Also covers the lighter `feedbackkit watch` alternative for solo developers.
+description: Run a coding agent automatically on FeedbackKit reports — register a self-hosted GitHub Actions runner on the team's own Mac (Claude Code or Google Antigravity), or run Antigravity on a GitHub-hosted runner with a Gemini API key — so FeedbackKit labeling an issue starts the agent, which builds the app, fixes the report and opens a PR that closes the loop back to the reporter. Also covers the lighter `feedbackkit watch` alternative for solo developers.
 ---
 
 # setup-agent-runner
@@ -15,6 +15,8 @@ report ──▶ "Send to agent" ──▶ GitHub issue + label ──▶ self-h
 
 Hosted agents (Copilot, Codex cloud) run on Linux and can't build an iOS or macOS app. A Mac runner can, so the agent can reproduce the bug and attach an "after" screenshot.
 
+**No Mac to spare, or a public repo?** Antigravity can also run on a **GitHub-hosted** macOS (or Linux) runner, signed in with a Gemini API key (Step 3c). Nothing to register or keep awake, and each run gets a clean VM; the trade-offs are API billing instead of a subscription and no FeedbackKit MCP tools.
+
 ## When to Use
 
 - The team wants reports fixed without anyone opening an agent by hand.
@@ -28,13 +30,14 @@ Hosted agents (Copilot, Codex cloud) run on Linux and can't build an iOS or macO
 - The FeedbackKit GitHub App is installed and the project's repo is connected (see `setup-release-loop` Step 2).
 - A Mac that stays on, with Xcode (for Apple apps) and Node.
 - The `gh` CLI with admin access to the repo, and the Claude Code CLI (`claude`).
-- **A private repository.** GitHub warns against self-hosted runners on public repos: anyone who can open a PR could run code on the Mac.
+- **A private repository**, for a self-hosted runner. GitHub warns against self-hosted runners on public repos: anyone who can open a PR could run code on the Mac. (The GitHub-hosted Antigravity route, Step 3c, is fine on a public repo.)
+- For the GitHub-hosted route instead of a Mac: a Gemini API key (Google AI Studio). No runner, no Xcode or Claude CLI needed locally.
 
 ## Step-by-Step Instructions
 
 ### Step 1 -- Inspect
 
-Find the repo (`gh repo view --json nameWithOwner,visibility`), how the app builds (scheme, `xcodegen`, `npm`), and existing workflows. **Stop if the repo is public** and suggest `feedbackkit watch` or a private fork instead.
+Find the repo (`gh repo view --json nameWithOwner,visibility`), how the app builds (scheme, `xcodegen`, `npm`), and existing workflows. **If the repo is public, don't register a self-hosted runner**: offer the GitHub-hosted Antigravity route (Step 3c), `feedbackkit watch`, or a private fork instead.
 
 ### Step 2 -- Register the runner on the Mac
 
@@ -57,11 +60,14 @@ TOKEN=$(gh api -X POST repos/OWNER/REPO/actions/runners/registration-token --jq 
 | Agent | Template | How it signs in | How it's fenced |
 |---|---|---|---|
 | Claude Code | `templates/feedbackkit-agent.yml.template` | `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` secret | `--allowedTools` in the workflow; FeedbackKit MCP tools included |
-| Google Antigravity | `templates/feedbackkit-agent-antigravity.yml.template` | Signed in once, interactively, as the runner's user | Allow rules (commands and FeedbackKit MCP tools) in the runner user's Antigravity settings; the agent only edits files, the workflow commits, pushes and opens the PR |
+| Google Antigravity (self-hosted Mac) | `templates/feedbackkit-agent-antigravity.yml.template` | Signed in once, interactively, as the runner's user (uses their Google AI Pro/Ultra subscription) | Allow rules (commands and FeedbackKit MCP tools) in the runner user's Antigravity settings; the agent only edits files, the workflow commits, pushes and opens the PR |
+| Google Antigravity (GitHub-hosted) | `templates/feedbackkit-agent-antigravity-hosted.yml.template` | `GEMINI_API_KEY` secret, billed per token to that key's Google project | Allow rules written by the workflow itself (version-controlled); fresh VM per run; no MCP tools |
 
 Use a different dispatch label per agent if the repo has both workflows, or both run.
 
-For **Claude Code**, continue with Step 3a. For **Antigravity**, skip to Step 3b.
+For **Claude Code**, continue with Step 3a. For **Antigravity on the Mac**, skip to Step 3b. For **Antigravity on GitHub-hosted runners**, skip Step 2 and go to Step 3c.
+
+If the user is choosing between the two Antigravity routes, explain the difference before setting anything up: a Google AI Pro/Ultra subscription only covers the interactive sign-in, so using it means the self-hosted Mac; an API key works anywhere but is billed separately (its free tier has low rate limits, and Google may use free-tier prompts to improve its products — including the code and report text).
 
 ### Step 3a -- Give Claude Code credentials
 
@@ -112,6 +118,23 @@ As the user the runner service runs as:
 
 Then continue at Step 5.
 
+### Step 3c -- Antigravity on GitHub-hosted runners
+
+No runner to register (skip Step 2). Each run installs `agy` with the official installer (`curl -fsSL https://antigravity.google/cli/install.sh | bash`), writes its settings, and signs in with an API key.
+
+1. Create a Gemini API key in Google AI Studio, **in a Google project used only for this**, and set a spending cap on it. The agent can read its own environment, so a malicious report could try to get it to send the key somewhere; a dedicated, capped key limits what that costs.
+2. Store it: `gh secret set GEMINI_API_KEY` (paste when prompted). Only the workflow's "Run Antigravity" step receives it.
+3. Copy `templates/feedbackkit-agent-antigravity-hosted.yml.template` to `.github/workflows/feedbackkit-agent-antigravity-hosted.yml` and replace:
+   - `__DISPATCH_LABEL__` (e.g. `antigravity`),
+   - `__RUNNER__`: `macos-15` to build an iOS/macOS app, `ubuntu-latest` for a web app (cheaper and faster; GitHub-hosted runners are free on public repos),
+   - `__CI_WORKFLOWS__` as in Step 3b.
+4. Edit the allow list in the workflow's **Configure Antigravity** step: it starts with read-only commands, read-only git and the Apple build tools; swap the last line for the project's tools (e.g. `command(npm)`, `command(node)` for a web app). Same rules as Step 3b: never plain `command(git)`, never `--dangerously-skip-permissions`. The settings need `"modelProvider": "gemini"`; the key alone does nothing.
+5. The same repository setting as Step 3b's item 5 (Actions may create pull requests), asked the same way.
+
+No FeedbackKit MCP tools on this route (they need an interactive `feedbackkit login`); the loop still closes through the PR's `FeedbackKit:` line.
+
+Then continue at Step 5.
+
 ### Step 4 -- Add the Claude Code workflow
 
 Copy `templates/feedbackkit-agent.yml.template` to `.github/workflows/feedbackkit-agent.yml`, replace `__DISPATCH_LABEL__` (e.g. `claude`), and widen `--allowedTools` only as far as the build needs (e.g. `Bash(npm test:*)` for a web app). Keep `allowed_bots: feedbackkit-app`: the label is added by FeedbackKit's GitHub App, and claude-code-action refuses bot-triggered runs otherwise.
@@ -148,7 +171,8 @@ Reports are queued with **Run on my machine** in the dashboard. Each run gets it
 
 - **"Workflow initiated by non-human actor"** in the run log = `allowed_bots` is missing the FeedbackKit app.
 - **Antigravity: "a tool required the "command" (or "mcp") permission … auto-denied"** = the agent tried a command or MCP tool that isn't in the allow list, and the run stopped there. Add it (if it's safe) to the runner user's `~/.gemini/antigravity-cli/settings.json` and send the report to the agent again.
-- **Antigravity PRs don't start your other workflows**: they're opened with the job's `GITHUB_TOKEN`, which GitHub doesn't let trigger workflows. FeedbackKit's webhook still sees them and links the fix.
+- **Antigravity PRs and CI**: they're opened with the job's `GITHUB_TOKEN`. On repos that require approval for outside contributors, their `pull_request` runs wait at "action_required" (the workflow approves them); elsewhere they don't start at all (the workflow dispatches `__CI_WORKFLOWS__`). FeedbackKit's webhook sees the PR either way and links the fix.
+- **Antigravity "failed before finishing" with an `AGY_ERROR`**: an API or sign-in error, which agy reports with exit code 0 (the workflow checks for it). Self-hosted: the runner user's sign-in expired, run `agy` once interactively. Hosted: the `GEMINI_API_KEY` secret is missing, invalid or out of quota.
 - **Code signing:** the runner service can't unlock the login keychain. Build for the Simulator with `CODE_SIGNING_ALLOWED=NO`.
 - **Runner offline:** a Mac that sleeps drops the runner; jobs wait in the queue until it's back. Disable sleep (System Settings → Energy) on a dedicated machine.
 - **Both triggers set:** if the project also has a trigger comment containing `@claude`, one dispatch starts two runs — the `concurrency` group cancels the older one, but pick one trigger.

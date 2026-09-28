@@ -64,9 +64,9 @@ export function DocsAgentsPage() {
             [
               <a href="#github-hosted-actions" className={docLink}>GitHub-hosted Actions</a>,
               <><b>Send to agent</b> adds a label to the report's GitHub issue</>,
-              "GitHub's Linux runners",
-              "No",
-              "A workflow with an agent's GitHub Action",
+              "GitHub's runners (Linux, or macOS for Antigravity)",
+              "Only Antigravity on a macOS runner",
+              <>A workflow with an agent&apos;s GitHub Action, or the <InlineCode>setup-agent-runner</InlineCode> skill for Antigravity</>,
             ],
             [
               <a href="#self-hosted-mac-runner" className={docLink}>Self-hosted Mac runner</a>,
@@ -95,8 +95,9 @@ export function DocsAgentsPage() {
         />
         <p>
           Not sure? Web apps and backends work well on GitHub-hosted runners. For an iOS or macOS app, use the
-          self-hosted Mac runner (a team) or <InlineCode>feedbackkit watch</InlineCode> (one developer), because
-          only a Mac can build the app and run it to check the fix.
+          self-hosted Mac runner (a team), Antigravity on a GitHub-hosted macOS runner (no Mac to spare), or{" "}
+          <InlineCode>feedbackkit watch</InlineCode> (one developer), because only a Mac can build the app and run it
+          to check the fix.
         </p>
       </DocsSection>
 
@@ -167,12 +168,41 @@ export function DocsAgentsPage() {
           label, and Claude&apos;s action refuses runs started by a bot that isn&apos;t listed. Linux runners can&apos;t build
           iOS or macOS apps, so for those the agent edits code without running it.
         </DocsCallout>
+        <h3 className="mt-8 text-base font-semibold text-neutral-900">Google Antigravity on GitHub&apos;s runners</h3>
+        <p>
+          The <Link to="/docs/skills" className={docLink}><InlineCode>setup-agent-runner</InlineCode> skill</Link> has a
+          template that installs Antigravity&apos;s CLI on a fresh GitHub-hosted runner for each report: a macOS runner
+          to build an iOS or macOS app, or Linux for a web app. Nothing to register or keep running, and it&apos;s fine on
+          a public repository.
+        </p>
+        <DocsList
+          items={[
+            <>
+              <b>Signs in with a Gemini API key</b> (a <InlineCode>GEMINI_API_KEY</InlineCode> secret), billed per token
+              to that key&apos;s Google project. A Google AI Pro or Ultra subscription only covers Antigravity&apos;s
+              interactive sign-in, so to use one, run Antigravity on a self-hosted Mac instead.
+            </>,
+            <>
+              <b>What it may do</b> is an allow list the workflow writes before each run, so it&apos;s reviewed in your
+              repository. As on a Mac, a command that isn&apos;t allowed ends the run, and the workflow says which.
+            </>,
+            <>
+              <b>Git:</b> the agent only edits files; the workflow commits with the <InlineCode>FeedbackKit:</InlineCode>{" "}
+              line and <InlineCode>Fixes #n</InlineCode>, pushes and opens the PR. No FeedbackKit MCP tools (they need a
+              login).
+            </>,
+          ]}
+        />
+        <DocsCallout tone="warning">
+          The agent can read its own environment, API key included, and report text is written by your users. Use a
+          key from a Google project that exists only for this, with a spending cap.
+        </DocsCallout>
       </DocsSection>
 
       <DocsSection title="Self-hosted Mac runner">
         <p>
           The same label, but the job runs on a Mac you register as a GitHub Actions runner, so the agent can build the
-          app, run it in the Simulator and attach a screenshot of the fix. The{" "}
+          app, run it in the Simulator and attach a screenshot of the fix, using your own agent subscription. The{" "}
           <Link to="/docs/skills" className={docLink}><InlineCode>setup-agent-runner</InlineCode> skill</Link> sets it
           up and has a workflow template for each agent:
         </p>

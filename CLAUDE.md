@@ -566,7 +566,11 @@ Rules for skills:
   (issue/PR with `FeedbackKit: <id>` → merged → shipped → verified). (1)
   Label dispatch to a workflow — `skills/setup/setup-agent-runner` puts
   claude-code-action on a self-hosted Mac; it needs `allowed_bots:
-  feedbackkit-app` because our app adds the label. (2) Copilot
+  feedbackkit-app` because our app adds the label. Its Antigravity templates
+  (self-hosted, and GitHub-hosted with a `GEMINI_API_KEY`) share one script:
+  headless `agy` exits 0 on a denied tool or an `AGY_ERROR`, so the workflow
+  greps for both and fails the run; keep the two templates and this repo's
+  own `feedbackkit-agent-antigravity.yml` in step. (2) Copilot
   (`0018_copilot_dispatch.sql`): assignment to `copilot-swe-agent[bot]` is
   rejected from an installation token, so `github-user-auth` stores each
   member's GitHub App *user* token in `github_user_tokens` (service-role

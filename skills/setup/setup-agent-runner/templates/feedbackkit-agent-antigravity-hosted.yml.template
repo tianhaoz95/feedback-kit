@@ -1,22 +1,22 @@
-name: FeedbackKit agent (Antigravity)
+name: FeedbackKit agent (Antigravity, hosted)
 
-# Runs Google Antigravity's CLI (`agy`) on a self-hosted Mac whenever
+# Runs Google Antigravity's CLI (`agy`) on a GitHub-hosted runner whenever
 # FeedbackKit hands it a report: FeedbackKit creates a GitHub issue and adds
 # the `__DISPATCH_LABEL__` label (project Settings → Coding agent loop).
-# Actions does the checkout; the agent only edits files and runs the build and
-# test commands allowed in the runner user's Antigravity settings; this
-# workflow commits (with the `FeedbackKit: <id>` trailer), pushes a branch and
-# opens the PR, so the report moves to "PR open" → merged → shipped →
-# verified by the reporter.
+# Each run installs `agy` on a fresh VM and signs in with a Gemini API key
+# (the `GEMINI_API_KEY` secret, billed to that key's Google project; a Google
+# AI Pro/Ultra subscription only applies to the interactive sign-in, so it
+# needs the self-hosted template instead). The agent only edits files and
+# runs the commands allowed below; this workflow commits (with the
+# `FeedbackKit: <id>` trailer), pushes a branch and opens the PR, so the
+# report moves to "PR open" → merged → shipped → verified by the reporter.
 #
 # Adapt: __DISPATCH_LABEL__ (use a different label than any other agent
-# workflow, or both run), and the build instructions in the prompt.
-# Runner setup (see the setup-agent-runner skill): `agy` installed and signed
-# in once, interactively, as the runner's user; allow rules for the build
-# commands and FeedbackKit MCP tools in ~/.gemini/antigravity-cli/settings.json;
-# optionally the FeedbackKit MCP server (`agy mcp add feedbackkit -- npx -y feedbackkit-cli mcp`, with a
-# `feedbackkit login` on the runner) so the agent can claim the report, post
-# progress, ask the reporter and attach an "after" screenshot.
+# workflow, or both run), __RUNNER__ (macos-15 to build Apple apps,
+# ubuntu-latest is enough for a web app), the allow list in "Configure
+# Antigravity", the build instructions in the prompt, and __CI_WORKFLOWS__.
+# No FeedbackKit MCP tools here: they need an interactive `feedbackkit login`;
+# the loop still closes through the PR's `FeedbackKit:` line.
 
 on:
   issues:
@@ -31,13 +31,13 @@ permissions:
 
 # One run per issue; a re-dispatch (reporter reopened) replaces a stale one.
 concurrency:
-  group: feedbackkit-agent-antigravity-${{ github.event.issue.number }}
+  group: feedbackkit-agent-antigravity-hosted-${{ github.event.issue.number }}
   cancel-in-progress: true
 
 jobs:
   agent:
     if: github.event.label.name == '__DISPATCH_LABEL__'
-    runs-on: [self-hosted, macOS, feedbackkit-agent]
+    runs-on: __RUNNER__
     timeout-minutes: 60
     env:
       # Untrusted text (from the app user's report) only ever reaches the
@@ -52,7 +52,38 @@ jobs:
           # No token in .git/config: the agent can't push, only this workflow can.
           persist-credentials: false
 
+      - name: Install Antigravity
+        run: |
+          set -euo pipefail
+          curl -fsSL https://antigravity.google/cli/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Configure Antigravity
+        # Headless agy asks for nothing: a tool call that isn't allowed here
+        # ends the run. Keep the list to what fixing a report needs, and
+        # never add plain command(git) (this workflow does the commits) or
+        # use --dangerously-skip-permissions (report text is untrusted).
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.gemini/antigravity-cli
+          jq -n --arg ws "$GITHUB_WORKSPACE" '{
+            modelProvider: "gemini",
+            trustedWorkspaces: [$ws],
+            permissions: { allow: [
+              "command(ls)", "command(cat)", "command(grep)", "command(find)", "command(head)", "command(tail)", "command(wc)", "command(pwd)",
+              "command(rg)", "command(sort)", "command(uniq)", "command(diff)", "command(stat)", "command(file)", "command(which)", "command(mkdir)",
+              "command(git log)", "command(git show)", "command(git diff)", "command(git status)", "command(git blame)",
+              "command(git grep)", "command(git ls-files)", "command(git rev-parse)",
+              "read_url(raw.githubusercontent.com)", "read_url(github.com)",
+              "command(xcodebuild)", "command(xcrun)", "command(swift)", "command(xcodegen)"
+            ] }
+          }' > ~/.gemini/antigravity-cli/settings.json
+
       - name: Run Antigravity
+        env:
+          # Only this step sees the key. The agent can read its environment,
+          # so use a key from a dedicated Google project with a spending cap.
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           set -euo pipefail
           BRANCH="feedbackkit/issue-${ISSUE_NUMBER}-${GITHUB_RUN_ID}"
@@ -91,7 +122,7 @@ jobs:
           agy -p "$(cat "$PROMPT")" --mode accept-edits --print-timeout 50m < /dev/null 2>&1 | tee "$RUNNER_TEMP/summary.md"
           # An API or sign-in error (expired login, bad key, quota) also exits 0.
           if grep -q '^AGY_ERROR:' "$RUNNER_TEMP/summary.md"; then
-            { echo "Antigravity failed before finishing:"; echo; echo '```'; grep -m1 '^error:' "$RUNNER_TEMP/summary.md" || true; echo '```'; echo; echo "If it's a sign-in error, run \`agy\` once interactively as the runner's user to sign in again, then send the report to the agent again."; } > "$RUNNER_TEMP/comment.md"
+            { echo "Antigravity failed before finishing:"; echo; echo '```'; grep -m1 '^error:' "$RUNNER_TEMP/summary.md" || true; echo '```'; echo; echo "Check the GEMINI_API_KEY secret (valid key, quota left), then send the report to the agent again."; } > "$RUNNER_TEMP/comment.md"
             GH_TOKEN="${{ github.token }}" gh issue comment "$ISSUE_NUMBER" --body-file "$RUNNER_TEMP/comment.md"
             exit 1
           fi
@@ -99,7 +130,7 @@ jobs:
           # still exits 0; fail the run, and say so on the issue, instead of
           # reporting "finished without changes".
           if grep -q 'headless mode cannot prompt for' "$RUNNER_TEMP/summary.md"; then
-            { echo "Antigravity stopped: it needed a permission the runner doesn't allow."; echo; cat "$RUNNER_TEMP/summary.md"; echo; echo "Add the rule to permissions.allow in the runner user's ~/.gemini/antigravity-cli/settings.json, then send the report to the agent again."; } > "$RUNNER_TEMP/comment.md"
+            { echo "Antigravity stopped: it needed a permission this workflow doesn't allow."; echo; cat "$RUNNER_TEMP/summary.md"; echo; echo "Add the rule to the allow list in the workflow's \"Configure Antigravity\" step, then send the report to the agent again."; } > "$RUNNER_TEMP/comment.md"
             GH_TOKEN="${{ github.token }}" gh issue comment "$ISSUE_NUMBER" --body-file "$RUNNER_TEMP/comment.md"
             exit 1
           fi
