@@ -504,8 +504,8 @@ replaced wholesale on deploy.
 
 **Agents get narrow write tools, and can't declare victory.** MCP adds
 `claim_feedback`, `post_update`, `ask_reporter`, `link_fix` and
-`attach_after_screenshot`, all timeline writes through RLS as the logged-in
-user (the `feedback_events` insert policy pins `actor_user_id = auth.uid()`
+`attach_preview`, all timeline writes through RLS as the logged-in
+user (or an access token, §10) (the `feedback_events` insert policy pins `actor_user_id = auth.uid()`
 and `actor_type ∈ {user, agent}`, so no one can forge a reporter or GitHub
 event). There is deliberately no "mark verified" tool: only the reporter can
 verify, from their device. `get_feedback` returns screenshots as MCP image
@@ -554,7 +554,8 @@ reads `FeedbackKit: <id>` (and `Fixes #n` for a report's GitHub issue) from
 each commit on the default branch; `FeedbackKit-Summary:` sets the sentence
 the reporter sees. PRs still work exactly as before — this is additive.
 
-**CI authenticates with a release token, not a session.** A CI job has no
+**CI authenticates with a release token, not a session.** (Generalized into
+scoped access tokens in §10; release tokens are the `releases:write` kind.) A CI job has no
 dashboard user to act as, and minting user sessions for robots would blur
 RLS's "a request is a person" model. A release token
 (`0015_push_to_main_releases.sql`) is project-scoped, stored only as a
@@ -635,6 +636,63 @@ exists). Checkout sends quantity = member count, and `sync-billing-seats` (calle
 best-effort after joins/leaves) keeps a live subscription's quantity in
 step. Only owners can start checkout. Still dummy until
 `STRIPE_SECRET_KEY`/`STRIPE_PRICE_ID_TEAM` are set.
+
+## 10. Access tokens and after-fix previews
+
+`0025_access_tokens_and_previews.sql`, the `attach-preview` and
+`cleanup-previews` Edge Functions, `cli/src/supabaseClient.ts` token mode.
+
+**Tokens are identified from a header, inside RLS.** An access token is
+project-scoped, has scopes (`releases:write`, `feedback:read`,
+`feedback:write`, `reporter:ask`, `previews:write`, `tokens:issue`), an
+optional expiry, and is stored only as a SHA-256 hash. The CLI (with
+`FEEDBACKKIT_TOKEN` set) makes ordinary PostgREST and Storage requests with
+the publishable key plus an `x-feedbackkit-token` header; Supabase exposes
+request headers to SQL, and `request_access_token()` / `token_project()` /
+`token_feedback()` turn the header into the token's project, report limit and
+scopes. The policies for tokens are all `to anon` and deny by default: a
+table without a token policy is invisible to tokens. So RLS enforces tokens
+exactly like members, with no permission code in the CLI or functions.
+
+Why not machine users (bot accounts with a real session)? The hosted project
+allows only GitHub sign-in and signs sessions with an asymmetric key only
+Supabase holds, so there's no way to create a session for a bot without
+turning email sign-in back on or importing our own signing key. The header
+route needs neither, doesn't touch `memberships` (no seats, no plan limits,
+no member lists to hide bots from), and revocation takes effect on the next
+request, unlike the cooperative CLI-session revoke in §6.
+
+A request is either a member's session or a token, never both: the helpers
+return nothing when `auth.uid()` is set. A `before update` trigger limits
+what a token can change on a report to the fix stage, status and fix details,
+and never to shipped/verified, so a token can't rewrite a report or declare
+a fix verified.
+
+**Run tokens keep project-wide credentials away from agents.** A token with
+`tokens:issue` (the "Agent runner" preset, stored as CI's
+`FEEDBACKKIT_AGENT_TOKEN`) calls `issue_access_token(feedback_id, ttl)` to get
+a token limited to one report that expires in minutes to hours, with at most
+the agent scopes, and dead as soon as its parent is revoked. The agent
+workflows hand only that to the agent. Report text is untrusted input, so a
+prompt-injected agent leaking its token leaks one report for an hour.
+
+**Previews are validated server-side.** `attach-preview` accepts a member's
+session or a token with `previews:write`, reads the report through RLS with
+the caller's own credentials first, then checks the file (type from its
+bytes, ≤ 20 MB, MP4 duration from its `mvhd` header ≤ 30 s) before storing it
+under `{project}/{report}/after/` with the service role and recording an
+`after_screenshot` event. Images also keep `screenshot_path` in the event
+data, so Portal builds from before videos still show them.
+
+**Retention: 14 days after the report resolves, 90 days at most.**
+`feedback_items.resolved_at` is set by a trigger when a report is verified or
+its status becomes resolved/wont_fix, and cleared when it's reopened.
+`cleanup-previews` (called daily by `.github/workflows/maintenance.yml` with
+`MAINTENANCE_SECRET`) deletes due files through the Storage API (SQL can't)
+and marks their events `expired_at`, so the dashboard and Portal say
+"Preview expired" instead of showing a broken image. The viewers state the
+policy next to every preview. A preview is a capture by the agent, not a
+verification, and the UI says so.
 
 ## Repo layout
 

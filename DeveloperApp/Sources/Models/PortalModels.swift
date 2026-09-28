@@ -179,6 +179,9 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
     /// "Notify me when it's fixed" (0023_notify_and_watchlist.sql): false = the
     /// reporter won't see fix updates or questions; nil = older SDK (they do).
     public var notifyReporter: Bool?
+    /// When the report was verified or resolved (0025); after-fix previews are
+    /// deleted 14 days later. ISO 8601 string, nil while unresolved.
+    public var resolvedAt: String?
 
     /// Whether the reporter can be asked on their device (mirrors web/src/lib/loopHealth.ts).
     public var canReachReporter: Bool { reporterId != nil && notifyReporter != false }
@@ -216,6 +219,7 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
         case reopenCount = "reopen_count"
         case reporterId = "reporter_id"
         case notifyReporter = "notify_reporter"
+        case resolvedAt = "resolved_at"
     }
 
     public init(
@@ -323,6 +327,7 @@ public struct PortalFeedbackItem: Codable, Identifiable, Hashable, Sendable {
         reopenCount = (try? container.decodeIfPresent(Int.self, forKey: .reopenCount)) ?? 0
         reporterId = try? container.decodeIfPresent(String.self, forKey: .reporterId)
         notifyReporter = try? container.decodeIfPresent(Bool.self, forKey: .notifyReporter)
+        resolvedAt = try? container.decodeIfPresent(String.self, forKey: .resolvedAt)
     }
 
     public func hash(into hasher: inout Hasher) {
@@ -383,6 +388,14 @@ public struct PortalFeedbackEvent: Codable, Identifiable, Hashable, Sendable {
     public let screenshotPath: String?
     /// `data.pr_url`, for PR events.
     public let prUrl: String?
+    /// After-fix previews (0025): the file (image or MP4), its type, and when
+    /// it expired (its file is deleted then, and the paths are gone).
+    public let mediaPath: String?
+    public let mediaType: String?
+    public let expiredAt: String?
+    public let durationSeconds: Double?
+
+    public var isVideo: Bool { mediaType?.hasPrefix("video/") == true }
 
     enum CodingKeys: String, CodingKey {
         case id, kind, body, data
@@ -398,6 +411,10 @@ public struct PortalFeedbackEvent: Codable, Identifiable, Hashable, Sendable {
         let screenshot_path: String?
         let pr_url: String?
         let commit_url: String?
+        let media_path: String?
+        let media_type: String?
+        let expired_at: String?
+        let duration_seconds: Double?
     }
 
     public init(from decoder: Decoder) throws {
@@ -413,6 +430,12 @@ public struct PortalFeedbackEvent: Codable, Identifiable, Hashable, Sendable {
         let data = try? c.decodeIfPresent(EventData.self, forKey: .data)
         screenshotPath = data?.screenshot_annotated_path ?? data?.screenshot_path
         prUrl = data?.pr_url ?? data?.commit_url
+        let isPreview = kind == "after_screenshot"
+        let path = data?.media_path ?? (isPreview ? data?.screenshot_path : nil)
+        mediaPath = path
+        mediaType = data?.media_type ?? (path != nil ? "image/png" : nil)
+        expiredAt = data?.expired_at
+        durationSeconds = data?.duration_seconds
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -444,9 +467,40 @@ public struct PortalFeedbackEvent: Codable, Identifiable, Hashable, Sendable {
         case "verified": return "Reporter verified the fix"
         case "reopened": return "Reporter says it's still broken"
         case "status_changed": return "Status changed"
-        case "after_screenshot": return "After-fix screenshot"
+        case "after_screenshot": return "After-fix preview"
         default: return kind
         }
+    }
+}
+
+// MARK: - After-fix previews (0025_access_tokens_and_previews.sql)
+
+/// Retention wording for after-fix previews — mirrors web/src/lib/previews.ts.
+public enum AfterPreviewRetention {
+    public static let days = 14
+
+    public static func deletionDate(resolvedAt: String?) -> Date? {
+        guard let resolvedAt, let resolved = parseISODate(resolvedAt) else { return nil }
+        return resolved.addingTimeInterval(TimeInterval(days * 86_400))
+    }
+
+    public static func note(resolvedAt: String?, now: Date = Date()) -> String {
+        guard let deletion = deletionDate(resolvedAt: resolvedAt) else {
+            return "Previews are kept until \(days) days after this report is resolved (at most 90 days)."
+        }
+        if deletion <= now {
+            return "Previews are deleted \(days) days after a report is resolved; this one's are due for deletion."
+        }
+        return "This report is resolved, so its previews are deleted on \(deletion.formatted(date: .abbreviated, time: .omitted)) (\(days) days after)."
+    }
+
+    static func parseISODate(_ value: String) -> Date? {
+        let withFraction = ISO8601DateFormatter()
+        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        // Postgres sends microseconds, which ISO8601DateFormatter doesn't
+        // always accept; drop the fraction as a fallback.
+        let whole = value.replacingOccurrences(of: #"\.\d+"#, with: "", options: .regularExpression)
+        return withFraction.date(from: value) ?? ISO8601DateFormatter().date(from: whole)
     }
 }
 

@@ -76,7 +76,7 @@ ${reportPrompt}
   \`FeedbackKit: ${item.id}\`
   \`FeedbackKit-Summary: <one plain-language sentence for the person who reported it>\`
 - Don't push and don't open a pull request: the runner does both after you finish.
-- If the FeedbackKit MCP tools are available: use \`ask_reporter\` when only the reporter can answer something (then stop without committing), and \`attach_after_screenshot\` after fixing a visual bug.
+- If the FeedbackKit MCP tools are available: use \`ask_reporter\` when only the reporter can answer something (then stop without committing), and \`attach_preview\` with a screenshot or short video of the fixed app when you can run it.
 - If you can't fix it, stop without committing and explain why in your final message.`;
 }
 

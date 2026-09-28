@@ -43,6 +43,7 @@ Agents commit to main with a `FeedbackKit: <id>` trailer. `github-webhook`'s pus
 | Piece | Path |
 |---|---|
 | Release tokens, channels, readiness view | `supabase/migrations/0015_push_to_main_releases.sql` |
+| Access tokens (scopes, run tokens), after-fix previews, retention | `supabase/migrations/0025_access_tokens_and_previews.sql`, `attach-preview`, `cleanup-previews` |
 | Token-authenticated release API | `supabase/functions/ci-release/` |
 | Push trailer linking | `supabase/functions/github-webhook/` (`handlePush`) |
 | Beta pipeline | `.github/workflows/beta.yml`, `scripts/feedbackkit_announce.sh`, `.github/actions/setup-feedbackkit-cli` |

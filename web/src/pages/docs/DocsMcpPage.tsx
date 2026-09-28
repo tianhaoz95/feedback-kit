@@ -273,7 +273,7 @@ export function DocsMcpPage() {
             ["post_update", "Add a progress note — optionally shown to the reporter on their device."],
             ["ask_reporter", "Ask the reporter a clarifying question; it appears in the app on their device and the answer lands in the timeline."],
             ["link_fix", "Record the PR/commit and a one-line summary the reporter sees. Automatic for PRs containing \"FeedbackKit: <id>\"."],
-            ["attach_after_screenshot", "Attach a screenshot of the fixed screen (e.g. from a simulator) for before/after review."],
+            ["attach_preview", "Attach a screenshot or short video (MP4, up to 30 s) of the fixed app, shown in the report's After view. Kept until 14 days after the report resolves. (attach_after_screenshot is the old name.)"],
             ["list_releases", "Release readiness per build — fixes verified by reporters, still awaiting them, or reopened — with a ready / waiting / blocked verdict."],
             ["get_docs", "FeedbackKit's own documentation — e.g. how to add the SDK to an iOS app. Doesn't require being logged in."],
             ["update_feedback_status", "Set triage status. For code fixes, prefer link_fix — the reporter's confirmation resolves it."],

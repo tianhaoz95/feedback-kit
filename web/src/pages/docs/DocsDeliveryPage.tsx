@@ -93,7 +93,7 @@ const batch = (
         items={[
           <>Project <b>Settings → Delivery</b>: <b>Batch</b> (the default).</>,
           <>
-            A release token for CI: <InlineCode>npx feedbackkit-cli token create github-actions | gh secret set FEEDBACKKIT_RELEASE_TOKEN</InlineCode>.
+            An access token for CI (project Settings → Access tokens → CI release, or <InlineCode>npx feedbackkit-cli token create github-actions --preset ci | gh secret set FEEDBACKKIT_RELEASE_TOKEN</InlineCode>).
           </>,
           <>A beta workflow that announces each build:</>,
         ]}
@@ -145,7 +145,7 @@ const branch = (
             Your repository → <b>Settings → Branches</b> → the rule for main → <b>Require status checks</b> → add{" "}
             <b>FeedbackKit</b>. Now a PR can&apos;t merge until its reports are verified.
           </>,
-          <>A release token for CI, and a workflow that builds a preview of every PR and announces it:</>,
+          <>A CI release access token, and a workflow that builds a preview of every PR and announces it:</>,
         ]}
       />
       <CodeBlock code={branchWorkflow} label=".github/workflows/preview.yml" />
@@ -164,7 +164,7 @@ const branch = (
           </>,
           <>Once a report is verified on the preview, it&apos;s done: its reporter isn&apos;t asked again when the fix reaches production.</>,
           <>New commits pushed to the PR after verification keep the check green; reopen the report if a later push breaks it.</>,
-          <>Pull requests from forks don&apos;t get your repository&apos;s secrets, so their previews can&apos;t be announced with the release token.</>,
+          <>Pull requests from forks don&apos;t get your repository&apos;s secrets, so their previews can&apos;t be announced with the access token.</>,
         ]}
       />
     </Sub>

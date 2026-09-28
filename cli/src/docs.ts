@@ -528,7 +528,9 @@ feedbackkit login --dashboard-url http://localhost:3000
 | \`feedbackkit release --build <n> [--project <id>] [--commit <rev>] [--product <key>] [--channel beta\|production\|preview] [--pr <n>] [--token <t>] [--dry-run]\` | Announce a build: marks merged fixes it contains as shipped so reporters are asked "is it fixed?" — see the \`loop\` doc topic. \`--channel preview --pr <n>\` announces a preview of one pull request instead (branch delivery, see the \`delivery\` topic). |
 | \`feedbackkit releases [--json]\` | Release readiness: each build's fixes (verified / awaiting reporter / reopened) and whether it's ready to promote. |
 | \`feedbackkit promote --build <n>\` | Record that a beta build went to production. |
-| \`feedbackkit token create <name> \\| list \\| revoke <id>\` | Project release tokens, so CI can run \`release\` without a login. |
+| \`feedbackkit token create <name> [--preset ci\|agent\|read] [--scope <s>] [--expires 90d\|never]\` | Create a project access token (printed once). Default preset: \`ci\` (announce releases). |
+| \`feedbackkit token list \\| revoke <id>\` | List a project's tokens with scopes and expiry, or revoke one (and every run token it issued). |
+| \`feedbackkit token issue --feedback <id> [--ttl <min>]\` | A short-lived token limited to one report, for a coding agent's run (with an \`agent\` token or a login). |
 | \`feedbackkit watch [--project <id>] [--agent claude\|codex] [--agent-cmd <cmd>] [--auto] [--max-runs <n>] [--no-pr] [--once]\` | Run your own coding agent on reports queued with **Run on my machine**: each run gets a git worktree, and the fix is pushed and opened as a PR with the \`FeedbackKit:\` trailer. \`--auto\` also takes every new report (report text is agent input, so only for trusted reporters). |
 | \`feedbackkit delivery [batch\|branch]\` | Show or set how the project delivers fixes (see the \`delivery\` topic). |
 | \`feedbackkit docs [topic]\` | Print this documentation (no topic = list topics). |
@@ -538,7 +540,22 @@ feedbackkit login --dashboard-url http://localhost:3000
 
 ## Managing access
 
-Credentials live at \`~/.feedbackkit/credentials.json\` (owner-only permissions). See connected CLIs, and revoke one, from the dashboard's CLI access page (see the \`dashboard\` doc topic). Revoking is cooperative — the CLI checks its own status before doing work and clears its local credentials if revoked, rather than an instant kill of the underlying session.`,
+Credentials live at \`~/.feedbackkit/credentials.json\` (owner-only permissions). See connected CLIs, and revoke one, from the dashboard's CLI access page (see the \`dashboard\` doc topic). Revoking is cooperative — the CLI checks its own status before doing work and clears its local credentials if revoked, rather than an instant kill of the underlying session.
+
+## Access tokens (CI and agent runners)
+
+With \`FEEDBACKKIT_TOKEN\` set, every command and the MCP server act as that project access token instead of a login (\`FEEDBACKKIT_API_URL\` / \`FEEDBACKKIT_ANON_KEY\` for a self-hosted backend). Create tokens in project Settings → Access tokens or with \`feedbackkit token create\`. Scopes:
+
+| Scope | Allows |
+|---|---|
+| \`releases:write\` | Announce builds (\`release\`, \`promote\`). |
+| \`feedback:read\` | Read reports, timelines, prompts, screenshots. |
+| \`feedback:write\` | Claim, post progress, link a fix. Never marks one verified. |
+| \`reporter:ask\` | Ask the reporter a question. |
+| \`previews:write\` | Attach after-fix previews. |
+| \`tokens:issue\` | Issue run tokens limited to one report. |
+
+Presets: **ci** = \`releases:write\` (store as \`FEEDBACKKIT_RELEASE_TOKEN\`); **agent** = everything but releases (store as \`FEEDBACKKIT_AGENT_TOKEN\`; workflows run \`feedbackkit token issue --feedback <id>\` and give the agent only that run token). Tokens can have no expiry (so CI doesn't break unexpectedly; the dashboard flags them) or expire. Revoking one takes effect on the next request and kills the run tokens it issued. Release tokens from before (\`fkr_…\`) keep working as \`releases:write\` tokens.`,
   },
   {
     slug: "mcp",
@@ -787,7 +804,7 @@ When scoped to a project:
 | \`post_update\` | Add a progress note; \`notify_reporter\` shows a short note on the reporter's device. |
 | \`ask_reporter\` | Ask the reporter a clarifying question — it appears in the app on their device; the answer lands in the timeline. |
 | \`link_fix\` | Record the PR/commit and a one-line summary the reporter will see. Automatic for PRs containing \`FeedbackKit: <id>\`. |
-| \`attach_after_screenshot\` | Upload a local PNG of the fixed screen (e.g. from a simulator) for before/after review. |
+| \`attach_preview\` | Attach a screenshot or short video (PNG/JPEG/GIF/WebP, or MP4 up to 30 s and 20 MB) of the fixed app; the dashboard and Portal show it in the report's After view, and it's deleted 14 days after the report resolves. \`attach_after_screenshot\` is the old name. |
 | \`list_releases\` | Release readiness per build (verified / awaiting / reopened) with a ready / waiting / blocked verdict — for deciding what to promote. |
 | \`update_feedback_status\` | Set triage status. For code fixes prefer \`link_fix\`; the reporter's confirmation resolves it. |
 | \`get_docs\` | Fetch FeedbackKit's own documentation — e.g. "how do I add this to an iOS app." No argument lists topics; pass \`topic\` for one topic's full content. |
@@ -828,7 +845,7 @@ Reports now carry an anonymous per-install reporter id (no sign-up). Reporters o
 
 ## 2. The agent (MCP)
 
-\`get_prompt\` ends with loop instructions: \`claim_feedback\`, \`ask_reporter\` if needed, reproduce and \`attach_after_screenshot\`, and add a \`FeedbackKit: <id>\` trailer to the fix commit (or the PR description; \`link_fix\` without the GitHub App). Reopened reports: \`list_feedback\` with \`fix_stage: "reopened"\`; \`get_feedback\` includes the reporter's new screenshot. The \`fix-feedback\` Agent Skill packages this workflow.
+\`get_prompt\` ends with loop instructions: \`claim_feedback\`, \`ask_reporter\` if needed, reproduce and \`attach_preview\` (when it can run the app), and add a \`FeedbackKit: <id>\` trailer to the fix commit (or the PR description; \`link_fix\` without the GitHub App). Reopened reports: \`list_feedback\` with \`fix_stage: "reopened"\`; \`get_feedback\` includes the reporter's new screenshot. The \`fix-feedback\` Agent Skill packages this workflow.
 
 ## 3. GitHub
 
@@ -842,7 +859,7 @@ After uploading a build, from the repo:
 npx feedbackkit-cli release --build "$BUILD_NUMBER"      # --project <id> if you have several; --dry-run to preview
 \`\`\`
 
-It ships every merged fix whose commit is in the release commit (default HEAD), so reporters on that build or newer get asked. Teams that check each fix before merging use \`--channel preview --pr <n>\` on a preview build of the PR instead (see the \`delivery\` topic). In CI, use a release token instead of a login: \`FEEDBACKKIT_RELEASE_TOKEN=fkr_… feedbackkit release --build …\` (create one with \`feedbackkit token create <name>\` or in project Settings → Release tokens). When a beta goes to production, record it with \`feedbackkit promote --build <n>\`. Builds compare numerically when dotted-numeric (\`42\`, \`1.2.10\`, timestamps); anything else (e.g. a web deploy's git SHA) counts as live once released. Every release script in this repo announces its build automatically when \`FEEDBACKKIT_RELEASE_TOKEN\` (CI) or \`FEEDBACKKIT_PROJECT_ID\` (logged in) is set.
+It ships every merged fix whose commit is in the release commit (default HEAD), so reporters on that build or newer get asked. Teams that check each fix before merging use \`--channel preview --pr <n>\` on a preview build of the PR instead (see the \`delivery\` topic). In CI, use an access token with \`releases:write\` instead of a login: \`FEEDBACKKIT_RELEASE_TOKEN=fkt_… feedbackkit release --build …\` (create one with \`feedbackkit token create <name> --preset ci\` or in project Settings → Access tokens → CI release; see the \`cli\` topic). When a beta goes to production, record it with \`feedbackkit promote --build <n>\`. Builds compare numerically when dotted-numeric (\`42\`, \`1.2.10\`, timestamps); anything else (e.g. a web deploy's git SHA) counts as live once released. Every release script in this repo announces its build automatically when \`FEEDBACKKIT_RELEASE_TOKEN\` (CI) or \`FEEDBACKKIT_PROJECT_ID\` (logged in) is set.
 
 ## Push-to-main (no PRs)
 
@@ -874,17 +891,17 @@ Web apps and backends suit GitHub-hosted runners; iOS/macOS apps need a Mac (sel
 
 ## You + your agent (MCP)
 
-Tell the agent to fix report <id> (or paste the copied prompt, which includes the id and steps). It calls \`claim_feedback\` (Agent working), may \`ask_reporter\` / \`attach_after_screenshot\`, and links the fix with the trailer or \`link_fix\`. The \`fix-feedback\` skill packages this.
+Tell the agent to fix report <id> (or paste the copied prompt, which includes the id and steps). It calls \`claim_feedback\` (Agent working), may \`ask_reporter\` / \`attach_preview\`, and links the fix with the trailer or \`link_fix\`. The \`fix-feedback\` skill packages this.
 
 ## GitHub-hosted Actions
 
-**Send to agent** creates the GitHub issue (screenshot, environment, prompt, \`FeedbackKit:\` line) and adds the dispatch labels from Settings → Coding agent loop; the report moves to Agent working. A workflow on \`issues: labeled\` runs the agent's GitHub Action on \`ubuntu-latest\` — e.g. \`anthropics/claude-code-action@v1\` with \`label_trigger: claude\` and \`allowed_bots: feedbackkit-app\` (required: FeedbackKit's App adds the label, and the action refuses unlisted bots). No FeedbackKit MCP tools (no login on hosted runners). Its PR carries the \`FeedbackKit:\` line or closes the issue. Linux can't build iOS/macOS apps.
+**Send to agent** creates the GitHub issue (screenshot, environment, prompt, \`FeedbackKit:\` line) and adds the dispatch labels from Settings → Coding agent loop; the report moves to Agent working. A workflow on \`issues: labeled\` runs the agent's GitHub Action on \`ubuntu-latest\` — e.g. \`anthropics/claude-code-action@v1\` with \`label_trigger: claude\` and \`allowed_bots: feedbackkit-app\` (required: FeedbackKit's App adds the label, and the action refuses unlisted bots). The FeedbackKit MCP tools work there with an access token: store an **agent** token as \`FEEDBACKKIT_AGENT_TOKEN\` and give the agent a run token (\`feedbackkit token issue\`). Its PR carries the \`FeedbackKit:\` line or closes the issue. Linux can't build iOS/macOS apps.
 
 **Google Antigravity on GitHub's runners:** \`setup-agent-runner\`'s hosted template installs \`agy\` on a fresh runner per report (\`macos-15\` for Apple apps, \`ubuntu-latest\` for web), signs in with a \`GEMINI_API_KEY\` secret (\`"modelProvider": "gemini"\` in its settings; billed per token to the key's Google project — a Google AI Pro/Ultra subscription only covers the interactive sign-in, so use a self-hosted Mac for that), and writes the allow list itself. The agent only edits files; the workflow commits with the trailer and \`Fixes #n\`, pushes and opens the PR. No FeedbackKit MCP tools. Fine on public repos; use a dedicated, spending-capped key, since the agent can read its environment.
 
 ## Self-hosted Mac runner
 
-Same label, on a Mac registered as a runner, so the agent builds the app and runs the Simulator. \`setup-agent-runner\` has two templates: **Claude Code** (token secret, \`--allowedTools\`, the action pushes its branch, FeedbackKit MCP with a login on the runner) and **Google Antigravity** (\`agy -p\` signed in once as the runner user, allow rules in \`~/.gemini/antigravity-cli/settings.json\` including \`mcp(feedbackkit/<tool>)\`; the agent only edits files and the workflow commits with the trailer and \`Fixes #n\`, pushes and opens the PR). Private repos only (use the GitHub-hosted Antigravity template on a public repo). Use a different label per agent if both are installed.
+Same label, on a Mac registered as a runner, so the agent builds the app and runs the Simulator. \`setup-agent-runner\` has two templates: **Claude Code** (token secret, \`--allowedTools\`, the action pushes its branch, FeedbackKit MCP through a per-run token from the \`FEEDBACKKIT_AGENT_TOKEN\` secret) and **Google Antigravity** (\`agy -p\` signed in once as the runner user, allow rules in \`~/.gemini/antigravity-cli/settings.json\` including \`mcp(feedbackkit/<tool>)\`; the agent only edits files and the workflow commits with the trailer and \`Fixes #n\`, pushes and opens the PR). Private repos only (use the GitHub-hosted Antigravity template on a public repo). Use a different label per agent if both are installed.
 
 ## GitHub Copilot
 

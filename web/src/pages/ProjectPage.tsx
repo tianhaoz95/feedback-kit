@@ -41,7 +41,7 @@ import { AllowedOriginsCard } from "@/components/AllowedOriginsCard";
 import { AgentDispatchCard } from "@/components/AgentDispatchCard";
 import { DeliveryModeCard } from "@/components/DeliveryModeCard";
 import { ReleasesPanel } from "@/components/ReleasesPanel";
-import { ReleaseTokensCard } from "@/components/ReleaseTokensCard";
+import { AccessTokensCard } from "@/components/AccessTokensCard";
 import { FixLoopPanel } from "@/components/FixLoopPanel";
 import { LoopChecklist } from "@/components/LoopChecklist";
 import { UsageBanner } from "@/components/UsageBanner";
@@ -50,6 +50,7 @@ import { FixStageBadge } from "@/components/FixStageBadge";
 import { ConsoleLogsPanel } from "@/components/ConsoleLogsPanel";
 import { PlatformBadge } from "@/components/PlatformBadge";
 import { ScreenshotViewer } from "@/components/ScreenshotViewer";
+import { useAfterPreviews } from "@/lib/useAfterPreviews";
 
 type TabKey = "feedback" | "releases" | "settings" | "sdk" | "agent";
 
@@ -104,6 +105,8 @@ export function ProjectPage() {
     activeFeedbackItems[0] ??
     archivedFeedbackItems[0] ??
     null;
+  // After-fix previews for the viewer's After view (0025); reloads when the loop moves.
+  const selectedPreviews = useAfterPreviews(selectedFeedback?.id ?? null, `${selectedFeedback?.fix_stage}:${selectedFeedback?.status}`);
 
   const [isCreatingIssue, setIsCreatingIssue] = useState(false);
   const [issueError, setIssueError] = useState<{ message: string; installUrl?: string } | null>(null);
@@ -1222,13 +1225,15 @@ export function ProjectPage() {
                 <div className="grid gap-5 xl:grid-cols-2 items-stretch">
                   <div className="space-y-4">
                     {/* Screenshot */}
-                    {selectedScreenshotUrl ? (
+                    {selectedScreenshotUrl || selectedPreviews.length > 0 ? (
                       <ScreenshotViewer
                         key={selectedFeedback.id}
                         annotatedUrl={selectedScreenshotUrl}
                         rawUrl={selectedRawUrl}
                         annotations={selectedFeedback.annotations ?? []}
                         environment={selectedFeedback.environment}
+                        previews={selectedPreviews}
+                        resolvedAt={selectedFeedback.resolved_at ?? null}
                       />
                     ) : selectedFeedback.screenshot_annotated_path ? (
                       <div className="flex h-64 animate-pulse items-center justify-center rounded-xl border border-neutral-200 bg-neutral-100">
@@ -1427,7 +1432,7 @@ export function ProjectPage() {
             }
           />
 
-          <ReleaseTokensCard projectId={project.id} />
+          <AccessTokensCard projectId={project.id} />
 
           <DeleteProjectCard
             project={project}

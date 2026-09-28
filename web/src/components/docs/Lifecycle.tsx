@@ -456,7 +456,7 @@ function AgentScene() {
       {line(1.6, <><span className="text-emerald-400">⏺</span> feedbackkit · get_prompt(fb_8c2) <span className="text-neutral-500">— screenshot attached</span></>)}
       {line(2.2, <><span className="text-emerald-400">⏺</span> feedbackkit · claim_feedback <StageBadge stage="agent_working" className="ml-1 font-sans" /></>)}
       {line(2.9, <><span className="text-sky-400">✎</span> Edit CheckoutView.swift <span className="text-emerald-400">+6</span> <span className="text-red-400">−2</span></>)}
-      {line(3.5, <><span className="text-emerald-400">⏺</span> feedbackkit · attach_after_screenshot <span className="text-neutral-500">— before/after saved</span></>)}
+      {line(3.5, <><span className="text-emerald-400">⏺</span> feedbackkit · attach_preview <span className="text-neutral-500">— after-fix preview saved</span></>)}
       {line(4.1, <>$ git commit -m "Keep Pay above the keyboard"</>)}
       {line(4.4, <span className="rounded bg-amber-400/15 px-1 text-amber-300">      FeedbackKit: fb_8c2</span>)}
     </Terminal>

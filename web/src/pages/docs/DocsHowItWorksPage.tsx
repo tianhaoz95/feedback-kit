@@ -153,13 +153,13 @@ export function DocsHowItWorksPage() {
 
       <Step index={5}>
         <p>
-          After you upload build 42, one command, run by hand or in CI with a release token, checks which merged
+          After you upload build 42, one command, run by hand or in CI with an access token, checks which merged
           fixes are in that build's commit and marks them <b>Shipped</b>:
         </p>
         <CodeBlock code={`npx feedbackkit-cli release --build 42`} label="Terminal or CI" />
         <p>
           Add it to the end of your release script. The <InlineCode>setup-release-loop</InlineCode> skill can wire
-          it in for you. See <Link to="/docs/cli" className={docLink}>CLI</Link> for release tokens and{" "}
+          it in for you. See <Link to="/docs/cli" className={docLink}>CLI</Link> for access tokens and{" "}
           <InlineCode>--dry-run</InlineCode>.
         </p>
         <p>

@@ -71,10 +71,11 @@ feedbackkit list [--project <id>] [--status new|in_progress|resolved|wont_fix] [
 feedbackkit prompt <feedbackId>             # print the generated coding-agent prompt
 feedbackkit timeline <feedbackId>           # fix-loop activity: agent progress, PRs, releases, reporter replies
 feedbackkit link <feedbackId> --pr <url> | --commit <sha> [--merged] [--summary <text>]
-feedbackkit release --build <n> [--project <id>] [--commit <rev>] [--product <key>] [--channel beta|production] [--token <fkr_…>] [--dry-run]
+feedbackkit release --build <n> [--project <id>] [--commit <rev>] [--product <key>] [--channel beta|production|preview] [--token <fkt_…>] [--dry-run]
 feedbackkit releases [--project <id>] [--json]                        # release readiness: verified / waiting / reopened per build
-feedbackkit promote --build <n> [--product <key>] [--token <fkr_…>]   # a beta went to production
-feedbackkit token create <name> | list | revoke <id>                  # release tokens for CI
+feedbackkit promote --build <n> [--product <key>] [--token <fkt_…>]   # a beta went to production
+feedbackkit token create <name> [--preset ci|agent|read] [--expires 90d]   # project access tokens (CI, agent runners)
+feedbackkit token list | revoke <id> | issue --feedback <id>           # issue = a run token limited to one report
 feedbackkit watch [--agent claude|codex] [--agent-cmd <cmd>] [--auto] [--max-runs <n>] [--no-pr] [--once]
                                             # run your local agent on reports queued with "Run on my machine" (run it in the repo)
 feedbackkit delivery [batch|branch]         # show or set how fixes are delivered (Settings → Delivery)
@@ -246,7 +247,7 @@ Tools exposed:
 | `post_update` | Add a progress note to the timeline; `notify_reporter` shows it on the reporter's device |
 | `ask_reporter` | Ask the reporter a question — shown in the app on their device; the reply lands in the timeline |
 | `link_fix` | Record the fix PR/commit and a one-line summary the reporter sees (automatic for PRs containing `FeedbackKit: <id>`) |
-| `attach_after_screenshot` | Upload a local PNG of the fixed screen for before/after review |
+| `attach_preview` | Attach a screenshot or short video (MP4 ≤ 30 s) of the fixed app, shown in the report's After view (`attach_after_screenshot` is the old name) |
 | `list_releases` | Release readiness: each build's fixes verified / awaiting / reopened, with a ready / waiting / blocked verdict |
 | `get_docs` | FeedbackKit's own documentation — no `topic` lists topics, e.g. `sdk`/`dashboard`/`cli`/`mcp`; with `topic` returns that topic's full content. Doesn't require being logged in. |
 | `update_feedback_status` | Mark a feedback item's status, e.g. `resolved` after fixing it |
@@ -269,12 +270,18 @@ Fixes with no recorded commit are included; use `--include <ids...>` to
 ship specific reports regardless of git. See `feedbackkit docs loop` and
 DESIGN.md §7.
 
-**In CI**, pass a project release token instead of logging in:
-`FEEDBACKKIT_RELEASE_TOKEN=fkr_… feedbackkit release --build "$BUILD"` (check
-out with full history so the ancestry check works). The token can only list
-waiting fixes, record releases and promote them, for one project. Create one
-with `feedbackkit token create github-actions | gh secret set
-FEEDBACKKIT_RELEASE_TOKEN`, or in project Settings → Release tokens.
+**In CI**, pass a project access token with `releases:write` instead of
+logging in: `FEEDBACKKIT_RELEASE_TOKEN=fkt_… feedbackkit release --build "$BUILD"`
+(check out with full history so the ancestry check works). Create one with
+`feedbackkit token create github-actions --preset ci | gh secret set
+FEEDBACKKIT_RELEASE_TOKEN`, or in project Settings → Access tokens.
+
+**Access tokens** work for every command, not just `release`: set
+`FEEDBACKKIT_TOKEN` and the CLI and MCP server act as the token, limited to
+its project and scopes (`feedbackkit docs cli` lists them). Agent workflows
+store an `agent` token as `FEEDBACKKIT_AGENT_TOKEN`, run
+`feedbackkit token issue --feedback <id>` for each report, and give the agent
+only that short-lived, one-report token.
 `FEEDBACKKIT_API_URL` points token mode at a self-hosted backend. See
 DESIGN.md §8.
 

@@ -20,7 +20,7 @@ export interface ReleaseOptions {
   product?: string;
   project?: string;
   channel?: string;
-  /** Project release token (CI). Falls back to FEEDBACKKIT_RELEASE_TOKEN. */
+  /** Project access token with releases:write (CI). Falls back to FEEDBACKKIT_RELEASE_TOKEN, then FEEDBACKKIT_TOKEN. */
   token?: string;
   apiUrl?: string;
   /** With `--channel preview`: the pull request the build was made from. */
@@ -38,7 +38,7 @@ export interface ReleaseOptions {
  *
  * Two ways to authenticate:
  *   - a `feedbackkit login` session (a developer's machine), or
- *   - a project release token (`--token` / FEEDBACKKIT_RELEASE_TOKEN) — what
+ *   - a project access token with releases:write (`--token` / FEEDBACKKIT_RELEASE_TOKEN / FEEDBACKKIT_TOKEN) — what
  *     CI uses on every push to main, since a CI job has no dashboard session.
  * Either way, deciding *which* fixes are in the build happens here, in the
  * git checkout (CI: `actions/checkout` with `fetch-depth: 0`).
@@ -65,7 +65,7 @@ export async function release(options: ReleaseOptions): Promise<void> {
     console.warn("Not in a git repository — shipping every merged fix without checking it's in this build.");
   }
 
-  const token = options.token ?? process.env.FEEDBACKKIT_RELEASE_TOKEN;
+  const token = options.token ?? process.env.FEEDBACKKIT_RELEASE_TOKEN ?? process.env.FEEDBACKKIT_TOKEN;
   const include = new Set((options.include ?? []).map((id) => id.toLowerCase()));
 
   let items: CandidateItem[];

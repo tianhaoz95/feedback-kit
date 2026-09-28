@@ -14,9 +14,10 @@ name: FeedbackKit agent (Antigravity)
 # Runner setup (see the setup-agent-runner skill): `agy` installed and signed
 # in once, interactively, as the runner's user; allow rules for the build
 # commands and FeedbackKit MCP tools in ~/.gemini/antigravity-cli/settings.json;
-# optionally the FeedbackKit MCP server (`agy mcp add feedbackkit -- npx -y feedbackkit-cli mcp`, with a
-# `feedbackkit login` on the runner) so the agent can claim the report, post
-# progress, ask the reporter and attach an "after" screenshot.
+# optionally the FeedbackKit MCP server (`agy mcp add feedbackkit -- npx -y feedbackkit-cli@latest mcp`)
+# plus a FEEDBACKKIT_AGENT_TOKEN secret (an "Agent runner" access token), so
+# the agent can claim the report, post progress, ask the reporter and attach
+# a preview of the fix through a token limited to this run's report.
 
 on:
   issues:
@@ -52,7 +53,29 @@ jobs:
           # No token in .git/config: the agent can't push, only this workflow can.
           persist-credentials: false
 
+      - name: Issue a FeedbackKit token for this report
+        # The agent-runner token (FEEDBACKKIT_AGENT_TOKEN: an access token with
+        # tokens:issue, from project Settings → Access tokens) never reaches the
+        # agent. It issues a token limited to this one report that expires in
+        # 90 minutes, and only that reaches the agent (and the FeedbackKit MCP
+        # server it starts). Skipped when the secret isn't set.
+        env:
+          FEEDBACKKIT_TOKEN: ${{ secrets.FEEDBACKKIT_AGENT_TOKEN }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          FEEDBACK_ID="$(printf '%s' "$ISSUE_BODY" | grep -oE 'FeedbackKit: [0-9a-fA-F-]{36}' | head -n1 | cut -d' ' -f2 || true)"
+          if [ -n "$FEEDBACKKIT_TOKEN" ] && [ -n "$FEEDBACK_ID" ]; then
+            RUN_TOKEN="$(npx -y feedbackkit-cli@latest token issue --feedback "$FEEDBACK_ID" --ttl 90 --name "run ${GITHUB_RUN_ID}")"
+            echo "::add-mask::$RUN_TOKEN"
+            echo "FEEDBACKKIT_RUN_TOKEN=$RUN_TOKEN" >> "$GITHUB_ENV"
+          fi
+
       - name: Run Antigravity
+        env:
+          # This run's report-limited FeedbackKit token (empty without one);
+          # the FeedbackKit MCP server agy starts inherits it. Without one it
+          # uses the runner user's `feedbackkit login`, if any.
+          FEEDBACKKIT_TOKEN: ${{ env.FEEDBACKKIT_RUN_TOKEN }}
         run: |
           set -euo pipefail
           BRANCH="feedbackkit/issue-${ISSUE_NUMBER}-${GITHUB_RUN_ID}"
@@ -85,7 +108,8 @@ jobs:
               echo "- This machine lets you use only these tools (rule syntax: command(<command prefix>), read_url(<domain>), mcp(<server>/<tool>)): ${ALLOWED}. Anything else, including a pipe or && into an unlisted command or \$(...) substitution, ends the run immediately with nothing saved. Stay inside this repository; if the fix needs something you can't do with these (e.g. downloading an asset), make the rest of the change and explain what's missing."
             fi
             if [ -n "$FEEDBACK_ID" ]; then
-              echo "- If the feedbackkit MCP tools are available, this is FeedbackKit report ${FEEDBACK_ID}: call claim_feedback first; use ask_reporter only for something only the reporter can answer (then stop without changes); after fixing a visual bug, call attach_after_screenshot with a screenshot of the fixed screen."
+              echo "- If the feedbackkit MCP tools are available, this is FeedbackKit report ${FEEDBACK_ID}: call claim_feedback first; use ask_reporter only for something only the reporter can answer (then stop without changes)."
+              echo "- After fixing it, if you can run the fixed app here, capture the screen the reporter showed and call attach_preview with the file, so the team can see the result without running it: a screenshot (e.g. \`xcrun simctl io booted screenshot /tmp/after.png\` for the iOS Simulator) or a short video (MP4, up to 30 s). It's optional: skip it when you can't run the app, and only attach captures of your fixed build."
             fi
           } > "$PROMPT"
           agy -p "$(cat "$PROMPT")" --mode accept-edits --print-timeout 50m < /dev/null 2>&1 | tee "$RUNNER_TEMP/summary.md"

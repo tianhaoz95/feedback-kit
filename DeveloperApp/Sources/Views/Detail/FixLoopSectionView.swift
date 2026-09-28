@@ -1,4 +1,5 @@
 import SwiftUI
+import AVKit
 
 /// The closed loop for one report — the Portal's counterpart of the web
 /// dashboard's `FixLoopPanel`: where the fix is, the timeline (agent
@@ -107,7 +108,15 @@ public struct FixLoopSectionView: View {
                                 Link(pr.replacingOccurrences(of: "https://github.com/", with: ""), destination: url)
                                     .font(.caption2)
                             }
-                            if let path = event.screenshotPath, let url = imageURLs[path] {
+                            if event.kind == "after_screenshot", event.expiredAt != nil {
+                                Text("Preview expired (deleted \(AfterPreviewRetention.days) days after the report was resolved).")
+                                    .font(.caption2).italic().foregroundColor(.secondary)
+                            }
+                            if event.isVideo, let path = event.mediaPath, let url = imageURLs[path] {
+                                VideoPlayer(player: AVPlayer(url: url))
+                                    .frame(width: 180, height: 240)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                            } else if let path = event.mediaPath ?? event.screenshotPath, let url = imageURLs[path] {
                                 AsyncImage(url: url) { image in
                                     image.resizable().scaledToFit()
                                 } placeholder: {
@@ -177,7 +186,7 @@ public struct FixLoopSectionView: View {
             let loaded = try await client.fetchFeedbackEvents(feedbackId: item.id)
             events = loaded
             var urls: [String: URL] = [:]
-            for path in Set(loaded.compactMap(\.screenshotPath)) {
+            for path in Set(loaded.compactMap { $0.mediaPath ?? $0.screenshotPath }) {
                 if let signed = try? await client.getSignedUrl(path: path), let url = URL(string: signed) {
                     urls[path] = url
                 }
