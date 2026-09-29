@@ -158,7 +158,10 @@ jobs:
             if [ -n "$FEEDBACK_ID" ]; then
               echo "- If the feedbackkit MCP tools are available, this is FeedbackKit report ${FEEDBACK_ID}: call claim_feedback first; use ask_reporter only for something only the reporter can answer (then stop without changes)."
               echo "- Show your work with screenshots: the team reviews them on the report page instead of running the build. Call attach_preview (with a caption saying what it shows) once the fix works, and also at useful points along the way (e.g. the bug reproduced, a first version of the change), and use post_update for a one-line progress note. Only attach captures of this checkout."
-              echo "- Capturing: for the dashboard or website (web/), run \`node scripts/agent-preview/capture-web.mjs --feedback ${FEEDBACK_ID}\` after your change; it renders this checkout's web/ at the report's page (signed-in pages included, against a throwaway local backend) and prints the PNG path to pass to attach_preview. Add \`--path /some/route\` to capture a different page. For the iOS app, \`xcrun simctl io booted screenshot /tmp/after.png\` in the Simulator (or a short MP4, up to 30 s)."
+              echo "- Capturing (run these after your change; each prints the PNG path to pass to attach_preview, with a caption):"
+              echo "  - Dashboard or website (web/): \`node scripts/agent-preview/capture-web.mjs --feedback ${FEEDBACK_ID}\` renders this checkout's web/ at the report's page (signed-in pages included, against a throwaway local backend). Add \`--path /some/route\` for another page."
+              echo "  - iOS Developer Portal (DeveloperApp/): \`node scripts/agent-preview/capture-portal.mjs --feedback ${FEEDBACK_ID}\` builds it, runs it in the Simulator in its offline demo mode (no sign-in needed) and screenshots the tab the report came from; \`--tab feedback|activity|projects|settings\` picks another. For a screen deeper than a tab, launch the app yourself with \`xcrun simctl launch <device> com.feedbackkit.developer -portal_demo_mode '<true/>'\`, get there, and \`xcrun simctl io <device> screenshot /tmp/after.png\`."
+              echo "  - Other iOS apps: \`xcrun simctl io booted screenshot /tmp/after.png\` in the Simulator (or a short MP4, up to 30 s)."
             fi
           } > "$PROMPT"
           agy -p "$(cat "$PROMPT")" --mode accept-edits --print-timeout 50m < /dev/null 2>&1 | tee "$RUNNER_TEMP/summary.md"
@@ -241,9 +244,10 @@ jobs:
           fi
 
       - name: Attach a preview if the agent didn't
-        # A web fix without a screenshot from the agent: capture this branch's
-        # dashboard at the report's page and attach it (skipped when the agent
-        # already attached one during this run, or nothing under web/ changed).
+        # A web or iOS Portal fix without a screenshot from the agent: capture
+        # this branch's dashboard at the report's page, or the Portal (demo
+        # mode) on the report's tab, and attach it. Skipped when the agent
+        # already attached one during this run, or neither app changed.
         # Best effort: a failed capture never fails the run.
         if: env.FEEDBACK_ID != ''
         continue-on-error: true
@@ -251,9 +255,15 @@ jobs:
           FEEDBACKKIT_TOKEN: ${{ env.FEEDBACKKIT_RUN_TOKEN }}
           FEEDBACKKIT_ACTOR_LABEL: Antigravity (FeedbackKit)
         run: |
-          if [ -z "$FEEDBACKKIT_TOKEN" ] || ! git diff --name-only origin/main...HEAD | grep -q '^web/'; then
-            echo "No web change to preview (or no FeedbackKit token)."
-            exit 0
+          CHANGED="$(git diff --name-only origin/main...HEAD)"
+          CAPTION="After the fix (captured by the agent workflow from branch ${BRANCH})"
+          if [ -z "$FEEDBACKKIT_TOKEN" ]; then
+            echo "No FeedbackKit token for this run."
+          elif printf '%s\n' "$CHANGED" | grep -q '^web/'; then
+            node scripts/agent-preview/capture-web.mjs --feedback "$FEEDBACK_ID" --attach --since "$RUN_STARTED" --caption "$CAPTION" || [ $? -eq 3 ]
+          elif printf '%s\n' "$CHANGED" | grep -q '^DeveloperApp/'; then
+            node scripts/agent-preview/capture-portal.mjs --feedback "$FEEDBACK_ID" --attach --since "$RUN_STARTED" \
+              --caption "$CAPTION — the Portal's demo data, on the report's tab" || [ $? -eq 3 ]
+          else
+            echo "No web or Portal change to preview."
           fi
-          node scripts/agent-preview/capture-web.mjs --feedback "$FEEDBACK_ID" --attach --since "$RUN_STARTED" \
-            --caption "After the fix (captured by the agent workflow from branch ${BRANCH})" || [ $? -eq 3 ]

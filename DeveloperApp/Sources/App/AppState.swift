@@ -55,6 +55,15 @@ public final class AppState: ObservableObject {
     }
 
     public init() {
+        // `-portal_preview_tab activity` (a launch argument, so nothing is
+        // persisted) opens on that tab: scripts/agent-preview/capture-portal.mjs
+        // uses it, with `-portal_demo_mode YES`, to screenshot a screen.
+        switch UserDefaults.standard.string(forKey: "portal_preview_tab") {
+        case "activity": selectedTab = .activity
+        case "projects": selectedTab = .projects
+        case "settings": selectedTab = .settings
+        default: break
+        }
         if let data = UserDefaults.standard.data(forKey: Self.lastSelectedProjectDataKey),
            let cached = try? JSONDecoder().decode(PortalProject.self, from: data) {
             self._selectedProject = Published(initialValue: cached)

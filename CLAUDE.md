@@ -618,8 +618,12 @@ Rules for skills:
   same-repo guard. `scripts/agent-preview/capture-web.mjs` screenshots this
   tree's web/ at a report's page (signed-in pages against a throwaway,
   separately-ported local Supabase stack seeded with just that report, never
-  a real session) and can attach it; the Antigravity workflow runs it when a
-  web fix lands without a preview.
+  a real session) and can attach it; `capture-portal.mjs` does the same for
+  the iOS Portal, in the Simulator in its offline demo mode
+  (`-portal_demo_mode '<true/>'` — a plist Bool, since the client reads it
+  `as? Bool` — plus `-portal_preview_tab`, read in `AppState.init`), and
+  `attach.mjs` attaches any capture. The Antigravity workflow runs the
+  matching capture when a web or Portal fix lands without a preview.
 - **Access tokens (`0025_access_tokens_and_previews.sql`, DESIGN.md §10)
   are enforced by RLS from the `x-feedbackkit-token` header**, not by bot
   users (the hosted project only allows GitHub sign-in and signs sessions

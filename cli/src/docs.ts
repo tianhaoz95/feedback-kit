@@ -916,7 +916,7 @@ Tick *Assign to GitHub Copilot*; each teammate connects their GitHub account onc
 ## Choosing an agent, progress and follow-ups
 
 - **Pick the agent per report.** The report's send button remembers the agent used last; its menu lists each configured label, the trigger comment, Copilot and *Your machine* on their own (plus *All configured agents* when there's more than one), and the supported agents not set up yet. \`create-github-issue\` takes the choice as \`agent\`; without it every configured trigger fires.
-- **Screenshots while it works.** Call \`attach_preview\` with a caption for progress and for the finished fix; the report's timeline refreshes while an agent is at work. In the FeedbackKit repository, \`node scripts/agent-preview/capture-web.mjs --feedback <id>\` captures the dashboard at a report's page.
+- **Screenshots while it works.** Call \`attach_preview\` with a caption for progress and for the finished fix; the report's timeline refreshes while an agent is at work. In the FeedbackKit repository, \`node scripts/agent-preview/capture-web.mjs --feedback <id>\` captures the dashboard at a report's page and \`capture-portal.mjs\` the iOS Portal (Simulator, demo mode); the Antigravity workflow runs them when a fix arrives without a preview.
 - **Another pass on the same PR.** While a report is at PR open, *Keep working on PR #n* posts the team's note on the PR (marked \`<!-- feedbackkit:follow-up -->\`) and restarts the agent on the PR's branch: the Antigravity templates via \`pull_request_target: labeled\`, claude-code-action via its \`@claude\` comment trigger, Copilot via an \`@copilot\` comment from the member.
 
 ## When a reporter says it's still broken
