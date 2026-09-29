@@ -11,6 +11,7 @@ import { LifecycleLoop, LifecyclePlayer } from "@/components/docs/Lifecycle";
 import { HeroLoop } from "@/components/landing/HeroLoop";
 import { ClaudeIcon, CodexIcon, CursorIcon, CopilotIcon, AntigravityIcon, CheckIcon } from "@/components/icons";
 import { FREE_LIMITS, formatUsd, TEAM_PRICE_PER_SEAT_USD } from "@/lib/pricing";
+import { CodeHighlight } from "@/components/CodeHighlight";
 
 // Capture, framed as the input to the loop rather than the product itself.
 const steps = [
@@ -592,7 +593,9 @@ export function LandingPage() {
                   </div>
                 </div>
                 <pre className="overflow-x-auto p-5 text-[13px] leading-relaxed text-neutral-200">
-                  <code>{sample.code}</code>
+                  <code>
+                    <CodeHighlight code={sample.code} language={sampleKind} />
+                  </code>
                 </pre>
               </div>
             </Reveal>
