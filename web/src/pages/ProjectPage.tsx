@@ -81,6 +81,7 @@ export function ProjectPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<"single" | "merged">("single");
   const [isArchivedExpanded, setIsArchivedExpanded] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<
     | { type: "single"; item: FeedbackItem }
     | { type: "batch"; items: FeedbackItem[] }
@@ -265,6 +266,7 @@ export function ProjectPage() {
     if (archivedFeedbackItems.some((item) => item.id === id)) {
       setIsArchivedExpanded(true);
     }
+    setMobileSidebarOpen(false);
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -764,41 +766,78 @@ export function ProjectPage() {
           }}
           className="flex-1 text-left min-w-0 cursor-pointer"
         >
-          <div className="flex items-start justify-between gap-2">
-            <p
-              className={`line-clamp-2 text-sm leading-snug ${
-                isSelected && viewMode === "single"
-                  ? "font-semibold text-neutral-900"
-                  : isArchivedSection
-                  ? "font-medium text-neutral-600"
-                  : "font-medium text-neutral-800"
-              }`}
-            >
-              {item.text ? truncate(item.text, 80) : "(no description)"}
-            </p>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {item.github_issue_number ? (
-                <span
-                  title={`GitHub Issue #${item.github_issue_number}`}
-                  className="inline-flex items-center gap-1 rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600 border border-neutral-200/80"
+          {(() => {
+            const badgeCount =
+              (item.github_issue_number ? 1 : 0) +
+              (item.is_archived ? 1 : 0) +
+              (item.fix_stage ? 1 : 0) +
+              (item.status ? 1 : 0);
+
+            const badgesNode = (
+              <>
+                {item.github_issue_number ? (
+                  <span
+                    title={`GitHub Issue #${item.github_issue_number}`}
+                    className="inline-flex items-center gap-1 rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600 border border-neutral-200/80 shrink-0"
+                  >
+                    <GitHubIcon className="h-2.5 w-2.5 text-neutral-500" />
+                    <span>#{item.github_issue_number}</span>
+                  </span>
+                ) : null}
+                {item.is_archived && (
+                  <span
+                    title="Archived"
+                    className="inline-flex items-center gap-1 rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500 border border-neutral-200 shrink-0"
+                  >
+                    <ArchiveIcon className="h-2.5 w-2.5 text-neutral-400" />
+                    <span>Archived</span>
+                  </span>
+                )}
+                {item.fix_stage ? <FixStageBadge stage={item.fix_stage} className="shrink-0" /> : null}
+                <StatusBadge status={item.status} className="shrink-0" />
+              </>
+            );
+
+            if (badgeCount > 1) {
+              return (
+                <div className="space-y-1.5">
+                  <p
+                    className={`line-clamp-2 text-sm leading-snug w-full ${
+                      isSelected && viewMode === "single"
+                        ? "font-semibold text-neutral-900"
+                        : isArchivedSection
+                        ? "font-medium text-neutral-600"
+                        : "font-medium text-neutral-800"
+                    }`}
+                  >
+                    {item.text ? truncate(item.text, 80) : "(no description)"}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {badgesNode}
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div className="flex items-start justify-between gap-2">
+                <p
+                  className={`line-clamp-2 text-sm leading-snug ${
+                    isSelected && viewMode === "single"
+                      ? "font-semibold text-neutral-900"
+                      : isArchivedSection
+                      ? "font-medium text-neutral-600"
+                      : "font-medium text-neutral-800"
+                  }`}
                 >
-                  <GitHubIcon className="h-2.5 w-2.5 text-neutral-500" />
-                  <span>#{item.github_issue_number}</span>
-                </span>
-              ) : null}
-              {item.is_archived && (
-                <span
-                  title="Archived"
-                  className="inline-flex items-center gap-1 rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500 border border-neutral-200"
-                >
-                  <ArchiveIcon className="h-2.5 w-2.5 text-neutral-400" />
-                  <span>Archived</span>
-                </span>
-              )}
-              {item.fix_stage ? <FixStageBadge stage={item.fix_stage} className="shrink-0" /> : null}
-              <StatusBadge status={item.status} className="shrink-0" />
-            </div>
-          </div>
+                  {item.text ? truncate(item.text, 80) : "(no description)"}
+                </p>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {badgesNode}
+                </div>
+              </div>
+            );
+          })()}
           <div className="mt-2 flex items-center justify-between text-xs text-neutral-400 gap-1.5">
             <div className="flex items-center gap-1.5 min-w-0">
               <PlatformBadge environment={item.environment} className="shrink-0" />
@@ -920,8 +959,8 @@ export function ProjectPage() {
             />
           ) : selectedFeedback ? (
             <div className="flex flex-col lg:flex-row gap-6 items-start">
-              {/* Left Sidebar List */}
-              <div className="w-full lg:w-80 xl:w-96 shrink-0 space-y-2.5 lg:sticky lg:top-20">
+              {/* Desktop Sidebar List */}
+              <div className="hidden lg:block lg:w-80 xl:w-96 shrink-0 space-y-2.5 lg:sticky lg:top-20">
                 <div className="flex items-center justify-between px-1 pb-0.5">
                   <span className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
                     {archivedFeedbackItems.length > 0
@@ -1010,7 +1049,7 @@ export function ProjectPage() {
                   </div>
                 )}
 
-                <div className="space-y-2 max-h-[420px] lg:max-h-[calc(100vh-12rem)] overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-[calc(100vh-12rem)] overflow-y-auto pr-1">
                   {activeFeedbackItems.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50/50 p-6 text-center">
                       <InboxIcon className="mx-auto h-5 w-5 text-neutral-400" />
@@ -1053,6 +1092,180 @@ export function ProjectPage() {
                   )}
                 </div>
               </div>
+
+              {/* Floating button on narrow screens */}
+              <div className="lg:hidden fixed bottom-6 right-6 z-40">
+                <button
+                  type="button"
+                  onClick={() => setMobileSidebarOpen(true)}
+                  aria-label="Toggle reports sidebar"
+                  className="flex items-center gap-2 rounded-full bg-neutral-900 px-4 py-2.5 text-xs font-semibold text-white shadow-xl hover:bg-neutral-800 active:scale-95 transition-all cursor-pointer ring-2 ring-white/20"
+                >
+                  <InboxIcon className="h-4 w-4" />
+                  <span>Reports ({activeFeedbackItems.length})</span>
+                </button>
+              </div>
+
+              {/* Mobile slide-over side panel */}
+              {mobileSidebarOpen && (
+                <div className="fixed inset-0 z-50 lg:hidden">
+                  <div
+                    className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
+                    onClick={() => setMobileSidebarOpen(false)}
+                    aria-hidden="true"
+                  />
+                  <div className="fixed inset-y-0 left-0 flex max-w-full">
+                    <div className="relative w-screen max-w-xs sm:max-w-sm bg-white shadow-2xl flex flex-col p-4 overflow-y-auto">
+                      <div className="flex items-center justify-between pb-3 border-b border-neutral-100 mb-3">
+                        <div className="flex items-center gap-2">
+                          <InboxIcon className="h-4 w-4 text-neutral-700" />
+                          <span className="font-semibold text-sm text-neutral-900">Reports</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setMobileSidebarOpen(false)}
+                          aria-label="Close reports panel"
+                          className="rounded-lg p-1.5 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer"
+                        >
+                          <XIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <div className="flex-1 space-y-2.5">
+                        <div className="flex items-center justify-between px-1 pb-0.5">
+                          <span className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                            {archivedFeedbackItems.length > 0
+                              ? `Active Reports (${activeFeedbackItems.length})`
+                              : `Reports (${activeFeedbackItems.length})`}
+                          </span>
+                          {feedbackItems.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={handleToggleSelectAll}
+                              className="text-xs font-medium text-neutral-500 hover:text-neutral-900 transition-colors cursor-pointer"
+                            >
+                              {(isArchivedExpanded ? feedbackItems : activeFeedbackItems).length > 0 &&
+                              (isArchivedExpanded ? feedbackItems : activeFeedbackItems).every((item) =>
+                                selectedIds.has(item.id)
+                              )
+                                ? "Deselect all"
+                                : "Select all"}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Multi-selection action pill */}
+                        {selectedIds.size > 0 && (
+                          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-2 text-xs">
+                            <span className="font-semibold text-neutral-700 pl-1">
+                              {selectedIds.size} selected
+                            </span>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {viewMode === "single" ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setViewMode("merged")}
+                                  className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-neutral-900 px-2 py-1 text-xs font-medium text-white shadow-xs hover:bg-neutral-800 transition-colors"
+                                >
+                                  <SparkleIcon className="h-3 w-3" />
+                                  <span>Merged prompt</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setViewMode("single")}
+                                  className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+                                >
+                                  <span>Single view</span>
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={handleBatchArchive}
+                                className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
+                                title="Archive or unarchive selected reports"
+                              >
+                                <ArchiveIcon className="h-3 w-3 text-neutral-500" />
+                                <span>
+                                  {Array.from(selectedIds).every(
+                                    (id) => feedbackItems.find((i) => i.id === id)?.is_archived
+                                  )
+                                    ? "Unarchive"
+                                    : "Archive"}
+                                </span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDeleteTarget({
+                                    type: "batch",
+                                    items: feedbackItems.filter((i) => selectedIds.has(i.id)),
+                                  })
+                                }
+                                className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
+                                title="Delete selected reports"
+                              >
+                                <TrashIcon className="h-3 w-3 text-red-500" />
+                                <span>Delete</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleClearSelection}
+                                className="p-1 text-neutral-400 hover:text-neutral-700 rounded transition-colors cursor-pointer"
+                                title="Clear selection"
+                              >
+                                <XIcon className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="space-y-2 max-h-[calc(100vh-16rem)] overflow-y-auto pr-1">
+                          {activeFeedbackItems.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50/50 p-6 text-center">
+                              <InboxIcon className="mx-auto h-5 w-5 text-neutral-400" />
+                              <p className="mt-1.5 text-xs font-medium text-neutral-600">No active reports</p>
+                              <p className="mt-0.5 text-[11px] text-neutral-400">
+                                {archivedFeedbackItems.length > 0
+                                  ? "All reports in this project are archived."
+                                  : "Reports from your app will show up here."}
+                              </p>
+                            </div>
+                          ) : (
+                            activeFeedbackItems.map((item) => renderFeedbackCard(item, false))
+                          )}
+
+                          {archivedFeedbackItems.length > 0 && (
+                            <div className="pt-2 border-t border-neutral-200/80">
+                              <button
+                                type="button"
+                                onClick={() => setIsArchivedExpanded((prev) => !prev)}
+                                className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 transition-colors cursor-pointer border border-dashed border-neutral-200 bg-neutral-50/50"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <ArchiveIcon className="h-3.5 w-3.5 text-neutral-400" />
+                                  <span>Archived ({archivedFeedbackItems.length})</span>
+                                </div>
+                                <ChevronDownIcon
+                                  className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-200 ${
+                                    isArchivedExpanded ? "rotate-180" : ""
+                                  }`}
+                                />
+                              </button>
+
+                              {isArchivedExpanded && (
+                                <div className="mt-2 space-y-2">
+                                  {archivedFeedbackItems.map((item) => renderFeedbackCard(item, true))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Right Detail Pane */}
               <div id="feedback-detail" className="flex-1 min-w-0 w-full space-y-5">

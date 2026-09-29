@@ -3,6 +3,7 @@ import { track } from "@/lib/analytics";
 import { getErrorMessage } from "@/lib/errors";
 import { Button } from "@/components/Button";
 import { CheckIcon, CopyIcon } from "@/components/icons";
+import { MarkdownPreview } from "@/components/MarkdownPreview";
 
 export function FeedbackPromptEditor({
   initialValue,
@@ -21,18 +22,50 @@ export function FeedbackPromptEditor({
   className?: string;
 }) {
   const [value, setValue] = useState(initialValue);
+  const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [isPending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   return (
     <div className={`flex flex-1 flex-col min-h-0 space-y-3 ${className ?? ""}`}>
-      <textarea
-        value={value}
-        onChange={(event) => setValue(event.target.value)}
-        rows={16}
-        className="w-full flex-1 min-h-[300px] resize-y rounded-lg border border-neutral-200 bg-white p-3 font-mono text-xs text-neutral-800 leading-relaxed transition-colors placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none"
-      />
+      <div className="flex items-center justify-between">
+        <div className="inline-flex rounded-lg bg-neutral-100 p-0.5 text-xs">
+          <button
+            type="button"
+            onClick={() => setMode("edit")}
+            className={`rounded-md px-2.5 py-1 font-medium transition-all cursor-pointer ${
+              mode === "edit"
+                ? "bg-white text-neutral-900 shadow-2xs font-semibold"
+                : "text-neutral-500 hover:text-neutral-900"
+            }`}
+          >
+            Raw Markdown
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("preview")}
+            className={`rounded-md px-2.5 py-1 font-medium transition-all cursor-pointer ${
+              mode === "preview"
+                ? "bg-white text-neutral-900 shadow-2xs font-semibold"
+                : "text-neutral-500 hover:text-neutral-900"
+            }`}
+          >
+            Markdown Preview
+          </button>
+        </div>
+      </div>
+
+      {mode === "edit" ? (
+        <textarea
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          rows={16}
+          className="w-full flex-1 min-h-[300px] resize-y rounded-lg border border-neutral-200 bg-white p-3 font-mono text-xs text-neutral-800 leading-relaxed transition-colors placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none"
+        />
+      ) : (
+        <MarkdownPreview content={value} className="w-full flex-1 min-h-[300px] max-h-[500px]" />
+      )}
       <div className="flex flex-wrap items-center gap-2 pt-0.5 shrink-0">
         <Button
           size="sm"
