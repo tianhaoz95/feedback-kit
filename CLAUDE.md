@@ -206,7 +206,10 @@ deep links (e.g. `/projects/abc`) needs SPA fallback routing to
 The web dashboard is deployed to **Cloudflare Workers Static Assets**
 (`https://feedback-kit.hejitech.workers.dev`) via Git integration using
 `wrangler.jsonc`. `base` in `web/vite.config.ts` dynamically resolves to `"/"`
-for root-domain hosting.
+for root-domain hosting. PR builds become Cloudflare Previews, which ignore
+`not_found_handling`, so `web/worker.js` (runs only when no asset matches)
+serves `index.html` for page navigations — without it every deep link on a
+preview, including `/login` after GitHub sign-in, is a bare "Not found".
 
 **Developer Documentation (`docs/`)** is built with VitePress and deployed to
 GitHub Pages (`https://tianhaoz95.github.io/feedback-kit/`) via
