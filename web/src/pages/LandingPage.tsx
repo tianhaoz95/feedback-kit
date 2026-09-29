@@ -402,14 +402,26 @@ export function LandingPage() {
             </Reveal>
           </div>
 
-          <Reveal className="mt-14 min-w-0">
-            <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+          <Reveal className="mt-16 min-w-0">
+            <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
               <div>
-                <h3 className="text-lg font-semibold text-neutral-900">Follow one bug, start to finish</h3>
-                <p className="text-sm text-neutral-500">It plays by itself. Click any step to jump to it.</p>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-2.5 py-0.5 text-xs font-medium text-neutral-600 shadow-2xs">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Interactive Walkthrough
+                </span>
+                <h3 className="mt-2.5 text-xl font-bold tracking-tight text-neutral-900 sm:text-2xl">
+                  Follow one bug, start to finish
+                </h3>
+                <p className="mt-1 text-sm text-neutral-600">
+                  Plays automatically, or click any step to explore each stage of the closed loop.
+                </p>
               </div>
-              <Link to="/docs/how-it-works" className="link-underline text-sm font-medium text-neutral-900">
-                Read the full walkthrough →
+              <Link
+                to="/docs/how-it-works"
+                className="group inline-flex items-center gap-1.5 text-sm font-medium text-neutral-900 transition-colors hover:text-neutral-700"
+              >
+                <span className="link-underline">Read the full walkthrough</span>
+                <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
               </Link>
             </div>
             <LifecyclePlayer />

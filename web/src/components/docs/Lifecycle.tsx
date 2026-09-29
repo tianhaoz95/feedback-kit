@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { FIX_STAGE_META, FIX_STAGE_ORDER } from "@/lib/fixStageMeta";
+import { LockIcon, CopyIcon, GitHubIcon } from "@/components/icons";
 
 /**
  * Visuals for /docs/how-it-works: one bug report followed from the reporter's
@@ -223,13 +224,50 @@ export function LifecycleLoop() {
 // Small drawing helpers
 // ---------------------------------------------------------------------------
 
-/** A 148×304 frame, close to a real iPhone's ~1:2.05 proportions. */
+/** A realistic, premium iPhone hardware frame (~1:2.05 proportions). */
 function Phone({ children }: { children: ReactNode }) {
   return (
-    <div className="relative h-[304px] w-[148px] shrink-0 rounded-[1.6rem] bg-neutral-900 p-1.5 shadow-xl">
-      <div className="relative h-full w-full overflow-hidden rounded-[1.25rem] bg-white">
-        <div className="absolute left-1/2 top-1.5 z-10 h-2.5 w-10 -translate-x-1/2 rounded-full bg-black" />
-        {children}
+    <div className="relative h-[316px] w-[158px] shrink-0 select-none">
+      {/* Hardware side buttons */}
+      <span className="absolute -left-[2px] top-[48px] h-3.5 w-[2.5px] rounded-l-[2px] bg-neutral-400" />
+      <span className="absolute -left-[2px] top-[70px] h-6 w-[2.5px] rounded-l-[2px] bg-neutral-400" />
+      <span className="absolute -left-[2px] top-[98px] h-6 w-[2.5px] rounded-l-[2px] bg-neutral-400" />
+      <span className="absolute -right-[2px] top-[76px] h-9 w-[2.5px] rounded-r-[2px] bg-neutral-400" />
+
+      {/* Titanium outer frame with gradient rim and realistic shadow */}
+      <div className="relative h-full w-full rounded-[2.1rem] bg-gradient-to-b from-neutral-200 via-neutral-400 to-neutral-500 p-[1.5px] shadow-[0_20px_45px_-12px_rgba(0,0,0,0.32),0_0_0_1px_rgba(0,0,0,0.06)]">
+        {/* Inner black bezel */}
+        <div className="relative h-full w-full rounded-[2rem] bg-neutral-950 p-[5px] ring-1 ring-white/10">
+          {/* Glass display */}
+          <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[1.7rem] bg-white">
+            {/* iOS Status Bar */}
+            <div className="relative z-20 flex h-7 items-center justify-between px-3 text-[8.5px] font-semibold text-neutral-800">
+              <span className="tabular-nums tracking-tight">9:41</span>
+              {/* Dynamic Island */}
+              <div className="absolute left-1/2 top-1.5 z-30 flex h-3 w-14 -translate-x-1/2 items-center justify-end rounded-full bg-black pr-1.5 ring-1 ring-neutral-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#111827] ring-1 ring-neutral-700/60" />
+              </div>
+              <div className="flex items-center gap-1 opacity-80">
+                {/* Cellular */}
+                <svg className="h-2 w-2.5 fill-current" viewBox="0 0 16 12">
+                  <rect x="0" y="8" width="2.5" height="4" rx="0.5" />
+                  <rect x="4" y="6" width="2.5" height="6" rx="0.5" />
+                  <rect x="8" y="3" width="2.5" height="9" rx="0.5" />
+                  <rect x="12" y="0" width="2.5" height="12" rx="0.5" />
+                </svg>
+                {/* Battery */}
+                <div className="relative flex h-2 w-3.5 items-center rounded-[2px] border border-current p-[0.5px]">
+                  <div className="h-full w-2.5 rounded-[1px] bg-current" />
+                  <div className="absolute -right-[2px] top-1/2 h-1 w-[1px] -translate-y-1/2 rounded-r-[0.5px] bg-current" />
+                </div>
+              </div>
+            </div>
+            {/* Screen Content */}
+            <div className="relative flex-1 overflow-hidden">
+              {children}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -238,50 +276,127 @@ function Phone({ children }: { children: ReactNode }) {
 /** The demo app's checkout screen, with the Pay button half under the keyboard. */
 function CheckoutScreen({ annotate = false, fixed = false, delay = 0.2 }: { annotate?: boolean; fixed?: boolean; delay?: number }) {
   return (
-    <div className="relative h-full w-full px-2.5 pt-6 text-[8px] text-neutral-700">
-      <p className="text-[10px] font-semibold text-neutral-900">Checkout</p>
-      <div className="mt-2 space-y-1.5">
-        {["Sneakers", "Socks ×2", "Shipping"].map((item) => (
-          <div key={item} className="flex items-center justify-between rounded bg-neutral-50 px-1.5 py-1">
-            <span>{item}</span>
-            <span className="h-1.5 w-6 rounded bg-neutral-200" />
-          </div>
-        ))}
-        <div className="flex justify-between px-1.5 pt-1 font-semibold text-neutral-900">
-          <span>Total</span>
-          <span>$42.00</span>
+    <div className="relative flex h-full w-full flex-col justify-between px-2.5 pt-1 font-sans text-[8px] text-neutral-700">
+      <div>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-neutral-100 pb-1.5">
+          <span className="text-[10px] text-neutral-400">‹</span>
+          <p className="text-[9.5px] font-semibold tracking-tight text-neutral-900">Checkout</p>
+          <span className="flex h-2 w-2 items-center justify-center rounded-full bg-emerald-500/20">
+            <span className="h-1 w-1 rounded-full bg-emerald-600" />
+          </span>
         </div>
-        <div className="rounded border border-neutral-200 px-1.5 py-1 text-neutral-400">Promo code|</div>
+
+        {/* Order items */}
+        <div className="mt-2 space-y-1.5">
+          <div className="flex items-center justify-between rounded-lg border border-neutral-100 bg-neutral-50/80 p-1.5">
+            <div className="flex items-center gap-1.5">
+              <span className="flex h-5 w-5 items-center justify-center rounded bg-amber-100 text-[9px]">👟</span>
+              <div>
+                <p className="text-[8px] font-medium leading-tight text-neutral-800">Sneakers</p>
+                <p className="text-[6.5px] text-neutral-400">Size 42 · White</p>
+              </div>
+            </div>
+            <span className="text-[8px] font-semibold text-neutral-800">$36.00</span>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border border-neutral-100 bg-neutral-50/80 p-1.5">
+            <div className="flex items-center gap-1.5">
+              <span className="flex h-5 w-5 items-center justify-center rounded bg-blue-100 text-[9px]">🧦</span>
+              <div>
+                <p className="text-[8px] font-medium leading-tight text-neutral-800">Socks ×2</p>
+                <p className="text-[6.5px] text-neutral-400">Crew · Black</p>
+              </div>
+            </div>
+            <span className="text-[8px] font-semibold text-neutral-800">$6.00</span>
+          </div>
+
+          {/* Pricing summary */}
+          <div className="space-y-1 rounded-lg border border-neutral-100/60 bg-neutral-50/50 p-1.5">
+            <div className="flex justify-between text-[7px] text-neutral-500">
+              <span>Shipping</span>
+              <span className="font-medium text-emerald-600">Free</span>
+            </div>
+            <div className="flex justify-between border-t border-neutral-200/60 pt-1 text-[8.5px] font-bold text-neutral-900">
+              <span>Total</span>
+              <span>$42.00</span>
+            </div>
+          </div>
+
+          {/* Promo code field */}
+          <div className="flex items-center justify-between rounded-lg border border-neutral-200/80 bg-white px-2 py-1 text-[7.5px] text-neutral-400">
+            <span className="font-medium text-neutral-700">SUMMER42</span>
+            <span className="rounded bg-emerald-50 px-1 py-0.5 text-[7px] font-semibold text-emerald-600">Applied</span>
+          </div>
+        </div>
       </div>
+
+      {/* Pay Button */}
       <div
-        className={`absolute inset-x-2.5 rounded-md bg-neutral-900 py-1.5 text-center text-[9px] font-semibold text-white ${
-          fixed ? "bottom-[92px]" : "bottom-[74px]"
+        className={`absolute inset-x-2.5 z-10 transition-all duration-300 ${
+          fixed ? "bottom-[92px]" : "bottom-[70px]"
         }`}
       >
-        Pay $42.00
+        <div className="flex items-center justify-center gap-1 rounded-xl bg-neutral-950 py-2 text-center text-[9px] font-semibold text-white shadow-md">
+          <span>Pay $42.00</span>
+          <span className="text-[7.5px] opacity-60">Pay</span>
+        </div>
       </div>
-      {/* Keyboard */}
-      <div className="absolute inset-x-0 bottom-0 h-[84px] bg-neutral-200 p-1">
-        <div className="grid grid-cols-10 gap-[2px]">
-          {Array.from({ length: 30 }).map((_, i) => (
-            <div key={i} className="h-3.5 rounded-[2px] bg-white" />
+
+      {/* Realistic iOS Keyboard */}
+      <div className="relative -mx-2.5 flex h-[84px] flex-col justify-between bg-neutral-200/90 px-1 py-1.5 shadow-[0_-1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md">
+        {/* Row 1 */}
+        <div className="grid grid-cols-10 gap-0.5 px-0.5">
+          {["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"].map((k) => (
+            <div key={k} className="flex h-4 items-center justify-center rounded-[3px] bg-white text-[7px] font-medium text-neutral-800 shadow-[0_1px_0_rgba(0,0,0,0.25)]">
+              {k}
+            </div>
           ))}
         </div>
-        <div className="mx-auto mt-[3px] h-3.5 w-2/3 rounded-[2px] bg-white" />
+        {/* Row 2 */}
+        <div className="grid grid-cols-9 gap-0.5 px-2">
+          {["A", "S", "D", "F", "G", "H", "J", "K", "L"].map((k) => (
+            <div key={k} className="flex h-4 items-center justify-center rounded-[3px] bg-white text-[7px] font-medium text-neutral-800 shadow-[0_1px_0_rgba(0,0,0,0.25)]">
+              {k}
+            </div>
+          ))}
+        </div>
+        {/* Row 3 */}
+        <div className="flex gap-1 px-0.5">
+          <div className="flex h-4 w-4 items-center justify-center rounded-[3px] bg-neutral-300 text-[6.5px] text-neutral-700 shadow-[0_1px_0_rgba(0,0,0,0.25)]">⇧</div>
+          <div className="grid flex-1 grid-cols-7 gap-0.5">
+            {["Z", "X", "C", "V", "B", "N", "M"].map((k) => (
+              <div key={k} className="flex h-4 items-center justify-center rounded-[3px] bg-white text-[7px] font-medium text-neutral-800 shadow-[0_1px_0_rgba(0,0,0,0.25)]">
+                {k}
+              </div>
+            ))}
+          </div>
+          <div className="flex h-4 w-4 items-center justify-center rounded-[3px] bg-neutral-300 text-[6.5px] text-neutral-700 shadow-[0_1px_0_rgba(0,0,0,0.25)]">⌫</div>
+        </div>
+        {/* Row 4 (Spacebar) */}
+        <div className="flex gap-1 px-1">
+          <div className="flex h-3.5 w-6 items-center justify-center rounded-[3px] bg-neutral-300 text-[6px] text-neutral-700 shadow-[0_1px_0_rgba(0,0,0,0.25)]">123</div>
+          <div className="flex h-3.5 flex-1 items-center justify-center rounded-[3px] bg-white text-[6px] text-neutral-400 shadow-[0_1px_0_rgba(0,0,0,0.25)]">space</div>
+          <div className="flex h-3.5 w-7 items-center justify-center rounded-[3px] bg-blue-600 text-[6px] font-semibold text-white shadow-[0_1px_0_rgba(0,0,0,0.25)]">done</div>
+        </div>
       </div>
+
+      {/* SVG Annotation Box */}
       {annotate ? (
-        <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 136 292" preserveAspectRatio="none">
+        <svg className="pointer-events-none absolute inset-0 z-20 h-full w-full" viewBox="0 0 158 316" preserveAspectRatio="none">
           <rect
             x="6"
-            y="187"
-            width="124"
-            height="36"
-            rx="4"
+            y="180"
+            width="146"
+            height="40"
+            rx="8"
             fill="none"
             stroke="#ef4444"
             strokeWidth="2.5"
+            strokeDasharray="6 3"
+            filter="drop-shadow(0 0 4px rgba(239, 68, 68, 0.5))"
             className="lc-draw"
-            style={{ ...d(delay), "--lc-len": 330 } as CSSProperties}
+            style={{ ...d(delay), "--lc-len": 380 } as CSSProperties}
           />
         </svg>
       ) : null}
@@ -291,23 +406,42 @@ function CheckoutScreen({ annotate = false, fixed = false, delay = 0.2 }: { anno
 
 function Window({ url, children }: { url: string; children: ReactNode }) {
   return (
-    <div className="min-h-[304px] w-full overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg">
-      <div className="flex items-center gap-1.5 border-b border-neutral-100 bg-neutral-50 px-3 py-2">
-        <span className="h-2 w-2 rounded-full bg-red-300" />
-        <span className="h-2 w-2 rounded-full bg-amber-300" />
-        <span className="h-2 w-2 rounded-full bg-emerald-300" />
-        <span className="ml-2 truncate rounded bg-white px-2 py-0.5 text-[10px] text-neutral-400">{url}</span>
+    <div className="min-h-[316px] w-full overflow-hidden rounded-2xl border border-neutral-200/90 bg-white shadow-xl shadow-neutral-900/6">
+      {/* Safari-like browser chrome */}
+      <div className="flex items-center gap-2 border-b border-neutral-200/70 bg-neutral-100/80 px-3.5 py-2.5 backdrop-blur-sm">
+        {/* macOS traffic lights */}
+        <div className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F56] ring-1 ring-black/10" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#FFBD2E] ring-1 ring-black/10" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#27C93F] ring-1 ring-black/10" />
+        </div>
+        {/* URL Pill */}
+        <div className="mx-auto flex max-w-[280px] flex-1 items-center justify-center gap-1.5 rounded-lg border border-neutral-200/70 bg-white/90 px-2.5 py-0.5 text-[10px] text-neutral-500 shadow-2xs">
+          <LockIcon className="h-2.5 w-2.5 text-neutral-400" />
+          <span className="truncate font-mono">{url}</span>
+        </div>
       </div>
-      <div className="p-3">{children}</div>
+      <div className="p-4">{children}</div>
     </div>
   );
 }
 
 function Terminal({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="min-h-[304px] w-full overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 font-mono text-[11px] leading-relaxed text-neutral-200 shadow-lg">
-      <div className="border-b border-neutral-800 px-3 py-1.5 text-[10px] text-neutral-500">{title}</div>
-      <div className="space-y-1 break-words p-3">{children}</div>
+    <div className="min-h-[316px] w-full overflow-hidden rounded-2xl border border-neutral-800 bg-[#0d1117] font-mono text-[11px] leading-relaxed text-neutral-200 shadow-2xl shadow-black/40">
+      {/* Terminal Title Bar */}
+      <div className="flex items-center justify-between border-b border-neutral-800/90 bg-[#161b22] px-3.5 py-2">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f56]/80 ring-1 ring-white/10" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#ffbd2e]/80 ring-1 ring-white/10" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#27c93f]/80 ring-1 ring-white/10" />
+          </div>
+          <span className="ml-1 font-mono text-[10px] font-medium text-neutral-400">{title}</span>
+        </div>
+        <span className="rounded bg-neutral-800/80 px-1.5 py-0.5 text-[9px] text-neutral-400">zsh</span>
+      </div>
+      <div className="space-y-1.5 break-words p-4">{children}</div>
     </div>
   );
 }
@@ -338,11 +472,11 @@ function StageBadge({ stage, className = "", style }: { stage: keyof typeof FIX_
 /** A placeholder that visibly turns into its value. */
 function Swap({ token, value, delay }: { token: string; value: string; delay: number }) {
   return (
-    <span className="inline-grid align-baseline">
-      <span className="lc-fade-out rounded bg-violet-100 px-1 text-violet-700 [grid-area:1/1]" style={d(delay)}>
+    <span className="inline-grid align-baseline font-mono">
+      <span className="lc-fade-out rounded bg-violet-100 px-1.5 py-0.5 font-medium text-violet-700 [grid-area:1/1]" style={d(delay)}>
         {token}
       </span>
-      <span className="lc-in rounded bg-emerald-100 px-1 text-emerald-800 [grid-area:1/1]" style={d(delay + 0.15)}>
+      <span className="lc-in rounded bg-emerald-100 px-1.5 py-0.5 font-semibold text-emerald-800 shadow-2xs [grid-area:1/1]" style={d(delay + 0.15)}>
         {value}
       </span>
     </span>
@@ -355,21 +489,37 @@ function Swap({ token, value, delay }: { token: string; value: string; delay: nu
 
 function ReportScene() {
   return (
-    <div className="flex items-center justify-center gap-4">
+    <div className="flex flex-col items-center justify-center gap-5 sm:flex-row">
       <Phone>
         <CheckoutScreen annotate delay={0.4} />
       </Phone>
-      <div className="w-44 space-y-2">
-        <div className="lc-in rounded-lg border border-neutral-200 bg-white p-2 text-[11px] shadow-sm" style={d(1.3)}>
-          <p className="text-[9px] uppercase tracking-wide text-neutral-400">Describe the problem</p>
-          <p className="mt-0.5 text-neutral-800">Pay button is hidden behind the keyboard</p>
+      <div className="w-full max-w-[210px] space-y-2.5">
+        <div
+          className="lc-in rounded-2xl border border-neutral-200/90 bg-white/95 p-3.5 text-[11px] shadow-lg shadow-neutral-900/5 backdrop-blur-sm"
+          style={d(1.3)}
+        >
+          <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-wider text-neutral-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+            Describe the problem
+          </div>
+          <p className="mt-1.5 font-medium leading-snug text-neutral-900">
+            Pay button is hidden behind the keyboard
+          </p>
         </div>
-        <div className="lc-pop inline-flex items-center gap-1 rounded-full bg-blue-600 px-3 py-1 text-[11px] font-medium text-white" style={d(2.2)}>
-          Send ↑
+        <div
+          className="lc-pop inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 px-3.5 py-1.5 text-[11px] font-semibold text-white shadow-md shadow-blue-500/20"
+          style={d(2.2)}
+        >
+          <span>Send feedback</span>
+          <span>↑</span>
         </div>
-        <p className="lc-in text-[11px] text-emerald-700" style={d(2.8)}>
-          ✓ Sent with screenshot, annotation and device info
-        </p>
+        <div
+          className="lc-in flex items-center gap-1.5 rounded-lg border border-emerald-200/70 bg-emerald-50 px-2.5 py-1.5 text-[10.5px] font-medium text-emerald-800"
+          style={d(2.8)}
+        >
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Sent with screenshot, markup &amp; device context</span>
+        </div>
       </div>
     </div>
   );
@@ -378,34 +528,86 @@ function ReportScene() {
 function InboxScene() {
   return (
     <Window url="feedback-kit.hejitech.workers.dev/projects/acme-shop">
-      <p className="text-[11px] font-semibold text-neutral-900">Feedback</p>
-      <div className="mt-2 space-y-1.5">
-        <div className="lc-in flex gap-2 rounded-lg border border-blue-200 bg-blue-50/60 p-2" style={d(0.3)}>
-          <div className="relative h-14 w-9 shrink-0 overflow-hidden rounded border border-neutral-200 bg-white">
-            <div className="absolute inset-x-1 bottom-4 h-1.5 rounded-sm bg-neutral-800" />
-            <div className="absolute inset-x-0 bottom-0 h-4 bg-neutral-200" />
-            <div className="absolute inset-x-0.5 bottom-3.5 h-2.5 rounded-sm border border-red-500" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between gap-2">
-              <p className="truncate text-[11px] font-medium text-neutral-900">Pay button is hidden behind the keyboard</p>
-              <span className="lc-pop shrink-0 rounded-full bg-blue-600 px-1.5 py-0.5 text-[9px] font-semibold text-white" style={d(0.9)}>
-                New
-              </span>
+      <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
+        <div className="flex items-center gap-2">
+          <p className="text-[12px] font-bold text-neutral-900">Feedback Reports</p>
+          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-600">
+            3 open
+          </span>
+        </div>
+        <span className="text-[10px] text-neutral-400">Live sync</span>
+      </div>
+
+      <div className="mt-3 space-y-2">
+        {/* Active Feedback Card */}
+        <div
+          className="lc-in relative overflow-hidden rounded-xl border-2 border-blue-500/30 bg-gradient-to-br from-blue-50/50 via-white to-neutral-50/50 p-2.5 shadow-sm transition-all"
+          style={d(0.3)}
+        >
+          <div className="flex gap-2.5">
+            {/* Screenshot Thumbnail */}
+            <div className="relative h-16 w-10 shrink-0 overflow-hidden rounded-md border border-neutral-300 bg-neutral-900 p-0.5 shadow-xs">
+              <div className="relative h-full w-full overflow-hidden rounded-[2px] bg-white p-0.5 text-[4px]">
+                <div className="mb-0.5 h-1 w-full rounded-[1px] bg-neutral-100" />
+                <div className="mb-1 h-1 w-3/4 rounded-[1px] bg-neutral-100" />
+                <div className="absolute inset-x-0.5 bottom-3 h-2 rounded-[1px] bg-neutral-900" />
+                <div className="absolute inset-x-0 bottom-0 h-2.5 bg-neutral-200" />
+                {/* Red highlight circle */}
+                <div className="absolute inset-x-0 bottom-2 h-3 rounded-[2px] border border-red-500 bg-red-500/10" />
+              </div>
             </div>
-            <div className="mt-1 flex flex-wrap gap-1">
-              {["Checkout", "iPhone16,1", "iOS 18.2", "build 41", "en_US"].map((chip, i) => (
-                <span key={chip} className="lc-in rounded bg-white px-1.5 py-0.5 text-[9px] text-neutral-600 ring-1 ring-neutral-200" style={d(1.1 + i * 0.15)}>
-                  {chip}
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-start justify-between gap-1.5">
+                <p className="truncate text-[11.5px] font-semibold text-neutral-900">
+                  Pay button is hidden behind the keyboard
+                </p>
+                <span
+                  className="lc-pop shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-xs"
+                  style={d(0.9)}
+                >
+                  New
                 </span>
-              ))}
+              </div>
+              <p className="mt-0.5 text-[10px] text-neutral-500">Reported just now from iOS Simulator</p>
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {[
+                  { label: "Checkout", color: "bg-neutral-100 text-neutral-700" },
+                  { label: "iPhone 16 Pro", color: "bg-neutral-100 text-neutral-700" },
+                  { label: "iOS 18.2", color: "bg-neutral-100 text-neutral-700" },
+                  { label: "build 41", color: "bg-amber-50 text-amber-800 border border-amber-200/60" },
+                ].map((chip, i) => (
+                  <span
+                    key={chip.label}
+                    className={`lc-in rounded-md px-1.5 py-0.5 text-[9px] font-medium ${chip.color}`}
+                    style={d(1.1 + i * 0.12)}
+                  >
+                    {chip.label}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-        {["Dark mode: prices unreadable", "Crash when removing last cart item"].map((t) => (
-          <div key={t} className="flex items-center gap-2 rounded-lg border border-neutral-100 p-2 opacity-60">
-            <div className="h-8 w-6 rounded bg-neutral-100" />
-            <p className="text-[11px] text-neutral-600">{t}</p>
+
+        {/* Older Reports */}
+        {[
+          { title: "Dark mode: prices unreadable", screen: "Cart", time: "2h ago" },
+          { title: "Crash when removing last cart item", screen: "Checkout", time: "5h ago" },
+        ].map((item) => (
+          <div
+            key={item.title}
+            className="flex items-center justify-between rounded-xl border border-neutral-100 bg-neutral-50/60 px-3 py-2 opacity-65"
+          >
+            <div className="flex items-center gap-2 truncate">
+              <div className="h-2 w-2 rounded-full bg-neutral-300" />
+              <p className="truncate text-[11px] font-medium text-neutral-700">{item.title}</p>
+            </div>
+            <div className="flex items-center gap-1.5 text-[9.5px] text-neutral-400">
+              <span>{item.screen}</span>
+              <span>·</span>
+              <span>{item.time}</span>
+            </div>
           </div>
         ))}
       </div>
@@ -415,29 +617,48 @@ function InboxScene() {
 
 function PromptScene() {
   return (
-    <div className="min-h-[304px] w-full overflow-hidden rounded-xl border border-neutral-200 bg-white p-4 font-mono text-[11px] leading-6 text-neutral-800 shadow-lg">
-      <div className="mb-2 flex items-center justify-between font-sans">
-        <span className="text-[10px] uppercase tracking-wide text-neutral-400">Prompt template → merged prompt</span>
-        <span className="lc-pop rounded bg-neutral-900 px-2 py-0.5 text-[10px] text-white" style={d(3.2)}>
-          Copy Merged Prompt
+    <div className="min-h-[316px] w-full overflow-hidden rounded-2xl border border-neutral-200/90 bg-white shadow-xl shadow-neutral-900/6">
+      <div className="flex items-center justify-between border-b border-neutral-200/70 bg-neutral-100/80 px-3.5 py-2.5 backdrop-blur-sm">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F56] ring-1 ring-black/10" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#FFBD2E] ring-1 ring-black/10" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#27C93F] ring-1 ring-black/10" />
+          </div>
+          <span className="ml-2 font-mono text-[10px] font-medium text-neutral-500">prompt-template.md</span>
+        </div>
+        <span
+          className="lc-pop inline-flex items-center gap-1 rounded-lg bg-neutral-900 px-2.5 py-1 text-[10px] font-medium text-white shadow-xs"
+          style={d(3.2)}
+        >
+          <CopyIcon className="h-2.5 w-2.5" />
+          Copy Prompt
         </span>
       </div>
-      <p>
-        Fix the bug on the <Swap token="{{screen_name}}" value="Checkout" delay={0.6} /> screen.
-      </p>
-      <p>
-        User's report: <Swap token="{{feedback_text}}" value="Pay button is hidden behind the keyboard" delay={1.1} />
-      </p>
-      <p>
-        Device: <Swap token="{{device_model}}" value="iPhone16,1" delay={1.6} />,{" "}
-        <Swap token="{{os_name}} {{os_version}}" value="iOS 18.2" delay={1.9} />
-      </p>
-      <p>
-        App version: <Swap token="{{app_build}}" value="41" delay={2.2} />
-      </p>
-      <p className="truncate">
-        Screenshot: <Swap token="{{screenshot_url}}" value="https://…/annotated.png" delay={2.5} />
-      </p>
+
+      <div className="space-y-2 p-4 font-mono text-[11px] leading-relaxed text-neutral-800">
+        <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-2 font-sans text-[10px] text-neutral-500">
+          Filled dynamically from report <code className="font-mono font-semibold text-violet-600">fb_8c2</code>
+        </div>
+        <p>
+          Fix the bug on the <Swap token="{{screen_name}}" value="Checkout" delay={0.6} /> screen.
+        </p>
+        <p>
+          User&apos;s report:{" "}
+          <Swap token="{{feedback_text}}" value="Pay button is hidden behind the keyboard" delay={1.1} />
+        </p>
+        <p>
+          Device: <Swap token="{{device_model}}" value="iPhone 16 Pro" delay={1.6} />,{" "}
+          <Swap token="{{os_name}} {{os_version}}" value="iOS 18.2" delay={1.9} />
+        </p>
+        <p>
+          App version: <Swap token="{{app_build}}" value="Build 41" delay={2.2} />
+        </p>
+        <p className="truncate text-neutral-500">
+          Screenshot:{" "}
+          <Swap token="{{screenshot_url}}" value="https://feedback-kit.hejitech.workers.dev/screenshots/fb_8c2/annotated.png" delay={2.5} />
+        </p>
+      </div>
     </div>
   );
 }
@@ -449,57 +670,136 @@ function AgentScene() {
     </p>
   );
   return (
-    <Terminal title="claude — ~/acme-shop">
+    <Terminal title="claude — ~/acme-shop (main)">
       <p className="text-neutral-400">
-        › <Typed text="Look at feedback report fb_8c2 in FeedbackKit and fix it." delay={0.2} />
+        <span className="text-emerald-400">›</span>{" "}
+        <Typed text="Look at feedback report fb_8c2 in FeedbackKit and fix it." delay={0.2} />
       </p>
-      {line(1.6, <><span className="text-emerald-400">⏺</span> feedbackkit · get_prompt(fb_8c2) <span className="text-neutral-500">— screenshot attached</span></>)}
-      {line(2.2, <><span className="text-emerald-400">⏺</span> feedbackkit · claim_feedback <StageBadge stage="agent_working" className="ml-1 font-sans" /></>)}
-      {line(2.9, <><span className="text-sky-400">✎</span> Edit CheckoutView.swift <span className="text-emerald-400">+6</span> <span className="text-red-400">−2</span></>)}
-      {line(3.5, <><span className="text-emerald-400">⏺</span> feedbackkit · attach_preview <span className="text-neutral-500">— after-fix preview saved</span></>)}
-      {line(4.1, <>$ git commit -m "Keep Pay above the keyboard"</>)}
-      {line(4.4, <span className="rounded bg-amber-400/15 px-1 text-amber-300">      FeedbackKit: fb_8c2</span>)}
+      {line(
+        1.6,
+        <>
+          <span className="text-emerald-400">⏺</span>{" "}
+          <span className="font-medium text-white">feedbackkit · get_prompt</span>
+          <span className="text-neutral-400">(fb_8c2)</span>{" "}
+          <span className="text-neutral-500">— screenshot + context loaded</span>
+        </>,
+      )}
+      {line(
+        2.2,
+        <>
+          <span className="text-emerald-400">⏺</span>{" "}
+          <span className="font-medium text-white">feedbackkit · claim_feedback</span>{" "}
+          <StageBadge stage="agent_working" className="ml-1 font-sans" />
+        </>,
+      )}
+      {line(
+        2.9,
+        <>
+          <span className="text-sky-400">✎</span> Edit{" "}
+          <span className="font-semibold text-neutral-100">CheckoutView.swift</span>{" "}
+          <span className="rounded bg-emerald-950/80 px-1 font-semibold text-emerald-400">+6</span>{" "}
+          <span className="rounded bg-red-950/80 px-1 font-semibold text-red-400">−2</span>
+        </>,
+      )}
+      {line(
+        3.5,
+        <>
+          <span className="text-emerald-400">⏺</span>{" "}
+          <span className="font-medium text-white">feedbackkit · attach_preview</span>{" "}
+          <span className="text-neutral-500">— after-fix preview attached</span>
+        </>,
+      )}
+      {line(
+        4.1,
+        <>
+          <span className="text-neutral-400">$</span> git commit -m &quot;Keep Pay above the keyboard&quot;
+        </>,
+      )}
+      {line(
+        4.4,
+        <span className="inline-block rounded-md bg-amber-400/15 px-2 py-0.5 font-medium text-amber-300">
+          FeedbackKit: fb_8c2
+        </span>,
+      )}
     </Terminal>
   );
 }
 
 function MergeScene() {
   return (
-    <div className="grid min-h-[304px] w-full gap-3 sm:grid-cols-2">
-      <div className="rounded-xl border border-neutral-200 bg-white p-3 shadow-lg">
-        <p className="text-[10px] text-neutral-400">acme/acme-shop · Pull request</p>
-        <p className="mt-1 text-[13px] font-semibold text-neutral-900">
-          Keep Pay above the keyboard <span className="font-normal text-neutral-400">#128</span>
-        </p>
-        <div className="mt-2 inline-grid">
-          <span className="lc-fade-out rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-medium text-white [grid-area:1/1]" style={d(1.6)}>
-            Open
-          </span>
-          <span className="lc-pop rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-medium text-white [grid-area:1/1]" style={d(1.7)}>
-            Merged
-          </span>
-        </div>
-        <div className="mt-3 rounded border border-neutral-100 bg-neutral-50 p-2 font-mono text-[10px] text-neutral-600">
-          Lifts the Pay button with the keyboard inset.
-          <br />
-          <span className="rounded bg-amber-100 px-1 text-amber-800">FeedbackKit: fb_8c2</span>
-        </div>
-      </div>
-      <div className="rounded-xl border border-neutral-200 bg-white p-3 shadow-lg">
-        <p className="text-[10px] uppercase tracking-wide text-neutral-400">Fix loop in your dashboard</p>
-        <div className="mt-3 space-y-2">
-          <StageBadge stage="agent_working" />
-          <div>
-            <StageBadge stage="pr_open" className="lc-in" style={d(0.5)} />
-            <span className="lc-in ml-2 text-[10px] text-neutral-400" style={d(0.5)}>
-              github-webhook saw #128
+    <div className="grid min-h-[316px] w-full gap-3 sm:grid-cols-2">
+      {/* GitHub PR card */}
+      <div className="flex flex-col justify-between rounded-2xl border border-neutral-200/90 bg-white p-3.5 shadow-xl shadow-neutral-900/5">
+        <div>
+          <div className="flex items-center justify-between text-[10px] text-neutral-400">
+            <div className="flex items-center gap-1.5">
+              <GitHubIcon className="h-3 w-3 text-neutral-700" />
+              <span className="font-medium text-neutral-600">acme/acme-shop</span>
+            </div>
+            <span>#128</span>
+          </div>
+
+          <p className="mt-2 text-[12.5px] font-bold leading-tight text-neutral-900">
+            Keep Pay above the keyboard
+          </p>
+
+          <div className="mt-2.5 inline-grid">
+            <span
+              className="lc-fade-out inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-0.5 text-[10px] font-semibold text-white shadow-xs [grid-area:1/1]"
+              style={d(1.6)}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-white" />
+              Open
+            </span>
+            <span
+              className="lc-pop inline-flex items-center gap-1 rounded-full bg-purple-600 px-2.5 py-0.5 text-[10px] font-semibold text-white shadow-xs [grid-area:1/1]"
+              style={d(1.7)}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-white" />
+              Merged
             </span>
           </div>
-          <div>
-            <StageBadge stage="merged" className="lc-pop" style={d(1.8)} />
-            <span className="lc-in ml-2 text-[10px] text-neutral-400" style={d(1.9)}>
-              waits for a release
+        </div>
+
+        <div className="mt-3 space-y-1 rounded-xl border border-neutral-100 bg-neutral-50/80 p-2.5 font-mono text-[10px] text-neutral-600">
+          <p className="font-sans text-[10px] text-neutral-700">Lifts the Pay button with keyboard inset.</p>
+          <div className="pt-1">
+            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9.5px] font-medium text-amber-800">
+              FeedbackKit: fb_8c2
             </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Dashboard Fix Loop Card */}
+      <div className="rounded-2xl border border-neutral-200/90 bg-white p-3.5 shadow-xl shadow-neutral-900/5">
+        <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
+            Fix loop status
+          </p>
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+        </div>
+
+        <div className="mt-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-emerald-500" />
+            <StageBadge stage="agent_working" />
+          </div>
+
+          <div className="relative ml-1 space-y-3 border-l border-neutral-200 pl-4">
+            <div>
+              <StageBadge stage="pr_open" className="lc-in" style={d(0.5)} />
+              <p className="lc-in mt-0.5 text-[9.5px] text-neutral-500" style={d(0.5)}>
+                github-webhook linked #128
+              </p>
+            </div>
+
+            <div>
+              <StageBadge stage="merged" className="lc-pop" style={d(1.8)} />
+              <p className="lc-in mt-0.5 text-[9.5px] text-neutral-500" style={d(1.9)}>
+                Ready for next release
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -509,18 +809,23 @@ function MergeScene() {
 
 function ShipScene() {
   return (
-    <Terminal title="CI · after the TestFlight upload">
-      <p>
-        $ <Typed text="npx feedbackkit-cli release --build 42" delay={0.2} />
+    <Terminal title="CI · after TestFlight / Beta upload">
+      <p className="text-neutral-400">
+        <span className="text-emerald-400">$</span>{" "}
+        <Typed text="npx feedbackkit-cli release --build 42" delay={0.2} />
       </p>
-      <p className="lc-in text-neutral-400" style={d(1.6)}>
-        Build 42 @ 9f3c2ab — beta
+      <p className="lc-in pt-1 text-neutral-400" style={d(1.6)}>
+        <span className="text-sky-400">ℹ</span> Build 42 @ 9f3c2ab — <span className="text-amber-300">beta</span>
       </p>
-      <p className="lc-in" style={d(2.1)}>
-        {"  "}ship  <span className="text-amber-300">fb_8c2</span>  Pay button is hidden behind the keyboard
-      </p>
-      <p className="lc-in text-emerald-400" style={d(2.6)}>
-        Shipped 1 fix(es). Their reporters will be asked to confirm on build 42 or newer.
+      <div className="lc-in my-1.5 space-y-1 rounded-lg border border-neutral-800 bg-neutral-900/90 p-2" style={d(2.1)}>
+        <div className="flex items-center gap-2">
+          <span className="rounded bg-emerald-500/20 px-1 text-[9px] font-semibold text-emerald-400">SHIP</span>
+          <span className="font-bold text-amber-300">fb_8c2</span>
+          <span className="truncate text-neutral-300">Pay button is hidden behind the keyboard</span>
+        </div>
+      </div>
+      <p className="lc-in font-medium text-emerald-400" style={d(2.6)}>
+        ✓ Shipped 1 fix. Reporter will be prompted on build 42 or newer.
       </p>
       <div className="pt-2 font-sans">
         <StageBadge stage="shipped" className="lc-pop" style={d(3.1)} />
@@ -531,39 +836,67 @@ function ShipScene() {
 
 function VerifyScene() {
   return (
-    <div className="flex items-center justify-center gap-4">
+    <div className="flex flex-col items-center justify-center gap-5 sm:flex-row">
       <Phone>
         <CheckoutScreen fixed />
-        <div className="absolute inset-0 bg-black/30 lc-in" style={d(0.3)} />
-        <div className="lc-slide-up absolute inset-x-0 bottom-0 rounded-t-2xl bg-white p-2.5 shadow-2xl" style={d(0.4)}>
-          <p className="text-[10px] font-semibold leading-tight text-neutral-900">We fixed something you reported</p>
-          <p className="text-[8px] text-neutral-500">Fixed in build 42 — the one you're using now.</p>
-          <div className="mt-1.5 flex gap-2">
-            <div className="relative h-14 w-9 shrink-0 overflow-hidden rounded border border-neutral-200 bg-neutral-50">
-              <div className="absolute inset-x-1 bottom-4 h-1.5 rounded-sm bg-neutral-800" />
-              <div className="absolute inset-x-0 bottom-0 h-4 bg-neutral-200" />
-              <div className="absolute inset-x-0.5 bottom-3.5 h-2.5 rounded-sm border border-red-500" />
-            </div>
-            <p className="text-[8.5px] leading-snug text-neutral-600">
-              You reported "Pay button is hidden behind the keyboard"
-              <br />
-              What changed: Keep Pay above the keyboard
+        {/* Dim overlay */}
+        <div className="lc-in absolute inset-0 z-20 bg-black/40 backdrop-blur-[1px]" style={d(0.3)} />
+        {/* iOS verification modal sheet */}
+        <div
+          className="lc-slide-up absolute inset-x-0 bottom-0 z-30 rounded-t-[1.3rem] bg-white p-3 shadow-2xl"
+          style={d(0.4)}
+        >
+          {/* iOS sheet handle bar */}
+          <div className="mx-auto mb-2 h-1 w-8 rounded-full bg-neutral-300" />
+          <div className="flex items-center gap-1.5">
+            <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-100 text-[8px] font-bold text-emerald-700">
+              ✓
+            </span>
+            <p className="text-[9.5px] font-bold leading-tight text-neutral-900">
+              We fixed something you reported
             </p>
           </div>
-          <div className="lc-tap mt-2 rounded-md bg-blue-600 py-1 text-center text-[9px] font-semibold text-white" style={d(1.8)}>
-            Yes, it's fixed
+          <p className="mt-0.5 text-[7.5px] text-neutral-500">Fixed in build 42 (the one you&apos;re using now).</p>
+
+          <div className="mt-2 flex gap-2 rounded-lg border border-neutral-100 bg-neutral-50 p-1.5">
+            <div className="relative h-10 w-7 shrink-0 overflow-hidden rounded border border-neutral-300 bg-neutral-900 p-0.5">
+              <div className="h-full w-full rounded-[1px] bg-white p-0.5 text-[3px]">
+                <div className="mb-0.5 h-0.5 w-full bg-neutral-200" />
+                <div className="absolute inset-x-0.5 bottom-1 h-1.5 rounded-[1px] border border-red-500" />
+              </div>
+            </div>
+            <div className="min-w-0 flex-1 space-y-0.5 text-[7px] leading-tight text-neutral-600">
+              <p className="truncate font-medium text-neutral-800">
+                &ldquo;Pay button is hidden...&rdquo;
+              </p>
+              <p className="text-neutral-500">Changed: Keep Pay above keyboard</p>
+            </div>
           </div>
-          <div className="mt-1 py-0.5 text-center text-[9px] text-neutral-500">No, still broken</div>
+
+          <div
+            className="lc-tap mt-2 rounded-xl bg-blue-600 py-1.5 text-center text-[9px] font-semibold text-white shadow-md shadow-blue-500/25"
+            style={d(1.8)}
+          >
+            Yes, it&apos;s fixed
+          </div>
+          <div className="mt-1 py-0.5 text-center text-[8px] font-medium text-neutral-500 hover:text-neutral-700">
+            No, still broken
+          </div>
         </div>
       </Phone>
-      <div className="w-40 space-y-2">
-        <p className="lc-in text-[11px] text-neutral-600" style={d(0.6)}>
-          Their own annotated screenshot, on the build that has the fix.
-        </p>
-        <StageBadge stage="verified" className="lc-pop" style={d(2.3)} />
-        <p className="lc-in text-[11px] text-neutral-500" style={d(2.6)}>
-          Status → <span className="font-medium text-neutral-800">resolved</span>. You didn't close it; they did.
-        </p>
+
+      <div className="w-full max-w-[210px] space-y-3">
+        <div className="space-y-2 rounded-2xl border border-neutral-200/90 bg-white/95 p-3.5 shadow-lg shadow-neutral-900/5 backdrop-blur-sm">
+          <p className="lc-in text-[11px] font-medium leading-snug text-neutral-700" style={d(0.6)}>
+            Their own annotated screenshot shown on the build with the fix.
+          </p>
+          <div className="pt-1">
+            <StageBadge stage="verified" className="lc-pop !text-[11px] px-2.5 py-1" style={d(2.3)} />
+          </div>
+          <p className="lc-in border-t border-neutral-100 pt-1 text-[10.5px] leading-snug text-neutral-500" style={d(2.6)}>
+            Status → <span className="font-semibold text-neutral-900">Resolved</span>. Closed by the person who reported it.
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -572,27 +905,57 @@ function VerifyScene() {
 function PromoteScene() {
   return (
     <Window url="feedback-kit.hejitech.workers.dev/projects/acme-shop?tab=releases">
-      <p className="text-[11px] font-semibold text-neutral-900">Releases</p>
-      <div className="mt-2 space-y-2">
-        <div className="rounded-lg border border-neutral-200 p-2.5">
+      <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
+        <p className="text-[12px] font-bold text-neutral-900">Releases</p>
+        <span className="text-[10px] text-neutral-400">Production &amp; Betas</span>
+      </div>
+
+      <div className="mt-3 space-y-2.5">
+        {/* Ready to promote release card */}
+        <div className="rounded-xl border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-50/40 via-white to-neutral-50 p-3 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-medium text-neutral-900">
-              Build 42 <span className="ml-1 rounded bg-neutral-100 px-1 text-[9px] text-neutral-500">beta</span>
-            </p>
-            <span className="lc-pop rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700" style={d(1.3)}>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[12px] font-bold text-neutral-900">Build 42</span>
+              <span className="rounded-md bg-neutral-100 px-1.5 py-0.5 text-[9px] font-semibold text-neutral-600">
+                Beta
+              </span>
+            </div>
+            <span
+              className="lc-pop inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[9.5px] font-semibold text-emerald-800"
+              style={d(1.3)}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
               All 3 verified — ready
             </span>
           </div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100">
-            <div className="lc-grow h-full rounded-full bg-emerald-500" style={{ ...d(0.2), "--lc-dur": "1s" } as CSSProperties} />
+
+          <div className="mt-2.5 h-2 overflow-hidden rounded-full border border-neutral-200/50 bg-neutral-100">
+            <div
+              className="lc-grow h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+              style={{ ...d(0.2), "--lc-dur": "1s" } as CSSProperties}
+            />
           </div>
-          <p className="mt-1 text-[10px] text-neutral-400">3 fixes · 3 verified by reporters · 0 reopened</p>
-          <span className="lc-pop mt-2 inline-block rounded-md bg-neutral-900 px-2.5 py-1 text-[10px] font-medium text-white" style={d(1.9)}>
-            Promote to production
+
+          <p className="mt-1.5 text-[10px] font-medium text-neutral-500">
+            3 fixes · 3 verified by real reporters · 0 reopened
+          </p>
+
+          <span
+            className="lc-pop mt-3 inline-flex items-center gap-1.5 rounded-lg bg-neutral-900 px-3 py-1.5 text-[10.5px] font-semibold text-white shadow-md hover:bg-neutral-800"
+            style={d(1.9)}
+          >
+            <span>Promote to production</span>
+            <span>→</span>
           </span>
         </div>
-        <div className="rounded-lg border border-neutral-100 p-2.5 opacity-60">
-          <p className="text-[11px] text-neutral-700">Build 41 · In production</p>
+
+        {/* Previous release */}
+        <div className="flex items-center justify-between rounded-xl border border-neutral-100 bg-neutral-50/60 p-2.5 opacity-60">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-neutral-400" />
+            <span className="text-[11px] font-medium text-neutral-700">Build 41</span>
+          </div>
+          <span className="text-[10px] text-neutral-400">In production</span>
         </div>
       </div>
     </Window>
@@ -610,7 +973,10 @@ export function LifecycleScene({ step }: { step: number }) {
   }, [inView]);
   const Scene = SCENES[step];
   return (
-    <div ref={ref} className="min-h-[304px]">
+    <div
+      ref={ref}
+      className="flex min-h-[316px] items-center justify-center rounded-2xl border border-neutral-200/70 bg-gradient-to-b from-neutral-50/80 via-white to-neutral-50/60 p-4 shadow-inner"
+    >
       {played ? <Scene /> : null}
     </div>
   );
@@ -644,73 +1010,168 @@ export function LifecyclePlayer() {
   const current = LIFECYCLE_STEPS[step];
 
   return (
-    <div ref={ref} className="overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50 shadow-sm">
-      <ol className="grid grid-cols-4 gap-px border-b border-neutral-200 bg-neutral-200 sm:grid-cols-8">
-        {LIFECYCLE_STEPS.map((s, i) => (
-          <li key={s.title} className="bg-white">
-            <button
-              type="button"
-              onClick={() => go(i)}
-              aria-current={i === step ? "step" : undefined}
-              className={`relative flex h-full w-full flex-col items-start gap-0.5 px-2 py-2 text-left transition-colors ${
-                i === step ? "bg-neutral-900 text-white" : i < step ? "text-neutral-700 hover:bg-neutral-50" : "text-neutral-400 hover:bg-neutral-50"
-              }`}
-            >
-              <span className="text-[10px] font-semibold tabular-nums">{i + 1}</span>
-              <span className="text-[11px] leading-tight">{s.title}</span>
-              {i === step && playing ? (
-                <span
-                  key={`${step}-progress`}
-                  className="lc-grow absolute inset-x-0 bottom-0 h-0.5 bg-emerald-400"
-                  style={{ "--lc-dur": `${STEP_MS}ms` } as CSSProperties}
-                />
-              ) : null}
-            </button>
-          </li>
-        ))}
-      </ol>
+    <div
+      ref={ref}
+      className="overflow-hidden rounded-2xl border border-neutral-200/80 bg-white shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-950/[0.04]"
+    >
+      {/* Sleek Segmented Stepper Bar */}
+      <div className="border-b border-neutral-200/80 bg-neutral-50/70 p-2 backdrop-blur-sm">
+        <ol className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 lg:grid-cols-8" aria-label="Walkthrough steps">
+          {LIFECYCLE_STEPS.map((s, i) => {
+            const isActive = i === step;
+            const isPast = i < step;
+            return (
+              <li key={s.title}>
+                <button
+                  type="button"
+                  onClick={() => go(i)}
+                  aria-current={isActive ? "step" : undefined}
+                  className={`group relative flex h-full w-full flex-col justify-between rounded-xl px-2.5 py-2 text-left transition-all duration-200 ${
+                    isActive
+                      ? "bg-white text-neutral-950 shadow-sm ring-1 ring-neutral-950/5"
+                      : isPast
+                      ? "text-neutral-700 hover:bg-white/60 hover:text-neutral-900"
+                      : "text-neutral-400 hover:bg-white/40 hover:text-neutral-700"
+                  }`}
+                >
+                  <div className="flex w-full items-center justify-between">
+                    <span
+                      className={`flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold tabular-nums transition-colors ${
+                        isActive
+                          ? "bg-neutral-900 text-white"
+                          : isPast
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-neutral-200/80 text-neutral-500"
+                      }`}
+                    >
+                      {isPast ? "✓" : i + 1}
+                    </span>
+                    <span className="text-[9px] font-medium uppercase tracking-wider text-neutral-400">
+                      {s.where.split(" ")[0]}
+                    </span>
+                  </div>
+                  <span className={`mt-1.5 block text-[11px] font-medium leading-tight ${isActive ? "text-neutral-950" : ""}`}>
+                    {s.title}
+                  </span>
+                  {isActive && playing ? (
+                    <span
+                      key={`${step}-progress`}
+                      className="lc-grow absolute inset-x-2 bottom-1 h-0.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]"
+                      style={{ "--lc-dur": `${STEP_MS}ms` } as CSSProperties}
+                    />
+                  ) : null}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
 
-      <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-[minmax(0,1fr)_220px] md:items-center">
-        <div key={step} className="min-w-0">
-          <Scene />
-        </div>
-        <div className="space-y-3">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
-              Step {step + 1} · {current.where}
-            </p>
-            <p className="mt-1 text-sm font-semibold text-neutral-900">{current.title}</p>
-            <p className="mt-1 text-sm text-neutral-600">{current.caption}</p>
+      {/* Main Showcase & Control Stage */}
+      <div className="grid grid-cols-1 gap-6 p-5 sm:p-6 lg:grid-cols-[1fr_290px] lg:items-center">
+        {/* Left Scene Stage */}
+        <div
+          key={step}
+          className="relative flex min-w-0 items-center justify-center rounded-xl border border-neutral-200/60 bg-gradient-to-b from-neutral-50/80 via-white to-neutral-50/60 p-4 shadow-inner sm:p-6"
+        >
+          {/* Subtle studio backdrop grid/glow */}
+          <div
+            className="pointer-events-none absolute inset-0 rounded-xl bg-[linear-gradient(to_right,rgba(0,0,0,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.02)_1px,transparent_1px)] bg-[size:24px_24px]"
+            aria-hidden
+          />
+          <div className="relative z-10 flex w-full items-center justify-center">
+            <Scene />
           </div>
+        </div>
+
+        {/* Right Info Panel */}
+        <div className="flex flex-col justify-between space-y-4 rounded-xl border border-neutral-200/70 bg-neutral-50/70 p-4 sm:p-5">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">Fix stage</p>
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              <span className="inline-flex items-center rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-medium text-white">Reported</span>
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200/60 bg-white px-2.5 py-0.5 text-[10px] font-semibold text-neutral-700 shadow-2xs">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
+                Step {step + 1} of {LIFECYCLE_STEPS.length}
+              </span>
+              <span className="text-[11px] font-medium text-neutral-400">
+                {current.where}
+              </span>
+            </div>
+
+            <h4 className="mt-3 text-base font-bold tracking-tight text-neutral-900">
+              {current.title}
+            </h4>
+            <p className="mt-1.5 text-xs leading-relaxed text-neutral-600">
+              {current.caption}
+            </p>
+          </div>
+
+          {/* Fix Stage Pipeline */}
+          <div className="border-t border-neutral-200/60 pt-3.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+              Fix stage progress
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1">
+              <span className="inline-flex items-center rounded-full bg-neutral-900 px-2 py-0.5 text-[9.5px] font-medium text-white shadow-2xs">
+                Reported
+              </span>
               {FIX_STAGE_ORDER.map((s, i) =>
                 i <= REACHED[step] ? (
-                  <StageBadge key={s} stage={s} />
+                  <StageBadge key={s} stage={s} className="py-0.5 text-[9.5px]" />
                 ) : (
-                  <span key={s} className="inline-flex items-center rounded-full border border-dashed border-neutral-300 px-2 py-0.5 text-[10px] text-neutral-400">
+                  <span
+                    key={s}
+                    className="inline-flex items-center rounded-full border border-dashed border-neutral-300 bg-white/50 px-2 py-0.5 text-[9.5px] text-neutral-400"
+                  >
                     {FIX_STAGE_META[s].label}
                   </span>
                 ),
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => go(step - 1)} className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-100" aria-label="Previous step">
-              ←
-            </button>
-            <button
-              type="button"
-              onClick={() => (reduced ? go(step + 1) : setPaused((p) => !p))}
-              className="rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs text-neutral-700 hover:bg-neutral-100"
-            >
-              {reduced ? "Next" : paused ? "▶ Play" : "❚❚ Pause"}
-            </button>
-            <button type="button" onClick={() => go(step + 1)} className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-100" aria-label="Next step">
-              →
-            </button>
+
+          {/* Controls Bar */}
+          <div className="flex items-center justify-between border-t border-neutral-200/60 pt-3.5">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => go(step - 1)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700 shadow-2xs transition-all hover:border-neutral-300 hover:bg-neutral-100 active:scale-95"
+                aria-label="Previous step"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={() => (reduced ? go(step + 1) : setPaused((p) => !p))}
+                className="flex h-8 items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 text-xs font-semibold text-neutral-800 shadow-2xs transition-all hover:border-neutral-300 hover:bg-neutral-100 active:scale-95"
+              >
+                {reduced ? (
+                  "Next"
+                ) : paused ? (
+                  <>
+                    <span className="text-[10px]">▶</span>
+                    <span>Play</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[10px]">❚❚</span>
+                    <span>Pause</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => go(step + 1)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700 shadow-2xs transition-all hover:border-neutral-300 hover:bg-neutral-100 active:scale-95"
+                aria-label="Next step"
+              >
+                ›
+              </button>
+            </div>
+
+            <span className="font-mono text-xs font-semibold tabular-nums text-neutral-400">
+              0{step + 1} / 0{LIFECYCLE_STEPS.length}
+            </span>
           </div>
         </div>
       </div>
