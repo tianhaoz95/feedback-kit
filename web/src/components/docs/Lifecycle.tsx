@@ -224,27 +224,27 @@ export function LifecycleLoop() {
 // Small drawing helpers
 // ---------------------------------------------------------------------------
 
-/** A realistic, premium iPhone hardware frame (~1:2.05 proportions). */
+/** A realistic, premium iPhone hardware frame (~1:2 proportions). */
 function Phone({ children }: { children: ReactNode }) {
   return (
-    <div className="relative h-[316px] w-[158px] shrink-0 select-none">
+    <div className="relative h-[380px] w-[190px] shrink-0 select-none">
       {/* Hardware side buttons */}
-      <span className="absolute -left-[2px] top-[48px] h-3.5 w-[2.5px] rounded-l-[2px] bg-neutral-400" />
-      <span className="absolute -left-[2px] top-[70px] h-6 w-[2.5px] rounded-l-[2px] bg-neutral-400" />
-      <span className="absolute -left-[2px] top-[98px] h-6 w-[2.5px] rounded-l-[2px] bg-neutral-400" />
-      <span className="absolute -right-[2px] top-[76px] h-9 w-[2.5px] rounded-r-[2px] bg-neutral-400" />
+      <span className="absolute -left-[2px] top-[58px] h-4 w-[2.5px] rounded-l-[2px] bg-neutral-400" />
+      <span className="absolute -left-[2px] top-[84px] h-7 w-[2.5px] rounded-l-[2px] bg-neutral-400" />
+      <span className="absolute -left-[2px] top-[118px] h-7 w-[2.5px] rounded-l-[2px] bg-neutral-400" />
+      <span className="absolute -right-[2px] top-[92px] h-10 w-[2.5px] rounded-r-[2px] bg-neutral-400" />
 
       {/* Titanium outer frame with gradient rim and realistic shadow */}
-      <div className="relative h-full w-full rounded-[2.1rem] bg-gradient-to-b from-neutral-200 via-neutral-400 to-neutral-500 p-[1.5px] shadow-[0_20px_45px_-12px_rgba(0,0,0,0.32),0_0_0_1px_rgba(0,0,0,0.06)]">
+      <div className="relative h-full w-full rounded-[2.3rem] bg-gradient-to-b from-neutral-200 via-neutral-400 to-neutral-500 p-[1.5px] shadow-[0_20px_45px_-12px_rgba(0,0,0,0.32),0_0_0_1px_rgba(0,0,0,0.06)]">
         {/* Inner black bezel */}
-        <div className="relative h-full w-full rounded-[2rem] bg-neutral-950 p-[5px] ring-1 ring-white/10">
+        <div className="relative h-full w-full rounded-[2.2rem] bg-neutral-950 p-[5px] ring-1 ring-white/10">
           {/* Glass display */}
-          <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[1.7rem] bg-white">
+          <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[1.9rem] bg-white">
             {/* iOS Status Bar */}
-            <div className="relative z-20 flex h-7 items-center justify-between px-3 text-[8.5px] font-semibold text-neutral-800">
+            <div className="relative z-20 flex h-7 items-center justify-between px-3 text-[9px] font-semibold text-neutral-800">
               <span className="tabular-nums tracking-tight">9:41</span>
               {/* Dynamic Island */}
-              <div className="absolute left-1/2 top-1.5 z-30 flex h-3 w-14 -translate-x-1/2 items-center justify-end rounded-full bg-black pr-1.5 ring-1 ring-neutral-800">
+              <div className="absolute left-1/2 top-1.5 z-30 flex h-3.5 w-16 -translate-x-1/2 items-center justify-end rounded-full bg-black pr-1.5 ring-1 ring-neutral-800">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#111827] ring-1 ring-neutral-700/60" />
               </div>
               <div className="flex items-center gap-1 opacity-80">
@@ -273,130 +273,88 @@ function Phone({ children }: { children: ReactNode }) {
   );
 }
 
-/** The demo app's checkout screen, with the Pay button half under the keyboard. */
-function CheckoutScreen({ annotate = false, fixed = false, delay = 0.2 }: { annotate?: boolean; fixed?: boolean; delay?: number }) {
+/** The demo app's checkout screen. */
+function CheckoutScreen({ annotate = false, delay = 0.2 }: { annotate?: boolean; delay?: number }) {
   return (
-    <div className="relative flex h-full w-full flex-col justify-between px-2.5 pt-1 font-sans text-[8px] text-neutral-700">
-      <div>
+    <div className="relative flex h-full w-full flex-col justify-between px-3 pt-1 pb-3 font-sans text-[9px] text-neutral-700">
+      <div className="space-y-2">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-neutral-100 pb-1.5">
-          <span className="text-[10px] text-neutral-400">‹</span>
-          <p className="text-[9.5px] font-semibold tracking-tight text-neutral-900">Checkout</p>
-          <span className="flex h-2 w-2 items-center justify-center rounded-full bg-emerald-500/20">
-            <span className="h-1 w-1 rounded-full bg-emerald-600" />
+          <span className="text-[11px] text-neutral-400">‹</span>
+          <p className="text-[10.5px] font-semibold tracking-tight text-neutral-900">Checkout</p>
+          <span className="flex h-2.5 w-2.5 items-center justify-center rounded-full bg-emerald-500/20">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
           </span>
         </div>
 
         {/* Order items */}
-        <div className="mt-2 space-y-1.5">
-          <div className="flex items-center justify-between rounded-lg border border-neutral-100 bg-neutral-50/80 p-1.5">
-            <div className="flex items-center gap-1.5">
-              <span className="flex h-5 w-5 items-center justify-center rounded bg-amber-100 text-[9px]">👟</span>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between rounded-lg border border-neutral-100 bg-neutral-50/80 p-2">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded bg-amber-100 text-[11px]">👟</span>
               <div>
-                <p className="text-[8px] font-medium leading-tight text-neutral-800">Sneakers</p>
-                <p className="text-[6.5px] text-neutral-400">Size 42 · White</p>
+                <p className="text-[9.5px] font-medium leading-tight text-neutral-800">Sneakers</p>
+                <p className="text-[8px] text-neutral-400">Size 42 · White</p>
               </div>
             </div>
-            <span className="text-[8px] font-semibold text-neutral-800">$36.00</span>
+            <span className="text-[9.5px] font-semibold text-neutral-800">$36.00</span>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border border-neutral-100 bg-neutral-50/80 p-1.5">
-            <div className="flex items-center gap-1.5">
-              <span className="flex h-5 w-5 items-center justify-center rounded bg-blue-100 text-[9px]">🧦</span>
+          <div className="flex items-center justify-between rounded-lg border border-neutral-100 bg-neutral-50/80 p-2">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded bg-blue-100 text-[11px]">🧦</span>
               <div>
-                <p className="text-[8px] font-medium leading-tight text-neutral-800">Socks ×2</p>
-                <p className="text-[6.5px] text-neutral-400">Crew · Black</p>
+                <p className="text-[9.5px] font-medium leading-tight text-neutral-800">Socks ×2</p>
+                <p className="text-[8px] text-neutral-400">Crew · Black</p>
               </div>
             </div>
-            <span className="text-[8px] font-semibold text-neutral-800">$6.00</span>
+            <span className="text-[9.5px] font-semibold text-neutral-800">$6.00</span>
           </div>
 
           {/* Pricing summary */}
-          <div className="space-y-1 rounded-lg border border-neutral-100/60 bg-neutral-50/50 p-1.5">
-            <div className="flex justify-between text-[7px] text-neutral-500">
+          <div className="space-y-1.5 rounded-lg border border-neutral-100/60 bg-neutral-50/50 p-2">
+            <div className="flex justify-between text-[8px] text-neutral-500">
               <span>Shipping</span>
               <span className="font-medium text-emerald-600">Free</span>
             </div>
-            <div className="flex justify-between border-t border-neutral-200/60 pt-1 text-[8.5px] font-bold text-neutral-900">
+            <div className="flex justify-between border-t border-neutral-200/60 pt-1 text-[10px] font-bold text-neutral-900">
               <span>Total</span>
               <span>$42.00</span>
             </div>
           </div>
 
           {/* Promo code field */}
-          <div className="flex items-center justify-between rounded-lg border border-neutral-200/80 bg-white px-2 py-1 text-[7.5px] text-neutral-400">
+          <div className="flex items-center justify-between rounded-lg border border-neutral-200/80 bg-white px-2.5 py-1.5 text-[8.5px] text-neutral-400">
             <span className="font-medium text-neutral-700">SUMMER42</span>
-            <span className="rounded bg-emerald-50 px-1 py-0.5 text-[7px] font-semibold text-emerald-600">Applied</span>
+            <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[8px] font-semibold text-emerald-600">Applied</span>
           </div>
         </div>
       </div>
 
       {/* Pay Button */}
-      <div
-        className={`absolute inset-x-2.5 z-10 transition-all duration-300 ${
-          fixed ? "bottom-[92px]" : "bottom-[70px]"
-        }`}
-      >
-        <div className="flex items-center justify-center gap-1 rounded-xl bg-neutral-950 py-2 text-center text-[9px] font-semibold text-white shadow-md">
+      <div className="relative z-10 pt-2">
+        <div className="flex items-center justify-center gap-1.5 rounded-xl bg-neutral-950 py-2.5 text-center text-[10.5px] font-semibold text-white shadow-md">
           <span>Pay $42.00</span>
-          <span className="text-[7.5px] opacity-60">Pay</span>
-        </div>
-      </div>
-
-      {/* Realistic iOS Keyboard */}
-      <div className="relative -mx-2.5 flex h-[84px] flex-col justify-between bg-neutral-200/90 px-1 py-1.5 shadow-[0_-1px_3px_rgba(0,0,0,0.06)] backdrop-blur-md">
-        {/* Row 1 */}
-        <div className="grid grid-cols-10 gap-0.5 px-0.5">
-          {["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"].map((k) => (
-            <div key={k} className="flex h-4 items-center justify-center rounded-[3px] bg-white text-[7px] font-medium text-neutral-800 shadow-[0_1px_0_rgba(0,0,0,0.25)]">
-              {k}
-            </div>
-          ))}
-        </div>
-        {/* Row 2 */}
-        <div className="grid grid-cols-9 gap-0.5 px-2">
-          {["A", "S", "D", "F", "G", "H", "J", "K", "L"].map((k) => (
-            <div key={k} className="flex h-4 items-center justify-center rounded-[3px] bg-white text-[7px] font-medium text-neutral-800 shadow-[0_1px_0_rgba(0,0,0,0.25)]">
-              {k}
-            </div>
-          ))}
-        </div>
-        {/* Row 3 */}
-        <div className="flex gap-1 px-0.5">
-          <div className="flex h-4 w-4 items-center justify-center rounded-[3px] bg-neutral-300 text-[6.5px] text-neutral-700 shadow-[0_1px_0_rgba(0,0,0,0.25)]">⇧</div>
-          <div className="grid flex-1 grid-cols-7 gap-0.5">
-            {["Z", "X", "C", "V", "B", "N", "M"].map((k) => (
-              <div key={k} className="flex h-4 items-center justify-center rounded-[3px] bg-white text-[7px] font-medium text-neutral-800 shadow-[0_1px_0_rgba(0,0,0,0.25)]">
-                {k}
-              </div>
-            ))}
-          </div>
-          <div className="flex h-4 w-4 items-center justify-center rounded-[3px] bg-neutral-300 text-[6.5px] text-neutral-700 shadow-[0_1px_0_rgba(0,0,0,0.25)]">⌫</div>
-        </div>
-        {/* Row 4 (Spacebar) */}
-        <div className="flex gap-1 px-1">
-          <div className="flex h-3.5 w-6 items-center justify-center rounded-[3px] bg-neutral-300 text-[6px] text-neutral-700 shadow-[0_1px_0_rgba(0,0,0,0.25)]">123</div>
-          <div className="flex h-3.5 flex-1 items-center justify-center rounded-[3px] bg-white text-[6px] text-neutral-400 shadow-[0_1px_0_rgba(0,0,0,0.25)]">space</div>
-          <div className="flex h-3.5 w-7 items-center justify-center rounded-[3px] bg-blue-600 text-[6px] font-semibold text-white shadow-[0_1px_0_rgba(0,0,0,0.25)]">done</div>
+          <span className="text-[9px] opacity-60">Pay</span>
         </div>
       </div>
 
       {/* SVG Annotation Box */}
       {annotate ? (
-        <svg className="pointer-events-none absolute inset-0 z-20 h-full w-full" viewBox="0 0 145 275">
+        <svg className="pointer-events-none absolute inset-0 z-20 h-full w-full" viewBox="0 0 178 338">
           <rect
-            x="6"
-            y="170"
-            width="133"
-            height="40"
-            rx="8"
+            x="8"
+            y="288"
+            width="162"
+            height="42"
+            rx="12"
             fill="none"
             stroke="#ef4444"
             strokeWidth="2.5"
             strokeDasharray="6 3"
             filter="drop-shadow(0 0 4px rgba(239, 68, 68, 0.5))"
             className="lc-draw"
-            style={{ ...d(delay), "--lc-len": 350 } as CSSProperties}
+            style={{ ...d(delay), "--lc-len": 400 } as CSSProperties}
           />
         </svg>
       ) : null}
@@ -406,7 +364,7 @@ function CheckoutScreen({ annotate = false, fixed = false, delay = 0.2 }: { anno
 
 function Window({ url, children }: { url: string; children: ReactNode }) {
   return (
-    <div className="min-h-[316px] w-full overflow-hidden rounded-2xl border border-neutral-200/90 bg-white shadow-xl shadow-neutral-900/6">
+    <div className="min-h-[380px] w-full overflow-hidden rounded-2xl border border-neutral-200/90 bg-white shadow-xl shadow-neutral-900/6">
       {/* Safari-like browser chrome */}
       <div className="flex items-center gap-2 border-b border-neutral-200/70 bg-neutral-100/80 px-3.5 py-2.5 backdrop-blur-sm">
         {/* macOS traffic lights */}
@@ -428,7 +386,7 @@ function Window({ url, children }: { url: string; children: ReactNode }) {
 
 function Terminal({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="min-h-[316px] w-full overflow-hidden rounded-2xl border border-neutral-800 bg-[#0d1117] font-mono text-[11px] leading-relaxed text-neutral-200 shadow-2xl shadow-black/40">
+    <div className="min-h-[380px] w-full overflow-hidden rounded-2xl border border-neutral-800 bg-[#0d1117] font-mono text-[11px] leading-relaxed text-neutral-200 shadow-2xl shadow-black/40">
       {/* Terminal Title Bar */}
       <div className="flex items-center justify-between border-b border-neutral-800/90 bg-[#161b22] px-3.5 py-2">
         <div className="flex items-center gap-2">
@@ -503,7 +461,7 @@ function ReportScene() {
             Describe the problem
           </div>
           <p className="mt-1.5 font-medium leading-snug text-neutral-900">
-            Pay button is hidden behind the keyboard
+            Pay button does not respond on tap
           </p>
         </div>
         <div
@@ -560,7 +518,7 @@ function InboxScene() {
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-1.5">
                 <p className="truncate text-[11.5px] font-semibold text-neutral-900">
-                  Pay button is hidden behind the keyboard
+                  Pay button does not respond on tap
                 </p>
                 <span
                   className="lc-pop shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-xs"
@@ -645,7 +603,7 @@ function PromptScene() {
         </p>
         <p>
           User&apos;s report:{" "}
-          <Swap token="{{feedback_text}}" value="Pay button is hidden behind the keyboard" delay={1.1} />
+          <Swap token="{{feedback_text}}" value="Pay button does not respond on tap" delay={1.1} />
         </p>
         <p>
           Device: <Swap token="{{device_model}}" value="iPhone 16 Pro" delay={1.6} />,{" "}
@@ -712,7 +670,7 @@ function AgentScene() {
       {line(
         4.1,
         <>
-          <span className="text-neutral-400">$</span> git commit -m &quot;Keep Pay above the keyboard&quot;
+          <span className="text-neutral-400">$</span> git commit -m &quot;Fix Pay button tap handler and layout&quot;
         </>,
       )}
       {line(
@@ -727,7 +685,7 @@ function AgentScene() {
 
 function MergeScene() {
   return (
-    <div className="grid min-h-[316px] w-full gap-3 sm:grid-cols-2">
+    <div className="grid min-h-[380px] w-full gap-3 sm:grid-cols-2">
       {/* GitHub PR card */}
       <div className="flex flex-col justify-between rounded-2xl border border-neutral-200/90 bg-white p-3.5 shadow-xl shadow-neutral-900/5">
         <div>
@@ -740,7 +698,7 @@ function MergeScene() {
           </div>
 
           <p className="mt-2 text-[12.5px] font-bold leading-tight text-neutral-900">
-            Keep Pay above the keyboard
+            Fix Pay button tap handler and layout
           </p>
 
           <div className="mt-2.5 inline-grid">
@@ -762,7 +720,7 @@ function MergeScene() {
         </div>
 
         <div className="mt-3 space-y-1 rounded-xl border border-neutral-100 bg-neutral-50/80 p-2.5 font-mono text-[10px] text-neutral-600">
-          <p className="font-sans text-[10px] text-neutral-700">Lifts the Pay button with keyboard inset.</p>
+          <p className="font-sans text-[10px] text-neutral-700">Fixes Pay button click handler and layout constraints.</p>
           <div className="pt-1">
             <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9.5px] font-medium text-amber-800">
               FeedbackKit: fb_8c2
@@ -821,7 +779,7 @@ function ShipScene() {
         <div className="flex items-center gap-2">
           <span className="rounded bg-emerald-500/20 px-1 text-[9px] font-semibold text-emerald-400">SHIP</span>
           <span className="font-bold text-amber-300">fb_8c2</span>
-          <span className="truncate text-neutral-300">Pay button is hidden behind the keyboard</span>
+          <span className="truncate text-neutral-300">Pay button does not respond on tap</span>
         </div>
       </div>
       <p className="lc-in font-medium text-emerald-400" style={d(2.6)}>
@@ -838,48 +796,48 @@ function VerifyScene() {
   return (
     <div className="flex flex-col items-center justify-center gap-5 sm:flex-row">
       <Phone>
-        <CheckoutScreen fixed />
+        <CheckoutScreen />
         {/* Dim overlay */}
         <div className="lc-in absolute inset-0 z-20 bg-black/40 backdrop-blur-[1px]" style={d(0.3)} />
         {/* iOS verification modal sheet */}
         <div
-          className="lc-slide-up absolute inset-x-0 bottom-0 z-30 rounded-t-[1.3rem] bg-white p-3 shadow-2xl"
+          className="lc-slide-up absolute inset-x-0 bottom-0 z-30 rounded-t-[1.4rem] bg-white p-3.5 shadow-2xl"
           style={d(0.4)}
         >
           {/* iOS sheet handle bar */}
           <div className="mx-auto mb-2 h-1 w-8 rounded-full bg-neutral-300" />
           <div className="flex items-center gap-1.5">
-            <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-100 text-[8px] font-bold text-emerald-700">
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-100 text-[9px] font-bold text-emerald-700">
               ✓
             </span>
-            <p className="text-[9.5px] font-bold leading-tight text-neutral-900">
+            <p className="text-[11px] font-bold leading-tight text-neutral-900">
               We fixed something you reported
             </p>
           </div>
-          <p className="mt-0.5 text-[7.5px] text-neutral-500">Fixed in build 42 (the one you&apos;re using now).</p>
+          <p className="mt-0.5 text-[8.5px] text-neutral-500">Fixed in build 42 (the one you&apos;re using now).</p>
 
-          <div className="mt-2 flex gap-2 rounded-lg border border-neutral-100 bg-neutral-50 p-1.5">
-            <div className="relative h-10 w-7 shrink-0 overflow-hidden rounded border border-neutral-300 bg-neutral-900 p-0.5">
-              <div className="h-full w-full rounded-[1px] bg-white p-0.5 text-[3px]">
+          <div className="mt-2 flex gap-2.5 rounded-lg border border-neutral-100 bg-neutral-50 p-2">
+            <div className="relative h-11 w-8 shrink-0 overflow-hidden rounded border border-neutral-300 bg-neutral-900 p-0.5">
+              <div className="h-full w-full rounded-[1px] bg-white p-0.5 text-[4px]">
                 <div className="mb-0.5 h-0.5 w-full bg-neutral-200" />
-                <div className="absolute inset-x-0.5 bottom-1 h-1.5 rounded-[1px] border border-red-500" />
+                <div className="absolute inset-x-0.5 bottom-1 h-2 rounded-[1px] border border-red-500" />
               </div>
             </div>
-            <div className="min-w-0 flex-1 space-y-0.5 text-[7px] leading-tight text-neutral-600">
+            <div className="min-w-0 flex-1 space-y-0.5 text-[8px] leading-tight text-neutral-600">
               <p className="truncate font-medium text-neutral-800">
-                &ldquo;Pay button is hidden...&rdquo;
+                &ldquo;Pay button is broken...&rdquo;
               </p>
-              <p className="text-neutral-500">Changed: Keep Pay above keyboard</p>
+              <p className="text-neutral-500">Changed: Fix Pay button layout</p>
             </div>
           </div>
 
           <div
-            className="lc-tap mt-2 rounded-xl bg-blue-600 py-1.5 text-center text-[9px] font-semibold text-white shadow-md shadow-blue-500/25"
+            className="lc-tap mt-2.5 rounded-xl bg-blue-600 py-2 text-center text-[10.5px] font-semibold text-white shadow-md shadow-blue-500/25"
             style={d(1.8)}
           >
             Yes, it&apos;s fixed
           </div>
-          <div className="mt-1 py-0.5 text-center text-[8px] font-medium text-neutral-500 hover:text-neutral-700">
+          <div className="mt-1 py-0.5 text-center text-[9px] font-medium text-neutral-500 hover:text-neutral-700">
             No, still broken
           </div>
         </div>
@@ -1068,11 +1026,11 @@ export function LifecyclePlayer() {
       </div>
 
       {/* Main Showcase & Control Stage */}
-      <div className="grid grid-cols-1 gap-6 p-5 sm:p-6 lg:grid-cols-[1fr_290px] lg:items-center">
+      <div className="grid grid-cols-1 gap-6 p-5 sm:p-6 lg:grid-cols-[1fr_300px] lg:items-stretch">
         {/* Left Scene Stage */}
         <div
           key={step}
-          className="relative flex min-w-0 items-center justify-center rounded-xl border border-neutral-200/60 bg-gradient-to-b from-neutral-50/80 via-white to-neutral-50/60 p-4 shadow-inner sm:p-6"
+          className="relative flex min-h-[440px] min-w-0 items-center justify-center rounded-xl border border-neutral-200/60 bg-gradient-to-b from-neutral-50/80 via-white to-neutral-50/60 p-6 shadow-inner sm:p-8"
         >
           {/* Subtle studio backdrop grid/glow */}
           <div
@@ -1085,7 +1043,7 @@ export function LifecyclePlayer() {
         </div>
 
         {/* Right Info Panel */}
-        <div className="flex flex-col justify-between space-y-4 rounded-xl border border-neutral-200/70 bg-neutral-50/70 p-4 sm:p-5">
+        <div className="flex min-h-[440px] flex-col justify-between space-y-4 rounded-xl border border-neutral-200/70 bg-neutral-50/70 p-5 sm:p-6">
           <div>
             <div className="flex items-center justify-between">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200/60 bg-white px-2.5 py-0.5 text-[10px] font-semibold text-neutral-700 shadow-2xs">

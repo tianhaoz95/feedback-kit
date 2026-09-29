@@ -79,18 +79,18 @@ export function CreateIssueButton({
     onCreateIssue({ dispatch: mode === "auto" });
   }
 
-  let primaryLabel = "Create GitHub Issue";
+  let primaryLabel = "Create Issue & Trigger AI";
   if (loading) {
     primaryLabel = "Creating issue…";
   } else if (isBatch) {
     if (mode === "auto") {
-      primaryLabel = hasDispatchTrigger ? `Send ${batchCount} to agent` : "Create one GitHub issue";
+      primaryLabel = hasDispatchTrigger ? `Send ${batchCount} to AI agent` : "Create Issue & Trigger AI";
     } else {
       primaryLabel = "Create one issue only";
     }
   } else {
     if (mode === "auto") {
-      primaryLabel = "Create GitHub Issue";
+      primaryLabel = "Create Issue & Trigger AI";
     } else {
       primaryLabel = "Create issue only";
     }
@@ -111,7 +111,11 @@ export function CreateIssueButton({
         title={primaryTitle}
         className="inline-flex items-center gap-1.5 rounded-l-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-xs font-medium text-neutral-900 transition-colors hover:border-neutral-300 hover:bg-neutral-50 focus:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <GitHubIcon className="h-3.5 w-3.5 text-neutral-700" />
+        {mode === "auto" ? (
+          <SparkleIcon className="h-3.5 w-3.5 text-neutral-700" />
+        ) : (
+          <GitHubIcon className="h-3.5 w-3.5 text-neutral-700" />
+        )}
         <span>{primaryLabel}</span>
       </button>
       <button

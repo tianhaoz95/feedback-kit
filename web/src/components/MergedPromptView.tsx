@@ -4,6 +4,7 @@ import type { DeliveryMode, FeedbackItem, FeedbackStatus } from "@/lib/types";
 import { closingTheLoopSection, renderMergedPrompt } from "@/lib/prompt-template";
 import { Button } from "@/components/Button";
 import { CreateIssueButton } from "@/components/CreateIssueButton";
+import { MarkdownPreview } from "@/components/MarkdownPreview";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusSelect } from "@/components/StatusSelect";
 import {
@@ -62,6 +63,7 @@ export function MergedPromptView({
   // Generate the merged prompt dynamically
   const generatedPrompt = renderMergedPrompt(selectedItems, signedUrls, templateText);
   const [promptText, setPromptText] = useState(generatedPrompt);
+  const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [isEdited, setIsEdited] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -319,21 +321,51 @@ export function MergedPromptView({
               </span>
             </div>
 
-            <p className="text-xs text-neutral-500">
-              Copy this prompt into <b>Claude Code</b>, <b>Cursor</b>, <b>Codex</b>, or <b>Antigravity</b>.
-              The agent will fix all {selectedItems.length} issues in one coordinated pull request.
-              {onSendToAgent ? " Or send the batch to your coding agent as one GitHub issue — edits here go into it." : null}
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-neutral-500">
+                Copy this prompt into <b>Claude Code</b>, <b>Cursor</b>, <b>Codex</b>, or <b>Antigravity</b>.
+                The agent will fix all {selectedItems.length} issues in one coordinated pull request.
+                {onSendToAgent ? " Or send the batch to your coding agent as one GitHub issue — edits here go into it." : null}
+              </p>
+              <div className="inline-flex rounded-lg bg-neutral-100 p-0.5 text-xs shrink-0 ml-2">
+                <button
+                  type="button"
+                  onClick={() => setMode("edit")}
+                  className={`rounded-md px-2.5 py-1 font-medium transition-all cursor-pointer ${
+                    mode === "edit"
+                      ? "bg-white text-neutral-900 shadow-2xs font-semibold"
+                      : "text-neutral-500 hover:text-neutral-900"
+                  }`}
+                >
+                  Raw Markdown
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("preview")}
+                  className={`rounded-md px-2.5 py-1 font-medium transition-all cursor-pointer ${
+                    mode === "preview"
+                      ? "bg-white text-neutral-900 shadow-2xs font-semibold"
+                      : "text-neutral-500 hover:text-neutral-900"
+                  }`}
+                >
+                  Markdown Preview
+                </button>
+              </div>
+            </div>
 
-            <textarea
-              value={promptText}
-              onChange={(e) => {
-                setPromptText(e.target.value);
-                setIsEdited(true);
-              }}
-              rows={22}
-              className="w-full rounded-lg border border-neutral-200 bg-neutral-50/50 p-3.5 font-mono text-xs text-neutral-800 leading-relaxed transition-colors placeholder:text-neutral-400 focus:border-neutral-900 focus:bg-white focus:outline-none"
-            />
+            {mode === "edit" ? (
+              <textarea
+                value={promptText}
+                onChange={(e) => {
+                  setPromptText(e.target.value);
+                  setIsEdited(true);
+                }}
+                rows={22}
+                className="w-full rounded-lg border border-neutral-200 bg-neutral-50/50 p-3.5 font-mono text-xs text-neutral-800 leading-relaxed transition-colors placeholder:text-neutral-400 focus:border-neutral-900 focus:bg-white focus:outline-none"
+              />
+            ) : (
+              <MarkdownPreview content={promptText} className="w-full min-h-[300px] max-h-[500px]" />
+            )}
 
             <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
               <div className="flex items-center gap-2">
