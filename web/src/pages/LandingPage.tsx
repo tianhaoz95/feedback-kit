@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { FeedbackKit, setUpFeedbackKit } from "@/lib/feedbackkit";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -9,7 +9,8 @@ import { DashboardMockup } from "@/components/landing/DashboardMockup";
 import { Reveal } from "@/components/landing/Reveal";
 import { LifecycleLoop, LifecyclePlayer } from "@/components/docs/Lifecycle";
 import { HeroLoop } from "@/components/landing/HeroLoop";
-import { ClaudeIcon, CodexIcon, CursorIcon, CopilotIcon, AntigravityIcon } from "@/components/icons";
+import { ClaudeIcon, CodexIcon, CursorIcon, CopilotIcon, AntigravityIcon, CheckIcon } from "@/components/icons";
+import { FREE_LIMITS, formatUsd, TEAM_PRICE_PER_SEAT_USD } from "@/lib/pricing";
 
 // Capture, framed as the input to the loop rather than the product itself.
 const steps = [
@@ -176,6 +177,7 @@ export function LandingPage() {
     };
   }, []);
 
+  const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const [sampleKind, setSampleKind] = useState<keyof typeof codeSamples>("swift");
   const sample = codeSamples[sampleKind];
@@ -185,6 +187,19 @@ export function LandingPage() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    if (location.hash) {
+      const id = location.hash.replace("#", "");
+      const timer = setTimeout(() => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [location.hash]);
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -201,6 +216,12 @@ export function LandingPage() {
             </span>
           </Link>
           <div className="flex items-center gap-3 sm:gap-4">
+            <a
+              href="#pricing"
+              className="link-underline text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900"
+            >
+              Pricing
+            </a>
             <Link
               to="/docs"
               className="link-underline text-sm font-medium text-neutral-600 transition-colors hover:text-neutral-900"
@@ -291,7 +312,10 @@ export function LandingPage() {
                 ))}
               </ul>
               <p className="mt-4 text-xs text-neutral-400">
-                Swift Package and npm, source available. The fix loop is free for your first project.
+                Swift Package and npm, source available. The fix loop is free for your first project.{" "}
+                <a href="#pricing" className="underline hover:text-neutral-600">
+                  See pricing →
+                </a>
               </p>
             </div>
             {/* The loop in three beats, opening on the real iOS capture. */}
@@ -604,6 +628,158 @@ export function LandingPage() {
                     Sign in with GitHub — no separate password to manage.
                   </li>
                 </ul>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* Pricing */}
+        <section id="pricing" className="border-t border-neutral-100 bg-neutral-50/60 scroll-mt-20">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:py-24">
+            <Reveal>
+              <div className="mx-auto max-w-2xl text-center">
+                <span className="inline-flex items-center rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-600 shadow-xs">
+                  Pricing
+                </span>
+                <h2 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
+                  Free for your first project. Predictable as you grow.
+                </h2>
+                <p className="mt-3 text-sm text-neutral-600 sm:text-base">
+                  Every plan includes the complete closed loop: in-app capture, AI coding agent prompts over MCP and CLI, release tracking, and reporter verification.
+                </p>
+              </div>
+            </Reveal>
+
+            <div className="mx-auto mt-12 grid max-w-4xl gap-8 lg:grid-cols-2 items-stretch">
+              <Reveal delayMs={100} className="flex">
+                <div className="flex w-full flex-col justify-between rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition-all duration-300 hover:border-neutral-300 hover:shadow-md sm:p-8">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base font-semibold text-neutral-900">Free</h3>
+                      <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-600">
+                        Solo / Starter
+                      </span>
+                    </div>
+                    <div className="mt-4 flex items-baseline">
+                      <span className="text-4xl font-semibold tracking-tight text-neutral-900">$0</span>
+                      <span className="ml-1.5 text-sm text-neutral-500">free forever</span>
+                    </div>
+                    <p className="mt-3 text-sm text-neutral-600">
+                      Everything you need to try FeedbackKit and close your first fix loops.
+                    </p>
+                    <ul className="mt-6 space-y-3 text-sm text-neutral-600">
+                      <li className="flex items-start gap-2.5">
+                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        <span>{FREE_LIMITS.projects} project</span>
+                      </li>
+                      <li className="flex items-start gap-2.5">
+                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        <span>{FREE_LIMITS.reportsPerMonth} feedback reports / month</span>
+                      </li>
+                      <li className="flex items-start gap-2.5">
+                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        <span>Up to {FREE_LIMITS.members} team members</span>
+                      </li>
+                      <li className="flex items-start gap-2.5">
+                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        <span>Full fix loop: agents, releases, reporter verification</span>
+                      </li>
+                      <li className="flex items-start gap-2.5">
+                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        <span>All SDKs: iOS, macOS, watchOS &amp; Web</span>
+                      </li>
+                      <li className="flex items-start gap-2.5">
+                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        <span>MCP server &amp; CLI access</span>
+                      </li>
+                      <li className="flex items-start gap-2.5">
+                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        <span>Email support</span>
+                      </li>
+                    </ul>
+                  </div>
+                  <Link
+                    to={user ? "/projects" : "/login"}
+                    className="mt-8 block w-full rounded-md border border-neutral-300 py-2.5 text-center text-sm font-medium text-neutral-900 transition-all duration-150 hover:-translate-y-0.5 hover:bg-neutral-50 active:translate-y-0 active:scale-95"
+                  >
+                    {user ? "Go to your projects" : "Get started for free"}
+                  </Link>
+                </div>
+              </Reveal>
+
+              <Reveal delayMs={200} className="flex">
+                <div className="flex w-full flex-col justify-between rounded-2xl border-2 border-neutral-900 bg-white p-6 shadow-md transition-all duration-300 hover:shadow-lg sm:p-8">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base font-semibold text-neutral-900">Team</h3>
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                        Recommended
+                      </span>
+                    </div>
+                    <div className="mt-4 flex items-baseline">
+                      <span className="text-4xl font-semibold tracking-tight text-neutral-900">
+                        {formatUsd(TEAM_PRICE_PER_SEAT_USD)}
+                      </span>
+                      <span className="ml-1.5 text-sm text-neutral-500">per member / month</span>
+                    </div>
+                    <p className="mt-3 text-sm text-neutral-600">
+                      For teams shipping continuous updates and automating bug resolution together.
+                    </p>
+                    <ul className="mt-6 space-y-3 text-sm text-neutral-600">
+                      <li className="flex items-start gap-2.5 font-medium text-neutral-800">
+                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        <span>Unlimited projects and reports</span>
+                      </li>
+                      <li className="flex items-start gap-2.5 font-medium text-neutral-800">
+                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        <span>Invite your whole team</span>
+                      </li>
+                      <li className="flex items-start gap-2.5">
+                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        <span>Everything in Free</span>
+                      </li>
+                      <li className="flex items-start gap-2.5">
+                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        <span>Developer Portal companion app (macOS &amp; iOS)</span>
+                      </li>
+                      <li className="flex items-start gap-2.5">
+                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        <span>Live notifications on web and mobile</span>
+                      </li>
+                      <li className="flex items-start gap-2.5">
+                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        <span>Custom prompt templates per project</span>
+                      </li>
+                      <li className="flex items-start gap-2.5">
+                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        <span>Priority email support</span>
+                      </li>
+                    </ul>
+                  </div>
+                  <Link
+                    to={user ? "/billing" : "/login"}
+                    className="mt-8 block w-full rounded-md bg-neutral-900 py-2.5 text-center text-sm font-medium text-white transition-all duration-150 hover:-translate-y-0.5 hover:bg-neutral-800 hover:shadow-lg hover:shadow-neutral-900/10 active:translate-y-0 active:scale-95"
+                  >
+                    {user ? "Manage billing" : "Start with Team"}
+                  </Link>
+                </div>
+              </Reveal>
+            </div>
+
+            <Reveal delayMs={300} className="mx-auto mt-16 max-w-3xl">
+              <div className="grid gap-6 border-t border-neutral-200/60 pt-10 text-left sm:grid-cols-2">
+                <div>
+                  <h4 className="text-sm font-semibold text-neutral-900">Are the SDKs source-available?</h4>
+                  <p className="mt-1.5 text-xs leading-relaxed text-neutral-600">
+                    Yes. The Swift and Web SDKs, MCP server, and CLI are source-available. You can deliver reports directly to your own backend or use our hosted dashboard.
+                  </p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-neutral-900">Do you charge for coding agents?</h4>
+                  <p className="mt-1.5 text-xs leading-relaxed text-neutral-600">
+                    No. FeedbackKit connects directly to your existing coding agents (Claude Code, Cursor, Codex, Copilot, Antigravity) with no AI markup fees.
+                  </p>
+                </div>
               </div>
             </Reveal>
           </div>
