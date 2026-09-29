@@ -383,11 +383,11 @@ function CheckoutScreen({ annotate = false, fixed = false, delay = 0.2 }: { anno
 
       {/* SVG Annotation Box */}
       {annotate ? (
-        <svg className="pointer-events-none absolute inset-0 z-20 h-full w-full" viewBox="0 0 158 316" preserveAspectRatio="none">
+        <svg className="pointer-events-none absolute inset-0 z-20 h-full w-full" viewBox="0 0 145 275">
           <rect
             x="6"
-            y="180"
-            width="146"
+            y="170"
+            width="133"
             height="40"
             rx="8"
             fill="none"
@@ -396,7 +396,7 @@ function CheckoutScreen({ annotate = false, fixed = false, delay = 0.2 }: { anno
             strokeDasharray="6 3"
             filter="drop-shadow(0 0 4px rgba(239, 68, 68, 0.5))"
             className="lc-draw"
-            style={{ ...d(delay), "--lc-len": 380 } as CSSProperties}
+            style={{ ...d(delay), "--lc-len": 350 } as CSSProperties}
           />
         </svg>
       ) : null}
