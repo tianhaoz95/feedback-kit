@@ -420,3 +420,29 @@ export function AntigravityIcon({ className, ...props }: SVGProps<SVGSVGElement>
     </svg>
   );
 }
+
+export function SearchIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
+export function FilterIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+    </svg>
+  );
+}
+
+export function ArrowUpDownIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="m7 15 5 5 5-5M7 9l5-5 5 5" />
+    </svg>
+  );
+}
+

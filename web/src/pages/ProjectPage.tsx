@@ -19,10 +19,12 @@ import {
   ArrowLeftIcon,
   ChevronDownIcon,
   ExternalLinkIcon,
+  FilterIcon,
   GitHubIcon,
   InboxIcon,
   LayersIcon,
   PaperclipIcon,
+  SearchIcon,
   SettingsIcon,
   SparkleIcon,
   TemplateIcon,
@@ -52,6 +54,7 @@ import { ConsoleLogsPanel } from "@/components/ConsoleLogsPanel";
 import { PlatformBadge } from "@/components/PlatformBadge";
 import { ScreenshotViewer } from "@/components/ScreenshotViewer";
 import { useAfterPreviews } from "@/lib/useAfterPreviews";
+import { platformOf } from "@/lib/platform";
 
 type TabKey = "feedback" | "releases" | "settings" | "sdk" | "agent";
 
@@ -90,8 +93,182 @@ export function ProjectPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const lastExpandedParamRef = useRef<string | null>(null);
 
-  const activeFeedbackItems = feedbackItems.filter((item) => !item.is_archived);
-  const archivedFeedbackItems = feedbackItems.filter((item) => !!item.is_archived);
+  type SortOption = "newest" | "oldest" | "status" | "screen";
+
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") ?? "");
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get("status") ?? "all");
+  const [productFilter, setProductFilter] = useState<string>(searchParams.get("product") ?? "all");
+  const [platformFilter, setPlatformFilter] = useState<string>(searchParams.get("platform") ?? "all");
+  const [sortBy, setSortBy] = useState<SortOption>(
+    (searchParams.get("sort") as SortOption) || "newest"
+  );
+
+  useEffect(() => {
+    const q = searchParams.get("q") ?? "";
+    const s = searchParams.get("status") ?? "all";
+    const prod = searchParams.get("product") ?? "all";
+    const plat = searchParams.get("platform") ?? "all";
+    const sort = (searchParams.get("sort") as SortOption) || "newest";
+    setSearchQuery((prev) => (prev !== q ? q : prev));
+    setStatusFilter((prev) => (prev !== s ? s : prev));
+    setProductFilter((prev) => (prev !== prod ? prod : prev));
+    setPlatformFilter((prev) => (prev !== plat ? plat : prev));
+    setSortBy((prev) => (prev !== sort ? sort : prev));
+  }, [searchParams]);
+
+  function updateFilterParams(updates: {
+    q?: string;
+    status?: string;
+    product?: string;
+    platform?: string;
+    sort?: SortOption;
+  }) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (updates.q !== undefined) {
+          if (updates.q.trim()) next.set("q", updates.q.trim());
+          else next.delete("q");
+        }
+        if (updates.status !== undefined) {
+          if (updates.status !== "all") next.set("status", updates.status);
+          else next.delete("status");
+        }
+        if (updates.product !== undefined) {
+          if (updates.product !== "all") next.set("product", updates.product);
+          else next.delete("product");
+        }
+        if (updates.platform !== undefined) {
+          if (updates.platform !== "all") next.set("platform", updates.platform);
+          else next.delete("platform");
+        }
+        if (updates.sort !== undefined) {
+          if (updates.sort !== "newest") next.set("sort", updates.sort);
+          else next.delete("sort");
+        }
+        return next;
+      },
+      { replace: true }
+    );
+  }
+
+  function handleClearFilters() {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setProductFilter("all");
+    setPlatformFilter("all");
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("q");
+        next.delete("status");
+        next.delete("product");
+        next.delete("platform");
+        return next;
+      },
+      { replace: true }
+    );
+  }
+
+  const isFiltered =
+    statusFilter !== "all" ||
+    searchQuery.trim().length > 0 ||
+    productFilter !== "all" ||
+    platformFilter !== "all";
+
+  const totalActiveFeedbackItems = feedbackItems.filter((item) => !item.is_archived);
+  const totalArchivedFeedbackItems = feedbackItems.filter((item) => !!item.is_archived);
+
+  const availablePlatforms = Array.from(
+    new Set(feedbackItems.map((item) => platformOf(item.environment).id))
+  ).filter((id) => id !== "unknown");
+
+  const statusCounts = {
+    all: feedbackItems.length,
+    new: feedbackItems.filter((i) => i.status === "new").length,
+    in_progress: feedbackItems.filter((i) => i.status === "in_progress").length,
+    resolved: feedbackItems.filter((i) => i.status === "resolved").length,
+    wont_fix: feedbackItems.filter((i) => i.status === "wont_fix").length,
+  };
+
+  const filteredFeedbackItems = feedbackItems.filter((item) => {
+    if (statusFilter !== "all" && item.status !== statusFilter) {
+      return false;
+    }
+    if (productFilter !== "all") {
+      const hasProduct =
+        item.products?.some((p) => p.key === productFilter) ||
+        item.product_keys?.includes(productFilter);
+      if (!hasProduct) return false;
+    }
+    if (platformFilter !== "all") {
+      const platform = platformOf(item.environment);
+      if (platform.id !== platformFilter) return false;
+    }
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      const cleanIssueQ = q.startsWith("#") ? q.slice(1) : q;
+      const matchesText = item.text?.toLowerCase().includes(q);
+      const matchesScreen = item.environment?.screenName?.toLowerCase().includes(q);
+      const matchesDevice = item.environment?.deviceModel?.toLowerCase().includes(q);
+      const matchesBrowser = item.environment?.browserName?.toLowerCase().includes(q);
+      const matchesOs = item.environment?.osName?.toLowerCase().includes(q);
+      const matchesIssue = item.github_issue_number ? String(item.github_issue_number).includes(cleanIssueQ) : false;
+      const matchesProduct = item.products?.some(p => p.key.toLowerCase().includes(q) || p.name.toLowerCase().includes(q));
+      const matchesId = item.id.toLowerCase().includes(q);
+
+      if (
+        !matchesText &&
+        !matchesScreen &&
+        !matchesDevice &&
+        !matchesBrowser &&
+        !matchesOs &&
+        !matchesIssue &&
+        !matchesProduct &&
+        !matchesId
+      ) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  const sortedFeedbackItems = [...filteredFeedbackItems].sort((a, b) => {
+    switch (sortBy) {
+      case "oldest":
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      case "status": {
+        const order: Record<FeedbackStatus, number> = {
+          new: 0,
+          in_progress: 1,
+          resolved: 2,
+          wont_fix: 3,
+        };
+        const diff = (order[a.status] ?? 99) - (order[b.status] ?? 99);
+        if (diff !== 0) return diff;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+      case "screen": {
+        const screenA = a.environment?.screenName ?? "";
+        const screenB = b.environment?.screenName ?? "";
+        const diff = screenA.localeCompare(screenB);
+        if (diff !== 0) return diff;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+      case "newest":
+      default:
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
+  });
+
+  const activeFeedbackItems = sortedFeedbackItems.filter((item) => !item.is_archived);
+  const archivedFeedbackItems = sortedFeedbackItems.filter((item) => !!item.is_archived);
+
+  useEffect(() => {
+    if (isFiltered && activeFeedbackItems.length === 0 && archivedFeedbackItems.length > 0) {
+      setIsArchivedExpanded(true);
+    }
+  }, [isFiltered, activeFeedbackItems.length, archivedFeedbackItems.length]);
 
   const tabParam = searchParams.get("tab");
   const activeTab: TabKey =
@@ -103,9 +280,10 @@ export function ProjectPage() {
 
   const feedbackParam = searchParams.get("feedback");
   const selectedFeedback =
-    feedbackItems.find((item) => item.id === feedbackParam) ??
+    sortedFeedbackItems.find((item) => item.id === feedbackParam) ??
     activeFeedbackItems[0] ??
     archivedFeedbackItems[0] ??
+    feedbackItems.find((item) => item.id === feedbackParam) ??
     null;
   // After-fix previews for the viewer's After view (0025); reloads when the loop moves.
   // The fix loop panel reports its preview count, so one an agent posts mid-run shows up here too.
@@ -373,7 +551,7 @@ export function ProjectPage() {
   }
 
   function handleToggleSelectAll() {
-    const candidateItems = isArchivedExpanded ? feedbackItems : activeFeedbackItems;
+    const candidateItems = isArchivedExpanded ? sortedFeedbackItems : activeFeedbackItems;
     const allSelected =
       candidateItems.length > 0 && candidateItems.every((item) => selectedIds.has(item.id));
     if (allSelected) {
@@ -881,6 +1059,308 @@ export function ProjectPage() {
     );
   }
 
+  function renderSidebarContent(maxHeightClass: string) {
+    return (
+      <>
+        {/* Filter & Sort Controls */}
+        <div className="space-y-2 pb-1">
+          {/* Search Input */}
+          <div className="relative">
+            <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSearchQuery(val);
+                updateFilterParams({ q: val });
+              }}
+              placeholder="Search reports…"
+              className="w-full rounded-lg border border-neutral-200 bg-white py-1.5 pl-8 pr-7 text-xs text-neutral-800 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900 shadow-2xs"
+            />
+            {searchQuery ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  updateFilterParams({ q: "" });
+                }}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 cursor-pointer"
+              >
+                <XIcon className="h-3 w-3" />
+              </button>
+            ) : null}
+          </div>
+
+          {/* Primary Filter & Sort Row */}
+          <div className="grid grid-cols-2 gap-1.5">
+            {/* Status Filter */}
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setStatusFilter(val);
+                  updateFilterParams({ status: val });
+                }}
+                aria-label="Filter by status"
+                className="w-full appearance-none rounded-lg border border-neutral-200 bg-white py-1.5 pl-2.5 pr-6 text-xs font-medium text-neutral-700 outline-none hover:border-neutral-300 focus:border-neutral-900 cursor-pointer shadow-2xs truncate"
+              >
+                <option value="all">All statuses ({statusCounts.all})</option>
+                <option value="new">New ({statusCounts.new})</option>
+                <option value="in_progress">In progress ({statusCounts.in_progress})</option>
+                <option value="resolved">Resolved ({statusCounts.resolved})</option>
+                <option value="wont_fix">Won't fix ({statusCounts.wont_fix})</option>
+              </select>
+              <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
+            </div>
+
+            {/* Sort By */}
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  const val = e.target.value as SortOption;
+                  setSortBy(val);
+                  updateFilterParams({ sort: val });
+                }}
+                aria-label="Sort feedback list"
+                className="w-full appearance-none rounded-lg border border-neutral-200 bg-white py-1.5 pl-2.5 pr-6 text-xs font-medium text-neutral-700 outline-none hover:border-neutral-300 focus:border-neutral-900 cursor-pointer shadow-2xs truncate"
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="status">By status</option>
+                <option value="screen">By screen (A–Z)</option>
+              </select>
+              <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
+            </div>
+          </div>
+
+          {/* Secondary row for Product and/or Platform if applicable */}
+          {(products.length > 1 || availablePlatforms.length > 1) && (
+            <div className="grid grid-cols-2 gap-1.5">
+              {products.length > 1 ? (
+                <div className="relative">
+                  <select
+                    value={productFilter}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setProductFilter(val);
+                      updateFilterParams({ product: val });
+                    }}
+                    aria-label="Filter by product"
+                    className="w-full appearance-none rounded-lg border border-neutral-200 bg-white py-1.5 pl-2.5 pr-6 text-xs font-medium text-neutral-700 outline-none hover:border-neutral-300 focus:border-neutral-900 cursor-pointer shadow-2xs truncate"
+                  >
+                    <option value="all">All products</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.key}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
+                </div>
+              ) : <div />}
+
+              {availablePlatforms.length > 1 ? (
+                <div className="relative">
+                  <select
+                    value={platformFilter}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPlatformFilter(val);
+                      updateFilterParams({ platform: val });
+                    }}
+                    aria-label="Filter by platform"
+                    className="w-full appearance-none rounded-lg border border-neutral-200 bg-white py-1.5 pl-2.5 pr-6 text-xs font-medium text-neutral-700 outline-none hover:border-neutral-300 focus:border-neutral-900 cursor-pointer shadow-2xs truncate"
+                  >
+                    <option value="all">All platforms</option>
+                    {availablePlatforms.map((plat) => (
+                      <option key={plat} value={plat}>
+                        {plat === "web" ? "Web" : plat === "ios" ? "iOS" : plat === "macos" ? "macOS" : plat === "watchos" ? "watchOS" : plat}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {/* Active Filter Indicator */}
+          {isFiltered && (
+            <div className="flex items-center justify-between rounded-lg bg-neutral-100 px-2.5 py-1 text-xs text-neutral-600">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <FilterIcon className="h-3 w-3 shrink-0 text-neutral-500" />
+                <span className="truncate">
+                  Showing {sortedFeedbackItems.length} of {feedbackItems.length} reports
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="font-medium text-neutral-900 hover:underline shrink-0 cursor-pointer ml-2"
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between px-1 pb-0.5">
+          <span className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+            {isFiltered
+              ? `Active Reports (${activeFeedbackItems.length} of ${totalActiveFeedbackItems.length})`
+              : totalArchivedFeedbackItems.length > 0
+              ? `Active Reports (${activeFeedbackItems.length})`
+              : `Reports (${activeFeedbackItems.length})`}
+          </span>
+          {sortedFeedbackItems.length > 0 && (
+            <button
+              type="button"
+              onClick={handleToggleSelectAll}
+              className="text-xs font-medium text-neutral-500 hover:text-neutral-900 transition-colors cursor-pointer"
+            >
+              {(isArchivedExpanded ? sortedFeedbackItems : activeFeedbackItems).length > 0 &&
+              (isArchivedExpanded ? sortedFeedbackItems : activeFeedbackItems).every((item) =>
+                selectedIds.has(item.id)
+              )
+                ? "Deselect all"
+                : "Select all"}
+            </button>
+          )}
+        </div>
+
+        {/* Multi-selection action pill */}
+        {selectedIds.size > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-2 text-xs">
+            <span className="font-semibold text-neutral-700 pl-1">
+              {selectedIds.size} selected
+            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {viewMode === "single" ? (
+                <button
+                  type="button"
+                  onClick={() => setViewMode("merged")}
+                  className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-neutral-900 px-2 py-1 text-xs font-medium text-white shadow-xs hover:bg-neutral-800 transition-colors"
+                >
+                  <SparkleIcon className="h-3 w-3" />
+                  <span>Merged prompt</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setViewMode("single")}
+                  className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+                >
+                  <span>Single view</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleBatchArchive}
+                className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
+                title="Archive or unarchive selected reports"
+              >
+                <ArchiveIcon className="h-3 w-3 text-neutral-500" />
+                <span>
+                  {Array.from(selectedIds).every(
+                    (id) => feedbackItems.find((i) => i.id === id)?.is_archived
+                  )
+                    ? "Unarchive"
+                    : "Archive"}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setDeleteTarget({
+                    type: "batch",
+                    items: feedbackItems.filter((i) => selectedIds.has(i.id)),
+                  })
+                }
+                className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
+                title="Delete selected reports"
+              >
+                <TrashIcon className="h-3 w-3 text-red-500" />
+                <span>Delete</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleClearSelection}
+                className="p-1 text-neutral-400 hover:text-neutral-700 rounded transition-colors cursor-pointer"
+                title="Clear selection"
+              >
+                <XIcon className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className={`space-y-2 ${maxHeightClass} overflow-y-auto pr-1`}>
+          {activeFeedbackItems.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50/50 p-6 text-center">
+              <InboxIcon className="mx-auto h-5 w-5 text-neutral-400" />
+              <p className="mt-1.5 text-xs font-medium text-neutral-600">
+                {isFiltered ? "No matching reports" : "No active reports"}
+              </p>
+              <p className="mt-0.5 text-[11px] text-neutral-400">
+                {isFiltered
+                  ? "No active reports match your filter criteria."
+                  : archivedFeedbackItems.length > 0
+                  ? "All reports in this project are archived."
+                  : "Reports from your app will show up here."}
+              </p>
+              {isFiltered && (
+                <button
+                  type="button"
+                  onClick={handleClearFilters}
+                  className="mt-2.5 inline-flex items-center text-xs font-medium text-neutral-900 underline hover:text-neutral-700 cursor-pointer"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          ) : (
+            activeFeedbackItems.map((item) => renderFeedbackCard(item, false))
+          )}
+
+          {/* Archived section */}
+          {archivedFeedbackItems.length > 0 && (
+            <div className="pt-2 border-t border-neutral-200/80">
+              <button
+                type="button"
+                onClick={() => setIsArchivedExpanded((prev) => !prev)}
+                className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 transition-colors cursor-pointer border border-dashed border-neutral-200 bg-neutral-50/50"
+              >
+                <div className="flex items-center gap-2">
+                  <ArchiveIcon className="h-3.5 w-3.5 text-neutral-400" />
+                  <span>
+                    {isFiltered
+                      ? `Archived (${archivedFeedbackItems.length} of ${totalArchivedFeedbackItems.length})`
+                      : `Archived (${archivedFeedbackItems.length})`}
+                  </span>
+                </div>
+                <ChevronDownIcon
+                  className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-200 ${
+                    isArchivedExpanded ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {isArchivedExpanded && (
+                <div className="mt-2 space-y-2">
+                  {archivedFeedbackItems.map((item) => renderFeedbackCard(item, true))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header bar: Back button + Project title + Tabs on the same row */}
@@ -940,7 +1420,7 @@ export function ProjectPage() {
                         : "bg-neutral-200/90 text-neutral-600 group-hover:bg-neutral-300"
                     }`}
                   >
-                    {activeFeedbackItems.length}
+                    {totalActiveFeedbackItems.length}
                   </span>
                 ) : null}
               </button>
@@ -969,140 +1449,11 @@ export function ProjectPage() {
                 </button>
               }
             />
-          ) : selectedFeedback ? (
+          ) : (
             <div className="flex flex-col lg:flex-row gap-6 items-start">
               {/* Desktop Sidebar List */}
               <div className="hidden lg:block lg:w-80 xl:w-96 shrink-0 space-y-2.5 lg:sticky lg:top-20">
-                <div className="flex items-center justify-between px-1 pb-0.5">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-                    {archivedFeedbackItems.length > 0
-                      ? `Active Reports (${activeFeedbackItems.length})`
-                      : `Reports (${activeFeedbackItems.length})`}
-                  </span>
-                  {feedbackItems.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleToggleSelectAll}
-                      className="text-xs font-medium text-neutral-500 hover:text-neutral-900 transition-colors cursor-pointer"
-                    >
-                      {(isArchivedExpanded ? feedbackItems : activeFeedbackItems).length > 0 &&
-                      (isArchivedExpanded ? feedbackItems : activeFeedbackItems).every((item) =>
-                        selectedIds.has(item.id)
-                      )
-                        ? "Deselect all"
-                        : "Select all"}
-                    </button>
-                  )}
-                </div>
-
-                {/* Multi-selection action pill */}
-                {selectedIds.size > 0 && (
-                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-2 text-xs">
-                    <span className="font-semibold text-neutral-700 pl-1">
-                      {selectedIds.size} selected
-                    </span>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {viewMode === "single" ? (
-                        <button
-                          type="button"
-                          onClick={() => setViewMode("merged")}
-                          className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-neutral-900 px-2 py-1 text-xs font-medium text-white shadow-xs hover:bg-neutral-800 transition-colors"
-                        >
-                          <SparkleIcon className="h-3 w-3" />
-                          <span>Merged prompt</span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setViewMode("single")}
-                          className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
-                        >
-                          <span>Single view</span>
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={handleBatchArchive}
-                        className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
-                        title="Archive or unarchive selected reports"
-                      >
-                        <ArchiveIcon className="h-3 w-3 text-neutral-500" />
-                        <span>
-                          {Array.from(selectedIds).every(
-                            (id) => feedbackItems.find((i) => i.id === id)?.is_archived
-                          )
-                            ? "Unarchive"
-                            : "Archive"}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setDeleteTarget({
-                            type: "batch",
-                            items: feedbackItems.filter((i) => selectedIds.has(i.id)),
-                          })
-                        }
-                        className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
-                        title="Delete selected reports"
-                      >
-                        <TrashIcon className="h-3 w-3 text-red-500" />
-                        <span>Delete</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleClearSelection}
-                        className="p-1 text-neutral-400 hover:text-neutral-700 rounded transition-colors cursor-pointer"
-                        title="Clear selection"
-                      >
-                        <XIcon className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-2 max-h-[calc(100vh-12rem)] overflow-y-auto pr-1">
-                  {activeFeedbackItems.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50/50 p-6 text-center">
-                      <InboxIcon className="mx-auto h-5 w-5 text-neutral-400" />
-                      <p className="mt-1.5 text-xs font-medium text-neutral-600">No active reports</p>
-                      <p className="mt-0.5 text-[11px] text-neutral-400">
-                        {archivedFeedbackItems.length > 0
-                          ? "All reports in this project are archived."
-                          : "Reports from your app will show up here."}
-                      </p>
-                    </div>
-                  ) : (
-                    activeFeedbackItems.map((item) => renderFeedbackCard(item, false))
-                  )}
-
-                  {/* Archived section - collapsed by default so it does not take user attention */}
-                  {archivedFeedbackItems.length > 0 && (
-                    <div className="pt-2 border-t border-neutral-200/80">
-                      <button
-                        type="button"
-                        onClick={() => setIsArchivedExpanded((prev) => !prev)}
-                        className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 transition-colors cursor-pointer border border-dashed border-neutral-200 bg-neutral-50/50"
-                      >
-                        <div className="flex items-center gap-2">
-                          <ArchiveIcon className="h-3.5 w-3.5 text-neutral-400" />
-                          <span>Archived ({archivedFeedbackItems.length})</span>
-                        </div>
-                        <ChevronDownIcon
-                          className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-200 ${
-                            isArchivedExpanded ? "rotate-180" : ""
-                          }`}
-                        />
-                      </button>
-
-                      {isArchivedExpanded && (
-                        <div className="mt-2 space-y-2">
-                          {archivedFeedbackItems.map((item) => renderFeedbackCard(item, true))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                {renderSidebarContent("max-h-[calc(100vh-14rem)]")}
               </div>
 
               {/* Floating button on narrow screens */}
@@ -1144,135 +1495,7 @@ export function ProjectPage() {
                       </div>
 
                       <div className="flex-1 space-y-2.5">
-                        <div className="flex items-center justify-between px-1 pb-0.5">
-                          <span className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
-                            {archivedFeedbackItems.length > 0
-                              ? `Active Reports (${activeFeedbackItems.length})`
-                              : `Reports (${activeFeedbackItems.length})`}
-                          </span>
-                          {feedbackItems.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={handleToggleSelectAll}
-                              className="text-xs font-medium text-neutral-500 hover:text-neutral-900 transition-colors cursor-pointer"
-                            >
-                              {(isArchivedExpanded ? feedbackItems : activeFeedbackItems).length > 0 &&
-                              (isArchivedExpanded ? feedbackItems : activeFeedbackItems).every((item) =>
-                                selectedIds.has(item.id)
-                              )
-                                ? "Deselect all"
-                                : "Select all"}
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Multi-selection action pill */}
-                        {selectedIds.size > 0 && (
-                          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-2 text-xs">
-                            <span className="font-semibold text-neutral-700 pl-1">
-                              {selectedIds.size} selected
-                            </span>
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              {viewMode === "single" ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setViewMode("merged")}
-                                  className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-neutral-900 px-2 py-1 text-xs font-medium text-white shadow-xs hover:bg-neutral-800 transition-colors"
-                                >
-                                  <SparkleIcon className="h-3 w-3" />
-                                  <span>Merged prompt</span>
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => setViewMode("single")}
-                                  className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
-                                >
-                                  <span>Single view</span>
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={handleBatchArchive}
-                                className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 transition-colors"
-                                title="Archive or unarchive selected reports"
-                              >
-                                <ArchiveIcon className="h-3 w-3 text-neutral-500" />
-                                <span>
-                                  {Array.from(selectedIds).every(
-                                    (id) => feedbackItems.find((i) => i.id === id)?.is_archived
-                                  )
-                                    ? "Unarchive"
-                                    : "Archive"}
-                                </span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setDeleteTarget({
-                                    type: "batch",
-                                    items: feedbackItems.filter((i) => selectedIds.has(i.id)),
-                                  })
-                                }
-                                className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors"
-                                title="Delete selected reports"
-                              >
-                                <TrashIcon className="h-3 w-3 text-red-500" />
-                                <span>Delete</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={handleClearSelection}
-                                className="p-1 text-neutral-400 hover:text-neutral-700 rounded transition-colors cursor-pointer"
-                                title="Clear selection"
-                              >
-                                <XIcon className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="space-y-2 max-h-[calc(100vh-16rem)] overflow-y-auto pr-1">
-                          {activeFeedbackItems.length === 0 ? (
-                            <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50/50 p-6 text-center">
-                              <InboxIcon className="mx-auto h-5 w-5 text-neutral-400" />
-                              <p className="mt-1.5 text-xs font-medium text-neutral-600">No active reports</p>
-                              <p className="mt-0.5 text-[11px] text-neutral-400">
-                                {archivedFeedbackItems.length > 0
-                                  ? "All reports in this project are archived."
-                                  : "Reports from your app will show up here."}
-                              </p>
-                            </div>
-                          ) : (
-                            activeFeedbackItems.map((item) => renderFeedbackCard(item, false))
-                          )}
-
-                          {archivedFeedbackItems.length > 0 && (
-                            <div className="pt-2 border-t border-neutral-200/80">
-                              <button
-                                type="button"
-                                onClick={() => setIsArchivedExpanded((prev) => !prev)}
-                                className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 transition-colors cursor-pointer border border-dashed border-neutral-200 bg-neutral-50/50"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <ArchiveIcon className="h-3.5 w-3.5 text-neutral-400" />
-                                  <span>Archived ({archivedFeedbackItems.length})</span>
-                                </div>
-                                <ChevronDownIcon
-                                  className={`h-3.5 w-3.5 text-neutral-400 transition-transform duration-200 ${
-                                    isArchivedExpanded ? "rotate-180" : ""
-                                  }`}
-                                />
-                              </button>
-
-                              {isArchivedExpanded && (
-                                <div className="mt-2 space-y-2">
-                                  {archivedFeedbackItems.map((item) => renderFeedbackCard(item, true))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                        {renderSidebarContent("max-h-[calc(100vh-18rem)]")}
                       </div>
                     </div>
                   </div>
@@ -1313,7 +1536,7 @@ export function ProjectPage() {
                     }
                     issueNotice={issueErrorBanner}
                   />
-                ) : (
+                ) : selectedFeedback ? (
                   <>
                     {selectedIds.size >= 2 && (
                       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-neutral-900/10 bg-neutral-900 text-white px-4 py-2.5 shadow-sm">
@@ -1611,11 +1834,29 @@ export function ProjectPage() {
                     </div>
                   </div>
                 </div>
-              </>
-            )}
+                </>
+              ) : (
+                <div className="rounded-2xl border border-neutral-200 bg-white p-12 text-center shadow-xs">
+                  <InboxIcon className="mx-auto h-8 w-8 text-neutral-400" />
+                  <h3 className="mt-3 text-sm font-semibold text-neutral-900">No reports match your filters</h3>
+                  <p className="mt-1 text-xs text-neutral-500 max-w-sm mx-auto">
+                    No feedback reports matched your search query or filter criteria. Try adjusting or clearing your filters.
+                  </p>
+                  <div className="mt-4">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleClearFilters}
+                    >
+                      Clear filters
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-          ) : null}
+        )}
         </section>
       )}
 
