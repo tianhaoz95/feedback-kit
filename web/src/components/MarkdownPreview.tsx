@@ -13,7 +13,7 @@ function renderInline(text: string): ReactNode[] {
   const elements: ReactNode[] = [];
   // Match images, links, inline code, bold, italic, raw URLs
   const regex =
-    /(!\[([^\]]*)\]\(([^)]+)\))|(\[([^\]]+)\]\(([^)]+)\))|(`([^`]+)`)|(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(https?:\/\/[^\s<]+)/g;
+    /(!\[([^\]]*)\]\(([^)]+)\))|(\[([^\]]+)\]\(([^)]+)\))|(`([^`]+)`)|(\*\*([^*]+)\*\*|__([^_]+)__)|(\*([^*]+)\*|_([^_]+)_)|(https?:\/\/[^\s<]+)/g;
 
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -59,30 +59,30 @@ function renderInline(text: string): ReactNode[] {
         </code>,
       );
     } else if (match[9]) {
-      // Bold: **text**
+      // Bold: **text** or __text__
       elements.push(
         <strong key={key++} className="font-semibold text-neutral-900">
-          {match[10]}
+          {match[10] || match[11]}
         </strong>,
       );
-    } else if (match[11]) {
-      // Italic: *text*
+    } else if (match[12]) {
+      // Italic: *text* or _text_
       elements.push(
         <em key={key++} className="italic text-neutral-700">
-          {match[12]}
+          {match[13] || match[14]}
         </em>,
       );
-    } else if (match[13]) {
+    } else if (match[15]) {
       // Raw URL
       elements.push(
         <a
           key={key++}
-          href={match[13]}
+          href={match[15]}
           target="_blank"
           rel="noreferrer"
           className="text-blue-600 hover:text-blue-800 underline break-all"
         >
-          {match[13]}
+          {match[15]}
         </a>,
       );
     }
@@ -180,10 +180,26 @@ export function MarkdownPreview({ content, className = "" }: MarkdownPreviewProp
       }
     }
 
+    // Horizontal Rule (---, ***, ___)
+    if (/^(\s*[-*_]\s*){3,}$/.test(line)) {
+      nodes.push(
+        <div key={key++} className="my-3 flex items-center gap-2">
+          <div className="h-px flex-1 bg-neutral-200" />
+          <span className="font-mono text-[9px] text-neutral-400 select-none">---</span>
+          <div className="h-px flex-1 bg-neutral-200" />
+        </div>,
+      );
+      i++;
+      continue;
+    }
+
     // Heading 1 (# )
     if (line.startsWith("# ")) {
       nodes.push(
-        <div key={key++} className="mt-4 mb-2 border-b border-neutral-200 pb-1.5">
+        <div key={key++} className="mt-4 mb-2 flex items-center gap-2 border-b border-neutral-200 pb-1.5">
+          <span className="rounded bg-purple-100 px-1 py-0.2 font-mono text-[10px] font-bold text-purple-700 shadow-2xs">
+            #
+          </span>
           <h1 className="text-sm font-bold text-neutral-900 tracking-tight">{renderInline(line.slice(2))}</h1>
         </div>,
       );
@@ -212,8 +228,22 @@ export function MarkdownPreview({ content, className = "" }: MarkdownPreviewProp
     if (line.startsWith("### ")) {
       nodes.push(
         <div key={key++} className="mt-3 mb-1 flex items-center gap-1.5">
-          <span className="font-mono text-[10px] font-semibold text-neutral-400">###</span>
+          <span className="rounded bg-neutral-100 px-1 py-0.2 font-mono text-[10px] font-semibold text-neutral-500 shadow-2xs">
+            ###
+          </span>
           <h3 className="text-xs font-semibold text-neutral-800">{renderInline(line.slice(4))}</h3>
+        </div>,
+      );
+      i++;
+      continue;
+    }
+
+    // Heading 4 (#### )
+    if (line.startsWith("#### ")) {
+      nodes.push(
+        <div key={key++} className="mt-2.5 mb-1 flex items-center gap-1.5">
+          <span className="font-mono text-[10px] font-medium text-neutral-400">####</span>
+          <h4 className="text-xs font-medium text-neutral-700">{renderInline(line.slice(5))}</h4>
         </div>,
       );
       i++;
@@ -234,11 +264,33 @@ export function MarkdownPreview({ content, className = "" }: MarkdownPreviewProp
       continue;
     }
 
+    // Task list item (- [ ] or - [x])
+    const taskMatch = line.trim().match(/^[-*]\s+\[([ xX])\]\s+(.*)$/);
+    if (taskMatch) {
+      const isChecked = taskMatch[1].toLowerCase() === "x";
+      nodes.push(
+        <div key={key++} className="ml-2 flex items-center gap-2 py-0.5 text-xs text-neutral-700">
+          <span
+            className={`inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border text-[9px] font-bold ${
+              isChecked
+                ? "border-blue-600 bg-blue-600 text-white"
+                : "border-neutral-300 bg-white text-transparent"
+            }`}
+          >
+            ✓
+          </span>
+          <div className="flex-1 min-w-0 leading-relaxed">{renderInline(taskMatch[2])}</div>
+        </div>,
+      );
+      i++;
+      continue;
+    }
+
     // Unordered List item (- or * )
     if (line.trim().startsWith("- ") || line.trim().startsWith("* ")) {
       nodes.push(
         <div key={key++} className="ml-2 flex items-start gap-2 py-0.5 text-xs text-neutral-700">
-          <span className="font-bold text-neutral-400">•</span>
+          <span className="font-mono text-neutral-400 font-bold select-none">•</span>
           <div className="flex-1 min-w-0 leading-relaxed">{renderInline(line.trim().slice(2))}</div>
         </div>,
       );

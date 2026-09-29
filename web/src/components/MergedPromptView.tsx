@@ -63,7 +63,7 @@ export function MergedPromptView({
   // Generate the merged prompt dynamically
   const generatedPrompt = renderMergedPrompt(selectedItems, signedUrls, templateText);
   const [promptText, setPromptText] = useState(generatedPrompt);
-  const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const [mode, setMode] = useState<"preview" | "edit">("preview");
   const [isEdited, setIsEdited] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -330,17 +330,6 @@ export function MergedPromptView({
               <div className="inline-flex rounded-lg bg-neutral-100 p-0.5 text-xs shrink-0 ml-2">
                 <button
                   type="button"
-                  onClick={() => setMode("edit")}
-                  className={`rounded-md px-2.5 py-1 font-medium transition-all cursor-pointer ${
-                    mode === "edit"
-                      ? "bg-white text-neutral-900 shadow-2xs font-semibold"
-                      : "text-neutral-500 hover:text-neutral-900"
-                  }`}
-                >
-                  Raw Markdown
-                </button>
-                <button
-                  type="button"
                   onClick={() => setMode("preview")}
                   className={`rounded-md px-2.5 py-1 font-medium transition-all cursor-pointer ${
                     mode === "preview"
@@ -349,6 +338,17 @@ export function MergedPromptView({
                   }`}
                 >
                   Markdown Preview
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode("edit")}
+                  className={`rounded-md px-2.5 py-1 font-medium transition-all cursor-pointer ${
+                    mode === "edit"
+                      ? "bg-white text-neutral-900 shadow-2xs font-semibold"
+                      : "text-neutral-500 hover:text-neutral-900"
+                  }`}
+                >
+                  Raw Markdown
                 </button>
               </div>
             </div>

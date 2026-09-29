@@ -22,7 +22,7 @@ export function FeedbackPromptEditor({
   className?: string;
 }) {
   const [value, setValue] = useState(initialValue);
-  const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const [mode, setMode] = useState<"preview" | "edit">("preview");
   const [isPending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,17 +33,6 @@ export function FeedbackPromptEditor({
         <div className="inline-flex rounded-lg bg-neutral-100 p-0.5 text-xs">
           <button
             type="button"
-            onClick={() => setMode("edit")}
-            className={`rounded-md px-2.5 py-1 font-medium transition-all cursor-pointer ${
-              mode === "edit"
-                ? "bg-white text-neutral-900 shadow-2xs font-semibold"
-                : "text-neutral-500 hover:text-neutral-900"
-            }`}
-          >
-            Raw Markdown
-          </button>
-          <button
-            type="button"
             onClick={() => setMode("preview")}
             className={`rounded-md px-2.5 py-1 font-medium transition-all cursor-pointer ${
               mode === "preview"
@@ -52,6 +41,17 @@ export function FeedbackPromptEditor({
             }`}
           >
             Markdown Preview
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("edit")}
+            className={`rounded-md px-2.5 py-1 font-medium transition-all cursor-pointer ${
+              mode === "edit"
+                ? "bg-white text-neutral-900 shadow-2xs font-semibold"
+                : "text-neutral-500 hover:text-neutral-900"
+            }`}
+          >
+            Raw Markdown
           </button>
         </div>
       </div>
