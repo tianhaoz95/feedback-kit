@@ -164,6 +164,8 @@ export function LandingPage() {
     ? { to: "/projects", label: "Go to your projects", shortLabel: "Projects", heroLabel: "Go to your projects" }
     : { to: "/login", label: "Sign in", shortLabel: "Sign in", heroLabel: "Close your first loop" };
 
+  const location = useLocation();
+
   // Dogfooding: the landing page collects feedback with FeedbackKit's own web
   // SDK, via a floating button (and ⌘⇧F / Ctrl+Shift+F). Reports go to the
   // team's project under the "Website" product. Hidden in dev builds unless
@@ -171,14 +173,22 @@ export function LandingPage() {
   useEffect(() => {
     if (!setUpFeedbackKit("website")) return;
     FeedbackKit.currentScreen = "Landing page";
-    FeedbackKit.showFloatingTriggerButton({ label: "Feedback" });
+    const searchParams = new URLSearchParams(location.search);
+    const includeScreenshot = !(
+      searchParams.get("screenshot") === "off" ||
+      searchParams.get("screenshot") === "false" ||
+      searchParams.has("no_screenshot")
+    );
+    FeedbackKit.showFloatingTriggerButton({
+      label: "Feedback",
+      includeScreenshot,
+      captureScreenshot: includeScreenshot,
+    });
     return () => {
       FeedbackKit.hideFloatingTriggerButton();
       FeedbackKit.currentScreen = null;
     };
-  }, []);
-
-  const location = useLocation();
+  }, [location.search]);
   const [scrolled, setScrolled] = useState(false);
   const [sampleKind, setSampleKind] = useState<keyof typeof codeSamples>("swift");
   const sample = codeSamples[sampleKind];

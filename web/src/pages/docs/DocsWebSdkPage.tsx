@@ -326,6 +326,7 @@ function TryIt() {
   const [report, setReport] = useState<FeedbackReport | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [cancelled, setCancelled] = useState(false);
+  const [includeScreenshot, setIncludeScreenshot] = useState(true);
 
   useEffect(() => {
     return () => {
@@ -335,7 +336,7 @@ function TryIt() {
 
   async function run() {
     setCancelled(false);
-    const result = await FeedbackKit.present();
+    const result = await FeedbackKit.present({ includeScreenshot });
     if (!result) {
       setCancelled(true);
       return;
@@ -363,7 +364,18 @@ function TryIt() {
 
   return (
     <div className="space-y-3 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
-      <Button onClick={() => void run()}>Open the feedback dialog</Button>
+      <div className="flex flex-wrap items-center gap-4">
+        <Button onClick={() => void run()}>Open the feedback dialog</Button>
+        <label className="flex items-center gap-2 text-xs font-medium text-neutral-600 select-none cursor-pointer">
+          <input
+            type="checkbox"
+            checked={includeScreenshot}
+            onChange={(e) => setIncludeScreenshot(e.target.checked)}
+            className="rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+          />
+          <span>Include screenshot</span>
+        </label>
+      </div>
       {cancelled && <p className="text-xs text-neutral-500">Cancelled — present() resolved with null.</p>}
       {previewUrl && (
         <img src={previewUrl} alt="Annotated screenshot from the report" className="max-h-64 rounded-md border border-neutral-200" />

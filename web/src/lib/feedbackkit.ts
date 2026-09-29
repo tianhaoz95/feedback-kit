@@ -45,11 +45,22 @@ export function setUpFeedbackKit(surface: FeedbackSurface = "dashboard"): boolea
     endpoint =
       import.meta.env.VITE_FEEDBACKKIT_ENDPOINT ??
       (supabaseUrl ? `${supabaseUrl.replace(/\/+$/, "")}/functions/v1/ingest-feedback` : undefined);
-  } else if (import.meta.env.PROD) {
+  } else {
+    // Production and development default to the FeedbackKit team's hosted dogfood
+    // project so the web SDK is always available to test in the web portal app.
     projectKey = DOGFOOD_PROJECT_KEY;
     endpoint = FeedbackKit.DEFAULT_ENDPOINT;
   }
   if (!projectKey) return false;
+
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const includeScreenshot = !(
+    import.meta.env.VITE_FEEDBACKKIT_CAPTURE_SCREENSHOT === "false" ||
+    import.meta.env.VITE_FEEDBACKKIT_INCLUDE_SCREENSHOT === "false" ||
+    searchParams?.get("screenshot") === "off" ||
+    searchParams?.get("screenshot") === "false" ||
+    searchParams?.has("no_screenshot")
+  );
 
   const defaultProduct = surface === "website" ? WEBSITE_PRODUCT : WEB_DASHBOARD_PRODUCT;
   // Re-running configure when the surface changes is safe: it only swaps the
@@ -64,6 +75,8 @@ export function setUpFeedbackKit(surface: FeedbackSurface = "dashboard"): boolea
     defaultProductKey: defaultProduct.key,
     appVersion: __APP_VERSION__,
     appBuild: __APP_COMMIT__ || import.meta.env.MODE,
+    captureScreenshot: includeScreenshot,
+    includeScreenshot,
   });
   if (configuredFor !== null) {
     configuredFor = surface;

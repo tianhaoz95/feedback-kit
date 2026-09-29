@@ -35,12 +35,22 @@ export function DashboardLayout() {
   // button in the bottom corner instead of occupying space in the primary nav.
   useEffect(() => {
     if (!feedbackEnabled) return;
-    FeedbackKit.showFloatingTriggerButton({ label: "Feedback" });
+    const searchParams = new URLSearchParams(location.search);
+    const includeScreenshot = !(
+      searchParams.get("screenshot") === "off" ||
+      searchParams.get("screenshot") === "false" ||
+      searchParams.has("no_screenshot")
+    );
+    FeedbackKit.showFloatingTriggerButton({
+      label: "Feedback",
+      includeScreenshot,
+      captureScreenshot: includeScreenshot,
+    });
     return () => {
       FeedbackKit.hideFloatingTriggerButton();
       FeedbackKit.currentScreen = null;
     };
-  }, [feedbackEnabled]);
+  }, [feedbackEnabled, location.search]);
 
   return (
     <div className="min-h-screen bg-neutral-50">
