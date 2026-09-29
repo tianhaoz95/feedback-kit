@@ -350,8 +350,29 @@ Rules for skills:
   (`verify_jwt = false` in `supabase/config.toml` for `ingest-feedback`)
   because the caller is an anonymous iOS device identified only by
   `project_key`. It uses the service-role key and bypasses RLS by design.
-- **Billing is dummy infrastructure today, wired up before a real Stripe
-  account exists.** `organization_billing` (`0009_billing.sql`) is a
+- **Stripe: the hosted project runs on the Stripe *sandbox*** ("HEJI
+  TECHNOLOGY LLC sandbox", `acct_1TCkamJrt9vpMc7K`): product "FeedbackKit
+  Team", price `price_1UKjKeJrt9vpMc7K7RMjRMiD` ($15/seat/month, lookup key
+  `feedbackkit_team_monthly`), webhook `we_1UKjKkJrt9vpMc7KQAOOFjfo` → the
+  hosted `stripe-webhook`, and a customer-portal configuration.
+  `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID_TEAM` and `STRIPE_WEBHOOK_SECRET` are
+  Supabase secrets on the hosted project, so checkout accepts test cards
+  only. Going live means recreating the price, webhook and portal
+  configuration in the live account and replacing those three secrets; do
+  that only when the owner asks. Live keys are deliberately not stored in
+  Supabase or GitHub until then.
+- **Stripe access for coding agents is a restricted key the owner controls.**
+  The owner keeps Stripe keys locally in `~/Credentials/stripe.env`
+  (never commit it or copy values anywhere else). For agent work there is
+  `HEJI_TECHNOLOGY_LIVE_CODING_AGENT_KEY`, a restricted live key that
+  currently only has **documentation read** access. If a task needs more
+  Stripe access than that (reading or writing products, prices, customers,
+  webhooks, live-mode anything), stop and ask the owner for the specific
+  permission and why; they review and add it to that key. Don't work
+  around it with the full secret keys in the same file unless the owner
+  says to for that task.
+- **Billing was built before a Stripe account existed, so it degrades
+  gracefully.** `organization_billing` (`0009_billing.sql`) is a
   1:1-per-organization row (same auto-create-on-insert trigger pattern as
   `prompt_templates` for projects), defaulting every org to
   `plan='free'`/`status='none'` forever. Three Edge Functions —
