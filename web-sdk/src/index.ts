@@ -33,6 +33,13 @@ export {
 export interface PresentOptions {
   /** Called with the finished report when the user taps Send. */
   onReport?: (report: FeedbackReport) => void | Promise<void>;
+  /**
+   * Whether to capture and include a screenshot for this report.
+   * Set to `false` to open the feedback dialog without a screenshot.
+   */
+  captureScreenshot?: boolean;
+  /** Alias for `captureScreenshot`. */
+  includeScreenshot?: boolean;
 }
 
 export interface PresentAndSubmitOptions {
@@ -40,6 +47,13 @@ export interface PresentAndSubmitOptions {
   onSubmitted?: (report: FeedbackReport) => void;
   /** Called when a submit attempt fails (the dialog stays open for a retry). */
   onError?: (error: unknown) => void;
+  /**
+   * Whether to capture and include a screenshot for this report.
+   * Set to `false` to open the feedback dialog without a screenshot.
+   */
+  captureScreenshot?: boolean;
+  /** Alias for `captureScreenshot`. */
+  includeScreenshot?: boolean;
 }
 
 export interface ShortcutOptions {
@@ -60,6 +74,7 @@ const widget = new Widget({
   defaultProductKey: () => configuration?.defaultProductKey,
   logs: () => logCapture?.buffer.snapshot() ?? [],
   captureOptions: () => FeedbackKit.captureOptions,
+  includeScreenshot: () => FeedbackKit.includeScreenshot,
   currentScreen: () => FeedbackKit.currentScreen,
   identity: () => ({ reporterId: reporterId(), user: getUser() }),
 });
@@ -176,6 +191,9 @@ export const FeedbackKit = {
   /** Screenshot capture settings. See `CaptureOptions`. */
   captureOptions: {} as CaptureOptions,
 
+  /** Whether screenshots should be captured and included in reports by default. Default `true`. */
+  includeScreenshot: true,
+
   /** The hosted dashboard's ingestion endpoint, used when `configure` gets no `endpoint`. */
   DEFAULT_ENDPOINT,
 
@@ -213,7 +231,12 @@ export const FeedbackKit = {
    * `null` if the user cancels. Nothing is sent anywhere; delivery is yours.
    */
   present(options: PresentOptions = {}): Promise<FeedbackReport | null> {
-    return widget.open({ submit: false, onReport: options.onReport });
+    return widget.open({
+      submit: false,
+      onReport: options.onReport,
+      captureScreenshot: options.captureScreenshot,
+      includeScreenshot: options.includeScreenshot,
+    });
   },
 
   /**
@@ -225,7 +248,13 @@ export const FeedbackKit = {
     if (!configuration) {
       return Promise.reject(new Error("FeedbackKit.configure({ projectKey }) must be called before presentAndSubmit()."));
     }
-    return widget.open({ submit: true, onReport: options.onSubmitted, onError: options.onError });
+    return widget.open({
+      submit: true,
+      onReport: options.onSubmitted,
+      onError: options.onError,
+      captureScreenshot: options.captureScreenshot,
+      includeScreenshot: options.includeScreenshot,
+    });
   },
 
   /** Sends an already-built report (e.g. one from `present`) to the configured endpoint. */
@@ -247,8 +276,12 @@ export const FeedbackKit = {
   showFloatingTriggerButton(options: TriggerOptions = {}): void {
     whenBodyReady(() =>
       widget.showTrigger(options, () => {
-        if (configuration) void FeedbackKit.presentAndSubmit();
-        else void FeedbackKit.present({ onReport: (r) => console.info("[FeedbackKit] report", r) });
+        const openOptions = {
+          captureScreenshot: options.captureScreenshot,
+          includeScreenshot: options.includeScreenshot,
+        };
+        if (configuration) void FeedbackKit.presentAndSubmit(openOptions);
+        else void FeedbackKit.present({ ...openOptions, onReport: (r) => console.info("[FeedbackKit] report", r) });
       }),
     );
   },

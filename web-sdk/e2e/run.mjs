@@ -227,6 +227,18 @@ async function runSuite(name, browser) {
   assert.deepEqual(await local, { text: "local only", hasShot: true, platform: "web" });
   assert.equal(posted.length, 2, "present() never POSTs");
 
+  // ---- 4b. present({ includeScreenshot: false }) hands back report without screenshot
+  const noShotLocal = page.evaluate(async () => {
+    const r = await window.FeedbackKit.present({ includeScreenshot: false });
+    return r && { text: r.text, hasShot: r.screenshotRaw !== null, platform: r.environment.platform };
+  });
+  assert.equal(await page.locator(".fk-options-summary").textContent(), "No screenshot");
+  assert.equal(await page.locator(".fk-off-note").textContent(), "Screenshot won't be included");
+  await page.locator("#fk-text").fill("no screenshot requested");
+  await page.locator(".fk-btn-primary").click();
+  assert.deepEqual(await noShotLocal, { text: "no screenshot requested", hasShot: false, platform: "web" });
+  assert.equal(posted.length, 2, "present() never POSTs");
+
   // ---- 5. server error keeps the dialog open with a retry
   await page.unroute(`${ENDPOINT}**`);
   await page.route(`${ENDPOINT}**`, (route) =>
