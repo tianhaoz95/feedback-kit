@@ -773,21 +773,44 @@ public final class SupabasePortalClient: ObservableObject {
     // MARK: - GitHub Issue Creation
 
     public func createGitHubIssue(feedbackId: String, projectId: String) async throws -> (issueUrl: String, issueNumber: Int) {
+        try await createGitHubIssue(feedbackIds: [feedbackId], projectId: projectId)
+    }
+
+    public func createGitHubIssue(
+        feedbackIds: [String],
+        projectId: String,
+        prompt: String? = nil,
+        redispatch: Bool = false
+    ) async throws -> (issueUrl: String, issueNumber: Int) {
         if isDemoMode {
             let fakeNumber = Int.random(in: 50...100)
             let fakeUrl = "https://github.com/tianhaoz95/feedback-kit/issues/\(fakeNumber)"
-            if let idx = demoFeedback.firstIndex(where: { $0.id == feedbackId }) {
-                demoFeedback[idx].githubIssueUrl = fakeUrl
-                demoFeedback[idx].githubIssueNumber = fakeNumber
-                demoFeedback[idx].status = .inProgress
+            for id in feedbackIds {
+                if let idx = demoFeedback.firstIndex(where: { $0.id == id }) {
+                    demoFeedback[idx].githubIssueUrl = fakeUrl
+                    demoFeedback[idx].githubIssueNumber = fakeNumber
+                    demoFeedback[idx].status = .inProgress
+                    demoFeedback[idx].fixStage = PortalFixStage.agentWorking.rawValue
+                }
             }
             return (fakeUrl, fakeNumber)
         }
 
-        let payload: [String: Any] = [
-            "feedback_id": feedbackId,
+        var payload: [String: Any] = [
             "project_id": projectId
         ]
+        if feedbackIds.count == 1 {
+            payload["feedback_id"] = feedbackIds[0]
+        } else {
+            payload["feedback_ids"] = feedbackIds
+        }
+        if let prompt = prompt, !prompt.isEmpty {
+            payload["prompt"] = prompt
+        }
+        if redispatch {
+            payload["dispatch"] = true
+        }
+
         let bodyData = try JSONSerialization.data(withJSONObject: payload)
 
         let request = try makeRequest(
@@ -797,7 +820,11 @@ public final class SupabasePortalClient: ObservableObject {
         )
 
         let (data, httpResponse) = try await executeRequest(request)
-        guard (200...299).contains(httpResponse.statusCode) else {
+        if !(200...299).contains(httpResponse.statusCode) {
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let message = json["message"] as? String {
+                throw NSError(domain: "SupabasePortalClient", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: message])
+            }
             throw URLError(.badServerResponse)
         }
 

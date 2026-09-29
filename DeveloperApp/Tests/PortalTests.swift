@@ -633,4 +633,42 @@ final class PortalTests: XCTestCase {
         XCTAssertTrue(AfterPreviewRetention.note(resolvedAt: "2026-09-20T00:00:00.123456+00:00", now: now).contains("deleted on"))
         XCTAssertTrue(AfterPreviewRetention.note(resolvedAt: "2026-09-01T00:00:00+00:00", now: now).contains("due for deletion"))
     }
+
+    @MainActor
+    func testTriggerMergedAgentBuildInDemoMode() async throws {
+        let appState = AppState.shared
+        SupabasePortalClient.shared.enableDemoMode()
+        await appState.loadProjects()
+
+        let items = Array(appState.feedbackItems.prefix(2))
+        XCTAssertEqual(items.count, 2)
+
+        let (url, number) = try await appState.triggerMergedAgentBuild(
+            items: items,
+            prompt: "Merged prompt instructions",
+            redispatch: false
+        )
+
+        XCTAssertTrue(url.contains("github.com"))
+        XCTAssertGreaterThan(number, 0)
+
+        for item in items {
+            let updated = appState.feedbackItems.first(where: { $0.id == item.id })
+            XCTAssertEqual(updated?.githubIssueUrl, url)
+            XCTAssertEqual(updated?.githubIssueNumber, number)
+            XCTAssertEqual(updated?.status, .inProgress)
+            XCTAssertEqual(updated?.fixStage, PortalFixStage.agentWorking.rawValue)
+        }
+    }
+
+    @MainActor
+    func testMergedPromptSheetRenders() {
+        SupabasePortalClient.shared.enableDemoMode()
+        let items = Array(DemoData.sampleFeedbackItems.prefix(2))
+        let sheet = UIHostingController(
+            rootView: MergedPromptSheet(selectedItems: items, templateText: nil)
+                .environmentObject(AppState.shared)
+        )
+        XCTAssertNotNil(sheet.view)
+    }
 }
