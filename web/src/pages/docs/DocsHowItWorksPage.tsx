@@ -137,6 +137,12 @@ export function DocsHowItWorksPage() {
           <Link to="/docs/agents" className={docLink}>Hand reports to an agent</Link> compares the routes and shows how
           each one closes the loop.
         </p>
+        <p>
+          To fix several reports together, select them and open <strong>Merged prompt</strong>. Its{" "}
+          <strong>Send to agent</strong> creates one GitHub issue for the batch with a{" "}
+          <InlineCode>FeedbackKit:</InlineCode> line per report, so one pull request closes the loop for all of them,
+          and each report still moves from merged to verified on its own.
+        </p>
       </Step>
 
       <Step index={4}>

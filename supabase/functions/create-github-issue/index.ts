@@ -1,6 +1,14 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsHeaders, json } from "../_shared/http.ts";
-import { formatProductsList, renderPromptTemplate } from "../_shared/promptTemplate.ts";
+import { renderPromptTemplate } from "../_shared/promptTemplate.ts";
+import {
+  batchIssueBody,
+  batchIssueTitle,
+  issueTitle,
+  MAX_BATCH_REPORTS,
+  type ReportAssets,
+  singleIssueBody,
+} from "../_shared/issueBody.ts";
 import {
   getInstallationIdForRepo,
   getInstallationToken,
@@ -14,7 +22,16 @@ import {
 
 interface RequestBody {
   project_id: string;
-  feedback_id: string;
+  feedback_id?: string;
+  /**
+   * Several reports merged in the dashboard (MergedPromptView): one issue for
+   * all of them, dispatched once, with a `FeedbackKit: <id>` line per report
+   * so github-webhook moves each through the loop. Takes the place of
+   * `feedback_id`.
+   */
+  feedback_ids?: string[];
+  /** A batch's merged prompt as edited in the dashboard; generated when absent. */
+  prompt?: string;
   /**
    * Hand the issue to the project's configured coding agent
    * (`projects.dispatch_labels` / `dispatch_comment`, 0014_closed_loop.sql).
@@ -22,6 +39,8 @@ interface RequestBody {
    */
   dispatch?: boolean;
 }
+
+const MAX_PROMPT_CHARS = 20_000;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -45,11 +64,24 @@ Deno.serve(async (req) => {
       return json({ error: "invalid_json_body" }, 400);
     }
 
-    const { project_id, feedback_id } = body;
+    const { project_id } = body;
     const shouldDispatch = body.dispatch !== false;
-    if (!project_id || !feedback_id) {
-      return json({ error: "missing_fields", message: "project_id and feedback_id are required" }, 400);
+    const feedbackIds = Array.isArray(body.feedback_ids)
+      ? Array.from(new Set(body.feedback_ids.filter((id) => typeof id === "string" && id.length > 0)))
+      : body.feedback_id
+      ? [body.feedback_id]
+      : [];
+    if (!project_id || feedbackIds.length === 0) {
+      return json({ error: "missing_fields", message: "project_id and feedback_id (or feedback_ids) are required" }, 400);
     }
+    if (feedbackIds.length > MAX_BATCH_REPORTS) {
+      return json(
+        { error: "too_many_reports", message: `One issue can hold at most ${MAX_BATCH_REPORTS} reports.` },
+        400,
+      );
+    }
+    const isBatch = feedbackIds.length > 1;
+    const promptOverride = isBatch && typeof body.prompt === "string" ? body.prompt.slice(0, MAX_PROMPT_CHARS) : null;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -88,17 +120,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 3. Fetch feedback item
-    const { data: feedback, error: fbError } = await userClient
+    // 3. Fetch the feedback items, in the order they were given
+    const { data: rows, error: fbError } = await userClient
       .from("feedback_items")
       .select("*")
-      .eq("id", feedback_id)
-      .eq("project_id", project_id)
-      .single();
+      .in("id", feedbackIds)
+      .eq("project_id", project_id);
 
-    if (fbError || !feedback) {
-      return json({ error: "feedback_not_found", message: "Feedback item not found" }, 404);
+    // deno-lint-ignore no-explicit-any
+    const byId = new Map<string, any>((rows ?? []).map((row: { id: string }) => [row.id, row]));
+    if (fbError || feedbackIds.some((id) => !byId.has(id))) {
+      return json(
+        { error: "feedback_not_found", message: isBatch ? "One or more feedback items weren't found" : "Feedback item not found" },
+        404,
+      );
     }
+    const items = feedbackIds.map((id) => byId.get(id));
 
     // Admin client for backend updates (writing issue number/url, downloading storage)
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
@@ -110,31 +147,49 @@ Deno.serve(async (req) => {
     let copilotError: string | null = null;
     if (project.dispatch_copilot && body.dispatch !== false) {
       const userToken = await getGitHubUserToken(adminClient, user.id);
-      if (userToken) copilot = { userToken, instructions: copilotInstructions(feedback.id) };
+      if (userToken) copilot = { userToken, instructions: copilotInstructions(feedbackIds) };
       else copilotError = "github_user_not_connected";
     }
 
     // If already linked, return the existing issue — re-dispatching it to the
-    // agent only when explicitly asked (`dispatch: true`).
-    if (feedback.github_issue_url) {
+    // agent only when explicitly asked (`dispatch: true`). A batch counts as
+    // linked only when every report is on the same issue (the batch was sent
+    // before); a mix would need a report in two issues, so it's refused.
+    const linked = items.filter((item) => item.github_issue_url);
+    const linkedNumbers = new Set(linked.map((item) => item.github_issue_number));
+    if (linked.length === items.length && linkedNumbers.size === 1) {
+      const existing = items[0];
       let dispatched = null;
-      if (body.dispatch === true && feedback.github_issue_number) {
+      if (body.dispatch === true && existing.github_issue_number) {
         const token = await getProjectInstallationToken(adminClient, project);
         if (token) {
-          dispatched = await dispatchIssueToAgent(token, project.github_repo, feedback.github_issue_number, project, undefined, copilot);
-          if (dispatched) await recordDispatch(userClient, user.id, feedback, dispatched, feedback.github_issue_url);
+          dispatched = await dispatchIssueToAgent(token, project.github_repo, existing.github_issue_number, project, undefined, copilot);
+          if (dispatched) {
+            for (const item of items) await recordDispatch(userClient, user.id, item, dispatched, existing.github_issue_url, feedbackIds);
+          }
         }
       }
       return json(
         {
           success: true,
-          issue_url: feedback.github_issue_url,
-          issue_number: feedback.github_issue_number,
+          issue_url: existing.github_issue_url,
+          issue_number: existing.github_issue_number,
+          feedback_ids: feedbackIds,
           already_linked: true,
           dispatched,
           copilot_error: copilotError,
         },
         200
+      );
+    }
+    if (linked.length > 0) {
+      return json(
+        {
+          error: "already_linked",
+          message: `${linked.length} of the selected reports already ${linked.length === 1 ? "has a GitHub issue" : "have GitHub issues"}. Remove ${linked.length === 1 ? "it" : "them"} from the selection to open one issue for the rest.`,
+          linked_feedback_ids: linked.map((item) => item.id),
+        },
+        409,
       );
     }
 
@@ -167,141 +222,38 @@ Deno.serve(async (req) => {
       return json({ error: "github_auth_failed", message: "Could not authenticate with GitHub App." }, 500);
     }
 
-    // 6. Handle screenshot
-    let screenshotMd = "*(No screenshot included)*";
-    let screenshotUrl: string | null = null;
-    if (feedback.screenshot_annotated_path) {
-      try {
-        const { data: fileData, error: dlErr } = await adminClient.storage
+    // 6. Screenshot, attachment and coding-agent prompt for each report: the
+    // prompt edited in the dashboard, else the project's template filled with
+    // that report (not the raw template).
+    const { data: tmpl } = await userClient
+      .from("prompt_templates")
+      .select("template_text")
+      .eq("project_id", project_id)
+      .single();
+    const templateText: string =
+      tmpl?.template_text || `Fix the issue reported on the {{screen_name}} screen:\n\n{{feedback_text}}`;
+
+    const reports: ReportAssets[] = [];
+    for (const feedback of items) {
+      const { screenshotMd, screenshotUrl } = await resolveScreenshot(adminClient, tokenInstall, owner, repo, feedback);
+      let attachmentUrl: string | null = null;
+      if (feedback.attachment_path) {
+        const { data: signedAtt } = await adminClient.storage
           .from("feedback-screenshots")
-          .download(feedback.screenshot_annotated_path);
-
-        if (!dlErr && fileData) {
-          const bytes = new Uint8Array(await fileData.arrayBuffer());
-          const repoAssetUrl = await uploadScreenshotToRepo(tokenInstall, owner, repo, feedback.id, bytes);
-          if (repoAssetUrl) {
-            screenshotUrl = repoAssetUrl;
-            screenshotMd = `![Feedback Screenshot](${repoAssetUrl})`;
-          } else {
-            // Fallback to 7-day signed URL
-            const { data: signed } = await adminClient.storage
-              .from("feedback-screenshots")
-              .createSignedUrl(feedback.screenshot_annotated_path, 60 * 60 * 24 * 7);
-            if (signed?.signedUrl) {
-              screenshotUrl = signed.signedUrl;
-              screenshotMd = `![Feedback Screenshot](${signed.signedUrl})\n*(Signed URL valid for 7 days)*`;
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("Screenshot handling error:", e);
+          .createSignedUrl(feedback.attachment_path, 60 * 60 * 24 * 7);
+        attachmentUrl = signedAtt?.signedUrl ?? null;
       }
+      const promptText = renderPromptTemplate(feedback.edited_prompt || templateText, feedback, screenshotUrl, attachmentUrl);
+      reports.push({ feedback, screenshotMd, attachmentUrl, promptText });
     }
 
-    // 7. Get coding-agent prompt: the one edited in the dashboard, else the
-    // project's template filled with this report (not the raw template).
-    let attachmentUrl: string | null = null;
-    if (feedback.attachment_path) {
-      const { data: signedAtt } = await adminClient.storage
-        .from("feedback-screenshots")
-        .createSignedUrl(feedback.attachment_path, 60 * 60 * 24 * 7);
-      attachmentUrl = signedAtt?.signedUrl ?? null;
-    }
-    const productsFormatted = formatProductsList(feedback.products);
-    let promptText: string = feedback.edited_prompt;
-    if (!promptText) {
-      const { data: tmpl } = await userClient
-        .from("prompt_templates")
-        .select("template_text")
-        .eq("project_id", project_id)
-        .single();
+    // 7. Construct issue content
+    const title = isBatch ? batchIssueTitle(items) : issueTitle(items[0]);
+    const issueBody = isBatch
+      ? batchIssueBody(reports, project.delivery_mode, promptOverride)
+      : singleIssueBody(reports[0], project.delivery_mode);
 
-      promptText =
-        tmpl?.template_text ||
-        `Fix the issue reported on the {{screen_name}} screen:\n\n{{feedback_text}}`;
-    }
-    promptText = renderPromptTemplate(promptText, feedback, screenshotUrl, attachmentUrl);
-
-    // 8. Construct issue content
-    const env = feedback.environment || {};
-    const screenName = env.screenName ? `[${env.screenName}] ` : "";
-    const title = `[Feedback] ${screenName}${
-      feedback.text
-        ? feedback.text.length > 60
-          ? feedback.text.slice(0, 57) + "..."
-          : feedback.text
-        : "New bug report"
-    }`;
-
-    let productsMd = "";
-    if (Array.isArray(feedback.products) && feedback.products.length > 0) {
-      productsMd = `\n## Affected Products\n${productsFormatted}\n`;
-    }
-
-    const attachmentMd = attachmentUrl
-      ? `\n## Attachment\n[${feedback.attachment_filename || "Download Attachment"}](${attachmentUrl})\n`
-      : "";
-
-    const screenshotSection = screenshotMd ? `\n## Screenshot\n${screenshotMd}\n` : "";
-
-    // Web SDK reports (environment.platform === "web", see 0013_web_sdk.sql)
-    // carry the page URL, browser and recent console/network logs.
-    const isWeb = env.platform === "web";
-    const webRows = isWeb
-      ? `| **Page URL** | ${env.pageUrl || "—"} |
-| **Browser** | ${env.browserName ? `${env.browserName} ${env.browserVersion || ""}` : env.deviceModel || "—"} |
-`
-      : "";
-    const logs = Array.isArray(feedback.logs) ? feedback.logs : [];
-    const logsMd = logs.length > 0
-      ? `
-<details>
-<summary><b>Console &amp; network log</b> (${logs.length} entries)</summary>
-
-\`\`\`
-${logs.map((l: { level?: string; message?: string; timestamp?: string }) => `${(l.timestamp || "").slice(11, 19)} [${l.level}] ${l.message}`).join("\n")}
-\`\`\`
-
-</details>
-`
-      : "";
-
-    const issueBody = `## Description
-${feedback.text || "*(No description provided)*"}
-${productsMd}${screenshotSection}
-## Environment
-| Spec | Value |
-|---|---|
-| **Screen** | ${env.screenName || "—"} |
-${webRows}| **OS** | ${env.osName || ""} ${env.osVersion || ""} |
-| **Device** | ${env.deviceModel || "—"} |
-| **App Version** | ${env.appVersion || "—"} (${env.appBuild || ""}) |
-| **Locale** | ${env.locale || "—"} |
-| **${isWeb ? "Viewport" : "Screen Size"}** | ${env.screenWidthPoints || ""}×${env.screenHeightPoints || ""} @${env.screenScale || 1}x |
-| **Reported At** | ${new Date(feedback.created_at).toUTCString()} |
-${attachmentMd}${logsMd}
-<details>
-<summary><b>🤖 Coding Agent Prompt</b> (click to expand)</summary>
-
-\`\`\`markdown
-${promptText}
-\`\`\`
-
-</details>
-
-## Closing the loop
-${project.delivery_mode === "branch"
-  ? "Open a pull request for the fix (don't push to the default branch) and put this line in its description. The PR is merged once the fix is verified on a preview build:"
-  : "Add this trailer to the fix commit's message (or, if you open a pull request, its description) so FeedbackKit can track the fix through the next beta build to the reporter's device:"}
-
-\`\`\`
-FeedbackKit: ${feedback.id}
-\`\`\`
-
----
-*Logged via [FeedbackKit](https://feedback-kit.hejitech.workers.dev/) from report \`${feedback.id}\`*`;
-
-    // 9. Create GitHub issue
+    // 8. Create GitHub issue
     let issue: { number: number; html_url: string };
     try {
       issue = await createGitHubIssue(tokenInstall, owner, repo, title, issueBody);
@@ -309,20 +261,23 @@ FeedbackKit: ${feedback.id}
       return json({ error: "github_issue_creation_failed", message: String(err) }, 502);
     }
 
-    // 10. Update feedback item in database
+    // 9. Link every report to the issue
     await adminClient
       .from("feedback_items")
-      .update({
-        github_issue_url: issue.html_url,
-        github_issue_number: issue.number,
-        status: feedback.status === "new" ? "in_progress" : feedback.status,
-      })
-      .eq("id", feedback.id);
+      .update({ github_issue_url: issue.html_url, github_issue_number: issue.number })
+      .in("id", feedbackIds);
+    await adminClient
+      .from("feedback_items")
+      .update({ status: "in_progress" })
+      .in("id", feedbackIds)
+      .eq("status", "new");
 
     let dispatched = null;
     if (shouldDispatch) {
       dispatched = await dispatchIssueToAgent(tokenInstall, project.github_repo, issue.number, project, undefined, copilot);
-      if (dispatched) await recordDispatch(userClient, user.id, feedback, dispatched, issue.html_url);
+      if (dispatched) {
+        for (const item of items) await recordDispatch(userClient, user.id, item, dispatched, issue.html_url, feedbackIds);
+      }
     }
 
     return json(
@@ -330,6 +285,7 @@ FeedbackKit: ${feedback.id}
         success: true,
         issue_url: issue.html_url,
         issue_number: issue.number,
+        feedback_ids: feedbackIds,
         dispatched,
         copilot_error: copilotError,
       },
@@ -347,6 +303,49 @@ FeedbackKit: ${feedback.id}
   }
 });
 
+/**
+ * The annotated screenshot, committed to the repo so the link lasts; a 7-day
+ * signed URL if that fails.
+ */
+async function resolveScreenshot(
+  // deno-lint-ignore no-explicit-any
+  adminClient: any,
+  tokenInstall: string,
+  owner: string,
+  repo: string,
+  feedback: { id: string; screenshot_annotated_path?: string | null },
+): Promise<{ screenshotMd: string; screenshotUrl: string | null }> {
+  let screenshotMd = "*(No screenshot included)*";
+  let screenshotUrl: string | null = null;
+  if (!feedback.screenshot_annotated_path) return { screenshotMd, screenshotUrl };
+  try {
+    const { data: fileData, error: dlErr } = await adminClient.storage
+      .from("feedback-screenshots")
+      .download(feedback.screenshot_annotated_path);
+
+    if (!dlErr && fileData) {
+      const bytes = new Uint8Array(await fileData.arrayBuffer());
+      const repoAssetUrl = await uploadScreenshotToRepo(tokenInstall, owner, repo, feedback.id, bytes);
+      if (repoAssetUrl) {
+        screenshotUrl = repoAssetUrl;
+        screenshotMd = `![Feedback Screenshot](${repoAssetUrl})`;
+      } else {
+        // Fallback to 7-day signed URL
+        const { data: signed } = await adminClient.storage
+          .from("feedback-screenshots")
+          .createSignedUrl(feedback.screenshot_annotated_path, 60 * 60 * 24 * 7);
+        if (signed?.signedUrl) {
+          screenshotUrl = signed.signedUrl;
+          screenshotMd = `![Feedback Screenshot](${signed.signedUrl})\n*(Signed URL valid for 7 days)*`;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Screenshot handling error:", e);
+  }
+  return { screenshotMd, screenshotUrl };
+}
+
 /** Timeline entry for a dispatch, written as the calling user (RLS applies). */
 async function recordDispatch(
   // deno-lint-ignore no-explicit-any
@@ -355,6 +354,7 @@ async function recordDispatch(
   feedback: { id: string; project_id: string },
   dispatched: { labels: string[]; commented: boolean; copilot: boolean },
   issueUrl: string,
+  batchIds: string[],
 ) {
   const how = [
     dispatched.labels.length > 0 ? `labeled ${dispatched.labels.map((l) => `\`${l}\``).join(", ")}` : null,
@@ -363,6 +363,7 @@ async function recordDispatch(
   ]
     .filter(Boolean)
     .join(" and ");
+  const others = batchIds.length - 1;
   const { error } = await userClient.from("feedback_events").insert({
     feedback_id: feedback.id,
     project_id: feedback.project_id,
@@ -370,8 +371,10 @@ async function recordDispatch(
     actor_type: "user",
     actor_user_id: userId,
     actor_label: "Dashboard",
-    body: `Sent to the coding agent via GitHub (${how || "no trigger configured"}).`,
-    data: { ...dispatched, issue_url: issueUrl },
+    body: others > 0
+      ? `Sent to the coding agent via GitHub together with ${others} other ${others === 1 ? "report" : "reports"} (${how || "no trigger configured"}).`
+      : `Sent to the coding agent via GitHub (${how || "no trigger configured"}).`,
+    data: { ...dispatched, issue_url: issueUrl, ...(others > 0 ? { batch_feedback_ids: batchIds } : {}) },
   });
   if (error) console.warn("Failed to record dispatch event:", error.message);
   await userClient.from("feedback_items").update({ fix_stage: "agent_working" }).eq("id", feedback.id).is("fix_stage", null);

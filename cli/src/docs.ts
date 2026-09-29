@@ -94,6 +94,8 @@ The \`fix-feedback\` Agent Skill packages this routine.
 
 **Hands-off instead:** **Send to agent** on the report page creates a GitHub issue and starts an agent without anyone opening one. That agent can be Claude Code on a self-hosted Mac runner (the \`setup-agent-runner\` skill; it can build and run the app), or GitHub Copilot's coding agent (project Settings → Coding agent loop → *Assign to GitHub Copilot*, after connecting your GitHub account; Linux only, so no iOS builds). **Run on my machine** queues the report for \`feedbackkit watch\`, which runs your local Claude Code or Codex in a git worktree and opens the PR.
 
+To fix several reports together, select them in the dashboard and open **Merged prompt**: its **Send to agent** creates one GitHub issue for the batch with a \`FeedbackKit:\` line per report, so one PR closes the loop for all of them, and each report still moves from merged to verified on its own.
+
 ## 5. The fix merges (GitHub)
 
 With the FeedbackKit GitHub App connected, a PR containing \`FeedbackKit: <id>\` moves the report to PR open, and merging moves it to Merged. A trailer on a commit pushed straight to main works too. Without the GitHub App, the agent uses \`link_fix\`. Merged isn't done; the loop waits for a release.

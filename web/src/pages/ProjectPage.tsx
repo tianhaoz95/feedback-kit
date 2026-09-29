@@ -141,7 +141,17 @@ export function ProjectPage() {
     setTimeout(() => setLocalRunState("idle"), 4000);
   }
 
-  async function createIssue(feedbackId: string, options: { redispatch?: boolean } = {}) {
+  /**
+   * Opens (or, with `redispatch`, re-dispatches) the GitHub issue for one
+   * report, or for several merged ones — create-github-issue puts a batch in
+   * one issue with a `FeedbackKit: <id>` line per report. `prompt` is a
+   * batch's merged prompt as edited in MergedPromptView.
+   */
+  async function createIssue(
+    feedbackIds: string | string[],
+    options: { redispatch?: boolean; prompt?: string } = {},
+  ) {
+    const ids = Array.isArray(feedbackIds) ? feedbackIds : [feedbackIds];
     if (!project) return;
     setIssueError(null);
 
@@ -153,12 +163,17 @@ export function ProjectPage() {
     }
 
     setIsCreatingIssue(true);
-    track(options.redispatch ? "send_to_agent_again" : "send_to_agent", { copilot: Boolean(project.dispatch_copilot) }, project.organization_id);
+    track(
+      options.redispatch ? "send_to_agent_again" : "send_to_agent",
+      { copilot: Boolean(project.dispatch_copilot), ...(ids.length > 1 ? { reports: ids.length } : {}) },
+      project.organization_id,
+    );
     try {
       const { data, error } = await supabase.functions.invoke("create-github-issue", {
         body: {
           project_id: project.id,
-          feedback_id: feedbackId,
+          ...(ids.length > 1 ? { feedback_ids: ids } : { feedback_id: ids[0] }),
+          ...(options.prompt ? { prompt: options.prompt } : {}),
           // On an already-linked issue, only re-dispatch when explicitly asked.
           ...(options.redispatch ? { dispatch: true } : {}),
         },
@@ -200,7 +215,7 @@ export function ProjectPage() {
       if (data?.issue_url) {
         setFeedbackItems((current) =>
           current.map((item) =>
-            item.id === feedbackId
+            ids.includes(item.id)
               ? {
                   ...item,
                   github_issue_url: data.issue_url,
@@ -667,6 +682,34 @@ export function ProjectPage() {
         selectedAttachmentUrl
       )
     : "";
+  // Shared by the single-report header and the merged view's "Send to agent".
+  const issueErrorBanner = issueError && project ? (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-red-50 px-4 py-2.5 text-xs text-red-700 border border-red-100">
+      <div className="flex items-center gap-2 min-w-0">
+        <AlertIcon className="h-4 w-4 shrink-0 text-red-600" />
+        <span>{issueError.message}</span>
+      </div>
+      {issueError.installUrl ? (
+        <a
+          href={issueError.installUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 font-medium text-red-800 underline hover:text-red-900"
+        >
+          <span>Install GitHub App</span>
+          <ExternalLinkIcon className="h-3 w-3" />
+        </a>
+      ) : !project.github_repo ? (
+        <button
+          type="button"
+          onClick={() => handleTabChange("settings")}
+          className="font-medium text-red-800 underline hover:text-red-900"
+        >
+          Go to Settings
+        </button>
+      ) : null}
+    </div>
+  ) : null;
   const env = selectedFeedback?.environment;
 
   function renderFeedbackCard(item: FeedbackItem, isArchivedSection: boolean) {
@@ -1021,6 +1064,17 @@ export function ProjectPage() {
                     }
                     onClearSelection={handleClearSelection}
                     onBackToSingleView={() => setViewMode("single")}
+                    hasDispatchTrigger={
+                      (project.dispatch_labels?.length ?? 0) > 0 || Boolean(project.dispatch_comment) || Boolean(project.dispatch_copilot)
+                    }
+                    isSendingToAgent={isCreatingIssue}
+                    onSendToAgent={(options) =>
+                      createIssue(
+                        feedbackItems.filter((item) => selectedIds.has(item.id)).map((item) => item.id),
+                        options,
+                      )
+                    }
+                    issueNotice={issueErrorBanner}
                   />
                 ) : (
                   <>
@@ -1193,33 +1247,7 @@ export function ProjectPage() {
                   </div>
                 )}
 
-                {issueError ? (
-                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-red-50 px-4 py-2.5 text-xs text-red-700 border border-red-100">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <AlertIcon className="h-4 w-4 shrink-0 text-red-600" />
-                      <span>{issueError.message}</span>
-                    </div>
-                    {issueError.installUrl ? (
-                      <a
-                        href={issueError.installUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 font-medium text-red-800 underline hover:text-red-900"
-                      >
-                        <span>Install GitHub App</span>
-                        <ExternalLinkIcon className="h-3 w-3" />
-                      </a>
-                    ) : !project.github_repo ? (
-                      <button
-                        type="button"
-                        onClick={() => handleTabChange("settings")}
-                        className="font-medium text-red-800 underline hover:text-red-900"
-                      >
-                        Go to Settings
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
+                {issueErrorBanner}
 
                 {/* Subgrid: Left = Screenshot/Desc/Env, Right = Prompt */}
                 <div className="grid gap-5 xl:grid-cols-2 items-stretch">
