@@ -49,6 +49,25 @@ body {
   animation: fade-up 0.6s ease-out both;
 }
 
+/* Modal and media overlay animations */
+@keyframes overlay-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes overlay-zoom {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-overlay-fade {
+  animation: overlay-fade 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-overlay-zoom {
+  animation: overlay-zoom 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 /* Scroll-triggered reveal, used by <Reveal>. */
 .reveal {
   opacity: 0;

@@ -64,7 +64,7 @@ export function FeedbackPromptEditor({
           className="w-full flex-1 min-h-[300px] resize-y rounded-lg border border-neutral-200 bg-white p-3 font-mono text-xs text-neutral-800 leading-relaxed transition-colors placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none"
         />
       ) : (
-        <MarkdownPreview content={value} className="w-full flex-1 min-h-[300px] max-h-[500px]" />
+        <MarkdownPreview content={value} className="w-full flex-1 min-h-[300px]" />
       )}
       <div className="flex flex-wrap items-center gap-2 pt-0.5 shrink-0">
         <Button

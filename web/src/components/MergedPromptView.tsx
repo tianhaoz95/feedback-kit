@@ -358,7 +358,7 @@ export function MergedPromptView({
                 className="w-full rounded-lg border border-neutral-200 bg-neutral-50/50 p-3.5 font-mono text-xs text-neutral-800 leading-relaxed transition-colors placeholder:text-neutral-400 focus:border-neutral-900 focus:bg-white focus:outline-none"
               />
             ) : (
-              <MarkdownPreview content={promptText} className="w-full min-h-[300px] max-h-[500px]" />
+              <MarkdownPreview content={promptText} className="w-full min-h-[480px]" />
             )}
 
             <div className="flex flex-wrap items-center justify-between gap-3 pt-1">

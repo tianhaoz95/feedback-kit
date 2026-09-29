@@ -11,6 +11,7 @@ import type { FeedbackEvent, FeedbackEventKind, FeedbackItem, FixStage, Project 
 import { Button } from "@/components/Button";
 import { AgentGlyph } from "@/components/AgentDispatchButton";
 import { AlertIcon, CheckIcon, ExternalLinkIcon, GitHubIcon, MessageIcon, SparkleIcon } from "@/components/icons";
+import { ImageOverlay } from "@/components/ImageOverlay";
 
 /** Stages where an agent may be posting progress, so the timeline polls for it. */
 const LIVE_STAGES: FixStage[] = ["agent_working", "pr_open", "reopened"];
@@ -76,6 +77,7 @@ export function FixLoopPanel({
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [overlayMedia, setOverlayMedia] = useState<{ url: string; caption?: string; isVideo?: boolean } | null>(null);
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -438,15 +440,33 @@ export function FixLoopPanel({
                   <p className="mt-1 text-[11px] italic text-neutral-400">Preview expired (deleted 14 days after the report was resolved).</p>
                 ) : null}
                 {shotPath && imageUrls[shotPath] && isVideo ? (
-                  <video src={imageUrls[shotPath]} controls playsInline className="mt-2 block max-h-56 w-56 rounded-md border border-neutral-200 bg-black" />
+                  <div className="mt-2 block w-56">
+                    <video
+                      src={imageUrls[shotPath]}
+                      controls
+                      playsInline
+                      className="block max-h-56 w-56 rounded-md border border-neutral-200 bg-black cursor-pointer"
+                    />
+                  </div>
                 ) : shotPath && imageUrls[shotPath] ? (
-                  <a href={imageUrls[shotPath]} target="_blank" rel="noreferrer" className="mt-2 block w-40">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOverlayMedia({
+                        url: imageUrls[shotPath],
+                        caption: e.body || (e.kind === "after_screenshot" ? "Screenshot after the fix" : "Reporter's new screenshot"),
+                        isVideo: false,
+                      })
+                    }
+                    title="Click to expand"
+                    className="mt-2 block w-40 cursor-pointer text-left group"
+                  >
                     <img
                       src={imageUrls[shotPath]}
                       alt={e.kind === "after_screenshot" ? "Screenshot after the fix" : "Reporter's new screenshot"}
-                      className="max-h-56 w-full rounded-md border border-neutral-200 object-contain bg-neutral-50"
+                      className="max-h-56 w-full rounded-md border border-neutral-200 object-contain bg-neutral-50 group-hover:border-neutral-400 group-hover:shadow-xs transition-all"
                     />
-                  </a>
+                  </button>
                 ) : null}
               </li>
             );
@@ -497,6 +517,15 @@ export function FixLoopPanel({
           </Button>
         </div>
       </div>
+      {overlayMedia && (
+        <ImageOverlay
+          src={overlayMedia.url}
+          alt={overlayMedia.caption}
+          caption={overlayMedia.caption}
+          isVideo={overlayMedia.isVideo}
+          onClose={() => setOverlayMedia(null)}
+        />
+      )}
     </div>
   );
 }
