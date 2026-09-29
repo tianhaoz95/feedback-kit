@@ -39,15 +39,11 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { randomBytes } from "node:crypto";
+import { attach, fetchReport, hasPreviewSince, log, SKIP } from "./feedbackkit.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WEB = join(ROOT, "web");
 const WEB_SDK = join(ROOT, "web-sdk");
-
-// Same defaults as cli/src/supabaseClient.ts (the hosted backend's public URL and publishable key).
-const API_URL = (process.env.FEEDBACKKIT_API_URL ?? "https://gpucoladcyvijefdjudf.supabase.co").replace(/\/+$/, "");
-const ANON_KEY = process.env.FEEDBACKKIT_ANON_KEY ?? "sb_publishable_crkqEdaacVS02etk6k16ag_ATIk-8Kn";
-const TOKEN = process.env.FEEDBACKKIT_TOKEN?.trim() || null;
 
 /** A dependency from web/ or web-sdk/ node_modules (CommonJS or ESM). */
 async function importFrom(dir, name) {
@@ -56,7 +52,6 @@ async function importFrom(dir, name) {
 }
 
 const PUBLIC_ROUTES = [/^\/$/, /^\/docs(\/|$)/, /^\/privacy$/, /^\/terms$/, /^\/login$/, /^\/invite\//];
-const SKIP = 3;
 
 function parseArgs(argv) {
   const args = { width: 1440, height: 900 };
@@ -91,64 +86,6 @@ function fail(message, code = 1) {
   process.exit(code);
 }
 
-function log(message) {
-  console.error(`capture-web: ${message}`);
-}
-
-// ---- The hosted report (read with the FeedbackKit token) ----------------------
-
-async function hosted(path, init = {}) {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: { apikey: ANON_KEY, "x-feedbackkit-token": TOKEN, ...(init.headers ?? {}) },
-  });
-  if (!res.ok) throw new Error(`${path.split("?")[0]}: ${res.status} ${await res.text()}`);
-  return res;
-}
-
-async function fetchReport(id) {
-  if (!TOKEN) fail("--feedback needs FEEDBACKKIT_TOKEN (a FeedbackKit access token that can read the report).");
-  const [item] = await (await hosted(`/rest/v1/feedback_items?id=eq.${id}&select=*`)).json();
-  if (!item) fail(`Report ${id} not found (or the token can't read it).`);
-  const events = await hosted(`/rest/v1/feedback_events?feedback_id=eq.${id}&select=*&order=created_at`)
-    .then((r) => r.json())
-    .catch(() => []);
-  const project = await hosted(`/rest/v1/projects?id=eq.${item.project_id}&select=id,name`)
-    .then((r) => r.json())
-    .then((rows) => rows[0] ?? null)
-    .catch(() => null);
-  const images = {};
-  for (const path of [item.screenshot_raw_path, item.screenshot_annotated_path].filter(Boolean)) {
-    try {
-      const { signedURL } = await (
-        await hosted(`/storage/v1/object/sign/feedback-screenshots/${path}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ expiresIn: 300 }),
-        })
-      ).json();
-      const res = await fetch(`${API_URL}/storage/v1${signedURL}`);
-      if (res.ok) images[path] = new Uint8Array(await res.arrayBuffer());
-    } catch {
-      // The viewer shows a placeholder instead; the page itself is what matters.
-    }
-  }
-  return { item, events, project, images };
-}
-
-async function attach(id, png, caption) {
-  const url = new URL(`${API_URL}/functions/v1/attach-preview`);
-  url.searchParams.set("feedback_id", id);
-  url.searchParams.set("actor_label", process.env.FEEDBACKKIT_ACTOR_LABEL ?? "Coding agent");
-  url.searchParams.set("actor_type", "agent");
-  if (caption) url.searchParams.set("caption", caption);
-  const res = await hosted(`${url.pathname}${url.search}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/octet-stream" },
-    body: png,
-  });
-  return res.json();
-}
 
 // ---- A throwaway local backend for signed-in pages ---------------------------
 
@@ -350,16 +287,12 @@ async function main() {
   const report = args.reportFile
     ? { events: [], project: null, images: {}, ...JSON.parse(readFileSync(args.reportFile, "utf8")) }
     : args.feedback
-    ? await fetchReport(args.feedback)
+    ? await fetchReport(args.feedback, { images: true })
     : null;
 
-  if (args.attach && args.since && report) {
-    const since = Date.parse(args.since);
-    const already = report.events.some((e) => e.kind === "after_screenshot" && Date.parse(e.created_at) >= since);
-    if (already) {
-      log("the report already has a preview from this run; nothing to do.");
-      process.exit(SKIP);
-    }
+  if (args.attach && args.since && report && hasPreviewSince(report, args.since)) {
+    log("the report already has a preview from this run; nothing to do.");
+    process.exit(SKIP);
   }
 
   const route = routeFrom(args.path ?? report?.item.environment?.pageUrl);

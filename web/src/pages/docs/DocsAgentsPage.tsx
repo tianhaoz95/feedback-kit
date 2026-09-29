@@ -283,8 +283,8 @@ export function DocsAgentsPage() {
               <InlineCode>attach_preview</InlineCode> with a caption for progress and for the finished fix; the report&apos;s
               timeline refreshes while an agent is at work. In this repository,{" "}
               <InlineCode>node scripts/agent-preview/capture-web.mjs --feedback &lt;id&gt;</InlineCode> captures the
-              dashboard at a report&apos;s page, and the Antigravity workflow runs it when a web fix arrives without a
-              preview.
+              dashboard at a report&apos;s page and <InlineCode>capture-portal.mjs</InlineCode> the iOS Portal (in the
+              Simulator, in demo mode); the Antigravity workflow runs them when a fix arrives without a preview.
             </>,
             <>
               <b>Another pass on the same PR.</b> While a report is at <b>PR open</b>, its Fix loop panel has{" "}
