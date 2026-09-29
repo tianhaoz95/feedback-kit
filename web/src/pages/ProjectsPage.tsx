@@ -7,7 +7,7 @@ import { getErrorMessage } from "@/lib/errors";
 import type { Project } from "@/lib/types";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
-import { ArrowRightIcon, FolderIcon, GitHubIcon, PlusIcon } from "@/components/icons";
+import { ArrowRightIcon, ExternalLinkIcon, FolderIcon, GitHubIcon, PlusIcon } from "@/components/icons";
 
 const CARD_TINTS = [
   "bg-violet-100 text-violet-600",
@@ -146,12 +146,16 @@ export function ProjectsPage() {
           ) : (
             <div className="space-y-3">
               {projects.map((project) => (
-                <Link
+                <div
                   key={project.id}
-                  to={`/projects/${project.id}`}
-                  className="group flex flex-col justify-between gap-4 rounded-xl border border-neutral-200 bg-white p-4 shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-md sm:flex-row sm:items-center sm:p-5"
+                  className="group relative flex flex-col justify-between gap-4 rounded-xl border border-neutral-200 bg-white p-4 shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-md sm:flex-row sm:items-center sm:p-5"
                 >
-                  <div className="flex min-w-0 items-center gap-3.5 sm:gap-4">
+                  <Link
+                    to={`/projects/${project.id}`}
+                    className="absolute inset-0 z-0 rounded-xl"
+                    aria-label={`View project ${project.name}`}
+                  />
+                  <div className="flex min-w-0 items-center gap-3.5 sm:gap-4 pointer-events-none">
                     <div
                       className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-base font-semibold shadow-2xs ${tintFor(project.id)}`}
                     >
@@ -163,10 +167,17 @@ export function ProjectsPage() {
                           {project.name}
                         </h2>
                         {project.github_repo ? (
-                          <span className="inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-medium text-neutral-600">
+                          <a
+                            href={`https://github.com/${project.github_repo}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="pointer-events-auto relative z-10 inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-medium text-neutral-600 transition-colors hover:border-neutral-300 hover:bg-neutral-100 hover:text-neutral-900"
+                            title={`Open ${project.github_repo} on GitHub in a new tab`}
+                          >
                             <GitHubIcon className="h-3 w-3 text-neutral-700" />
                             <span className="max-w-[200px] truncate">{project.github_repo}</span>
-                          </span>
+                            <ExternalLinkIcon className="h-2.5 w-2.5 text-neutral-400" />
+                          </a>
                         ) : null}
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
@@ -181,7 +192,7 @@ export function ProjectsPage() {
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 items-center justify-between gap-3 border-t border-neutral-100 pt-2 sm:border-0 sm:pt-0 sm:justify-end">
+                  <div className="pointer-events-none flex shrink-0 items-center justify-between gap-3 border-t border-neutral-100 pt-2 sm:border-0 sm:pt-0 sm:justify-end">
                     <span className="text-xs text-neutral-400 sm:hidden">
                       Created {formatCreatedDate(project.created_at)}
                     </span>
@@ -190,7 +201,7 @@ export function ProjectsPage() {
                       <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                     </div>
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           )}
