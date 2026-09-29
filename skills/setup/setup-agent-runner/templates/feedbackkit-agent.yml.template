@@ -73,7 +73,11 @@ jobs:
           # The FeedbackKit MCP server acts as this run's report-limited token
           # (or the runner user's `feedbackkit login` without one), so the agent
           # can claim the report, ask the reporter, and attach a preview of the
-          # fix (`xcrun simctl io booted screenshot` / `recordVideo`).
+          # fix (`xcrun simctl io booted screenshot` / `recordVideo`). Follow-ups
+          # from the report page arrive as an `@claude` comment on the agent's
+          # PR (FeedbackKit's app, hence allowed_bots), which the
+          # issue_comment trigger above picks up on the PR's branch.
           claude_args: >-
             --mcp-config '{"mcpServers":{"feedbackkit":{"command":"npx","args":["-y","feedbackkit-cli@latest","mcp"],"env":{"FEEDBACKKIT_TOKEN":"${{ env.FEEDBACKKIT_RUN_TOKEN }}"}}}}'
             --allowedTools "mcp__feedbackkit,Bash(xcodebuild:*),Bash(xcrun simctl:*),Bash(swift build:*),Bash(swift test:*),Bash(xcodegen:*)"
+            --append-system-prompt "Show your work on the FeedbackKit report: the team reviews screenshots on the report page instead of running the build. Call attach_preview (with a caption) once the fix works and at useful points along the way (the bug reproduced, a first version), and post_update for short progress notes. A FeedbackKit follow-up comment on a pull request asks for another pass on that PR: keep working on its branch, don't open a new one."

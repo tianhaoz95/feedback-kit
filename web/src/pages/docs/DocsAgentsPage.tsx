@@ -269,6 +269,34 @@ export function DocsAgentsPage() {
         </p>
       </DocsSection>
 
+      <DocsSection title="Choosing an agent, progress and follow-ups">
+        <DocsList
+          items={[
+            <>
+              <b>Pick the agent per report.</b> The report&apos;s send button remembers the agent you used last; its menu
+              lists each configured label, the trigger comment, Copilot and <b>Your machine</b> on their own (plus
+              <b> All configured agents</b> when there&apos;s more than one), and the supported agents you haven&apos;t
+              set up yet, which open Settings.
+            </>,
+            <>
+              <b>Screenshots while it works.</b> Agents with the FeedbackKit MCP tools call{" "}
+              <InlineCode>attach_preview</InlineCode> with a caption for progress and for the finished fix; the report&apos;s
+              timeline refreshes while an agent is at work. In this repository,{" "}
+              <InlineCode>node scripts/agent-preview/capture-web.mjs --feedback &lt;id&gt;</InlineCode> captures the
+              dashboard at a report&apos;s page, and the Antigravity workflow runs it when a web fix arrives without a
+              preview.
+            </>,
+            <>
+              <b>Another pass on the same PR.</b> While a report is at <b>PR open</b>, its Fix loop panel has{" "}
+              <b>Keep working on PR #n</b>: your note is posted on the PR and the agent is started on the PR&apos;s
+              branch, committing onto the same PR. The Antigravity templates handle this with a{" "}
+              <InlineCode>pull_request_target: labeled</InlineCode> trigger; claude-code-action picks up the{" "}
+              <InlineCode>@claude</InlineCode> comment; Copilot gets an <InlineCode>@copilot</InlineCode> comment from you.
+            </>,
+          ]}
+        />
+      </DocsSection>
+
       <DocsSection title="When a reporter says it's still broken">
         <DocsList
           items={[

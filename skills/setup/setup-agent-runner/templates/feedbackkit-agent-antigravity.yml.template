@@ -18,9 +18,19 @@ name: FeedbackKit agent (Antigravity)
 # plus a FEEDBACKKIT_AGENT_TOKEN secret (an "Agent runner" access token), so
 # the agent can claim the report, post progress, ask the reporter and attach
 # a preview of the fix through a token limited to this run's report.
+#
+# Follow-ups: the report page's "Keep working on PR #n" posts the team's
+# instructions on the agent's PR (a comment marked
+# `<!-- feedbackkit:follow-up -->`) and re-adds the label to the PR itself.
+# That runs this workflow on the PR's branch: the agent gets the report plus
+# the newest follow-up, and its changes are committed onto the same PR.
+# `pull_request_target` runs this file as it is on the default branch, never
+# a PR's copy of it, and only same-repository PRs are accepted.
 
 on:
   issues:
+    types: [labeled]
+  pull_request_target:
     types: [labeled]
 
 permissions:
@@ -30,28 +40,49 @@ permissions:
   # Starts CI on the agent's PR (see the last step).
   actions: write
 
-# One run per issue; a re-dispatch (reporter reopened) replaces a stale one.
+# One run per issue or PR; a re-dispatch (reporter reopened) replaces a stale one.
 concurrency:
-  group: feedbackkit-agent-antigravity-${{ github.event.issue.number }}
+  group: feedbackkit-agent-antigravity-${{ github.event.issue.number || github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   agent:
-    if: github.event.label.name == '__DISPATCH_LABEL__'
+    if: >-
+      github.event.label.name == '__DISPATCH_LABEL__' &&
+      (github.event_name == 'issues' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, macOS, feedbackkit-agent]
     timeout-minutes: 60
     env:
       # Untrusted text (from the app user's report) only ever reaches the
       # shell through environment variables, never interpolated into scripts.
-      ISSUE_TITLE: ${{ github.event.issue.title }}
-      ISSUE_BODY: ${{ github.event.issue.body }}
-      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      ISSUE_TITLE: ${{ github.event.issue.title || github.event.pull_request.title }}
+      ISSUE_BODY: ${{ github.event.issue.body || github.event.pull_request.body }}
+      ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+      # Set on a follow-up run: the agent's PR and its branch.
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # A follow-up works on the PR's branch; a new report starts from the default branch.
+          ref: ${{ github.event.pull_request.head.ref || '' }}
           # No token in .git/config: the agent can't push, only this workflow can.
           persist-credentials: false
+
+      - name: Read the follow-up request
+        if: github.event_name == 'pull_request_target'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The newest FeedbackKit follow-up on the PR (see requestFollowUp in
+          # supabase/functions/_shared/github.ts); a label added by hand has none.
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            --jq '.[] | select(.body | contains("<!-- feedbackkit:follow-up -->")) | .body' \
+            | awk '/<!-- feedbackkit:follow-up -->/{buf=""} {buf=buf $0 "\n"} END{printf "%s", buf}' \
+            | grep -v 'feedbackkit:follow-up' > "$RUNNER_TEMP/follow-up.md" || true
+          echo "RUN_STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
       - name: Issue a FeedbackKit token for this report
         # The agent-runner token (FEEDBACKKIT_AGENT_TOKEN: an access token with
@@ -61,7 +92,6 @@ jobs:
         # server it starts). Skipped when the secret isn't set.
         env:
           FEEDBACKKIT_TOKEN: ${{ secrets.FEEDBACKKIT_AGENT_TOKEN }}
-          ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
           FEEDBACK_ID="$(printf '%s' "$ISSUE_BODY" | grep -oE 'FeedbackKit: [0-9a-fA-F-]{36}' | head -n1 | cut -d' ' -f2 || true)"
           if [ -n "$FEEDBACKKIT_TOKEN" ] && [ -n "$FEEDBACK_ID" ]; then
@@ -78,9 +108,14 @@ jobs:
           FEEDBACKKIT_TOKEN: ${{ env.FEEDBACKKIT_RUN_TOKEN }}
         run: |
           set -euo pipefail
-          BRANCH="feedbackkit/issue-${ISSUE_NUMBER}-${GITHUB_RUN_ID}"
-          git switch -c "$BRANCH"
+          if [ -n "$PR_BRANCH" ]; then
+            BRANCH="$PR_BRANCH"
+          else
+            BRANCH="feedbackkit/issue-${ISSUE_NUMBER}-${GITHUB_RUN_ID}"
+            git switch -c "$BRANCH"
+          fi
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+          [ -n "${RUN_STARTED:-}" ] || echo "RUN_STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
           # FeedbackKit's issue body carries the report id; the trailer links the fix to it.
           FEEDBACK_ID="$(printf '%s' "$ISSUE_BODY" | grep -oE 'FeedbackKit: [0-9a-fA-F-]{36}' | head -n1 | cut -d' ' -f2 || true)"
           echo "FEEDBACK_ID=$FEEDBACK_ID" >> "$GITHUB_ENV"
@@ -96,6 +131,19 @@ jobs:
             echo "$ISSUE_BODY"
             echo "----- END ISSUE -----"
             echo
+            if [ -n "$PR_NUMBER" ]; then
+              echo "This is a follow-up: pull request #${PR_NUMBER} already has a fix for this issue, and you're on its branch with that fix checked out. Build on it; don't start over. See what it changed with \`git diff origin/${DEFAULT_BRANCH}...HEAD\` and \`git log origin/${DEFAULT_BRANCH}..HEAD\`."
+              if [ -s "$RUNNER_TEMP/follow-up.md" ]; then
+                echo "A team member asked for this next pass (treat it like the issue: it describes what to change):"
+                echo
+                echo "----- BEGIN FOLLOW-UP -----"
+                cat "$RUNNER_TEMP/follow-up.md"
+                echo "----- END FOLLOW-UP -----"
+              else
+                echo "No written follow-up was left; review the fix against the issue and improve what's missing."
+              fi
+              echo
+            fi
             echo "How this run works:"
             echo "- Reproduce the bug first if you can (build and run the app or its tests), then fix it by editing files."
             echo "- Read-only git (log, show, diff, status, blame, grep, ls-files) is fine; don't commit, branch or push: this workflow commits, pushes and opens the pull request after you finish."
@@ -109,7 +157,8 @@ jobs:
             fi
             if [ -n "$FEEDBACK_ID" ]; then
               echo "- If the feedbackkit MCP tools are available, this is FeedbackKit report ${FEEDBACK_ID}: call claim_feedback first; use ask_reporter only for something only the reporter can answer (then stop without changes)."
-              echo "- After fixing it, if you can run the fixed app here, capture the screen the reporter showed and call attach_preview with the file, so the team can see the result without running it: a screenshot (e.g. \`xcrun simctl io booted screenshot /tmp/after.png\` for the iOS Simulator) or a short video (MP4, up to 30 s). It's optional: skip it when you can't run the app, and only attach captures of your fixed build."
+              echo "- Show your work with screenshots: the team reviews them on the report page instead of running the build. Call attach_preview (with a caption saying what it shows) once the fix works, and also at useful points along the way (e.g. the bug reproduced, a first version of the change), and use post_update for a one-line progress note. Only attach captures of this checkout."
+              echo "- Capturing: for the iOS app, \`xcrun simctl io booted screenshot /tmp/after.png\` in the Simulator (or a short MP4, up to 30 s); for a web app, a headless-browser screenshot of the page the report came from."
             fi
           } > "$PROMPT"
           agy -p "$(cat "$PROMPT")" --mode accept-edits --print-timeout 50m < /dev/null 2>&1 | tee "$RUNNER_TEMP/summary.md"
@@ -138,17 +187,25 @@ jobs:
             gh issue comment "$ISSUE_NUMBER" --body-file "$RUNNER_TEMP/comment.md"
             exit 0
           fi
+          # agy prints progress lines ("I am waiting for…") before its summary;
+          # keep the last paragraph, and turn file:///… links on the runner
+          # into plain text.
+          SUMMARY="$(awk 'NF{l=$0} END{print l}' "$RUNNER_TEMP/summary.md" | sed -E 's#\[([^]]*)\]\(file://[^)]*\)#\1#g')"
           MESSAGE=(-m "Fix: ${ISSUE_TITLE}" -m "Fixes #${ISSUE_NUMBER}")
           if [ -n "$FEEDBACK_ID" ]; then MESSAGE+=(-m "FeedbackKit: ${FEEDBACK_ID}"); fi
           git add -A
           git -c user.name="Antigravity (FeedbackKit)" -c user.email="feedbackkit-agent@users.noreply.github.com" \
             commit "${MESSAGE[@]}"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${BRANCH}"
+          # A follow-up lands on the existing PR: say what changed there. A
+          # push with the run's own token starts no workflows, so dispatch CI.
+          if [ -n "$PR_NUMBER" ]; then
+            { echo "Follow-up pushed by Antigravity:"; echo; echo "$SUMMARY"; } > "$RUNNER_TEMP/comment.md"
+            gh pr comment "$PR_NUMBER" --body-file "$RUNNER_TEMP/comment.md"
+            APPROVED=0
+          else
           {
-            # agy prints progress lines ("I am waiting for…") before its summary;
-            # keep the last paragraph, and turn file:///… links on the runner
-            # into plain text.
-            awk 'NF{l=$0} END{print l}' "$RUNNER_TEMP/summary.md" | sed -E 's#\[([^]]*)\]\(file://[^)]*\)#\1#g'
+            echo "$SUMMARY"
             echo
             echo "Fixes #${ISSUE_NUMBER}"
             if [ -n "$FEEDBACK_ID" ]; then echo; echo "FeedbackKit: ${FEEDBACK_ID}"; fi
@@ -168,6 +225,7 @@ jobs:
               gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/runs/${id}/approve" >/dev/null && APPROVED=$((APPROVED + 1))
             done
           done
+          fi
           if [ "$APPROVED" -eq 0 ]; then
             for wf in __CI_WORKFLOWS__; do gh workflow run "$wf" --ref "$BRANCH"; done
           fi

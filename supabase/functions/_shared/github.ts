@@ -293,6 +293,86 @@ export async function assignIssueToCopilot(
   }
 }
 
+// ---- Choosing one agent, and follow-ups on an agent's PR -----------------------
+
+/**
+ * The project's dispatch settings narrowed to the one agent a member picked
+ * in the dashboard: `copilot`, `comment` (the trigger comment), or one of the
+ * configured `dispatch_labels`. No `agent` (or `all`) keeps every configured
+ * trigger, which is what older clients (the Portal) get. Null when the
+ * picked agent isn't configured for this project.
+ */
+export function dispatchSettingsFor(
+  project: { dispatch_labels?: string[] | null; dispatch_comment?: string | null; dispatch_copilot?: boolean | null },
+  agent?: string | null,
+): { dispatch_labels: string[]; dispatch_comment: string | null; copilot: boolean } | null {
+  const labels = (project.dispatch_labels ?? []).filter((l) => l.trim().length > 0);
+  const comment = project.dispatch_comment?.trim() || null;
+  if (!agent || agent === "all") {
+    return { dispatch_labels: labels, dispatch_comment: comment, copilot: Boolean(project.dispatch_copilot) };
+  }
+  if (agent === "copilot") {
+    return project.dispatch_copilot ? { dispatch_labels: [], dispatch_comment: null, copilot: true } : null;
+  }
+  if (agent === "comment") {
+    return comment ? { dispatch_labels: [], dispatch_comment: comment, copilot: false } : null;
+  }
+  return labels.includes(agent) ? { dispatch_labels: [agent], dispatch_comment: null, copilot: false } : null;
+}
+
+/** Marks FeedbackKit's follow-up comments on a PR; agent workflows read the newest one. */
+export const FOLLOW_UP_MARKER = "<!-- feedbackkit:follow-up -->";
+
+/**
+ * Agents whose GitHub integration answers a mention on their own PR rather
+ * than a label: claude-code-action (its `@claude` comment trigger, with
+ * `allowed_bots: feedbackkit-app`) and Copilot (only from a person, so that
+ * comment is posted with the member's user token).
+ */
+const FOLLOW_UP_MENTION: Record<string, string> = { claude: "@claude", copilot: "@copilot" };
+
+/**
+ * Asks the agent that opened a PR to keep working on it: a comment with the
+ * member's instructions (the agent reads the newest one marked
+ * FOLLOW_UP_MARKER), then the agent's label re-added to the PR itself, which
+ * fires the agent workflow's `pull_request_target: labeled` path (it commits
+ * onto the PR's branch instead of opening a new PR).
+ */
+export async function requestFollowUp(
+  token: string,
+  repoFullName: string,
+  prNumber: number,
+  settings: { dispatch_labels: string[]; dispatch_comment: string | null; copilot: boolean },
+  instructions: string,
+  requestedBy: string,
+  copilotUserToken?: string | null,
+): Promise<{ labels: string[]; commented: boolean; copilot: boolean }> {
+  const mention = settings.copilot
+    ? FOLLOW_UP_MENTION.copilot
+    : settings.dispatch_labels.map((l) => FOLLOW_UP_MENTION[l]).find(Boolean) ?? settings.dispatch_comment?.match(/@[\w-]+/)?.[0];
+  const body = [
+    FOLLOW_UP_MARKER,
+    `${mention ? `${mention} ` : ""}**Follow-up from FeedbackKit** (requested by ${requestedBy}): keep working on this pull request — commit onto its branch, don't open a new one.`,
+    "",
+    ...instructions.split("\n").map((line) => `> ${line}`),
+  ].join("\n");
+  // Copilot only takes instructions from a person, so that comment goes out as the member.
+  const commentToken = settings.copilot && copilotUserToken ? copilotUserToken : token;
+  const commented = await addIssueComment(commentToken, repoFullName, prNumber, body);
+  let labeled: string[] = [];
+  if (settings.dispatch_labels.length > 0) {
+    for (const label of settings.dispatch_labels) {
+      try {
+        await githubRequest(token, "DELETE", `/repos/${repoFullName}/issues/${prNumber}/labels/${encodeURIComponent(label)}`);
+      } catch {
+        // Not present — fine.
+      }
+    }
+    if (await addIssueLabels(token, repoFullName, prNumber, settings.dispatch_labels)) labeled = settings.dispatch_labels;
+  }
+  return { labels: labeled, commented, copilot: settings.copilot && commented && Boolean(copilotUserToken) };
+}
+
 /** What Copilot is told besides the issue itself: how its PR closes the FeedbackKit loop. */
 export function copilotInstructions(feedbackIds: string | string[]): string {
   const ids = Array.isArray(feedbackIds) ? feedbackIds : [feedbackIds];

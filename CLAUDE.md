@@ -606,6 +606,20 @@ Rules for skills:
   entry runs once, and runs the local agent in a git worktree. Report text
   is untrusted agent input on every route — keep it fenced and the tool
   allowlists narrow.
+  The dashboard picks **one** agent per send (`create-github-issue`'s
+  `agent`: a configured label, `comment`, `copilot` or `all`;
+  `web/src/lib/agents.ts` mirrors `dispatchSettingsFor` in
+  `supabase/functions/_shared/github.ts`); omitting it fires every trigger,
+  which is what the Portal still does. A `follow_up` on a report at
+  `pr_open` posts the team's note on the agent's PR (marked
+  `<!-- feedbackkit:follow-up -->`) and re-adds the label to the PR, and the
+  Antigravity workflow/templates' `pull_request_target: labeled` path commits
+  onto that PR's branch instead of opening a new one — keep that path's
+  same-repo guard. `scripts/agent-preview/capture-web.mjs` screenshots this
+  tree's web/ at a report's page (signed-in pages against a throwaway,
+  separately-ported local Supabase stack seeded with just that report, never
+  a real session) and can attach it; the Antigravity workflow runs it when a
+  web fix lands without a preview.
 - **Access tokens (`0025_access_tokens_and_previews.sql`, DESIGN.md §10)
   are enforced by RLS from the `x-feedbackkit-token` header**, not by bot
   users (the hosted project only allows GitHub sign-in and signs sessions
