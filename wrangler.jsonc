@@ -2,8 +2,12 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "feedback-kit",
   "compatibility_date": "2024-09-23",
+  // Only runs when no static asset matches: serves index.html for deep links
+  // on PR previews, which ignore `not_found_handling` (see web/worker.js).
+  "main": "./web/worker.js",
   "assets": {
     "directory": "./web/dist",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
   },
   // Pull-request builds run `wrangler preview`, which needs this block (it
