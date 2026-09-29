@@ -70,6 +70,13 @@ export interface TriggerOptions {
   captureScreenshot?: boolean;
   /** Alias for `captureScreenshot`. */
   includeScreenshot?: boolean;
+  /**
+   * Keyboard shortcut to trigger feedback (defaults to true: ⌘⇧F on macOS, Ctrl+Shift+F elsewhere).
+   * Pass options to customize the key, or false to disable.
+   */
+  keyboardShortcut?: boolean | { key?: string };
+  /** Alias for `keyboardShortcut`. */
+  enableKeyboardShortcut?: boolean;
 }
 
 /** Max attachment size accepted by the composer (base64 in a JSON body grows it by a third). */
@@ -144,7 +151,11 @@ export class Widget {
     button.dataset.position = options.position ?? "bottom-right";
     button.dataset.compact = String(!!options.compact);
     const label = options.label ?? "Feedback";
-    button.setAttribute("aria-label", label);
+    const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+    const shortcutLabel = isMac ? "⌘⇧F" : "Ctrl+Shift+F";
+    button.title = `${label} (${shortcutLabel})`;
+    button.setAttribute("aria-label", `${label} (${shortcutLabel})`);
+    button.setAttribute("aria-keyshortcuts", isMac ? "Meta+Shift+F" : "Control+Shift+F");
     button.innerHTML = `${icons.feedback}<span class="fk-trigger-label"></span>`;
     (button.querySelector(".fk-trigger-label") as HTMLElement).textContent = label;
     button.addEventListener("click", onClick);
@@ -440,6 +451,16 @@ class Dialog {
     close.addEventListener("click", () => this.cancel());
     header.append(title, close);
 
+    let renderAttachment = () => {};
+    const attachFile = (file: File) => {
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        this.showError(`"${file.name}" is larger than 10 MB.`);
+        return;
+      }
+      this.attachment = { filename: file.name, mimeType: file.type || "application/octet-stream", data: file };
+      renderAttachment();
+    };
+
     const textLabel = el("label", "fk-label");
     textLabel.textContent = this.options.copy?.label ?? "What's the problem?";
     textLabel.setAttribute("for", "fk-text");
@@ -448,6 +469,27 @@ class Dialog {
     this.textarea.className = "fk-textarea";
     this.textarea.placeholder = this.options.copy?.placeholder ?? "Describe what happened and what you expected instead…";
     this.textarea.addEventListener("input", () => this.refreshState());
+    this.textarea.addEventListener("paste", (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items || items.length === 0) return;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === "file") {
+          const file = item.getAsFile();
+          if (file) {
+            let filename = file.name;
+            if (!filename || filename === "image.png") {
+              const ext = file.type.startsWith("image/") ? file.type.split("/")[1] || "png" : "bin";
+              filename = `clipboard-${Date.now()}.${ext}`;
+            }
+            const attached = new File([file], filename, { type: file.type || "application/octet-stream" });
+            attachFile(attached);
+            e.preventDefault();
+            break;
+          }
+        }
+      }
+    });
     const textGroup = el("div");
     textGroup.append(textLabel, this.textarea);
 
@@ -472,12 +514,7 @@ class Dialog {
       const file = input.files?.[0];
       input.value = "";
       if (!file) return;
-      if (file.size > MAX_ATTACHMENT_BYTES) {
-        this.showError(`"${file.name}" is larger than 10 MB.`);
-        return;
-      }
-      this.attachment = { filename: file.name, mimeType: file.type || "application/octet-stream", data: file };
-      renderAttachment();
+      attachFile(file);
     };
     fileInput.addEventListener("change", () => onFile(fileInput));
     cameraInput.addEventListener("change", () => onFile(cameraInput));
@@ -539,7 +576,7 @@ class Dialog {
     };
 
     const attachGroup = el("div", "fk-attach-group");
-    const renderAttachment = () => {
+    renderAttachment = () => {
       attachGroup.replaceChildren();
       if (!this.attachment) return;
       const chip = el("span", "fk-file");

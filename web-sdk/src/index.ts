@@ -274,6 +274,9 @@ export const FeedbackKit = {
    * configured, otherwise `present` and logs the report to the console.
    */
   showFloatingTriggerButton(options: TriggerOptions = {}): void {
+    if (options.keyboardShortcut !== false && options.enableKeyboardShortcut !== false && !shortcutHandler) {
+      FeedbackKit.enableKeyboardShortcut(typeof options.keyboardShortcut === "object" ? options.keyboardShortcut : {});
+    }
     whenBodyReady(() =>
       widget.showTrigger(options, () => {
         const openOptions = {
@@ -298,7 +301,8 @@ export const FeedbackKit = {
     FeedbackKit.disableKeyboardShortcut();
     const key = (options.key ?? "F").toLowerCase();
     shortcutHandler = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || !e.shiftKey || e.altKey || e.key.toLowerCase() !== key) return;
+      const matchesKey = e.key.toLowerCase() === key || e.code.toLowerCase() === `key${key}`;
+      if (!(e.metaKey || e.ctrlKey) || !e.shiftKey || e.altKey || !matchesKey) return;
       e.preventDefault();
       if (configuration) void FeedbackKit.presentAndSubmit();
       else void FeedbackKit.present({ onReport: (r) => console.info("[FeedbackKit] report", r) });

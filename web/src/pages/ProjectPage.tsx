@@ -53,6 +53,7 @@ import { FixStageBadge } from "@/components/FixStageBadge";
 import { ConsoleLogsPanel } from "@/components/ConsoleLogsPanel";
 import { PlatformBadge } from "@/components/PlatformBadge";
 import { ScreenshotViewer } from "@/components/ScreenshotViewer";
+import { ImageOverlay } from "@/components/ImageOverlay";
 import { useAfterPreviews } from "@/lib/useAfterPreviews";
 import { platformOf } from "@/lib/platform";
 
@@ -91,6 +92,7 @@ export function ProjectPage() {
     | null
   >(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [attachmentOverlayUrl, setAttachmentOverlayUrl] = useState<string | null>(null);
   const lastExpandedParamRef = useRef<string | null>(null);
 
   type SortOption = "newest" | "oldest" | "status" | "screen";
@@ -1794,14 +1796,30 @@ export function ProjectPage() {
                           </h3>
                         </div>
                         {selectedAttachmentUrl ? (
-                          <a
-                            href={selectedAttachmentUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-2 inline-block truncate text-sm text-blue-600 hover:underline"
-                          >
-                            {selectedFeedback.attachment_filename ?? "Download attachment"}
-                          </a>
+                          <div className="mt-2 space-y-2">
+                            {/\.(png|jpe?g|gif|webp|svg)$/i.test(selectedFeedback.attachment_filename ?? "") ? (
+                              <button
+                                type="button"
+                                onClick={() => setAttachmentOverlayUrl(selectedAttachmentUrl)}
+                                title="Click to expand"
+                                className="block cursor-pointer text-left group"
+                              >
+                                <img
+                                  src={selectedAttachmentUrl}
+                                  alt={selectedFeedback.attachment_filename ?? "Attachment"}
+                                  className="max-h-48 w-auto rounded-lg border border-neutral-200 object-contain group-hover:border-neutral-400 group-hover:shadow-xs transition-all bg-neutral-50"
+                                />
+                              </button>
+                            ) : null}
+                            <a
+                              href={selectedAttachmentUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-block truncate text-xs text-blue-600 hover:underline"
+                            >
+                              {selectedFeedback.attachment_filename ?? "Download attachment"}
+                            </a>
+                          </div>
                         ) : (
                           <p className="mt-2 text-sm text-neutral-400">Loading attachment…</p>
                         )}
@@ -2007,6 +2025,14 @@ export function ProjectPage() {
             </div>
           </div>
         </div>
+      )}
+      {attachmentOverlayUrl && (
+        <ImageOverlay
+          src={attachmentOverlayUrl}
+          alt={selectedFeedback?.attachment_filename ?? "Attachment"}
+          caption={selectedFeedback?.attachment_filename}
+          onClose={() => setAttachmentOverlayUrl(null)}
+        />
       )}
     </div>
   );

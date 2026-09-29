@@ -3,7 +3,8 @@ import { drawAnnotations } from "feedbackkit-web";
 import type { FeedbackAnnotation, FeedbackEnvironment } from "@/lib/types";
 import { previewRetentionNote } from "@/lib/previews";
 import type { SignedPreview } from "@/lib/useAfterPreviews";
-import { ExternalLinkIcon, ExpandIcon, XIcon } from "@/components/icons";
+import { ExternalLinkIcon, ExpandIcon } from "@/components/icons";
+import { ImageOverlay } from "@/components/ImageOverlay";
 
 type Mode = "annotated" | "original" | "after";
 
@@ -48,14 +49,6 @@ export function ScreenshotViewer({
   const overlayImgRef = useRef<HTMLImageElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  useEffect(() => {
-    if (!isExpanded) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsExpanded(false);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isExpanded]);
 
   useEffect(() => {
     if (!isExpanded) return;
@@ -219,77 +212,34 @@ export function ScreenshotViewer({
       </div>
       )}
       {isExpanded && linkUrl && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-neutral-950/85 backdrop-blur-xs p-4 sm:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-label={
+        <ImageOverlay
+          src={linkUrl}
+          alt={
+            mode === "after"
+              ? preview?.caption ?? "After the fix"
+              : mode === "annotated"
+              ? "Annotated screenshot"
+              : "Original screenshot"
+          }
+          caption={mode === "after" ? preview?.caption : null}
+          isVideo={mode === "after" && preview?.isVideo}
+          ariaLabel={
             mode === "after"
               ? "Preview overlay"
               : mode === "annotated"
               ? "Annotated screenshot overlay"
               : "Original screenshot overlay"
           }
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsExpanded(false);
-          }}
+          onClose={() => setIsExpanded(false)}
+          imgRef={overlayImgRef}
         >
-          <div className="absolute top-4 right-4 z-10 flex items-center gap-3">
-            <a
-              href={linkUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-neutral-900/80 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:bg-neutral-800 hover:text-white transition-colors"
-            >
-              Full size
-              <ExternalLinkIcon className="h-3.5 w-3.5" />
-            </a>
-            <button
-              type="button"
-              onClick={() => setIsExpanded(false)}
-              aria-label="Close overlay"
-              className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-900/80 text-neutral-400 hover:bg-neutral-800 hover:text-white transition-colors cursor-pointer"
-            >
-              <XIcon className="h-5 w-5" />
-            </button>
-          </div>
-
-          <div className="relative flex max-h-[90vh] max-w-[90vw] items-center justify-center">
-            {mode === "after" && preview?.isVideo ? (
-              <video
-                src={preview.url ?? undefined}
-                controls
-                autoPlay
-                playsInline
-                className="max-h-[85vh] max-w-[90vw] w-auto rounded-lg bg-black shadow-2xl"
-              />
-            ) : (
-              <>
-                <img
-                  ref={overlayImgRef}
-                  src={linkUrl}
-                  alt={
-                    mode === "after"
-                      ? preview?.caption ?? "After the fix"
-                      : mode === "annotated"
-                      ? "Annotated screenshot"
-                      : "Original screenshot"
-                  }
-                  className="max-h-[85vh] max-w-[90vw] w-auto rounded-lg object-contain shadow-2xl"
-                />
-                {drawOverlay && (
-                  <canvas
-                    ref={overlayCanvasRef}
-                    className="pointer-events-none absolute left-0 top-0 rounded-lg"
-                  />
-                )}
-              </>
-            )}
-          </div>
-          {mode === "after" && preview?.caption ? (
-            <p className="mt-3 text-center text-xs text-neutral-400">{preview.caption}</p>
-          ) : null}
-        </div>
+          {drawOverlay && (
+            <canvas
+              ref={overlayCanvasRef}
+              className="pointer-events-none absolute left-0 top-0 rounded-lg"
+            />
+          )}
+        </ImageOverlay>
       )}
     </div>
   );
