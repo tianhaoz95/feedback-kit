@@ -214,6 +214,7 @@ public struct FeedbackInboxView: View {
                     selectedItems: appState.selectedFeedbackItems,
                     templateText: appState.promptTemplate?.templateText
                 )
+                .environmentObject(appState)
             }
             .alert(
                 "Delete \(appState.selectedFeedbackIds.count) reports?",

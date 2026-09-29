@@ -466,6 +466,37 @@ public final class AppState: ObservableObject {
         }
     }
 
+    public func triggerMergedAgentBuild(
+        items: [PortalFeedbackItem],
+        prompt: String? = nil,
+        redispatch: Bool = false
+    ) async throws -> (issueUrl: String, issueNumber: Int) {
+        guard let proj = selectedProject else {
+            throw NSError(domain: "AppState", code: 400, userInfo: [NSLocalizedDescriptionKey: "No project selected"])
+        }
+        let ids = items.map(\.id)
+        let (url, num) = try await client.createGitHubIssue(
+            feedbackIds: ids,
+            projectId: proj.id,
+            prompt: prompt,
+            redispatch: redispatch
+        )
+
+        for id in ids {
+            if let idx = feedbackItems.firstIndex(where: { $0.id == id }) {
+                feedbackItems[idx].githubIssueUrl = url
+                feedbackItems[idx].githubIssueNumber = num
+                if feedbackItems[idx].status == .new {
+                    feedbackItems[idx].status = .inProgress
+                }
+                if feedbackItems[idx].fixStage == nil {
+                    feedbackItems[idx].fixStage = PortalFixStage.agentWorking.rawValue
+                }
+            }
+        }
+        return (url, num)
+    }
+
     public func toggleSelect(id: String) {
         if selectedFeedbackIds.contains(id) {
             selectedFeedbackIds.remove(id)
