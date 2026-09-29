@@ -9,6 +9,9 @@ export function SiteFooter() {
           &copy; {new Date().getFullYear()} {COMPANY_NAME}
         </span>
         <div className="flex gap-4">
+          <Link to="/#pricing" className="hover:text-neutral-900">
+            Pricing
+          </Link>
           <Link to="/docs" className="hover:text-neutral-900">
             Docs
           </Link>
