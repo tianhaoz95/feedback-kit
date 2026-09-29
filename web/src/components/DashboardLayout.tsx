@@ -9,7 +9,7 @@ import { Logomark } from "@/components/Logomark";
 import { Button } from "@/components/Button";
 import { NotificationBell } from "@/components/NotificationBell";
 import { OrganizationSwitcher } from "@/components/OrganizationSwitcher";
-import { BookIcon, CreditCardIcon, FolderIcon, KeyIcon, LogOutIcon, MessageIcon, UsersIcon } from "@/components/icons";
+import { BookIcon, CreditCardIcon, FolderIcon, KeyIcon, LogOutIcon, UsersIcon } from "@/components/icons";
 
 const NAV_LINK_CLASS = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium transition-colors sm:px-2.5 ${
@@ -30,6 +30,17 @@ export function DashboardLayout() {
   useEffect(() => {
     FeedbackKit.currentScreen = screenNameForPath(location.pathname);
   }, [location.pathname, location.search]);
+
+  // Floating trigger button: mirrors LandingPage.tsx, showing a floating
+  // button in the bottom corner instead of occupying space in the primary nav.
+  useEffect(() => {
+    if (!feedbackEnabled) return;
+    FeedbackKit.showFloatingTriggerButton({ label: "Feedback" });
+    return () => {
+      FeedbackKit.hideFloatingTriggerButton();
+      FeedbackKit.currentScreen = null;
+    };
+  }, [feedbackEnabled]);
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -72,19 +83,6 @@ export function DashboardLayout() {
               <CreditCardIcon className="h-4 w-4" />
               <span className="hidden md:inline">Billing</span>
             </NavLink>
-
-            {feedbackEnabled && (
-              <button
-                type="button"
-                onClick={() => void FeedbackKit.presentAndSubmit()}
-                className={NAV_LINK_CLASS({ isActive: false })}
-                aria-label="Send feedback about the dashboard"
-                title="Send feedback (⌘⇧F / Ctrl+Shift+F)"
-              >
-                <MessageIcon className="h-4 w-4" />
-                <span className="hidden lg:inline">Feedback</span>
-              </button>
-            )}
 
             <NotificationBell />
 

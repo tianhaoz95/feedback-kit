@@ -228,7 +228,7 @@ async function capture({ route, backend, session, width, height, out }) {
     ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("FEEDBACKKIT_"))),
     VITE_SUPABASE_URL: backend?.url ?? "http://127.0.0.1:9",
     VITE_SUPABASE_ANON_KEY: backend?.anonKey ?? "preview",
-    VITE_FEEDBACKKIT_PROJECT_KEY: "",
+    VITE_FEEDBACKKIT_PROJECT_KEY: process.env.VITE_FEEDBACKKIT_PROJECT_KEY || "preview",
   };
   const port = await freePort();
   const vite = spawn("npx", ["vite", "--host", "127.0.0.1", "--port", String(port), "--strictPort"], {
