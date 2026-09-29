@@ -447,7 +447,8 @@ export function createMcpServer(options: McpServerOptions = {}): McpServer {
       description:
         "Attach a preview of the fixed app to a feedback report: a screenshot, or a short screen recording (MP4, up to 30 s " +
         "and 20 MB), captured after your change (e.g. from the iOS Simulator or a browser). The team compares it with the " +
-        "reporter's original and annotated screenshots without running the build. Only attach captures of your fixed build; " +
+        "reporter's original and annotated screenshots without running the build, in the report's timeline. Call it again with a " +
+        "caption for progress along the way (the bug reproduced, a first version). Only attach captures of your own build; " +
         "skip it when you can't run the app.",
       inputSchema: {
         feedback_id: z.string(),

@@ -1,13 +1,22 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { TextWithCode } from "@/components/TextWithCode";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { getErrorMessage } from "@/lib/errors";
 import { FIX_STAGE_META, FIX_STAGE_ORDER } from "@/lib/fixStageMeta";
 import { reporterReachable, stuckHint } from "@/lib/loopHealth";
-import type { FeedbackEvent, FeedbackEventKind, FeedbackItem } from "@/lib/types";
+import { agentOptions, loadPreferredAgent, savePreferredAgent } from "@/lib/agents";
+import type { FeedbackEvent, FeedbackEventKind, FeedbackItem, FixStage, Project } from "@/lib/types";
 import { Button } from "@/components/Button";
+import { AgentGlyph } from "@/components/AgentDispatchButton";
 import { AlertIcon, CheckIcon, ExternalLinkIcon, GitHubIcon, MessageIcon, SparkleIcon } from "@/components/icons";
+
+/** Stages where an agent may be posting progress, so the timeline polls for it. */
+const LIVE_STAGES: FixStage[] = ["agent_working", "pr_open", "reopened"];
+const POLL_MS = 15_000;
+/** The loop fields a poll re-reads, so the stepper and PR link follow along. */
+const LOOP_FIELDS = "fix_stage, status, fix_pr_url, fix_pr_number, fix_commit_sha, fix_summary";
 
 const KIND_LABEL: Record<FeedbackEventKind, string> = {
   comment: "Note",
@@ -46,11 +55,17 @@ const ACTOR_TONE: Record<FeedbackEvent["actor_type"], string> = {
  */
 export function FixLoopPanel({
   feedback,
+  project,
   onUpdated,
+  onPreviewCount,
 }: {
   feedback: FeedbackItem;
-  /** Called with the fields changed by an action here (e.g. Mark verified). */
+  /** For the "keep working on this PR" composer's agent choice. */
+  project?: Pick<Project, "id" | "dispatch_labels" | "dispatch_comment" | "dispatch_copilot">;
+  /** Called with the fields changed by an action here (e.g. Mark verified), or seen changed by a poll. */
   onUpdated?: (patch: Partial<FeedbackItem>) => void;
+  /** How many after-fix previews the timeline has, so the screenshot viewer's After view can reload. */
+  onPreviewCount?: (count: number) => void;
 }) {
   const { user } = useAuth();
   const [events, setEvents] = useState<FeedbackEvent[] | null>(null);
@@ -76,6 +91,7 @@ export function FixLoopPanel({
     }
     const rows = (data ?? []) as FeedbackEvent[];
     setEvents(rows);
+    onPreviewCount?.(rows.filter((e) => e.kind === "after_screenshot").length);
 
     const paths = rows.flatMap((e) => {
       const p = e.data?.media_path ?? e.data?.screenshot_annotated_path ?? e.data?.screenshot_path;
@@ -89,6 +105,8 @@ export function FixLoopPanel({
     } else {
       setImageUrls({});
     }
+    // onPreviewCount is a notification, not an input.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feedback.id]);
 
   useEffect(() => {
@@ -98,6 +116,32 @@ export function FixLoopPanel({
     void load();
     // Reload when the item's loop fields change (e.g. after a status edit elsewhere on the page).
   }, [load, feedback.fix_stage, feedback.status]);
+
+  // While an agent may be at work, poll: its progress notes and screenshots
+  // show up as they're posted, and a PR it opens moves the stepper.
+  const live = feedback.fix_stage != null && LIVE_STAGES.includes(feedback.fix_stage);
+  const latest = useRef({ feedback, onUpdated });
+  latest.current = { feedback, onUpdated };
+  useEffect(() => {
+    if (!live) return;
+    const timer = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void load();
+      void supabase
+        .from("feedback_items")
+        .select(LOOP_FIELDS)
+        .eq("id", latest.current.feedback.id)
+        .single()
+        .then(({ data }) => {
+          if (!data) return;
+          const row = data as Partial<FeedbackItem>;
+          const current = latest.current.feedback;
+          const changed = (Object.keys(row) as (keyof FeedbackItem)[]).some((k) => row[k] !== current[k]);
+          if (changed) latest.current.onUpdated?.(row);
+        });
+    }, POLL_MS);
+    return () => clearInterval(timer);
+  }, [live, load]);
 
   async function post() {
     const body = draft.trim();
@@ -161,6 +205,51 @@ export function FixLoopPanel({
         .invoke("pr-status", { body: { project_id: feedback.project_id, pr_number: feedback.fix_pr_number } })
         .catch(() => {});
     }
+  }
+
+  // "Keep working on this PR": a follow-up for the agent on its own open PR
+  // (create-github-issue `follow_up`), for another pass on top of it.
+  const followUpAgents = useMemo(
+    () => (project ? agentOptions(project).filter((o) => o.configured && o.target === "github" && o.id !== "all") : []),
+    [project],
+  );
+  const [followUp, setFollowUp] = useState("");
+  const [followUpAgent, setFollowUpAgent] = useState<string>("");
+  const [followUpState, setFollowUpState] = useState<"idle" | "sending" | "sent">("idle");
+  const [followUpError, setFollowUpError] = useState<string | null>(null);
+  useEffect(() => {
+    const saved = project ? loadPreferredAgent(project.id) : null;
+    setFollowUpAgent(followUpAgents.find((o) => o.id === saved)?.id ?? followUpAgents[0]?.id ?? "");
+  }, [project, followUpAgents]);
+  useEffect(() => {
+    setFollowUp("");
+    setFollowUpState("idle");
+    setFollowUpError(null);
+  }, [feedback.id]);
+
+  async function sendFollowUp() {
+    const instructions = followUp.trim();
+    if (!instructions || !followUpAgent || !project) return;
+    setFollowUpState("sending");
+    setFollowUpError(null);
+    savePreferredAgent(project.id, followUpAgent);
+    const { data, error } = await supabase.functions.invoke("create-github-issue", {
+      body: { project_id: feedback.project_id, feedback_id: feedback.id, agent: followUpAgent, follow_up: { instructions } },
+    });
+    if (error) {
+      const body =
+        error instanceof FunctionsHttpError ? ((await error.context.json().catch(() => null)) as { message?: string } | null) : null;
+      setFollowUpState("idle");
+      setFollowUpError(body?.message ?? getErrorMessage(error, "Couldn't reach the agent."));
+      return;
+    }
+    if (data?.copilot_error === "github_user_not_connected") {
+      setFollowUpError("Copilot needs your GitHub account: connect it in Settings → Coding agent loop.");
+    }
+    setFollowUp("");
+    setFollowUpState("sent");
+    setTimeout(() => setFollowUpState("idle"), 4000);
+    void load();
   }
 
   const stage = feedback.fix_stage ?? null;
@@ -237,6 +326,67 @@ export function FixLoopPanel({
         {feedback.fixed_in_build ? <Detail label="Shipped in build" value={feedback.fixed_in_build} mono /> : null}
         {feedback.verified_at ? <Detail label="Verified" value={new Date(feedback.verified_at).toLocaleString()} /> : null}
       </dl>
+
+      {stage === "pr_open" && feedback.fix_pr_number && project ? (
+        <div className="space-y-2 rounded-lg border border-violet-200 bg-violet-50/40 p-3">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-neutral-900">
+            <SparkleIcon className="h-3.5 w-3.5 text-violet-600" />
+            Keep working on PR #{feedback.fix_pr_number}
+          </div>
+          {followUpAgents.length === 0 ? (
+            <p className="text-[11px] text-neutral-500">
+              Set up a coding agent in Settings → Coding agent loop to send it another pass on this PR.
+            </p>
+          ) : (
+            <>
+              <p className="text-[11px] leading-relaxed text-neutral-500">
+                Starts a new agent session on top of this PR: it reads your note (posted on the PR), commits onto the
+                same branch, and posts new screenshots here.
+              </p>
+              <textarea
+                value={followUp}
+                onChange={(e) => setFollowUp(e.target.value)}
+                rows={2}
+                placeholder="What should change, e.g. “Keep the old spacing on mobile” or “Also handle the empty state”"
+                className="w-full resize-y rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs focus:border-neutral-400 focus:outline-none"
+              />
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {followUpError ? <span className="mr-auto text-xs text-red-600">{followUpError}</span> : null}
+                {followUpState === "sent" ? (
+                  <span className="mr-auto inline-flex items-center gap-1 text-xs text-emerald-700">
+                    <CheckIcon className="h-3.5 w-3.5" /> Sent — the agent picks it up from the PR
+                  </span>
+                ) : null}
+                <label className="inline-flex items-center gap-1.5 text-xs text-neutral-600">
+                  {followUpAgents.find((o) => o.id === followUpAgent) ? (
+                    <AgentGlyph icon={followUpAgents.find((o) => o.id === followUpAgent)!.icon} />
+                  ) : null}
+                  <select
+                    value={followUpAgent}
+                    onChange={(e) => setFollowUpAgent(e.target.value)}
+                    aria-label="Agent"
+                    className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs focus:border-neutral-400 focus:outline-none"
+                  >
+                    {followUpAgents.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={followUpState === "sending" || !followUp.trim()}
+                  onClick={() => void sendFollowUp()}
+                >
+                  {followUpState === "sending" ? "Sending…" : "Send to agent"}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
 
       {!canReachReporter ? (
         <p className="rounded-lg border border-dashed border-neutral-200 bg-neutral-50 px-3 py-2 text-[11px] text-neutral-500">

@@ -18,6 +18,8 @@ import {
   getProjectInstallationToken,
   getGitHubUserToken,
   copilotInstructions,
+  dispatchSettingsFor,
+  requestFollowUp,
 } from "../_shared/github.ts";
 
 interface RequestBody {
@@ -38,7 +40,21 @@ interface RequestBody {
    * Default true. On an already-linked item, `true` re-dispatches it.
    */
   dispatch?: boolean;
+  /**
+   * Which agent to hand it to (the dashboard's agent picker): `copilot`,
+   * `comment`, or one of `projects.dispatch_labels`. Omitted or `all` uses
+   * every configured trigger, as older clients expect.
+   */
+  agent?: string;
+  /**
+   * Ask the agent to keep working on the report's open fix PR instead of
+   * starting over from an issue: `instructions` go on the PR as a comment and
+   * the agent is re-triggered there (see requestFollowUp). One report only.
+   */
+  follow_up?: { instructions: string };
 }
+
+const MAX_FOLLOW_UP_CHARS = 4_000;
 
 const MAX_PROMPT_CHARS = 20_000;
 
@@ -143,12 +159,55 @@ Deno.serve(async (req) => {
     // Copilot only accepts the assignment as the member pressing the button
     // (0018_copilot_dispatch.sql); without a connected account the issue is
     // still created and labeled, and the response says why Copilot wasn't.
+    const agent = typeof body.agent === "string" && body.agent.trim() ? body.agent.trim() : null;
+    const dispatchSettings = dispatchSettingsFor(project, agent);
+    if (!dispatchSettings) {
+      return json(
+        {
+          error: "agent_not_configured",
+          message: `"${agent}" isn't set up for this project. Add it in Settings → Coding agent loop.`,
+        },
+        400,
+      );
+    }
     let copilot: { userToken: string; instructions: string } | null = null;
     let copilotError: string | null = null;
-    if (project.dispatch_copilot && body.dispatch !== false) {
+    if (dispatchSettings.copilot && body.dispatch !== false) {
       const userToken = await getGitHubUserToken(adminClient, user.id);
       if (userToken) copilot = { userToken, instructions: copilotInstructions(feedbackIds) };
       else copilotError = "github_user_not_connected";
+    }
+
+    if (body.follow_up) {
+      const instructions = typeof body.follow_up.instructions === "string" ? body.follow_up.instructions.trim() : "";
+      const item = items[0];
+      if (isBatch || !instructions) {
+        return json({ error: "invalid_follow_up", message: "A follow-up needs one report and some instructions." }, 400);
+      }
+      if (!item.fix_pr_number || item.fix_stage !== "pr_open") {
+        return json({ error: "no_open_pr", message: "This report has no open fix pull request to iterate on." }, 409);
+      }
+      const token = await getProjectInstallationToken(adminClient, project);
+      if (!token) {
+        return json({ error: "github_auth_failed", message: "Could not authenticate with the GitHub App." }, 500);
+      }
+      const requestedBy = (user.user_metadata?.user_name as string | undefined) ?? user.email ?? "a team member";
+      const text = instructions.slice(0, MAX_FOLLOW_UP_CHARS);
+      const dispatched = await requestFollowUp(
+        token,
+        project.github_repo,
+        item.fix_pr_number,
+        dispatchSettings,
+        text,
+        requestedBy,
+        copilot?.userToken,
+      );
+      const prUrl = item.fix_pr_url ?? `https://github.com/${project.github_repo}/pull/${item.fix_pr_number}`;
+      await recordDispatch(userClient, user.id, item, dispatched, prUrl, feedbackIds, {
+        prNumber: item.fix_pr_number,
+        instructions: text,
+      });
+      return json({ success: true, pr_url: prUrl, dispatched, copilot_error: copilotError }, 200);
     }
 
     // If already linked, return the existing issue — re-dispatching it to the
@@ -163,7 +222,7 @@ Deno.serve(async (req) => {
       if (body.dispatch === true && existing.github_issue_number) {
         const token = await getProjectInstallationToken(adminClient, project);
         if (token) {
-          dispatched = await dispatchIssueToAgent(token, project.github_repo, existing.github_issue_number, project, undefined, copilot);
+          dispatched = await dispatchIssueToAgent(token, project.github_repo, existing.github_issue_number, dispatchSettings, undefined, copilot);
           if (dispatched) {
             for (const item of items) await recordDispatch(userClient, user.id, item, dispatched, existing.github_issue_url, feedbackIds);
           }
@@ -274,7 +333,7 @@ Deno.serve(async (req) => {
 
     let dispatched = null;
     if (shouldDispatch) {
-      dispatched = await dispatchIssueToAgent(tokenInstall, project.github_repo, issue.number, project, undefined, copilot);
+      dispatched = await dispatchIssueToAgent(tokenInstall, project.github_repo, issue.number, dispatchSettings, undefined, copilot);
       if (dispatched) {
         for (const item of items) await recordDispatch(userClient, user.id, item, dispatched, issue.html_url, feedbackIds);
       }
@@ -355,6 +414,7 @@ async function recordDispatch(
   dispatched: { labels: string[]; commented: boolean; copilot: boolean },
   issueUrl: string,
   batchIds: string[],
+  followUp?: { prNumber: number; instructions: string },
 ) {
   const how = [
     dispatched.labels.length > 0 ? `labeled ${dispatched.labels.map((l) => `\`${l}\``).join(", ")}` : null,
@@ -371,11 +431,17 @@ async function recordDispatch(
     actor_type: "user",
     actor_user_id: userId,
     actor_label: "Dashboard",
-    body: others > 0
+    body: followUp
+      ? `Asked the coding agent to keep working on PR #${followUp.prNumber} (${how || "no trigger configured"}):\n\n${followUp.instructions}`
+      : others > 0
       ? `Sent to the coding agent via GitHub together with ${others} other ${others === 1 ? "report" : "reports"} (${how || "no trigger configured"}).`
       : `Sent to the coding agent via GitHub (${how || "no trigger configured"}).`,
-    data: { ...dispatched, issue_url: issueUrl, ...(others > 0 ? { batch_feedback_ids: batchIds } : {}) },
+    data: followUp
+      ? { ...dispatched, pr_url: issueUrl, follow_up: true, pr_number: followUp.prNumber }
+      : { ...dispatched, issue_url: issueUrl, ...(others > 0 ? { batch_feedback_ids: batchIds } : {}) },
   });
   if (error) console.warn("Failed to record dispatch event:", error.message);
+  // A follow-up keeps the report at "PR open"; the PR is still where the fix is.
+  if (followUp) return;
   await userClient.from("feedback_items").update({ fix_stage: "agent_working" }).eq("id", feedback.id).is("fix_stage", null);
 }

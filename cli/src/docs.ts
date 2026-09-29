@@ -382,7 +382,7 @@ Each report shows the annotated screenshot (omitted if the reporter turned it of
 
 ## The fix loop on a report
 
-Next to Status, a report shows its **Fix** stage (agent working → PR open → merged → shipped → verified, or reopened), which moves on its own. The report's Fix loop panel has the timeline, notes and questions to the reporter, **Send to agent** and **Run on my machine** (see the \`agents\` topic), a hint when a report sits too long at one stage (claimed a day with no PR, merged days ago but never announced in a build, shipped a week without the reporter answering), and **Mark verified** for a shipped fix whose reporter didn't opt in to hearing back or hasn't answered — recorded as the team, not the reporter.
+Next to Status, a report shows its **Fix** stage (agent working → PR open → merged → shipped → verified, or reopened), which moves on its own. The report's Fix loop panel has the timeline, notes and questions to the reporter, **Keep working on PR #n** for another agent pass on an open fix PR, the send button with its agent picker (see the \`agents\` topic), a hint when a report sits too long at one stage (claimed a day with no PR, merged days ago but never announced in a build, shipped a week without the reporter answering), and **Mark verified** for a shipped fix whose reporter didn't opt in to hearing back or hasn't answered — recorded as the team, not the reporter.
 
 ## Closed loop setup
 
@@ -912,6 +912,12 @@ Tick *Assign to GitHub Copilot*; each teammate connects their GitHub account onc
 ## Your machine (feedbackkit watch)
 
 \`npx feedbackkit-cli watch --project <id>\` in the repo (\`--agent codex\`, or \`--agent-cmd\` for anything else). **Run on my machine** queues a report; the watcher claims it, runs the agent in a new git worktree and branch (Claude Code gets the FeedbackKit MCP tools), pushes, opens a PR with the trailer and links it (PR open). \`--auto\` takes every new report (trusted reporters only); \`--max-runs\` (10/day) and \`--timeout\` (60 min) cap it; \`--no-pr\` keeps the fix local.
+
+## Choosing an agent, progress and follow-ups
+
+- **Pick the agent per report.** The report's send button remembers the agent used last; its menu lists each configured label, the trigger comment, Copilot and *Your machine* on their own (plus *All configured agents* when there's more than one), and the supported agents not set up yet. \`create-github-issue\` takes the choice as \`agent\`; without it every configured trigger fires.
+- **Screenshots while it works.** Call \`attach_preview\` with a caption for progress and for the finished fix; the report's timeline refreshes while an agent is at work. In the FeedbackKit repository, \`node scripts/agent-preview/capture-web.mjs --feedback <id>\` captures the dashboard at a report's page.
+- **Another pass on the same PR.** While a report is at PR open, *Keep working on PR #n* posts the team's note on the PR (marked \`<!-- feedbackkit:follow-up -->\`) and restarts the agent on the PR's branch: the Antigravity templates via \`pull_request_target: labeled\`, claude-code-action via its \`@claude\` comment trigger, Copilot via an \`@copilot\` comment from the member.
 
 ## When a reporter says it's still broken
 

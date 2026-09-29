@@ -36,7 +36,7 @@ import { GitHubSetupCard } from "@/components/GitHubSetupCard";
 import { ProductsSetupCard } from "@/components/ProductsSetupCard";
 import { FeedbackProductsPicker } from "@/components/FeedbackProductsPicker";
 import { MergedPromptView } from "@/components/MergedPromptView";
-import { CreateIssueButton } from "@/components/CreateIssueButton";
+import { AgentDispatchButton } from "@/components/AgentDispatchButton";
 import { DeleteProjectCard } from "@/components/DeleteProjectCard";
 import { AllowedOriginsCard } from "@/components/AllowedOriginsCard";
 import { AgentDispatchCard } from "@/components/AgentDispatchCard";
@@ -108,7 +108,12 @@ export function ProjectPage() {
     archivedFeedbackItems[0] ??
     null;
   // After-fix previews for the viewer's After view (0025); reloads when the loop moves.
-  const selectedPreviews = useAfterPreviews(selectedFeedback?.id ?? null, `${selectedFeedback?.fix_stage}:${selectedFeedback?.status}`);
+  // The fix loop panel reports its preview count, so one an agent posts mid-run shows up here too.
+  const [selectedPreviewCount, setSelectedPreviewCount] = useState(0);
+  const selectedPreviews = useAfterPreviews(
+    selectedFeedback?.id ?? null,
+    `${selectedFeedback?.fix_stage}:${selectedFeedback?.status}:${selectedPreviewCount}`,
+  );
 
   const [isCreatingIssue, setIsCreatingIssue] = useState(false);
   const [issueError, setIssueError] = useState<{ message: string; installUrl?: string } | null>(null);
@@ -147,11 +152,12 @@ export function ProjectPage() {
    * Opens (or, with `redispatch`, re-dispatches) the GitHub issue for one
    * report, or for several merged ones — create-github-issue puts a batch in
    * one issue with a `FeedbackKit: <id>` line per report. `prompt` is a
-   * batch's merged prompt as edited in MergedPromptView.
+   * batch's merged prompt as edited in MergedPromptView. `agent` is the one
+   * picked in AgentDispatchButton (a label, `comment`, `copilot` or `all`).
    */
   async function createIssue(
     feedbackIds: string | string[],
-    options: { redispatch?: boolean; prompt?: string; dispatch?: boolean } = {},
+    options: { redispatch?: boolean; prompt?: string; dispatch?: boolean; agent?: string | null } = {},
   ) {
     const ids = Array.isArray(feedbackIds) ? feedbackIds : [feedbackIds];
     if (!project) return;
@@ -171,7 +177,11 @@ export function ProjectPage() {
         : options.dispatch === false
         ? "create_issue_only"
         : "send_to_agent",
-      { copilot: Boolean(project.dispatch_copilot), ...(ids.length > 1 ? { reports: ids.length } : {}) },
+      {
+        copilot: Boolean(project.dispatch_copilot),
+        ...(options.agent ? { agent: options.agent } : {}),
+        ...(ids.length > 1 ? { reports: ids.length } : {}),
+      },
       project.organization_id,
     );
     try {
@@ -180,6 +190,7 @@ export function ProjectPage() {
           project_id: project.id,
           ...(ids.length > 1 ? { feedback_ids: ids } : { feedback_id: ids[0] }),
           ...(options.prompt ? { prompt: options.prompt } : {}),
+          ...(options.agent ? { agent: options.agent } : {}),
           // On an already-linked issue, only re-dispatch when explicitly asked.
           ...(options.dispatch !== undefined
             ? { dispatch: options.dispatch }
@@ -215,7 +226,12 @@ export function ProjectPage() {
           message:
             "Copilot wasn't assigned: connect your GitHub account in Settings → Coding agent loop, then send it to the agent again.",
         });
-      } else if (project.dispatch_copilot && data?.dispatched && !data.dispatched.copilot) {
+      } else if (
+        project.dispatch_copilot &&
+        (!options.agent || options.agent === "copilot" || options.agent === "all") &&
+        data?.dispatched &&
+        !data.dispatched.copilot
+      ) {
         setIssueError({
           message:
             "GitHub didn't accept the Copilot assignment. Check that your account has a Copilot seat and that Copilot's coding agent is enabled for this repository.",
@@ -693,10 +709,6 @@ export function ProjectPage() {
         selectedAttachmentUrl
       )
     : "";
-  const hasDispatchTrigger =
-    (project?.dispatch_labels?.length ?? 0) > 0 ||
-    Boolean(project?.dispatch_comment) ||
-    Boolean(project?.dispatch_copilot);
   // Shared by the single-report header and the merged view's "Send to agent".
   const issueErrorBanner = issueError && project ? (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-red-50 px-4 py-2.5 text-xs text-red-700 border border-red-100">
@@ -1290,7 +1302,8 @@ export function ProjectPage() {
                     }
                     onClearSelection={handleClearSelection}
                     onBackToSingleView={() => setViewMode("single")}
-                    hasDispatchTrigger={hasDispatchTrigger}
+                    project={project}
+                    onSetUpAgents={() => handleTabChange("settings")}
                     isSendingToAgent={isCreatingIssue}
                     onSendToAgent={(options) =>
                       createIssue(
@@ -1352,43 +1365,23 @@ export function ProjectPage() {
                         <ExternalLinkIcon className="h-3 w-3 text-neutral-400" />
                       </a>
                     ) : null}
-                    {selectedFeedback.github_issue_url && hasDispatchTrigger ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        disabled={isCreatingIssue}
-                        onClick={() => createIssue(selectedFeedback.id, { redispatch: true })}
-                        className="inline-flex items-center gap-1.5"
-                        title="Re-apply the coding-agent trigger (labels / comment / Copilot from Settings) to this issue"
-                      >
-                        <SparkleIcon className="h-3.5 w-3.5" />
-                        <span>{isCreatingIssue ? "Sending…" : selectedFeedback.fix_stage ? "Send to agent again" : "Send to agent"}</span>
-                      </Button>
-                    ) : null}
-                    {selectedFeedback.github_issue_url ? null : (
-                      <CreateIssueButton
-                        loading={isCreatingIssue}
-                        disabled={isCreatingIssue}
-                        hasDispatchTrigger={hasDispatchTrigger}
-                        onCreateIssue={({ dispatch }) => createIssue(selectedFeedback.id, { dispatch })}
-                      />
-                    )}
+                    <AgentDispatchButton
+                      project={project}
+                      hasIssue={Boolean(selectedFeedback.github_issue_url)}
+                      sentBefore={Boolean(selectedFeedback.fix_stage)}
+                      loading={isCreatingIssue}
+                      disabled={isCreatingIssue}
+                      onDispatch={({ agent }) =>
+                        createIssue(
+                          selectedFeedback.id,
+                          selectedFeedback.github_issue_url ? { redispatch: true, agent } : { dispatch: agent !== null, agent },
+                        )
+                      }
+                      onRunLocal={() => void queueLocalRun(selectedFeedback)}
+                      localState={localRunState}
+                      onSetUp={() => handleTabChange("settings")}
+                    />
                     <WatchButton feedbackId={selectedFeedback.id} organizationId={project.organization_id} />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      disabled={localRunState === "queuing"}
-                      onClick={() => void queueLocalRun(selectedFeedback)}
-                      className="inline-flex items-center gap-1.5"
-                      title="Queue this report for a coding agent on your own machine — run `npx feedbackkit-cli watch` in your repo"
-                    >
-                      <TerminalIcon className="h-3.5 w-3.5" />
-                      <span>
-                        {localRunState === "queuing" ? "Queuing…" : localRunState === "queued" ? "Queued for your machine" : "Run on my machine"}
-                      </span>
-                    </Button>
 
                     <div className="h-4 w-px bg-neutral-200" />
 
@@ -1500,6 +1493,8 @@ export function ProjectPage() {
                     {/* Closed loop: agent → PR → release → reporter verifies */}
                     <FixLoopPanel
                       feedback={selectedFeedback}
+                      project={project}
+                      onPreviewCount={setSelectedPreviewCount}
                       onUpdated={(patch) =>
                         setFeedbackItems((current) => current.map((item) => (item.id === selectedFeedback.id ? { ...item, ...patch } : item)))
                       }
