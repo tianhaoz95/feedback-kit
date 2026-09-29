@@ -36,6 +36,7 @@ import { GitHubSetupCard } from "@/components/GitHubSetupCard";
 import { ProductsSetupCard } from "@/components/ProductsSetupCard";
 import { FeedbackProductsPicker } from "@/components/FeedbackProductsPicker";
 import { MergedPromptView } from "@/components/MergedPromptView";
+import { CreateIssueButton } from "@/components/CreateIssueButton";
 import { DeleteProjectCard } from "@/components/DeleteProjectCard";
 import { AllowedOriginsCard } from "@/components/AllowedOriginsCard";
 import { AgentDispatchCard } from "@/components/AgentDispatchCard";
@@ -149,7 +150,7 @@ export function ProjectPage() {
    */
   async function createIssue(
     feedbackIds: string | string[],
-    options: { redispatch?: boolean; prompt?: string } = {},
+    options: { redispatch?: boolean; prompt?: string; dispatch?: boolean } = {},
   ) {
     const ids = Array.isArray(feedbackIds) ? feedbackIds : [feedbackIds];
     if (!project) return;
@@ -164,7 +165,11 @@ export function ProjectPage() {
 
     setIsCreatingIssue(true);
     track(
-      options.redispatch ? "send_to_agent_again" : "send_to_agent",
+      options.redispatch
+        ? "send_to_agent_again"
+        : options.dispatch === false
+        ? "create_issue_only"
+        : "send_to_agent",
       { copilot: Boolean(project.dispatch_copilot), ...(ids.length > 1 ? { reports: ids.length } : {}) },
       project.organization_id,
     );
@@ -175,7 +180,11 @@ export function ProjectPage() {
           ...(ids.length > 1 ? { feedback_ids: ids } : { feedback_id: ids[0] }),
           ...(options.prompt ? { prompt: options.prompt } : {}),
           // On an already-linked issue, only re-dispatch when explicitly asked.
-          ...(options.redispatch ? { dispatch: true } : {}),
+          ...(options.dispatch !== undefined
+            ? { dispatch: options.dispatch }
+            : options.redispatch
+            ? { dispatch: true }
+            : {}),
         },
       });
 
@@ -682,6 +691,10 @@ export function ProjectPage() {
         selectedAttachmentUrl
       )
     : "";
+  const hasDispatchTrigger =
+    (project?.dispatch_labels?.length ?? 0) > 0 ||
+    Boolean(project?.dispatch_comment) ||
+    Boolean(project?.dispatch_copilot);
   // Shared by the single-report header and the merged view's "Send to agent".
   const issueErrorBanner = issueError && project ? (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-red-50 px-4 py-2.5 text-xs text-red-700 border border-red-100">
@@ -1064,9 +1077,7 @@ export function ProjectPage() {
                     }
                     onClearSelection={handleClearSelection}
                     onBackToSingleView={() => setViewMode("single")}
-                    hasDispatchTrigger={
-                      (project.dispatch_labels?.length ?? 0) > 0 || Boolean(project.dispatch_comment) || Boolean(project.dispatch_copilot)
-                    }
+                    hasDispatchTrigger={hasDispatchTrigger}
                     isSendingToAgent={isCreatingIssue}
                     onSendToAgent={(options) =>
                       createIssue(
@@ -1128,8 +1139,7 @@ export function ProjectPage() {
                         <ExternalLinkIcon className="h-3 w-3 text-neutral-400" />
                       </a>
                     ) : null}
-                    {selectedFeedback.github_issue_url &&
-                    ((project.dispatch_labels?.length ?? 0) > 0 || project.dispatch_comment || project.dispatch_copilot) ? (
+                    {selectedFeedback.github_issue_url && hasDispatchTrigger ? (
                       <Button
                         type="button"
                         variant="secondary"
@@ -1140,21 +1150,16 @@ export function ProjectPage() {
                         title="Re-apply the coding-agent trigger (labels / comment / Copilot from Settings) to this issue"
                       >
                         <SparkleIcon className="h-3.5 w-3.5" />
-                        <span>{isCreatingIssue ? "Sending…" : "Send to agent again"}</span>
+                        <span>{isCreatingIssue ? "Sending…" : selectedFeedback.fix_stage ? "Send to agent again" : "Send to agent"}</span>
                       </Button>
                     ) : null}
                     {selectedFeedback.github_issue_url ? null : (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
+                      <CreateIssueButton
+                        loading={isCreatingIssue}
                         disabled={isCreatingIssue}
-                        onClick={() => createIssue(selectedFeedback.id)}
-                        className="inline-flex items-center gap-1.5"
-                      >
-                        <GitHubIcon className="h-3.5 w-3.5" />
-                        <span>{isCreatingIssue ? "Creating issue…" : "Create GitHub Issue"}</span>
-                      </Button>
+                        hasDispatchTrigger={hasDispatchTrigger}
+                        onCreateIssue={({ dispatch }) => createIssue(selectedFeedback.id, { dispatch })}
+                      />
                     )}
                     <WatchButton feedbackId={selectedFeedback.id} organizationId={project.organization_id} />
                     <Button
