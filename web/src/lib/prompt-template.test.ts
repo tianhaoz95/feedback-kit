@@ -66,6 +66,20 @@ test("renderPromptTemplate removes screenshot section when screenshotUrl is null
   );
 });
 
+test("renderPromptTemplate appends the attachment when the template doesn't mention it", () => {
+  const feedback = createMockFeedback({ attachment_path: "proj_1/fb_mock_1/attachment/cart.json", attachment_filename: "cart.json" });
+  const out = renderPromptTemplate("## Report\n{{feedback_text}}", feedback, null, "https://storage.example.com/cart.json");
+  assert.match(out, /## Attachment\nThe reporter attached a file \(`cart\.json`\)/);
+  assert.match(out, /https:\/\/storage\.example\.com\/cart\.json$/);
+});
+
+test("renderPromptTemplate doesn't duplicate an attachment the template already uses, or invent one", () => {
+  const feedback = createMockFeedback({ attachment_filename: "cart.json" });
+  const used = renderPromptTemplate("File: {{attachment_url}}", feedback, null, "https://storage.example.com/cart.json");
+  assert.equal(used, "File: https://storage.example.com/cart.json");
+  assert.doesNotMatch(renderPromptTemplate("{{feedback_text}}", createMockFeedback(), null, null), /Attachment/);
+});
+
 test("renderMergedPrompt returns empty string when no items provided", () => {
   assert.equal(renderMergedPrompt([], {}), "");
 });

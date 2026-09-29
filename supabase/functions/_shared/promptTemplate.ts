@@ -57,6 +57,18 @@ export function renderPromptTemplate(
     feedback_id: feedback.id,
   };
 
+  // Same rule as web/src/lib/prompt-template.ts: the default template never
+  // mentions the attachment, so say it exists and how to fetch it.
+  if (attachmentUrl && !/{{\s*attachment_url\s*}}/.test(rendered)) {
+    const name = feedback.attachment_filename ? ` (\`${feedback.attachment_filename}\`)` : "";
+    rendered = [
+      rendered.trimEnd(),
+      "",
+      "## Attachment",
+      `The reporter attached a file${name}. Download it from this signed link (no auth needed; it expires) and use it as context for the report: ${attachmentUrl}`,
+    ].join("\n");
+  }
+
   if (env.platform === "web" && !WEB_PLACEHOLDERS.test(rendered)) {
     rendered = [
       rendered.trimEnd(),

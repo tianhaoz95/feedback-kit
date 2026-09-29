@@ -22,6 +22,12 @@ Deno.test("fills every placeholder the template uses", () => {
   assertMatch(out, /At: https:\/\/raw\.githubusercontent\.com/);
 });
 
+Deno.test("appends the attachment when the template doesn't mention it", () => {
+  const out = renderPromptTemplate("{{feedback_text}}", { ...feedback, attachment_filename: "trace.har" }, null, "https://s.example.com/trace.har");
+  assertMatch(out, /## Attachment\nThe reporter attached a file \(`trace\.har`\)\. .*https:\/\/s\.example\.com\/trace\.har/);
+  assertEquals(renderPromptTemplate("File: {{attachment_url}}", feedback, null, "https://s.example.com/a").match(/s\.example\.com/g)?.length, 1);
+});
+
 Deno.test("drops the screenshot section when there's no screenshot", () => {
   const out = renderPromptTemplate("{{feedback_text}}\n## Screenshot\nAt: {{screenshot_url}}\n## Task\nFix it.", feedback, null, null);
   assertNotMatch(out, /Screenshot/);

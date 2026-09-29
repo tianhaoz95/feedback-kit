@@ -88,6 +88,19 @@ ${trailers}
 
 const WEB_PLACEHOLDERS = /{{\s*(page_url|console_logs|browser)\s*}}/;
 
+/**
+ * Appended when the report has an attachment but the template never mentions
+ * `{{attachment_url}}` (the default one doesn't), so the agent still learns
+ * the file exists and how to fetch it.
+ */
+function attachmentSection(feedback: FeedbackItem, attachmentUrl: string): string {
+  const name = feedback.attachment_filename ? ` (\`${feedback.attachment_filename}\`)` : "";
+  return [
+    "## Attachment",
+    `The reporter attached a file${name}. Download it from this signed link (no auth needed; it expires) and use it as context for the report: ${attachmentUrl}`,
+  ].join("\n");
+}
+
 export function renderPromptTemplate(
   template: string,
   feedback: FeedbackItem,
@@ -123,6 +136,10 @@ export function renderPromptTemplate(
     // which is how the GitHub webhook links a PR back to the report (0014_closed_loop.sql).
     feedback_id: feedback.id,
   };
+
+  if (attachmentUrl && !/{{\s*attachment_url\s*}}/.test(rendered)) {
+    rendered = `${rendered.trimEnd()}\n\n${attachmentSection(feedback, attachmentUrl)}`;
+  }
 
   if (env.platform === "web" && !WEB_PLACEHOLDERS.test(rendered)) {
     rendered = `${rendered.trimEnd()}\n\n${webContextSection(feedback)}`;

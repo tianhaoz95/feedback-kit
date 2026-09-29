@@ -56,6 +56,16 @@ public enum PromptGenerator {
         ].joined(separator: "\n")
     }
 
+    /// Appended when the report has an attachment but the template never
+    /// mentions `{{attachment_url}}` — same rule as the dashboard and CLI.
+    static func attachmentSection(_ feedback: PortalFeedbackItem, attachmentUrl: String) -> String {
+        let name = feedback.attachmentFilename.map { " (`\($0)`)" } ?? ""
+        return [
+            "## Attachment",
+            "The reporter attached a file\(name). Download it from this signed link (no auth needed; it expires) and use it as context for the report: \(attachmentUrl)"
+        ].joined(separator: "\n")
+    }
+
     private static func formatScale(_ scale: Double) -> String {
         scale == scale.rounded() ? String(Int(scale)) : String(scale)
     }
@@ -118,6 +128,11 @@ public enum PromptGenerator {
         ]
 
         var rendered = template.isEmpty ? defaultTemplate : template
+
+        if let attachmentUrl, !attachmentUrl.isEmpty,
+           rendered.range(of: "\\{\\{\\s*attachment_url\\s*\\}\\}", options: .regularExpression) == nil {
+            rendered = rendered.trimmingCharacters(in: .whitespacesAndNewlines) + "\n\n" + attachmentSection(feedback, attachmentUrl: attachmentUrl)
+        }
 
         if env.isWeb, rendered.range(of: "\\{\\{\\s*(page_url|console_logs|browser)\\s*\\}\\}", options: .regularExpression) == nil {
             rendered = rendered.trimmingCharacters(in: .whitespacesAndNewlines) + "\n\n" + webContextSection(feedback)
