@@ -88,7 +88,11 @@ const theme = `FeedbackKit.theme = {
 const captureMode = `FeedbackKit.captureOptions = {
   mode: "display",   // Screen Capture API: pixel-exact, but asks every time
   maxPixelRatio: 1,  // smaller uploads on dense displays (default 2)
-};`;
+  enabled: false,    // or mode: "off" / includeScreenshot: false to omit screenshots
+};
+
+// Or disable screenshot capture per present() / presentAndSubmit() call:
+await FeedbackKit.present({ includeScreenshot: false });`;
 
 const renderer = `import { drawAnnotations } from "feedbackkit-web";
 

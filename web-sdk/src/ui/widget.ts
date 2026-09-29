@@ -25,6 +25,7 @@ export interface WidgetDeps {
   defaultProductKey(): string | undefined;
   logs(): FeedbackLogEntry[];
   captureOptions(): CaptureOptions;
+  includeScreenshot?(): boolean;
   currentScreen(): string | null;
   /** Reporter identity attached to submitted reports (fixes.ts). */
   identity(): { reporterId: string; user: FeedbackUser | null };
@@ -45,6 +46,10 @@ export interface OpenOptions {
   deliver?: (report: FeedbackReport) => Promise<void>;
   /** Dialog wording overrides (e.g. "What's still wrong?" for a reopen). */
   copy?: DialogCopy;
+  /** Whether to capture a screenshot for this report. Overrides global settings. */
+  captureScreenshot?: boolean;
+  /** Alias for `captureScreenshot`. */
+  includeScreenshot?: boolean;
 }
 
 export interface DialogCopy {
@@ -61,6 +66,10 @@ export interface TriggerOptions {
   label?: string;
   /** Icon-only round button. */
   compact?: boolean;
+  /** Whether to capture a screenshot when triggered. */
+  captureScreenshot?: boolean;
+  /** Alias for `captureScreenshot`. */
+  includeScreenshot?: boolean;
 }
 
 /** Max attachment size accepted by the composer (base64 in a JSON body grows it by a third). */
@@ -195,19 +204,45 @@ export class Widget {
     else host.style.removeProperty("--fk-secondary");
   }
 
+  private shouldCaptureScreenshot(options: OpenOptions, captureOptions: CaptureOptions): boolean {
+    if (options.captureScreenshot !== undefined) return options.captureScreenshot;
+    if (options.includeScreenshot !== undefined) return options.includeScreenshot;
+    if (captureOptions.enabled !== undefined) return captureOptions.enabled;
+    if (captureOptions.includeScreenshot !== undefined) return captureOptions.includeScreenshot;
+    if (captureOptions.mode === "off") return false;
+    if (this.deps.includeScreenshot && !this.deps.includeScreenshot()) return false;
+    const config = this.deps.configuration();
+    if (config) {
+      if (typeof config.captureScreenshot === "boolean") return config.captureScreenshot;
+      if (typeof config.captureScreenshot === "object" && config.captureScreenshot !== null) {
+        if (config.captureScreenshot.enabled !== undefined) return config.captureScreenshot.enabled;
+        if (config.captureScreenshot.includeScreenshot !== undefined) return config.captureScreenshot.includeScreenshot;
+        if (config.captureScreenshot.mode === "off") return false;
+      }
+      if (config.includeScreenshot !== undefined) return config.includeScreenshot;
+    }
+    return true;
+  }
+
   private async run(options: OpenOptions): Promise<FeedbackReport | null> {
     const shadow = this.mount();
     this.applyTheme();
-    this.trigger?.setAttribute("aria-busy", "true");
+
+    const captureOptions = this.deps.captureOptions();
+    const shouldCapture = this.shouldCaptureScreenshot(options, captureOptions);
+    if (shouldCapture) {
+      this.trigger?.setAttribute("aria-busy", "true");
+    }
 
     // Everything describing "the moment of the problem" is taken *before*
     // the dialog covers the page.
-    const captureOptions = this.deps.captureOptions();
     const [shot, environment] = await Promise.all([
-      captureViewport({ ...captureOptions, exclude: this.isOwnNode }).catch((error: unknown) => {
-        console.warn("[FeedbackKit] Screenshot capture failed; continuing without one.", error);
-        return null;
-      }),
+      shouldCapture
+        ? captureViewport({ ...captureOptions, exclude: this.isOwnNode }).catch((error: unknown) => {
+            console.warn("[FeedbackKit] Screenshot capture failed; continuing without one.", error);
+            return null;
+          })
+        : Promise.resolve(null),
       collectEnvironment({
         screenName: this.deps.currentScreen(),
         appVersion: this.deps.configuration()?.appVersion,
@@ -218,9 +253,18 @@ export class Widget {
     this.trigger?.removeAttribute("aria-busy");
 
     return new Promise<FeedbackReport | null>((resolve) => {
-      const dialog = new Dialog(shadow, shot, environment, logs, this.deps, options, (result) => {
-        resolve(result);
-      });
+      const dialog = new Dialog(
+        shadow,
+        shot,
+        environment,
+        logs,
+        this.deps,
+        options,
+        !shouldCapture,
+        (result) => {
+          resolve(result);
+        },
+      );
       dialog.show();
     });
   }
@@ -265,9 +309,16 @@ class Dialog {
     private readonly logs: FeedbackLogEntry[],
     private readonly deps: WidgetDeps,
     private readonly options: OpenOptions,
+    private readonly screenshotDisabled: boolean,
     private readonly done: (report: FeedbackReport | null) => void,
   ) {
-    this.includeScreenshot = shot !== null;
+    if (this.screenshotDisabled || !shot) {
+      this.includeScreenshot = false;
+    } else if (options.includeScreenshot !== undefined) {
+      this.includeScreenshot = options.includeScreenshot;
+    } else {
+      this.includeScreenshot = true;
+    }
   }
 
   show(): void {
@@ -351,7 +402,9 @@ class Dialog {
       this.resizeObserver.observe(wrap);
     }
     const note = el("div", "fk-off-note");
-    note.textContent = this.shot ? "Screenshot won't be included" : "Screenshot unavailable on this page";
+    note.textContent = this.shot || this.screenshotDisabled
+      ? "Screenshot won't be included"
+      : "Screenshot unavailable on this page";
     wrap.append(note);
     stage.append(toolbar, wrap);
     return stage;
@@ -437,7 +490,7 @@ class Dialog {
     const summary = el("span", "fk-options-summary");
     const renderSummary = () => {
       const parts: string[] = [];
-      if (this.shot && !this.includeScreenshot) parts.push("No screenshot");
+      if (!this.includeScreenshot) parts.push("No screenshot");
       if (this.notifyReporter) parts.push("Notify me");
       summary.textContent = parts.join(" · ");
     };

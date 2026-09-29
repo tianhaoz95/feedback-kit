@@ -340,7 +340,7 @@ Configure from client-only code (it touches \`window\`/\`document\`): in Next.js
 
 - \`FeedbackKit.currentScreen = "Checkout"\` — set on route changes; falls back to \`location.pathname\`.
 - \`FeedbackKit.theme = { primaryColorHex, secondaryColorHex }\`
-- \`FeedbackKit.captureOptions = { mode: "dom" | "display", maxPixelRatio }\` — \`"display"\` uses the Screen Capture API (pixel-exact, but prompts every time; falls back to DOM rendering).
+- \`FeedbackKit.captureOptions = { mode: "dom" | "display" | "off", maxPixelRatio, enabled?, includeScreenshot? }\` — \`"display"\` uses the Screen Capture API (pixel-exact, but prompts every time; falls back to DOM rendering); \`enabled: false\` or \`mode: "off"\` disables screenshot capture. You can also pass \`includeScreenshot: false\` to \`present()\` / \`presentAndSubmit()\`.
 - \`captureLogs\` in \`configure\` — default on: console warn/error, uncaught errors, unhandled rejections, failed/4xx/5xx fetch+XHR (method, URL, status only — never bodies; tokens and sensitive URL params redacted). \`false\` disables; users can untick logs per report.
 - \`FeedbackKit.submit(report)\`, \`FeedbackKit.captureScreenshot()\`, \`FeedbackKit.destroy()\`, and the annotation renderer (\`drawAnnotations\`).
 

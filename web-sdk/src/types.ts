@@ -132,7 +132,7 @@ export interface FeedbackTheme {
   secondaryColorHex?: string;
 }
 
-export type CaptureMode = "dom" | "display";
+export type CaptureMode = "dom" | "display" | "off";
 
 export interface FeedbackKitConfiguration {
   /** The project key from the dashboard's project settings. A routing key, not a secret. */
@@ -155,6 +155,15 @@ export interface FeedbackKitConfiguration {
    * report). Default `true`; pass options to tune, or `false` to disable.
    */
   captureLogs?: boolean | LogCaptureOptions;
+  /**
+   * Screenshot capture settings, or `false` to disable screenshot capture entirely.
+   * Default `true`. Set to `false` or pass options with `enabled: false` to omit screenshots.
+   */
+  captureScreenshot?: boolean | CaptureOptions;
+  /**
+   * Alias for `captureScreenshot: false` — omit screenshot capture.
+   */
+  includeScreenshot?: boolean;
   /**
    * Where fix updates for this browser's reports come from (the
    * `reporter-updates` function). Defaults to the sibling of `endpoint`.
@@ -194,10 +203,19 @@ export interface FixUpdate {
 
 export interface CaptureOptions {
   /**
+   * Whether screenshot capture is enabled. Default `true`.
+   * Set to `false` (or set `mode: "off"`) to omit screenshots from reports.
+   */
+  enabled?: boolean;
+  /**
+   * Alias for `enabled: false` when set to `false`.
+   */
+  includeScreenshot?: boolean;
+  /**
    * `"dom"` (default): re-render the page into an image — silent, no
    * permission prompt. `"display"`: the browser's Screen Capture API —
    * pixel-exact but shows a picker every time; falls back to `"dom"` where
-   * unsupported or declined.
+   * unsupported or declined. `"off"`: do not capture a screenshot.
    */
   mode?: CaptureMode;
   /** Upper bound on the capture's pixel ratio, to keep uploads small on dense displays. Default 2. */
