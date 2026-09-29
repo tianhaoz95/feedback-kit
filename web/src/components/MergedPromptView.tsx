@@ -3,6 +3,7 @@ import { track } from "@/lib/analytics";
 import type { DeliveryMode, FeedbackItem, FeedbackStatus } from "@/lib/types";
 import { closingTheLoopSection, renderMergedPrompt } from "@/lib/prompt-template";
 import { Button } from "@/components/Button";
+import { CreateIssueButton } from "@/components/CreateIssueButton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusSelect } from "@/components/StatusSelect";
 import {
@@ -36,7 +37,7 @@ interface MergedPromptViewProps {
    * agent (create-github-issue with `feedback_ids`), or re-dispatches the
    * batch's issue. `prompt` is the merged prompt when it was edited here.
    */
-  onSendToAgent?: (options: { redispatch?: boolean; prompt?: string }) => void;
+  onSendToAgent?: (options: { redispatch?: boolean; prompt?: string; dispatch?: boolean }) => void;
   /** Error from the last send, rendered under the batch controls. */
   issueNotice?: ReactNode;
 }
@@ -140,31 +141,27 @@ export function MergedPromptView({
               title="Re-apply the coding-agent trigger (labels / comment / Copilot from Settings) to this batch's issue"
             >
               <SparkleIcon className="h-3.5 w-3.5" />
-              <span>{isSendingToAgent ? "Sending…" : "Send to agent again"}</span>
+              <span>{isSendingToAgent ? "Sending…" : selectedItems.some((i) => i.fix_stage) ? "Send to agent again" : "Send to agent"}</span>
             </Button>
           ) : null}
           {onSendToAgent && !sharedIssue ? (
-            <Button
-              type="button"
-              size="sm"
+            <CreateIssueButton
               disabled={isSendingToAgent || blockedByLinked}
-              onClick={() => onSendToAgent(isEdited ? { prompt: promptText } : {})}
-              className="inline-flex items-center gap-1.5"
+              loading={isSendingToAgent}
+              hasDispatchTrigger={hasDispatchTrigger}
+              batchCount={selectedItems.length}
+              onCreateIssue={({ dispatch }) =>
+                onSendToAgent({
+                  ...(isEdited ? { prompt: promptText } : {}),
+                  dispatch,
+                })
+              }
               title={
                 blockedByLinked
                   ? `${linkedItems.length} of these reports already ${linkedItems.length === 1 ? "has a GitHub issue" : "have GitHub issues"}. Remove ${linkedItems.length === 1 ? "it" : "them"} from the selection first.`
                   : "Open one GitHub issue for all selected reports and hand it to your coding agent. Each report moves through the fix loop on its own."
               }
-            >
-              <GitHubIcon className="h-3.5 w-3.5" />
-              <span>
-                {isSendingToAgent
-                  ? "Creating issue…"
-                  : hasDispatchTrigger
-                  ? `Send ${selectedItems.length} to agent`
-                  : "Create one GitHub issue"}
-              </span>
-            </Button>
+            />
           ) : null}
           {onSendToAgent ? <div className="h-4 w-px bg-neutral-200" /> : null}
 
