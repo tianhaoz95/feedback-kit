@@ -149,6 +149,7 @@ jobs:
             echo "- Read-only git (log, show, diff, status, blame, grep, ls-files) is fine; don't commit, branch or push: this workflow commits, pushes and opens the pull request after you finish."
             echo "- End with one short paragraph, in plain language, describing what you changed and why; it becomes the pull request description."
             echo "- If you can't fix it, change nothing and explain why."
+            echo "- Only open files inside this repository or ${RUNNER_TEMP}/agent-scratch (the temp dir): reading anything else needs a permission this unattended run can't ask for, so it ends the run. Put screenshots in .agent-preview/ (gitignored; the capture scripts' default)."
             # Headless Antigravity ends the whole run at the first tool call
             # it isn't allowed, so tell the agent its limits up front.
             ALLOWED="$(jq -r '.permissions.allow // [] | join(", ")' ~/.gemini/antigravity-cli/settings.json 2>/dev/null || true)"
@@ -160,11 +161,15 @@ jobs:
               echo "- Show your work with screenshots: the team reviews them on the report page instead of running the build. Call attach_preview (with a caption saying what it shows) once the fix works, and also at useful points along the way (e.g. the bug reproduced, a first version of the change), and use post_update for a one-line progress note. Only attach captures of this checkout."
               echo "- Capturing (run these after your change; each prints the PNG path to pass to attach_preview, with a caption):"
               echo "  - Dashboard or website (web/): \`node scripts/agent-preview/capture-web.mjs --feedback ${FEEDBACK_ID}\` renders this checkout's web/ at the report's page (signed-in pages included, against a throwaway local backend). Add \`--path /some/route\` for another page."
-              echo "  - iOS Developer Portal (DeveloperApp/): \`node scripts/agent-preview/capture-portal.mjs --feedback ${FEEDBACK_ID}\` builds it, runs it in the Simulator in its offline demo mode (no sign-in needed) and screenshots the tab the report came from; \`--tab feedback|activity|projects|settings\` picks another. For a screen deeper than a tab, launch the app yourself with \`xcrun simctl launch <device> com.feedbackkit.developer -portal_demo_mode '<true/>'\`, get there, and \`xcrun simctl io <device> screenshot /tmp/after.png\`."
-              echo "  - Other iOS apps: \`xcrun simctl io booted screenshot /tmp/after.png\` in the Simulator (or a short MP4, up to 30 s)."
+              echo "  - iOS Developer Portal (DeveloperApp/): \`node scripts/agent-preview/capture-portal.mjs --feedback ${FEEDBACK_ID}\` builds it, runs it in the Simulator in its offline demo mode (no sign-in needed) and screenshots the tab the report came from; \`--tab feedback|activity|projects|settings\` picks another. For a screen deeper than a tab, launch the app yourself with \`xcrun simctl launch <device> com.feedbackkit.developer -portal_demo_mode '<true/>'\`, get there, and \`xcrun simctl io <device> screenshot .agent-preview/after.png\`."
+              echo "  - Other iOS apps: \`xcrun simctl io booted screenshot .agent-preview/after.png\` in the Simulator (or a short MP4, up to 30 s)."
             fi
           } > "$PROMPT"
-          agy -p "$(cat "$PROMPT")" --mode accept-edits --print-timeout 50m < /dev/null 2>&1 | tee "$RUNNER_TEMP/summary.md"
+          # Headless agy can't open files outside its workspace (asking ends
+          # the run), so give it a scratch dir and point temp files there.
+          export TMPDIR="$RUNNER_TEMP/agent-scratch"
+          mkdir -p "$TMPDIR"
+          agy -p "$(cat "$PROMPT")" --mode accept-edits --print-timeout 50m --add-dir "$TMPDIR" --log-file "$RUNNER_TEMP/agy.log" < /dev/null 2>&1 | tee "$RUNNER_TEMP/summary.md"
           # An API or sign-in error (expired login, bad key, quota) also exits 0.
           if grep -q '^AGY_ERROR:' "$RUNNER_TEMP/summary.md"; then
             { echo "Antigravity failed before finishing:"; echo; echo '```'; grep -m1 '^error:' "$RUNNER_TEMP/summary.md" || true; echo '```'; echo; echo "If it's a sign-in error, run \`agy\` once interactively as the runner's user to sign in again, then send the report to the agent again."; } > "$RUNNER_TEMP/comment.md"
@@ -178,6 +183,18 @@ jobs:
             { echo "Antigravity stopped: it needed a permission the runner doesn't allow."; echo; cat "$RUNNER_TEMP/summary.md"; echo; echo "Add the rule to permissions.allow in the runner user's ~/.gemini/antigravity-cli/settings.json, then send the report to the agent again."; } > "$RUNNER_TEMP/comment.md"
             GH_TOKEN="${{ github.token }}" gh issue comment "$ISSUE_NUMBER" --body-file "$RUNNER_TEMP/comment.md"
             exit 1
+          fi
+          # A tool call that needs confirmation (e.g. opening a file outside
+          # the workspace) ends the run just as silently; only agy's log says
+          # so. With edits already made, the partial fix still goes up as a PR.
+          DENIED="$(grep -oE 'soft-denying tool confirmation "[^"]+"' "$RUNNER_TEMP/agy.log" 2>/dev/null | head -n1 | cut -d'"' -f2 || true)"
+          if [ -n "$DENIED" ]; then
+            echo "::warning::Antigravity's ${DENIED} call needed confirmation, which a headless run can't give, so it stopped early."
+            if [ -z "$(git status --porcelain)" ]; then
+              { echo "Antigravity stopped before changing anything: its \`${DENIED}\` call needed a permission the headless run can't ask for (usually opening a file outside the repository), which ends the run."; echo; echo "Its last output:"; echo; cat "$RUNNER_TEMP/summary.md"; } > "$RUNNER_TEMP/comment.md"
+              GH_TOKEN="${{ github.token }}" gh issue comment "$ISSUE_NUMBER" --body-file "$RUNNER_TEMP/comment.md"
+              exit 1
+            fi
           fi
 
       - name: Commit and open a pull request

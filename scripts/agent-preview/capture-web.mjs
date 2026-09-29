@@ -9,7 +9,7 @@
 // runs it as a fallback when the agent didn't attach anything.
 //
 //   node scripts/agent-preview/capture-web.mjs --feedback <id> [--attach] [--caption "…"]
-//   node scripts/agent-preview/capture-web.mjs --path /docs/agents --out /tmp/after.png
+//   node scripts/agent-preview/capture-web.mjs --path /docs/agents --out .agent-preview/after.png
 //
 // Options:
 //   --feedback <id>   Report to read (needs FEEDBACKKIT_TOKEN: a run token for it, or any
@@ -17,7 +17,8 @@
 //   --report-file <f> A report as JSON ({ item, events?, project? }) instead of --feedback's
 //                     hosted one, e.g. for testing this script.
 //   --path <route>    Route to open instead, e.g. "/projects/<id>?feedback=<id>" or a full URL.
-//   --out <file.png>  Where to write it (default: a temp file, printed on stdout).
+//   --out <file.png>  Where to write it (default: .agent-preview/ in this repo, printed on
+//                     stdout; inside the repo so a sandboxed agent can open it to check it).
 //   --attach          Attach it to --feedback (the token needs previews:write).
 //   --caption <text>  Caption for --attach.
 //   --since <iso>     With --attach: skip if the report already got a preview after this time.
@@ -39,7 +40,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { randomBytes } from "node:crypto";
-import { attach, fetchReport, hasPreviewSince, log, SKIP } from "./feedbackkit.mjs";
+import { attach, defaultOut, fetchReport, hasPreviewSince, log, SKIP } from "./feedbackkit.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WEB = join(ROOT, "web");
@@ -301,7 +302,7 @@ async function main() {
     process.exit(SKIP);
   }
   const needsBackend = !PUBLIC_ROUTES.some((re) => re.test(route.split(/[?#]/)[0]));
-  const out = args.out ?? join(mkdtempSync(join(tmpdir(), "fk-capture-")), "after.png");
+  const out = args.out ?? defaultOut();
 
   ensureDependencies();
   const backend = needsBackend ? await startBackend() : null;

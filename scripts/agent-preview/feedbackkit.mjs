@@ -3,6 +3,10 @@
 // FEEDBACKKIT_TOKEN (an agent run's report-limited token, or any token with
 // feedback:read / previews:write). Mirrors cli/src/loop.ts attachPreview.
 
+import { mkdirSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
 // Same defaults as cli/src/supabaseClient.ts (the hosted backend's public URL and publishable key).
 const API_URL = (process.env.FEEDBACKKIT_API_URL ?? "https://gpucoladcyvijefdjudf.supabase.co").replace(/\/+$/, "");
 const ANON_KEY = process.env.FEEDBACKKIT_ANON_KEY ?? "sb_publishable_crkqEdaacVS02etk6k16ag_ATIk-8Kn";
@@ -10,6 +14,17 @@ const TOKEN = process.env.FEEDBACKKIT_TOKEN?.trim() || null;
 
 /** Exit code for "nothing to capture" (not this kind of report, or already attached). */
 export const SKIP = 3;
+
+/**
+ * Where a capture goes without --out: .agent-preview/ in this repo (gitignored).
+ * Not the system temp dir: headless Antigravity can't open files outside the
+ * workspace, and trying ends the agent's whole run.
+ */
+export function defaultOut() {
+  const dir = join(resolve(dirname(fileURLToPath(import.meta.url)), "../.."), ".agent-preview");
+  mkdirSync(dir, { recursive: true });
+  return join(dir, `after-${new Date().toISOString().replace(/[:.]/g, "-")}.png`);
+}
 
 export function log(message) {
   console.error(`agent-preview: ${message}`);

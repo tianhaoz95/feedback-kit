@@ -4,7 +4,7 @@
 // token in FEEDBACKKIT_TOKEN. The same as the MCP server's attach_preview, for
 // runs without it.
 //
-//   node scripts/agent-preview/attach.mjs --feedback <id> --file /tmp/after.png [--caption "…"] [--since <iso>]
+//   node scripts/agent-preview/attach.mjs --feedback <id> --file .agent-preview/after.png [--caption "…"] [--since <iso>]
 //
 // --since skips (exit code 3) when the report already got a preview after that time.
 import { readFileSync } from "node:fs";

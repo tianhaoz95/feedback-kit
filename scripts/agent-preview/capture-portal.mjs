@@ -4,12 +4,13 @@
 // report as an after-fix preview. The iOS counterpart of capture-web.mjs.
 //
 //   node scripts/agent-preview/capture-portal.mjs --feedback <id> [--attach] [--caption "…"]
-//   node scripts/agent-preview/capture-portal.mjs --tab projects --out /tmp/after.png
+//   node scripts/agent-preview/capture-portal.mjs --tab projects --out .agent-preview/after.png
 //
 // Options:
 //   --feedback <id>   Report to read (FEEDBACKKIT_TOKEN); its screen name picks the tab.
 //   --tab <tab>       feedback (the inbox, default), activity, projects or settings.
-//   --out <file.png>  Where to write it (default: a temp file, printed on stdout).
+//   --out <file.png>  Where to write it (default: .agent-preview/ in this repo, printed on
+//                     stdout; inside the repo so a sandboxed agent can open it to check it).
 //   --attach          Attach it to --feedback (the token needs previews:write).
 //   --caption <text>  Caption for --attach.
 //   --since <iso>     With --attach: skip if the report already got a preview after this time.
@@ -24,11 +25,10 @@
 // Uses a simulator named "FeedbackKit Preview" (created on first run) so it
 // never disturbs one you're using. Exit code 3: nothing to capture.
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, readdirSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { attach, fetchReport, hasPreviewSince, log, SKIP } from "./feedbackkit.mjs";
+import { attach, defaultOut, fetchReport, hasPreviewSince, log, SKIP } from "./feedbackkit.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const APP_DIR = join(ROOT, "DeveloperApp");
@@ -147,7 +147,7 @@ async function main() {
     process.exit(SKIP);
   }
   const tab = args.tab ?? tabForScreen(report?.item.environment?.screenName);
-  const out = args.out ?? join(mkdtempSync(join(tmpdir(), "fk-capture-")), "after.png");
+  const out = args.out ?? defaultOut();
 
   const udid = previewDevice();
   if (args.build) build(udid);

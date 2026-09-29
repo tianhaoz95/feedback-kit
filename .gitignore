@@ -33,3 +33,6 @@ docs/.vitepress/cache
 docs/.vitepress/dist
 
 web-sdk/e2e/output/
+
+# scripts/agent-preview/ captures (inside the repo so a sandboxed agent can open them)
+.agent-preview/
