@@ -34,7 +34,7 @@ export function DashboardLayout() {
   return (
     <div className="min-h-screen bg-neutral-50">
       <header className="sticky top-0 z-10 border-b border-neutral-200/80 bg-white/85 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-2 px-3 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
             <Link to="/projects" className="flex shrink-0 items-center gap-2">
               <Logomark size={24} />
@@ -123,7 +123,7 @@ export function DashboardLayout() {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className="mx-auto max-w-[1800px] px-4 py-6 sm:px-6 sm:py-8">
         {organizations && organizations.length === 0 ? <NoOrganization /> : <Outlet />}
       </main>
     </div>
