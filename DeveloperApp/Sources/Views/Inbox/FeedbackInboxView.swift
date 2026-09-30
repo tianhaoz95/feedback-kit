@@ -6,6 +6,7 @@ public struct FeedbackInboxView: View {
     @State private var selectedFeedback: PortalFeedbackItem? = nil
     @State private var isMergedPromptSheetPresented = false
     @State private var showBatchDeleteConfirmation = false
+    @State private var showSearchAndFilter = false
 
     private var statusCounts: [PortalFeedbackStatus: Int] {
         var dict: [PortalFeedbackStatus: Int] = [:]
@@ -58,13 +59,40 @@ public struct FeedbackInboxView: View {
     private var inbox: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                PillFilterView(
-                    selectedStatus: $appState.statusFilter,
-                    showArchived: $appState.showArchived,
-                    counts: statusCounts,
-                    archivedCount: appState.archivedCount
-                )
-                .background(Color(UIColor.systemBackground))
+                if showSearchAndFilter {
+                    VStack(spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(.secondary)
+                            TextField("Search reports, screens, devices...", text: $appState.searchQuery)
+                                .textFieldStyle(.plain)
+                            if !appState.searchQuery.isEmpty {
+                                Button {
+                                    appState.searchQuery = ""
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(Color(UIColor.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
+
+                        PillFilterView(
+                            selectedStatus: $appState.statusFilter,
+                            showArchived: $appState.showArchived,
+                            counts: statusCounts,
+                            archivedCount: appState.archivedCount
+                        )
+                    }
+                    .background(Color(UIColor.systemBackground))
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
 
                 if appState.showArchived {
                     HStack(spacing: 8) {
@@ -125,7 +153,6 @@ public struct FeedbackInboxView: View {
                 }
             }
             .navigationTitle("Feedback")
-            .searchable(text: $appState.searchQuery, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search reports, screens, devices...")
             .toolbar {
                 // Leading: Project Switcher Menu
                 ToolbarItem(placement: .topBarLeading) {
@@ -159,6 +186,9 @@ public struct FeedbackInboxView: View {
                             Text(appState.selectedProject?.name ?? (appState.isLoading ? "Loading…" : (appState.projects.isEmpty ? "No Projects" : "Select Project")))
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundColor(.primary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .frame(maxWidth: 140, alignment: .leading)
                             #if os(iOS)
                             // macOS toolbar menus draw their own indicator.
                             Image(systemName: "chevron.down")
@@ -169,9 +199,25 @@ public struct FeedbackInboxView: View {
                     }
                 }
 
-                // Trailing: Active/Archived & Select toggle
+                // Trailing: Filter toggle & More menu
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 12) {
+                    Button {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            showSearchAndFilter.toggle()
+                            if !showSearchAndFilter {
+                                appState.searchQuery = ""
+                            }
+                        }
+                    } label: {
+                        Image(systemName: (showSearchAndFilter || appState.statusFilter != nil || !appState.searchQuery.isEmpty) ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                            .font(.body.weight(.medium))
+                            .foregroundColor((showSearchAndFilter || appState.statusFilter != nil || !appState.searchQuery.isEmpty) ? .accentColor : .primary)
+                    }
+                    .help("Search and filter")
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
                         Button {
                             withAnimation(.spring()) {
                                 appState.isMultiSelectActive.toggle()
@@ -180,27 +226,27 @@ public struct FeedbackInboxView: View {
                                 }
                             }
                         } label: {
-                            Text(appState.isMultiSelectActive ? "Done" : "Select")
-                                .fontWeight(.semibold)
+                            Label(appState.isMultiSelectActive ? "Done Selecting" : "Select Reports", systemImage: "checkmark.circle")
                         }
 
-                        Menu {
-                            Button {
-                                appState.showArchived = false
-                            } label: {
-                                Label("Active Reports (\(appState.activeCount))", systemImage: "tray.fill")
-                            }
+                        Divider()
 
-                            Button {
-                                appState.showArchived = true
-                                appState.statusFilter = nil
-                            } label: {
-                                Label("Archived Reports (\(appState.archivedCount))", systemImage: "archivebox.fill")
-                            }
+                        Button {
+                            appState.showArchived = false
                         } label: {
-                            Image(systemName: appState.showArchived ? "archivebox.fill" : "archivebox")
-                                .foregroundColor(appState.showArchived ? .purple : .accentColor)
+                            Label("Active Reports (\(appState.activeCount))", systemImage: "tray.fill")
                         }
+
+                        Button {
+                            appState.showArchived = true
+                            appState.statusFilter = nil
+                        } label: {
+                            Label("Archived Reports (\(appState.archivedCount))", systemImage: "archivebox.fill")
+                        }
+                    } label: {
+                        Image(systemName: appState.showArchived ? "archivebox.fill" : "ellipsis.circle")
+                            .font(.body.weight(.medium))
+                            .foregroundColor(appState.showArchived ? .purple : .accentColor)
                     }
                 }
             }
@@ -231,6 +277,9 @@ public struct FeedbackInboxView: View {
             }
             .onAppear {
                 FeedbackKit.currentScreen = "Feedback Inbox"
+                if UserDefaults.standard.bool(forKey: "portal_preview_filter") {
+                    showSearchAndFilter = true
+                }
                 if let previewId = UserDefaults.standard.string(forKey: "portal_preview_feedback_id") {
                     selectedFeedback = appState.feedbackItems.first(where: { $0.id == previewId }) ?? appState.feedbackItems.first
                 }

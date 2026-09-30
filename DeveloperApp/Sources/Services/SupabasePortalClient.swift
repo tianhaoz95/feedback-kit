@@ -50,7 +50,6 @@ public final class SupabasePortalClient: ObservableObject {
     public init() {
         let storedUrl = UserDefaults.standard.string(forKey: "portal_supabase_url")
         let storedKey = UserDefaults.standard.string(forKey: "portal_anon_key")
-        let storedDemo = UserDefaults.standard.object(forKey: "portal_demo_mode") as? Bool
 
         let resolvedUrl: String
         if let storedUrl = storedUrl,
@@ -74,10 +73,14 @@ public final class SupabasePortalClient: ObservableObject {
         self.supabaseUrl = resolvedUrl
         self.anonKey = resolvedKey
 
-        self.isDemoMode = storedDemo ?? false
+        let isDemoArg = UserDefaults.standard.bool(forKey: "portal_demo_mode") ||
+            (UserDefaults.standard.object(forKey: "portal_demo_mode") as? Bool ?? false) ||
+            CommandLine.arguments.contains("-portal_demo_mode")
+        self.isDemoMode = isDemoArg
 
-        // Restore saved session token from Keychain if present
-        if let token = KeychainHelper.loadString(key: "access_token"),
+        if isDemoArg {
+            enableDemoMode()
+        } else if let token = KeychainHelper.loadString(key: "access_token"),
            let userId = KeychainHelper.loadString(key: "user_id"),
            let email = KeychainHelper.loadString(key: "email") {
             let refresh = KeychainHelper.loadString(key: "refresh_token") ?? ""
@@ -445,7 +448,7 @@ public final class SupabasePortalClient: ObservableObject {
             payload["github_installation_id"] = NSNull()
         }
 
-        let bodyData = try JSONSerialization.data(withJSONObject: payload.mapValues { $0 is NSNull ? NSNull() : ($0 ?? NSNull()) })
+        let bodyData = try JSONSerialization.data(withJSONObject: payload.mapValues { $0 is NSNull ? NSNull() : $0 })
 
         let request = try makeRequest(
             path: "/rest/v1/projects",

@@ -273,13 +273,19 @@ public struct FixStageBadgeView: View {
     }
 
     public var body: some View {
-        Label(stage.label, systemImage: stage.systemImage)
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .foregroundColor(color)
-            .background(color.opacity(0.12))
-            .clipShape(Capsule())
+        HStack(spacing: 3) {
+            Image(systemName: stage.systemImage)
+                .font(.system(size: 9, weight: .bold))
+            Text(stage.label)
+                .font(.caption2.weight(.semibold))
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .foregroundColor(color)
+        .background(color.opacity(0.12))
+        .clipShape(Capsule())
+        .fixedSize()
     }
 
     private var color: Color {
