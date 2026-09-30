@@ -783,17 +783,22 @@ public final class SupabasePortalClient: ObservableObject {
         feedbackIds: [String],
         projectId: String,
         prompt: String? = nil,
-        redispatch: Bool = false
+        redispatch: Bool = false,
+        dispatch: Bool? = nil,
+        agent: String? = nil
     ) async throws -> (issueUrl: String, issueNumber: Int) {
         if isDemoMode {
             let fakeNumber = Int.random(in: 50...100)
             let fakeUrl = "https://github.com/tianhaoz95/feedback-kit/issues/\(fakeNumber)"
+            let shouldDispatch = dispatch ?? true
             for id in feedbackIds {
                 if let idx = demoFeedback.firstIndex(where: { $0.id == id }) {
                     demoFeedback[idx].githubIssueUrl = fakeUrl
                     demoFeedback[idx].githubIssueNumber = fakeNumber
-                    demoFeedback[idx].status = .inProgress
-                    demoFeedback[idx].fixStage = PortalFixStage.agentWorking.rawValue
+                    if shouldDispatch {
+                        demoFeedback[idx].status = .inProgress
+                        demoFeedback[idx].fixStage = PortalFixStage.agentWorking.rawValue
+                    }
                 }
             }
             return (fakeUrl, fakeNumber)
@@ -810,8 +815,13 @@ public final class SupabasePortalClient: ObservableObject {
         if let prompt = prompt, !prompt.isEmpty {
             payload["prompt"] = prompt
         }
-        if redispatch {
+        if let dispatch = dispatch {
+            payload["dispatch"] = dispatch
+        } else if redispatch {
             payload["dispatch"] = true
+        }
+        if let agent = agent {
+            payload["agent"] = agent
         }
 
         let bodyData = try JSONSerialization.data(withJSONObject: payload)

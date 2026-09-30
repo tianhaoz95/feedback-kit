@@ -41,6 +41,27 @@ final class FeedbackViewControllerLayoutTests: XCTestCase {
         )
     }
 
+    func testTextViewScrollingWhenContentExceedsMaxHeight() throws {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 430, height: 932))
+        let screenshot = renderer.image { _ in UIColor.white.setFill() }
+        let viewController = FeedbackViewController(rawScreenshot: screenshot, screenNameOverride: nil) { _ in }
+
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 430, height: 932))
+        window.rootViewController = viewController
+        window.makeKeyAndVisible()
+        self.window = window
+        viewController.view.layoutIfNeeded()
+
+        let longText = (1...20).map { "Line \($0): A long description of the issue being reported." }.joined(separator: "\n")
+        viewController.textView.text = longText
+        viewController.textViewDidChange(viewController.textView)
+        viewController.view.layoutIfNeeded()
+
+        XCTAssertTrue(viewController.textView.isScrollEnabled)
+        XCTAssertEqual(viewController.textView.bounds.height, 120, accuracy: 1.0)
+        XCTAssertGreaterThan(viewController.textView.contentSize.height, viewController.textView.bounds.height)
+    }
+
     private func findView(in root: UIView, where match: (UIView) -> Bool) -> UIView? {
         if match(root) { return root }
         for sub in root.subviews {

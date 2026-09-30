@@ -40,6 +40,9 @@ public struct PortalProject: Codable, Identifiable, Hashable, Sendable {
     public let createdAt: Date
     public var githubRepo: String?
     public var githubInstallationId: Int?
+    public var dispatchLabels: [String]
+    public var dispatchComment: String?
+    public var dispatchCopilot: Bool
 
     // Local computed or aggregated stats
     public var feedbackCount: Int
@@ -53,6 +56,9 @@ public struct PortalProject: Codable, Identifiable, Hashable, Sendable {
         case createdAt = "created_at"
         case githubRepo = "github_repo"
         case githubInstallationId = "github_installation_id"
+        case dispatchLabels = "dispatch_labels"
+        case dispatchComment = "dispatch_comment"
+        case dispatchCopilot = "dispatch_copilot"
     }
 
     public init(
@@ -63,6 +69,9 @@ public struct PortalProject: Codable, Identifiable, Hashable, Sendable {
         createdAt: Date = Date(),
         githubRepo: String? = nil,
         githubInstallationId: Int? = nil,
+        dispatchLabels: [String] = ["claude", "antigravity"],
+        dispatchComment: String? = nil,
+        dispatchCopilot: Bool = false,
         feedbackCount: Int = 0,
         unresolvedCount: Int = 0
     ) {
@@ -73,6 +82,9 @@ public struct PortalProject: Codable, Identifiable, Hashable, Sendable {
         self.createdAt = createdAt
         self.githubRepo = githubRepo
         self.githubInstallationId = githubInstallationId
+        self.dispatchLabels = dispatchLabels
+        self.dispatchComment = dispatchComment
+        self.dispatchCopilot = dispatchCopilot
         self.feedbackCount = feedbackCount
         self.unresolvedCount = unresolvedCount
     }
@@ -85,6 +97,9 @@ public struct PortalProject: Codable, Identifiable, Hashable, Sendable {
         projectKey = try container.decode(String.self, forKey: .projectKey)
         githubRepo = try container.decodeIfPresent(String.self, forKey: .githubRepo)
         githubInstallationId = try container.decodeIfPresent(Int.self, forKey: .githubInstallationId)
+        dispatchLabels = (try? container.decodeIfPresent([String].self, forKey: .dispatchLabels)) ?? ["claude", "antigravity"]
+        dispatchComment = try? container.decodeIfPresent(String.self, forKey: .dispatchComment)
+        dispatchCopilot = (try? container.decodeIfPresent(Bool.self, forKey: .dispatchCopilot)) ?? false
         
         let dateString = try container.decode(String.self, forKey: .createdAt)
         createdAt = PortalDateFormatter.parse(dateString) ?? Date()

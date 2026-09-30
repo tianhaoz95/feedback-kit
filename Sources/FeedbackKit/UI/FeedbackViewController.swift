@@ -68,6 +68,7 @@ final class FeedbackViewController: UIViewController {
     // responder state on it directly (see the note on
     // composerBottomConstraint above; same reasoning).
     let textView = UITextView()
+    var textViewHeightConstraint: NSLayoutConstraint!
     // Not `private` — FeedbackViewControllerThemeTests reads these tint
     // colors directly to verify `FeedbackKit.theme` reaches the composer's
     // controls (same reasoning as `textView`/`composerBottomConstraint`
@@ -196,6 +197,7 @@ final class FeedbackViewController: UIViewController {
             height: islandHeight
         )
         cameraIslandView.layer.cornerRadius = islandHeight / 2
+        updateTextViewHeight()
     }
 
     // MARK: - Building
@@ -263,8 +265,15 @@ final class FeedbackViewController: UIViewController {
         textView.backgroundColor = .clear
         textView.delegate = self
         textView.isScrollEnabled = false
+        textView.showsVerticalScrollIndicator = true
+        textView.alwaysBounceVertical = false
         textView.textContainerInset = .zero
         textView.textContainer.lineFragmentPadding = 0
+
+        let heightConstraint = textView.heightAnchor.constraint(equalToConstant: 24)
+        heightConstraint.priority = .defaultHigh
+        heightConstraint.isActive = true
+        textViewHeightConstraint = heightConstraint
         textView.heightAnchor.constraint(greaterThanOrEqualToConstant: 24).isActive = true
         textView.heightAnchor.constraint(lessThanOrEqualToConstant: 120).isActive = true
 
@@ -648,14 +657,26 @@ final class FeedbackViewController: UIViewController {
 
         dismiss(animated: true) { [weak self] in self?.onComplete(report) }
     }
+
+    func updateTextViewHeight() {
+        placeholderLabel.isHidden = !textView.text.isEmpty
+        let width = textView.bounds.width > 0 ? textView.bounds.width : (view.bounds.width - 56)
+        let size = textView.sizeThatFits(CGSize(width: max(width, 100), height: .greatestFiniteMagnitude))
+        let targetHeight = min(max(size.height, 24), 120)
+        textViewHeightConstraint?.constant = targetHeight
+        let shouldScroll = size.height > 120
+        if textView.isScrollEnabled != shouldScroll {
+            textView.isScrollEnabled = shouldScroll
+        }
+        if shouldScroll {
+            textView.scrollRangeToVisible(textView.selectedRange)
+        }
+    }
 }
 
 extension FeedbackViewController: UITextViewDelegate {
     func textViewDidChange(_ textView: UITextView) {
-        placeholderLabel.isHidden = !textView.text.isEmpty
-        textView.invalidateIntrinsicContentSize()
-        let contentHeight = textView.sizeThatFits(CGSize(width: textView.bounds.width, height: .greatestFiniteMagnitude)).height
-        textView.isScrollEnabled = contentHeight > 120
+        updateTextViewHeight()
     }
 }
 
