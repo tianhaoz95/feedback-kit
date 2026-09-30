@@ -346,7 +346,7 @@ Configure from client-only code (it touches \`window\`/\`document\`): in Next.js
 
 ## The composer's + menu
 
-The + button under the text box opens: Attach file…, Take photo (phones/tablets — opens the camera), then two checkmarked options: Include screenshot (on) and Notify me when it's fixed (off; \`report.notifyReporter\`, sent as \`notify_reporter\`). Only reporters who opt in see the "is it fixed?" card and questions (\`enableFixVerification()\`).
+An "Include screenshot" switch (on) sits under the text box; turning it off sends the report without a screenshot. The + button below it opens: Attach file…, Take photo (phones/tablets — opens the camera), then the checkmarked Notify me when it's fixed option (off; \`report.notifyReporter\`, sent as \`notify_reporter\`). Only reporters who opt in see the "is it fixed?" card and questions (\`enableFixVerification()\`).
 
 ## What's different from native reports
 

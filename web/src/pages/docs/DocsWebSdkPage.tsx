@@ -218,13 +218,17 @@ FeedbackKit.setUser({ email: user.email }); // optional`}
         <CodeBlock code={renderer} label="TypeScript" />
       </DocsSection>
 
-      <DocsSection title="The composer's + menu">
+      <DocsSection title="Screenshot switch and the + menu">
         <p>
-          The <strong>+</strong> button under the text box opens a menu: <strong>Attach file…</strong>,{" "}
-          <strong>Take photo</strong> (on phones and tablets, where it opens the camera), and two options with
-          checkmarks, <strong>Include screenshot</strong> (on) and <strong>Notify me when it&apos;s fixed</strong>{" "}
-          (off). Options that differ from the defaults are listed next to the button. The choice is on the report as{" "}
-          <InlineCode>notifyReporter</InlineCode>, sent as <InlineCode>notify_reporter</InlineCode>.
+          An <strong>Include screenshot</strong> switch (on) sits under the text box. Turning it off dims the
+          screenshot and sends the report without it, for a report that&apos;s pure description.
+        </p>
+        <p>
+          The <strong>+</strong> button below it opens a menu: <strong>Attach file…</strong>,{" "}
+          <strong>Take photo</strong> (on phones and tablets, where it opens the camera), and{" "}
+          <strong>Notify me when it&apos;s fixed</strong> (off, with a checkmark when on; shown next to the button). The
+          choice is on the report as <InlineCode>notifyReporter</InlineCode>, sent as{" "}
+          <InlineCode>notify_reporter</InlineCode>.
         </p>
       </DocsSection>
 

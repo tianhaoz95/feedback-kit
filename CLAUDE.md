@@ -691,7 +691,9 @@ Rules for skills:
   The composer's attach (**+**) button is a menu on every platform: Attach
   File, Take Photo (iOS, only with the host app's `NSCameraUsageDescription`;
   touch devices on the web), then the "Include Screenshot" and "Notify Me
-  When It's Fixed" toggles. There's no switch in the composer row any more.
+  When It's Fixed" toggles — except that the web SDK shows "Include
+  screenshot" as a switch under the text box instead (reporters didn't find
+  it in the menu), so its menu only has "Notify me".
   `FeedbackReport.notifyReporter` defaults to false and goes on the wire as
   `notify_reporter`, which is mirrored in `IngestPayload`, the ingest function,
   and the web and CLI types. `reporter-updates` hides reports with

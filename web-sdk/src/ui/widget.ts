@@ -497,9 +497,10 @@ class Dialog {
     productsGroup.dataset.role = "products";
     productsGroup.hidden = true;
 
-    // One "+" button opens a menu with the ways to attach and the report
-    // options (screenshot, notify me) — the same layout as the iOS/macOS
-    // composers, where a row of switches didn't fit.
+    // One "+" button opens a menu with the ways to attach and "notify me".
+    // The screenshot switch sits in the composer itself rather than in that
+    // menu (unlike the iOS/macOS composers): the web panel has the room, and
+    // reporters didn't find it behind the "+".
     const optionsRow = el("div", "fk-row");
     const fileInput = document.createElement("input");
     fileInput.type = "file";
@@ -527,7 +528,7 @@ class Dialog {
     const summary = el("span", "fk-options-summary");
     const renderSummary = () => {
       const parts: string[] = [];
-      if (!this.includeScreenshot) parts.push("No screenshot");
+      if (!this.shot) parts.push("No screenshot");
       if (this.notifyReporter) parts.push("Notify me");
       summary.textContent = parts.join(" · ");
     };
@@ -552,16 +553,6 @@ class Dialog {
       menu.append(item("Attach file…", () => fileInput.click()));
       if (window.matchMedia?.("(pointer: coarse)").matches) menu.append(item("Take photo", () => cameraInput.click()));
       menu.append(el("hr", "fk-menu-sep"));
-      if (this.shot) {
-        menu.append(
-          item("Include screenshot", () => {
-            this.includeScreenshot = !this.includeScreenshot;
-            this.stage.dataset.screenshot = this.includeScreenshot ? "on" : "off";
-            renderSummary();
-            this.refreshState();
-          }, this.includeScreenshot),
-        );
-      }
       menu.append(
         item("Notify me when it's fixed", () => {
           this.notifyReporter = !this.notifyReporter;
@@ -617,7 +608,17 @@ class Dialog {
     this.sendButton.addEventListener("click", () => void this.send());
     actions.append(cancel, this.sendButton);
 
-    composer.append(header, textGroup, productsGroup, optionsRow);
+    composer.append(header, textGroup, productsGroup);
+    if (this.shot) {
+      composer.append(
+        switchControl("Include screenshot", this.includeScreenshot, (on) => {
+          this.includeScreenshot = on;
+          this.stage.dataset.screenshot = on ? "on" : "off";
+          this.refreshState();
+        }),
+      );
+    }
+    composer.append(optionsRow);
     if (meta) composer.append(meta);
     composer.append(el("div", "fk-spacer"), this.errorBox, actions);
     this.refreshState();

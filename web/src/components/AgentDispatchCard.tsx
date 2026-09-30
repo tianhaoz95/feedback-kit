@@ -40,6 +40,9 @@ jobs:
           label_trigger: claude
           allowed_bots: feedbackkit-app   # FeedbackKit's GitHub App adds the label`;
 
+/** The agents a label turns on (every SETUP_AGENTS entry but Copilot, which is an assignment). */
+const LABEL_AGENTS = SETUP_AGENTS.filter((a) => a.id !== "copilot").map((a) => a.id);
+
 const runnerSkillCommand = "npx skills add feedback-kit-skills --skill setup-agent-runner --yes";
 
 /**
@@ -59,7 +62,13 @@ export function AgentDispatchCard({
   setupAgent?: string | null;
   onProjectUpdated: (updated: Partial<Project>) => void;
 }) {
-  const [labels, setLabels] = useState((project.dispatch_labels ?? []).join(", "));
+  // Known agents' labels are checkboxes; `labels` holds only the project's other (custom) labels.
+  const [agentLabels, setAgentLabels] = useState(() =>
+    (project.dispatch_labels ?? []).filter((l) => LABEL_AGENTS.includes(l as SetupAgent)),
+  );
+  const [labels, setLabels] = useState(() =>
+    (project.dispatch_labels ?? []).filter((l) => !LABEL_AGENTS.includes(l as SetupAgent)).join(", "),
+  );
   const [comment, setComment] = useState(project.dispatch_comment ?? "");
   const [copilot, setCopilot] = useState(project.dispatch_copilot ?? false);
   const [connection, setConnection] = useState<GitHubUserConnection | null | undefined>(undefined);
@@ -108,10 +117,11 @@ export function AgentDispatchCard({
 
   const releaseCommand = `npx feedbackkit-cli release --project ${project.id} --build "$BUILD_NUMBER"`;
 
-  const parsedLabels = labels
+  const customLabels = labels
     .split(",")
     .map((l) => l.trim())
     .filter(Boolean);
+  const parsedLabels = [...new Set([...agentLabels, ...customLabels])];
 
   async function save(nextLabels = parsedLabels, nextCopilot = copilot) {
     const nextComment = comment.trim() || null;
@@ -127,7 +137,8 @@ export function AgentDispatchCard({
       setError(getErrorMessage(updateError, "Failed to save."));
       return;
     }
-    setLabels(nextLabels.join(", "));
+    setAgentLabels(nextLabels.filter((l) => LABEL_AGENTS.includes(l as SetupAgent)));
+    setLabels(nextLabels.filter((l) => !LABEL_AGENTS.includes(l as SetupAgent)).join(", "));
     setCopilot(nextCopilot);
     onProjectUpdated({ dispatch_labels: nextLabels, dispatch_comment: nextComment, dispatch_copilot: nextCopilot });
     setSaved(true);
@@ -242,23 +253,65 @@ export function AgentDispatchCard({
       </div>
 
       <div className="space-y-3">
+        <div className="text-xs">
+          <div className="font-medium text-neutral-700">Agents that get new issues</div>
+          <p className="mt-0.5 text-neutral-500">
+            Only the agents checked here show up in a report&apos;s send menu. Each one needs its workflow in your repo
+            first — pick it above for the steps.
+          </p>
+          <div className="mt-2 divide-y divide-neutral-100 rounded-lg border border-neutral-200">
+            {SETUP_AGENTS.filter((a) => a.id !== "copilot").map((a) => (
+              <label key={a.id} className="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-3 py-2 text-neutral-700">
+                <input
+                  type="checkbox"
+                  checked={agentLabels.includes(a.id)}
+                  onChange={(e) => {
+                    setAgentLabels((prev) => (e.target.checked ? [...prev, a.id] : prev.filter((l) => l !== a.id)));
+                    setSaved(false);
+                  }}
+                />
+                <AgentGlyph icon={a.icon} className="h-4 w-4" />
+                <span className="font-medium text-neutral-900">{a.name}</span>
+                <span className="text-neutral-500">
+                  adds the <code className="font-mono">{a.id}</code> label
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setGuide(a.id)}
+                  className="ml-auto text-[11px] font-medium text-neutral-500 hover:text-neutral-900"
+                >
+                  Setup steps
+                </button>
+              </label>
+            ))}
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-3 py-2 text-neutral-700">
+              <CheckIcon className="h-3.5 w-3.5 text-neutral-400" />
+              <AgentGlyph icon="local" className="h-4 w-4" />
+              <span className="font-medium text-neutral-900">Your machine</span>
+              <span className="text-neutral-500">
+                always available — Claude Code or Codex, run by <code className="font-mono">npx feedbackkit-cli watch</code>{" "}
+                in your repo
+              </span>
+            </div>
+          </div>
+          <span className="mt-1 block text-neutral-500">GitHub Copilot is an assignment rather than a label; it&apos;s below.</span>
+        </div>
         <label className="block text-xs font-medium text-neutral-700">
-          Labels to add
+          Other labels
           <input
             value={labels}
             onChange={(e) => {
               setLabels(e.target.value);
               setSaved(false);
             }}
-            placeholder="claude"
+            placeholder="my-agent"
             className="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 font-mono text-xs focus:border-neutral-400 focus:outline-none"
           />
           <span className="mt-1 block font-normal text-neutral-500">
-            Comma-separated. A label is the most reliable trigger — e.g. <code className="font-mono">claude</code> for
-            claude-code-action&apos;s <code className="font-mono">label_trigger</code> (with{" "}
-            <code className="font-mono">allowed_bots: feedbackkit-app</code>, since FeedbackKit&apos;s app adds it), or
-            whatever your agent workflow listens for. The <code className="font-mono">setup-agent-runner</code> skill sets
-            this up on a self-hosted Mac, where the agent can build and run your app.
+            Optional, comma-separated: labels for any other agent workflow you run. Each one shows up in the send menu
+            under its label. Workflows must accept labels added by a bot (e.g.{" "}
+            <code className="font-mono">allowed_bots: feedbackkit-app</code> for claude-code-action), since
+            FeedbackKit&apos;s app adds them.
           </span>
         </label>
         <label className="block text-xs font-medium text-neutral-700">

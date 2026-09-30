@@ -192,13 +192,15 @@ async function runSuite(name, browser) {
   // ---- 2. screenshot toggled off, logs opted out → no screenshot fields
   await page.locator(".fk-trigger").click();
   await page.locator(".fk-ink").waitFor();
-  // Both report options live in the "+" menu now; the menu closes after each choice.
+  // The screenshot switch is in the composer; "Notify me" lives in the "+" menu.
+  assert.equal(await page.locator('.fk-switch:has-text("Include screenshot") input').isChecked(), true);
+  await page.locator('.fk-switch:has-text("Include screenshot")').click();
+  assert.equal(await page.locator(".fk-stage").getAttribute("data-screenshot"), "off");
   await page.locator(".fk-plus").click();
   await page.screenshot({ path: path.join(outDir, `${name}-menu.png`) });
-  await page.locator('.fk-menu-item:has-text("Include screenshot")').click();
-  await page.locator(".fk-plus").click();
+  assert.equal(await page.locator('.fk-menu-item:has-text("Include screenshot")').count(), 0);
   await page.locator('.fk-menu-item:has-text("Notify me")').click();
-  assert.equal(await page.locator(".fk-options-summary").textContent(), "No screenshot · Notify me");
+  assert.equal(await page.locator(".fk-options-summary").textContent(), "Notify me");
   await page.locator('.fk-switch:has-text("Include console")').click();
   await page.locator("#fk-text").fill("Text only");
   await page.keyboard.press(process.platform === "darwin" ? "Meta+Enter" : "Control+Enter");
