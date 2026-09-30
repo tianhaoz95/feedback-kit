@@ -28,7 +28,8 @@
   "license": "MIT",
   "files": [
     "skills",
-    "README.md"
+    "README.md",
+    "bin"
   ],
   "scripts": {
     "new": "node scripts/new-skill.mjs",
@@ -42,6 +43,12 @@
     "picocolors": "^1.1.1"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.20.0"
+  },
+  "bin": {
+    "feedback-kit-skills": "bin/feedback-kit-skills.mjs"
+  },
+  "dependencies": {
+    "skills": "^1.7.0"
   }
 }

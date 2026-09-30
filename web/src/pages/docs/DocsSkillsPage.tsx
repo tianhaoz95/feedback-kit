@@ -2,25 +2,22 @@ import { Link } from "react-router-dom";
 import { CodeBlock } from "@/components/docs/CodeBlock";
 import { DocsCallout, DocsSection, DocsTable, DocsTitle, InlineCode } from "@/components/docs/DocsProse";
 
-const npxList = `npx skills add feedback-kit-skills --list
-
-# Or via GitHub repository shorthand:
-npx skills add tianhaoz95/feedback-kit --list`;
+const npxList = `npx skills add tianhaoz95/feedback-kit --list`;
 
 const npxInstallAll = `# Interactively choose skills to install into your agent
-npx skills add feedback-kit-skills`;
+npx skills add tianhaoz95/feedback-kit`;
 
 const npxInstallIos = `# Install the iOS SDK setup skill directly
-npx skills add feedback-kit-skills --skill setup-ios-sdk --yes`;
+npx skills add tianhaoz95/feedback-kit --skill setup-ios-sdk --yes`;
 
 const npxInstallMac = `# Install the macOS SDK setup skill directly
-npx skills add feedback-kit-skills --skill setup-macos-sdk --yes`;
+npx skills add tianhaoz95/feedback-kit --skill setup-macos-sdk --yes`;
 
 const npxInstallWatch = `# Install the watchOS SDK setup skill directly
-npx skills add feedback-kit-skills --skill setup-watchos-sdk --yes`;
+npx skills add tianhaoz95/feedback-kit --skill setup-watchos-sdk --yes`;
 
 const npxInstallMcp = `# Install the MCP server setup skill directly
-npx skills add feedback-kit-skills --skill setup-mcp-server --yes`;
+npx skills add tianhaoz95/feedback-kit --skill setup-mcp-server --yes`;
 
 const agentPromptIos = `Please add FeedbackKit to this iOS app:
 - Add the package dependency
@@ -44,7 +41,7 @@ export function DocsSkillsPage() {
       <DocsTitle
         eyebrow="Agent Skills"
         title="Agent Skills for FeedbackKit"
-        description="Automate SDK installation, trigger wiring, and MCP configuration using AI coding agents. FeedbackKit packages Agent Skills compliant with the vercel-labs/skills open standard via the dedicated feedback-kit-skills package."
+        description="Automate SDK installation, trigger wiring, and MCP configuration using AI coding agents. FeedbackKit packages Agent Skills compliant with the vercel-labs/skills open standard from the tianhaoz95/feedback-kit GitHub repository."
       />
 
       <DocsSection title="What are Agent Skills?">
@@ -70,7 +67,7 @@ export function DocsSkillsPage() {
 
       <DocsSection title="Available skills">
         <p>
-          FeedbackKit publishes the <InlineCode>feedback-kit-skills</InlineCode> package containing four targeted skills:
+          The <InlineCode>tianhaoz95/feedback-kit</InlineCode> repository contains these targeted skills:
         </p>
 
         <DocsTable
@@ -127,7 +124,7 @@ export function DocsSkillsPage() {
 
       <DocsSection title="Install with npx skills">
         <p>
-          Install skills directly from your terminal using <InlineCode>feedback-kit-skills</InlineCode>:
+          Install skills directly from your terminal with the <InlineCode>tianhaoz95/feedback-kit</InlineCode> GitHub shorthand (<InlineCode>npx skills</InlineCode> installs from a repository, not an npm package name):
         </p>
         <CodeBlock code={npxList} label="List discoverable skills" />
 
@@ -151,7 +148,7 @@ export function DocsSkillsPage() {
         <p>
           In a repository where you want to add FeedbackKit, install the setup skill:
         </p>
-        <CodeBlock code={`npx skills add feedback-kit-skills --skill setup-ios-sdk --yes`} label="Terminal" />
+        <CodeBlock code={`npx skills add tianhaoz95/feedback-kit --skill setup-ios-sdk --yes`} label="Terminal" />
         <p>Then start Claude Code and ask it to perform the setup:</p>
         <CodeBlock code={agentPromptIos} label="You, to Claude Code" />
         <p>
@@ -165,7 +162,7 @@ export function DocsSkillsPage() {
           Both Cursor and Google Antigravity support Agent Skills placed in your workspace or global config directories.
         </p>
         <p>
-          Run <InlineCode>npx skills add feedback-kit-skills</InlineCode> in your project root. The skills will be
+          Run <InlineCode>npx skills add tianhaoz95/feedback-kit</InlineCode> in your project root. The skills will be
           installed into your project's agent configuration where they are automatically discovered when you ask:
         </p>
         <CodeBlock code={`Please setup FeedbackKit in our macOS app and wire up a floating trigger button.`} label="You, to your agent" />
@@ -175,7 +172,7 @@ export function DocsSkillsPage() {
         <p>
           To connect your agent directly to your FeedbackKit dashboard so it can fetch bug reports and prompts without copy-pasting:
         </p>
-        <CodeBlock code={`npx skills add feedback-kit-skills --skill setup-mcp-server --yes`} label="Terminal" />
+        <CodeBlock code={`npx skills add tianhaoz95/feedback-kit --skill setup-mcp-server --yes`} label="Terminal" />
         <p>Then ask your agent:</p>
         <CodeBlock code={agentPromptMcp} label="You, to your agent" />
         <p>

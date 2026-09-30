@@ -43,7 +43,14 @@ jobs:
 /** The agents a label turns on (every SETUP_AGENTS entry but Copilot, which is an assignment). */
 const LABEL_AGENTS = SETUP_AGENTS.filter((a) => a.id !== "copilot").map((a) => a.id);
 
-const runnerSkillCommand = "npx skills add feedback-kit-skills --skill setup-agent-runner --yes";
+type ClaudeRunner = "hosted" | "self-hosted";
+
+const CLAUDE_RUNNERS: { id: ClaudeRunner; name: string }[] = [
+  { id: "hosted", name: "GitHub-hosted" },
+  { id: "self-hosted", name: "Self-hosted Mac" },
+];
+
+const runnerSkillCommand = "npx skills add tianhaoz95/feedback-kit --skill setup-agent-runner --yes";
 
 /**
  * How the loop hands work to a coding agent and gets it back to the reporter
@@ -80,6 +87,7 @@ export function AgentDispatchCard({
   const [guide, setGuide] = useState<SetupAgent>(() =>
     SETUP_AGENTS.some((a) => a.id === setupAgent) ? (setupAgent as SetupAgent) : "claude",
   );
+  const [claudeRunner, setClaudeRunner] = useState<ClaudeRunner>("hosted");
   const sectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -153,6 +161,8 @@ export function AgentDispatchCard({
   const savedLabels = project.dispatch_labels ?? [];
   const enabled = (agent: SetupAgent) => (agent === "copilot" ? !!project.dispatch_copilot : savedLabels.includes(agent));
   const guideAgent = SETUP_AGENTS.find((a) => a.id === guide)!;
+  const guideDocs =
+    guide === "claude" && claudeRunner === "self-hosted" ? "/docs/agents#self-hosted-mac-runner" : guideAgent.docs;
 
   return (
     <section ref={sectionRef} className="scroll-mt-24 space-y-4 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
@@ -195,17 +205,60 @@ export function AgentDispatchCard({
           </p>
         ) : null}
 
+        {guide === "claude" ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-neutral-600">
+            <span>Runs on</span>
+            <div className="inline-flex rounded-lg border border-neutral-200 bg-white p-0.5" role="radiogroup" aria-label="Where Claude Code runs">
+              {CLAUDE_RUNNERS.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={claudeRunner === r.id}
+                  onClick={() => setClaudeRunner(r.id)}
+                  className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                    claudeRunner === r.id ? "bg-neutral-900 text-white" : "text-neutral-600 hover:text-neutral-900"
+                  }`}
+                >
+                  {r.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         <ol className="mt-3 list-decimal space-y-3 pl-5 text-xs text-neutral-700">
           {guide === "claude" ? (
             <>
-              <Step title={<>Add this workflow to your repo as <code className="font-mono">.github/workflows/claude.yml</code></>}>
-                It runs Claude Code on GitHub&apos;s runners whenever FeedbackKit labels an issue <code className="font-mono">claude</code>.
-                <CodeSnippet code={claudeWorkflow} />
-              </Step>
+              {claudeRunner === "hosted" ? (
+                <Step title={<>Add this workflow to your repo as <code className="font-mono">.github/workflows/claude.yml</code></>}>
+                  It runs Claude Code on GitHub&apos;s Linux runners whenever FeedbackKit labels an issue{" "}
+                  <code className="font-mono">claude</code>. They can&apos;t build iOS or macOS apps; pick{" "}
+                  <b>Self-hosted Mac</b> for that.
+                  <CodeSnippet code={claudeWorkflow} />
+                </Step>
+              ) : (
+                <>
+                  <Step title="Install the setup-agent-runner skill in your repo">
+                    <CodeSnippet code={runnerSkillCommand} />
+                  </Step>
+                  <Step title="Ask your coding agent to set up the Claude Code runner">
+                    On the Mac that will run it: it registers that Mac as a self-hosted runner and adds a workflow that runs
+                    on the <code className="font-mono">claude</code> label, so the agent can build the app and run the
+                    Simulator. Use a private repository: anyone who can open a PR on a public one could run code on the Mac.
+                  </Step>
+                </>
+              )}
               <Step title={<>Add a <code className="font-mono">CLAUDE_CODE_OAUTH_TOKEN</code> repository secret</>}>
                 Run <code className="font-mono">claude setup-token</code> and paste the token into the repo&apos;s Settings → Secrets
-                and variables → Actions. To build and run iOS or macOS apps, use a self-hosted Mac instead:{" "}
-                <code className="font-mono">{runnerSkillCommand}</code>, then ask your coding agent to set up the Claude Code runner.
+                and variables → Actions. It signs Claude Code in with your Claude subscription (an{" "}
+                <code className="font-mono">ANTHROPIC_API_KEY</code> secret works too, billed per token).
+                {claudeRunner === "self-hosted" ? (
+                  <>
+                    {" "}Still needed on a self-hosted Mac: the Claude Code GitHub Action only signs in from a secret, not from
+                    a <code className="font-mono">claude</code> login on that Mac.
+                  </>
+                ) : null}
               </Step>
             </>
           ) : guide === "antigravity" ? (
@@ -245,7 +298,7 @@ export function AgentDispatchCard({
         </ol>
         <p className="mt-3 text-[11px] text-neutral-500">
           More detail:{" "}
-          <Link to={guideAgent.docs} className="font-medium text-neutral-700 underline hover:text-neutral-900">
+          <Link to={guideDocs} className="font-medium text-neutral-700 underline hover:text-neutral-900">
             {guideAgent.name} in Hand reports to an agent
           </Link>
           .

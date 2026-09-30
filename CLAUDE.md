@@ -315,6 +315,7 @@ npm run new -- <cat>/<name> "description"  # Non-interactive scaffolder
 
 Rules for skills:
 - Always run `npm run validate` after creating or modifying skills.
+- The npm package (`feedback-kit-skills`, published by `publish-skills.yml`) is these skills plus `bin/feedback-kit-skills.mjs`: `npx feedback-kit-skills --skill <name>` runs `skills add` on the bundled copy and rewrites its `skills-lock.json` entries to the GitHub source. `npx skills add` itself can't take an npm package name.
 - Keep `name` in frontmatter identical to directory basename (`skills/<category>/<skill-name>/SKILL.md`).
 - Keep `## Skills Catalog` in `README.md` synchronized with `skills/`.
 - Multi-file skills can include templates in a `templates/` subdirectory.

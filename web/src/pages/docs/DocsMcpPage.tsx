@@ -133,7 +133,7 @@ export function DocsMcpPage() {
           <Link to="/docs/skills" className="font-semibold underline">
             setup-mcp-server Agent Skill
           </Link>
-          : <InlineCode>npx skills add feedback-kit-skills --skill setup-mcp-server --yes</InlineCode>.
+          : <InlineCode>npx skills add tianhaoz95/feedback-kit --skill setup-mcp-server --yes</InlineCode>.
         </DocsCallout>
       </DocsSection>
 
