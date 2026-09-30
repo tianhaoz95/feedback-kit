@@ -280,8 +280,9 @@ FEEDBACKKIT_RELEASE_TOKEN`, or in project Settings → Access tokens.
 `FEEDBACKKIT_TOKEN` and the CLI and MCP server act as the token, limited to
 its project and scopes (`feedbackkit docs cli` lists them). Agent workflows
 store an `agent` token as `FEEDBACKKIT_AGENT_TOKEN`, run
-`feedbackkit token issue --feedback <id>` for each report, and give the agent
-only that short-lived, one-report token.
+`feedbackkit token issue --feedback <id>...` for each run (every report of a
+merged issue, so updates land on the right one), and give the agent only that
+short-lived token limited to those reports.
 `FEEDBACKKIT_API_URL` points token mode at a self-hosted backend. See
 DESIGN.md §8.
 

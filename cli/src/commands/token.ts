@@ -131,21 +131,26 @@ export async function revokeToken(id: string): Promise<void> {
 }
 
 /**
- * `feedbackkit token issue --feedback <id>` — a token limited to one report
- * that expires soon (default 60 min). CI runs this with its agent-runner
- * token (tokens:issue) and hands the result to the coding agent, so the
- * agent never holds a project-wide credential.
+ * `feedbackkit token issue --feedback <id>...` — a token limited to one report
+ * (or the reports of one merged batch) that expires soon (default 60 min). CI
+ * runs this with its agent-runner token (tokens:issue) and hands the result
+ * to the coding agent, so the agent never holds a project-wide credential.
  */
-export async function issueToken(options: { feedback: string; ttl?: string; name?: string }): Promise<void> {
+export async function issueToken(options: { feedback: string[]; ttl?: string; name?: string }): Promise<void> {
   const ttl = options.ttl === undefined ? 60 : Number(options.ttl);
   if (!Number.isInteger(ttl) || ttl < 5 || ttl > 720) throw new Error("--ttl is in minutes, 5 to 720.");
+  const ids = [...new Set(options.feedback.flatMap((id) => id.split(/[\s,]+/)).filter(Boolean))];
+  if (ids.length === 0) throw new Error("--feedback needs a report id.");
   const client = await getAuthenticatedClient();
   const { data, error } = await client.rpc("issue_access_token", {
-    p_feedback_id: options.feedback,
+    p_feedback_id: ids[0],
     p_ttl_minutes: ttl,
     p_name: options.name ?? null,
+    // Only sent for a batch, so a single report still works against a
+    // backend from before 0026_batch_run_tokens.sql.
+    ...(ids.length > 1 ? { p_feedback_ids: ids.slice(1) } : {}),
   });
   if (error) throw new Error(error.message);
   console.log(data as string);
-  console.error(`Limited to report ${options.feedback}; expires in ${ttl} minutes.`);
+  console.error(`Limited to ${ids.length === 1 ? `report ${ids[0]}` : `reports ${ids.join(", ")}`}; expires in ${ttl} minutes.`);
 }

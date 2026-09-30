@@ -83,7 +83,8 @@ ${trailers}
 ${trailers}
    If you open a pull request instead, put the same ${single ? "line" : "lines"} in its description. Without the GitHub App, call \`link_fix\` with the commit sha.
 3. Don't mark ${single ? "it" : "them"} resolved yourself: once the fix ships in a build, the reporter confirms it on their device.`}
-4. If you can run the fixed app, call \`attach_preview\` with a screenshot of the screen the reporter showed (and, with a caption, any capture that shows progress along the way), so the team can review it on the report without running the build.`;
+4. If you can run the fixed app, call \`attach_preview\` with a screenshot of the screen the reporter showed (and, with a caption, any capture that shows progress along the way), so the team can review it on the report without running the build.${single ? "" : `
+   Post each \`attach_preview\` and \`post_update\` to the report it's about (its \`feedback_id\`), not all to the first one.`}`;
 }
 
 const WEB_PLACEHOLDERS = /{{\s*(page_url|console_logs|browser)\s*}}/;

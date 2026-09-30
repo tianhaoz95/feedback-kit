@@ -532,7 +532,7 @@ feedbackkit login --dashboard-url http://localhost:3000
 | \`feedbackkit promote --build <n>\` | Record that a beta build went to production. |
 | \`feedbackkit token create <name> [--preset ci\|agent\|read] [--scope <s>] [--expires 90d\|never]\` | Create a project access token (printed once). Default preset: \`ci\` (announce releases). |
 | \`feedbackkit token list \\| revoke <id>\` | List a project's tokens with scopes and expiry, or revoke one (and every run token it issued). |
-| \`feedbackkit token issue --feedback <id> [--ttl <min>]\` | A short-lived token limited to one report, for a coding agent's run (with an \`agent\` token or a login). |
+| \`feedbackkit token issue --feedback <id>... [--ttl <min>]\` | A short-lived token limited to one report (or every report of a merged issue), for a coding agent's run (with an \`agent\` token or a login). |
 | \`feedbackkit watch [--project <id>] [--agent claude\|codex] [--agent-cmd <cmd>] [--auto] [--max-runs <n>] [--no-pr] [--once]\` | Run your own coding agent on reports queued with **Run on my machine**: each run gets a git worktree, and the fix is pushed and opened as a PR with the \`FeedbackKit:\` trailer. \`--auto\` also takes every new report (report text is agent input, so only for trusted reporters). |
 | \`feedbackkit delivery [batch\|branch]\` | Show or set how the project delivers fixes (see the \`delivery\` topic). |
 | \`feedbackkit docs [topic]\` | Print this documentation (no topic = list topics). |

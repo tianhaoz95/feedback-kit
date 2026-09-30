@@ -136,7 +136,7 @@ Then continue at Step 5.
 
 ### The agent-runner token (every route)
 
-The FeedbackKit MCP tools need to act on the report. No login on the runner: store an **Agent runner** access token as a secret, and each workflow run trades it for a token limited to that run's report that expires in 90 minutes (`feedbackkit token issue`). Only that run token reaches the agent, so a report that talks the agent into leaking it exposes one report for an hour, not the project.
+The FeedbackKit MCP tools need to act on the report. No login on the runner: store an **Agent runner** access token as a secret, and each workflow run trades it for a token limited to that run's report (every report, for an issue that merges several, so each update lands on its own report) that expires in 90 minutes (`feedbackkit token issue`). Only that run token reaches the agent, so a report that talks the agent into leaking it exposes one report for an hour, not the project.
 
 ```bash
 npx feedbackkit-cli token create agent-runner --preset agent --project <project-id> | gh secret set FEEDBACKKIT_AGENT_TOKEN

@@ -230,11 +230,11 @@ tokenCommand
 
 tokenCommand
   .command("issue")
-  .requiredOption("--feedback <id>", "The report the new token is limited to.")
+  .requiredOption("--feedback <ids...>", "The report the new token is limited to; several (space- or comma-separated) for a merged batch.")
   .option("--ttl <minutes>", "Minutes until it expires (5–720, default 60).")
   .option("--name <name>", "Label shown in the token list.")
-  .description("Issue a short-lived token limited to one report, for a coding agent's run (needs a token with tokens:issue, or a login).")
-  .action(async (opts: { feedback: string; ttl?: string; name?: string }) => {
+  .description("Issue a short-lived token limited to one report (or a merged batch), for a coding agent's run (needs a token with tokens:issue, or a login).")
+  .action(async (opts: { feedback: string[]; ttl?: string; name?: string }) => {
     try {
       await issueToken(opts);
     } catch (err) {

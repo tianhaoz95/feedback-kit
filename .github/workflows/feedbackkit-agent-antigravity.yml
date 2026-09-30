@@ -87,15 +87,19 @@ jobs:
       - name: Issue a FeedbackKit token for this report
         # The agent-runner token (FEEDBACKKIT_AGENT_TOKEN: an access token with
         # tokens:issue, from project Settings → Access tokens) never reaches the
-        # agent. It issues a token limited to this one report that expires in
+        # agent. It issues a token limited to this run's report(s) that expires in
         # 90 minutes, and only that reaches the agent (and the FeedbackKit MCP
         # server it starts). Skipped when the secret isn't set.
         env:
           FEEDBACKKIT_TOKEN: ${{ secrets.FEEDBACKKIT_AGENT_TOKEN }}
         run: |
-          FEEDBACK_ID="$(printf '%s' "$ISSUE_BODY" | grep -oE 'FeedbackKit: [0-9a-fA-F-]{36}' | head -n1 | cut -d' ' -f2 || true)"
-          if [ -n "$FEEDBACKKIT_TOKEN" ] && [ -n "$FEEDBACK_ID" ]; then
-            RUN_TOKEN="$(npx -y feedbackkit-cli@latest token issue --feedback "$FEEDBACK_ID" --ttl 90 --name "run ${GITHUB_RUN_ID}")"
+          # A merged issue lists one `FeedbackKit: <id>` per report; the token covers
+          # all of them, so each update and preview can go to its own report.
+          FEEDBACK_IDS="$(printf '%s' "$ISSUE_BODY" | grep -oE 'FeedbackKit: [0-9a-fA-F-]{36}' | cut -d' ' -f2 | awk '!seen[$0]++' | xargs || true)"
+          if [ -n "$FEEDBACKKIT_TOKEN" ] && [ -n "$FEEDBACK_IDS" ]; then
+            # A CLI or backend from before batch run tokens takes one report only.
+            RUN_TOKEN="$(npx -y feedbackkit-cli@latest token issue --feedback $FEEDBACK_IDS --ttl 90 --name "run ${GITHUB_RUN_ID}" \
+              || npx -y feedbackkit-cli@latest token issue --feedback "${FEEDBACK_IDS%% *}" --ttl 90 --name "run ${GITHUB_RUN_ID}")"
             echo "::add-mask::$RUN_TOKEN"
             echo "FEEDBACKKIT_RUN_TOKEN=$RUN_TOKEN" >> "$GITHUB_ENV"
           fi
@@ -117,8 +121,10 @@ jobs:
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
           [ -n "${RUN_STARTED:-}" ] || echo "RUN_STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
           # FeedbackKit's issue body carries the report id; the trailer links the fix to it.
-          FEEDBACK_ID="$(printf '%s' "$ISSUE_BODY" | grep -oE 'FeedbackKit: [0-9a-fA-F-]{36}' | head -n1 | cut -d' ' -f2 || true)"
-          echo "FEEDBACK_ID=$FEEDBACK_ID" >> "$GITHUB_ENV"
+          # A merged issue lists one id per report; FEEDBACK_ID is the first.
+          FEEDBACK_IDS="$(printf '%s' "$ISSUE_BODY" | grep -oE 'FeedbackKit: [0-9a-fA-F-]{36}' | cut -d' ' -f2 | awk '!seen[$0]++' | xargs || true)"
+          FEEDBACK_ID="${FEEDBACK_IDS%% *}"
+          { echo "FEEDBACK_IDS=$FEEDBACK_IDS"; echo "FEEDBACK_ID=$FEEDBACK_ID"; } >> "$GITHUB_ENV"
           PROMPT="$RUNNER_TEMP/prompt.md"
           {
             echo "You are fixing one bug report from FeedbackKit, unattended, in this repository."
@@ -157,11 +163,18 @@ jobs:
               echo "- This machine lets you use only these tools (rule syntax: command(<command prefix>), read_url(<domain>), mcp(<server>/<tool>)): ${ALLOWED}. Anything else, including a pipe or && into an unlisted command or \$(...) substitution, ends the run immediately with nothing saved. Stay inside this repository; if the fix needs something you can't do with these (e.g. downloading an asset), make the rest of the change and explain what's missing."
             fi
             if [ -n "$FEEDBACK_ID" ]; then
-              echo "- If the feedbackkit MCP tools are available, this is FeedbackKit report ${FEEDBACK_ID}: call claim_feedback first; use ask_reporter only for something only the reporter can answer (then stop without changes)."
+              if [ "$FEEDBACK_IDS" = "$FEEDBACK_ID" ]; then
+                echo "- If the feedbackkit MCP tools are available, this is FeedbackKit report ${FEEDBACK_ID}: call claim_feedback first; use ask_reporter only for something only the reporter can answer (then stop without changes)."
+                CAPTURE_ID="$FEEDBACK_ID"
+              else
+                echo "- If the feedbackkit MCP tools are available, this issue merges FeedbackKit reports ${FEEDBACK_IDS} (the issue shows which is which): call claim_feedback for each first; use ask_reporter only for something only that report's reporter can answer (then stop without changes)."
+                echo "- Every FeedbackKit call takes a feedback_id: post each post_update, attach_preview and ask_reporter to the report it's about, not all to the first one. A capture that shows several reports' fixes goes on each of them."
+                CAPTURE_ID="<report id>"
+              fi
               echo "- Show your work with screenshots: the team reviews them on the report page instead of running the build. Call attach_preview (with a caption saying what it shows) once the fix works, and also at useful points along the way (e.g. the bug reproduced, a first version of the change), and use post_update for a one-line progress note. Only attach captures of this checkout."
               echo "- Capturing (run these after your change; each prints the PNG path to pass to attach_preview, with a caption):"
-              echo "  - Dashboard or website (web/): \`node scripts/agent-preview/capture-web.mjs --feedback ${FEEDBACK_ID}\` renders this checkout's web/ at the report's page (signed-in pages included, against a throwaway local backend). Add \`--path /some/route\` for another page."
-              echo "  - iOS Developer Portal (DeveloperApp/): \`node scripts/agent-preview/capture-portal.mjs --feedback ${FEEDBACK_ID}\` builds it, runs it in the Simulator in its offline demo mode (no sign-in needed) and screenshots the tab the report came from; \`--tab feedback|activity|projects|settings\` picks another. For a screen deeper than a tab, launch the app yourself with \`xcrun simctl launch <device> com.feedbackkit.developer -portal_demo_mode '<true/>'\`, get there, and \`xcrun simctl io <device> screenshot .agent-preview/after.png\`."
+              echo "  - Dashboard or website (web/): \`node scripts/agent-preview/capture-web.mjs --feedback ${CAPTURE_ID}\` renders this checkout's web/ at the report's page (signed-in pages included, against a throwaway local backend). Add \`--path /some/route\` for another page."
+              echo "  - iOS Developer Portal (DeveloperApp/): \`node scripts/agent-preview/capture-portal.mjs --feedback ${CAPTURE_ID}\` builds it, runs it in the Simulator in its offline demo mode (no sign-in needed) and screenshots the tab the report came from; \`--tab feedback|activity|projects|settings\` picks another. For a screen deeper than a tab, launch the app yourself with \`xcrun simctl launch <device> com.feedbackkit.developer -portal_demo_mode '<true/>'\`, get there, and \`xcrun simctl io <device> screenshot .agent-preview/after.png\`."
               echo "  - Other iOS apps: \`xcrun simctl io booted screenshot .agent-preview/after.png\` in the Simulator (or a short MP4, up to 30 s)."
             fi
           } > "$PROMPT"
@@ -212,7 +225,7 @@ jobs:
           # into plain text.
           SUMMARY="$(awk 'NF{l=$0} END{print l}' "$RUNNER_TEMP/summary.md" | sed -E 's#\[([^]]*)\]\(file://[^)]*\)#\1#g')"
           MESSAGE=(-m "Fix: ${ISSUE_TITLE}" -m "Fixes #${ISSUE_NUMBER}")
-          if [ -n "$FEEDBACK_ID" ]; then MESSAGE+=(-m "FeedbackKit: ${FEEDBACK_ID}"); fi
+          if [ -n "$FEEDBACK_IDS" ]; then MESSAGE+=(-m "$(printf 'FeedbackKit: %s\n' $FEEDBACK_IDS)"); fi
           git add -A
           git -c user.name="Antigravity (FeedbackKit)" -c user.email="feedbackkit-agent@users.noreply.github.com" \
             commit "${MESSAGE[@]}"
@@ -228,7 +241,7 @@ jobs:
             echo "$SUMMARY"
             echo
             echo "Fixes #${ISSUE_NUMBER}"
-            if [ -n "$FEEDBACK_ID" ]; then echo; echo "FeedbackKit: ${FEEDBACK_ID}"; fi
+            if [ -n "$FEEDBACK_IDS" ]; then echo; printf 'FeedbackKit: %s\n' $FEEDBACK_IDS; fi
           } > "$RUNNER_TEMP/pr.md"
           gh pr create --title "Fix: ${ISSUE_TITLE}" --body-file "$RUNNER_TEMP/pr.md" --head "$BRANCH"
           # The PR's CI: a PR opened by the run's own token is authored by the
@@ -263,7 +276,8 @@ jobs:
       - name: Attach a preview if the agent didn't
         # A web or iOS Portal fix without a screenshot from the agent: capture
         # this branch's dashboard at the report's page, or the Portal (demo
-        # mode) on the report's tab, and attach it. Skipped when the agent
+        # mode) on the report's tab, and attach it (to each report of a merged
+        # issue). Skipped when the agent
         # already attached one during this run, or neither app changed.
         # Best effort: a failed capture never fails the run.
         if: env.FEEDBACK_ID != ''
@@ -277,10 +291,15 @@ jobs:
           if [ -z "$FEEDBACKKIT_TOKEN" ]; then
             echo "No FeedbackKit token for this run."
           elif printf '%s\n' "$CHANGED" | grep -q '^web/'; then
-            node scripts/agent-preview/capture-web.mjs --feedback "$FEEDBACK_ID" --attach --since "$RUN_STARTED" --caption "$CAPTION" || [ $? -eq 3 ]
+            # Each report of a merged issue gets its own capture, at its own page.
+            for id in $FEEDBACK_IDS; do
+              node scripts/agent-preview/capture-web.mjs --feedback "$id" --attach --since "$RUN_STARTED" --caption "$CAPTION" || [ $? -eq 3 ]
+            done
           elif printf '%s\n' "$CHANGED" | grep -q '^DeveloperApp/'; then
-            node scripts/agent-preview/capture-portal.mjs --feedback "$FEEDBACK_ID" --attach --since "$RUN_STARTED" \
-              --caption "$CAPTION — the Portal's demo data, on the report's tab" || [ $? -eq 3 ]
+            for id in $FEEDBACK_IDS; do
+              node scripts/agent-preview/capture-portal.mjs --feedback "$id" --attach --since "$RUN_STARTED" \
+                --caption "$CAPTION — the Portal's demo data, on the report's tab" || [ $? -eq 3 ]
+            done
           else
             echo "No web or Portal change to preview."
           fi

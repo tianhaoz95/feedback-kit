@@ -47,7 +47,7 @@ jobs:
       - name: Issue a FeedbackKit token for this report
         # The agent-runner token (FEEDBACKKIT_AGENT_TOKEN: an access token with
         # tokens:issue, from project Settings → Access tokens) never reaches the
-        # agent. It issues a token limited to this one report that expires in
+        # agent. It issues a token limited to this run's report(s) that expires in
         # 90 minutes, and only that goes to the FeedbackKit MCP server. Skipped
         # (the MCP server falls back to the runner's `feedbackkit login`, if
         # any) when the secret isn't set.
@@ -55,9 +55,13 @@ jobs:
           FEEDBACKKIT_TOKEN: ${{ secrets.FEEDBACKKIT_AGENT_TOKEN }}
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
-          FEEDBACK_ID="$(printf '%s' "$ISSUE_BODY" | grep -oE 'FeedbackKit: [0-9a-fA-F-]{36}' | head -n1 | cut -d' ' -f2 || true)"
-          if [ -n "$FEEDBACKKIT_TOKEN" ] && [ -n "$FEEDBACK_ID" ]; then
-            RUN_TOKEN="$(npx -y feedbackkit-cli@latest token issue --feedback "$FEEDBACK_ID" --ttl 90 --name "run ${GITHUB_RUN_ID}")"
+          # A merged issue lists one `FeedbackKit: <id>` per report; the token covers
+          # all of them, so each update and preview can go to its own report.
+          FEEDBACK_IDS="$(printf '%s' "$ISSUE_BODY" | grep -oE 'FeedbackKit: [0-9a-fA-F-]{36}' | cut -d' ' -f2 | awk '!seen[$0]++' | xargs || true)"
+          if [ -n "$FEEDBACKKIT_TOKEN" ] && [ -n "$FEEDBACK_IDS" ]; then
+            # A CLI or backend from before batch run tokens takes one report only.
+            RUN_TOKEN="$(npx -y feedbackkit-cli@latest token issue --feedback $FEEDBACK_IDS --ttl 90 --name "run ${GITHUB_RUN_ID}" \
+              || npx -y feedbackkit-cli@latest token issue --feedback "${FEEDBACK_IDS%% *}" --ttl 90 --name "run ${GITHUB_RUN_ID}")"
             echo "::add-mask::$RUN_TOKEN"
             echo "FEEDBACKKIT_RUN_TOKEN=$RUN_TOKEN" >> "$GITHUB_ENV"
           fi
@@ -80,4 +84,4 @@ jobs:
           claude_args: >-
             --mcp-config '{"mcpServers":{"feedbackkit":{"command":"npx","args":["-y","feedbackkit-cli@latest","mcp"],"env":{"FEEDBACKKIT_TOKEN":"${{ env.FEEDBACKKIT_RUN_TOKEN }}"}}}}'
             --allowedTools "mcp__feedbackkit,Bash(xcodebuild:*),Bash(xcrun simctl:*),Bash(swift build:*),Bash(swift test:*),Bash(xcodegen:*)"
-            --append-system-prompt "Show your work on the FeedbackKit report: the team reviews screenshots on the report page instead of running the build. Call attach_preview (with a caption) once the fix works and at useful points along the way (the bug reproduced, a first version), and post_update for short progress notes. A FeedbackKit follow-up comment on a pull request asks for another pass on that PR: keep working on its branch, don't open a new one."
+            --append-system-prompt "Show your work on the FeedbackKit report: the team reviews screenshots on the report page instead of running the build. Call attach_preview (with a caption) once the fix works and at useful points along the way (the bug reproduced, a first version), and post_update for short progress notes. When the issue merges several FeedbackKit reports, post each update and preview to the report it's about (its feedback_id), not all to the first. A FeedbackKit follow-up comment on a pull request asks for another pass on that PR: keep working on its branch, don't open a new one."

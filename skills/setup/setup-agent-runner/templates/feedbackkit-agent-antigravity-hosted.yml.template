@@ -125,15 +125,19 @@ jobs:
       - name: Issue a FeedbackKit token for this report
         # The agent-runner token (FEEDBACKKIT_AGENT_TOKEN: an access token with
         # tokens:issue, from project Settings → Access tokens) never reaches the
-        # agent. It issues a token limited to this one report that expires in
+        # agent. It issues a token limited to this run's report(s) that expires in
         # 90 minutes, and only that reaches the agent (and the FeedbackKit MCP
         # server it starts). Skipped when the secret isn't set.
         env:
           FEEDBACKKIT_TOKEN: ${{ secrets.FEEDBACKKIT_AGENT_TOKEN }}
         run: |
-          FEEDBACK_ID="$(printf '%s' "$ISSUE_BODY" | grep -oE 'FeedbackKit: [0-9a-fA-F-]{36}' | head -n1 | cut -d' ' -f2 || true)"
-          if [ -n "$FEEDBACKKIT_TOKEN" ] && [ -n "$FEEDBACK_ID" ]; then
-            RUN_TOKEN="$(npx -y feedbackkit-cli@latest token issue --feedback "$FEEDBACK_ID" --ttl 90 --name "run ${GITHUB_RUN_ID}")"
+          # A merged issue lists one `FeedbackKit: <id>` per report; the token covers
+          # all of them, so each update and preview can go to its own report.
+          FEEDBACK_IDS="$(printf '%s' "$ISSUE_BODY" | grep -oE 'FeedbackKit: [0-9a-fA-F-]{36}' | cut -d' ' -f2 | awk '!seen[$0]++' | xargs || true)"
+          if [ -n "$FEEDBACKKIT_TOKEN" ] && [ -n "$FEEDBACK_IDS" ]; then
+            # A CLI or backend from before batch run tokens takes one report only.
+            RUN_TOKEN="$(npx -y feedbackkit-cli@latest token issue --feedback $FEEDBACK_IDS --ttl 90 --name "run ${GITHUB_RUN_ID}" \
+              || npx -y feedbackkit-cli@latest token issue --feedback "${FEEDBACK_IDS%% *}" --ttl 90 --name "run ${GITHUB_RUN_ID}")"
             echo "::add-mask::$RUN_TOKEN"
             echo "FEEDBACKKIT_RUN_TOKEN=$RUN_TOKEN" >> "$GITHUB_ENV"
           fi
@@ -157,8 +161,10 @@ jobs:
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
           [ -n "${RUN_STARTED:-}" ] || echo "RUN_STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
           # FeedbackKit's issue body carries the report id; the trailer links the fix to it.
-          FEEDBACK_ID="$(printf '%s' "$ISSUE_BODY" | grep -oE 'FeedbackKit: [0-9a-fA-F-]{36}' | head -n1 | cut -d' ' -f2 || true)"
-          echo "FEEDBACK_ID=$FEEDBACK_ID" >> "$GITHUB_ENV"
+          # A merged issue lists one id per report; FEEDBACK_ID is the first.
+          FEEDBACK_IDS="$(printf '%s' "$ISSUE_BODY" | grep -oE 'FeedbackKit: [0-9a-fA-F-]{36}' | cut -d' ' -f2 | awk '!seen[$0]++' | xargs || true)"
+          FEEDBACK_ID="${FEEDBACK_IDS%% *}"
+          { echo "FEEDBACK_IDS=$FEEDBACK_IDS"; echo "FEEDBACK_ID=$FEEDBACK_ID"; } >> "$GITHUB_ENV"
           PROMPT="$RUNNER_TEMP/prompt.md"
           {
             echo "You are fixing one bug report from FeedbackKit, unattended, in this repository."
@@ -197,7 +203,14 @@ jobs:
               echo "- This machine lets you use only these tools (rule syntax: command(<command prefix>), read_url(<domain>), mcp(<server>/<tool>)): ${ALLOWED}. Anything else, including a pipe or && into an unlisted command or \$(...) substitution, ends the run immediately with nothing saved. Stay inside this repository; if the fix needs something you can't do with these (e.g. downloading an asset), make the rest of the change and explain what's missing."
             fi
             if [ -n "$FEEDBACK_ID" ]; then
-              echo "- If the feedbackkit MCP tools are available, this is FeedbackKit report ${FEEDBACK_ID}: call claim_feedback first; use ask_reporter only for something only the reporter can answer (then stop without changes)."
+              if [ "$FEEDBACK_IDS" = "$FEEDBACK_ID" ]; then
+                echo "- If the feedbackkit MCP tools are available, this is FeedbackKit report ${FEEDBACK_ID}: call claim_feedback first; use ask_reporter only for something only the reporter can answer (then stop without changes)."
+                CAPTURE_ID="$FEEDBACK_ID"
+              else
+                echo "- If the feedbackkit MCP tools are available, this issue merges FeedbackKit reports ${FEEDBACK_IDS} (the issue shows which is which): call claim_feedback for each first; use ask_reporter only for something only that report's reporter can answer (then stop without changes)."
+                echo "- Every FeedbackKit call takes a feedback_id: post each post_update, attach_preview and ask_reporter to the report it's about, not all to the first one. A capture that shows several reports' fixes goes on each of them."
+                CAPTURE_ID="<report id>"
+              fi
               echo "- Show your work with screenshots: the team reviews them on the report page instead of running the build. Call attach_preview (with a caption saying what it shows) once the fix works, and also at useful points along the way (e.g. the bug reproduced, a first version of the change), and use post_update for a one-line progress note. Only attach captures of this checkout."
               echo "- Capturing: for the iOS app, \`xcrun simctl io booted screenshot ${RUNNER_TEMP}/agent-scratch/after.png\` in the Simulator (or a short MP4, up to 30 s); for a web app, a headless-browser screenshot of the page the report came from."
             fi
@@ -249,7 +262,7 @@ jobs:
           # into plain text.
           SUMMARY="$(awk 'NF{l=$0} END{print l}' "$RUNNER_TEMP/summary.md" | sed -E 's#\[([^]]*)\]\(file://[^)]*\)#\1#g')"
           MESSAGE=(-m "Fix: ${ISSUE_TITLE}" -m "Fixes #${ISSUE_NUMBER}")
-          if [ -n "$FEEDBACK_ID" ]; then MESSAGE+=(-m "FeedbackKit: ${FEEDBACK_ID}"); fi
+          if [ -n "$FEEDBACK_IDS" ]; then MESSAGE+=(-m "$(printf 'FeedbackKit: %s\n' $FEEDBACK_IDS)"); fi
           git add -A
           git -c user.name="Antigravity (FeedbackKit)" -c user.email="feedbackkit-agent@users.noreply.github.com" \
             commit "${MESSAGE[@]}"
@@ -265,7 +278,7 @@ jobs:
             echo "$SUMMARY"
             echo
             echo "Fixes #${ISSUE_NUMBER}"
-            if [ -n "$FEEDBACK_ID" ]; then echo; echo "FeedbackKit: ${FEEDBACK_ID}"; fi
+            if [ -n "$FEEDBACK_IDS" ]; then echo; printf 'FeedbackKit: %s\n' $FEEDBACK_IDS; fi
           } > "$RUNNER_TEMP/pr.md"
           gh pr create --title "Fix: ${ISSUE_TITLE}" --body-file "$RUNNER_TEMP/pr.md" --head "$BRANCH"
           # The PR's CI: a PR opened by the run's own token is authored by the

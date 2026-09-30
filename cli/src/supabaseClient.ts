@@ -15,6 +15,8 @@ export interface AccessTokenInfo {
   project_name: string | null;
   /** Set when the token is limited to one report. */
   feedback_id: string | null;
+  /** Every report it's limited to: several for a merged batch (0026; absent before it). */
+  feedback_ids?: string[] | null;
   scopes: string[];
   expires_at: string | null;
 }
