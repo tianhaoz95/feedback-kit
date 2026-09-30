@@ -980,23 +980,20 @@ The SDK setup skills each include enabling "is it fixed?" verification (\`enable
 
 ## Installing skills
 
-Install into your project or agent environment via \`feedback-kit-skills\`:
+Install into your project or agent environment from the \`tianhaoz95/feedback-kit\` GitHub repository (\`npx skills\` installs from a repository, not an npm package name):
 
 \`\`\`bash
 # List discoverable skills:
-npx skills add feedback-kit-skills --list
+npx skills add tianhaoz95/feedback-kit --list
 
 # Interactively choose skills to install:
-npx skills add feedback-kit-skills
+npx skills add tianhaoz95/feedback-kit
 
 # Install a specific skill directly:
-npx skills add feedback-kit-skills --skill setup-ios-sdk --yes
-npx skills add feedback-kit-skills --skill setup-macos-sdk --yes
-npx skills add feedback-kit-skills --skill setup-watchos-sdk --yes
-npx skills add feedback-kit-skills --skill setup-mcp-server --yes
-
-# Or via GitHub repository shorthand:
 npx skills add tianhaoz95/feedback-kit --skill setup-ios-sdk --yes
+npx skills add tianhaoz95/feedback-kit --skill setup-macos-sdk --yes
+npx skills add tianhaoz95/feedback-kit --skill setup-watchos-sdk --yes
+npx skills add tianhaoz95/feedback-kit --skill setup-mcp-server --yes
 \`\`\`
 
 ## Using with AI Coding Agents

@@ -11,7 +11,7 @@ Key Landing Page elements reflected:
 - Feature Pills: Matching landing page feature pillars
 - Phone Mockup: Exact hardware buttons, Dynamic Island, and neutral-900 bezel from PhoneMockup.tsx
 - Dashboard Prompt Card: Window title bar, "Generated prompt", "Copy for coding agent" pill, and structured monospace prompt from DashboardMockup.tsx
-- Agent Skills Card: Terminal box with "npx skills add feedback-kit-skills"
+- Agent Skills Card: Terminal box with "npx skills add tianhaoz95/feedback-kit"
 
 Outputs:
 - branding/social-preview.png (default dark)
@@ -471,7 +471,7 @@ def render_preview(theme_name: str) -> Image.Image:
     term_box = [12, 32, skill_w - 12, skill_h - 12]
     sk_draw.rounded_rectangle(term_box, radius=6, fill=cfg["terminal_bg"], outline=cfg["terminal_border"], width=1)
     sk_draw.text((20, 39), "$", font=FONT_MONO_BOLD(10), fill=cfg["terminal_prompt"])
-    sk_draw.text((32, 39), "npx skills add feedback-kit-skills", font=FONT_MONO(10), fill=cfg["terminal_text"])
+    sk_draw.text((32, 39), "npx skills add tianhaoz95/feedback-kit", font=FONT_MONO(10), fill=cfg["terminal_text"])
 
     canvas.paste(skill_img, (skill_x, skill_y), skill_img)
 

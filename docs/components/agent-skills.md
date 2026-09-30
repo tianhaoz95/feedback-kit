@@ -1,6 +1,6 @@
 # Agent Skills Catalog (`skills/`)
 
-FeedbackKit publishes an Agent Skills module compliant with the [`vercel-labs/skills`](https://github.com/vercel-labs/skills) open standard via the [`feedback-kit-skills`](https://www.npmjs.com/package/feedback-kit-skills) npm package.
+FeedbackKit publishes an Agent Skills module compliant with the [`vercel-labs/skills`](https://github.com/vercel-labs/skills) open standard from this repository: install with `npx skills add tianhaoz95/feedback-kit` (the skills CLI takes a GitHub `owner/repo`; the [`feedback-kit-skills`](https://www.npmjs.com/package/feedback-kit-skills) npm package is a mirror, not an install source).
 
 ---
 
@@ -34,10 +34,10 @@ Developers can install these skills using `npx skills`:
 
 ```bash
 # List available skills
-npx skills add feedback-kit-skills --list
+npx skills add tianhaoz95/feedback-kit --list
 
 # Install iOS setup skill
-npx skills add feedback-kit-skills --skill setup-ios-sdk --yes
+npx skills add tianhaoz95/feedback-kit --skill setup-ios-sdk --yes
 ```
 
 ---

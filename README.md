@@ -192,17 +192,12 @@ npm run new -- <category>/<skill-name> "one-line description"
 
 #### Installing into an Agent
 
-From within your agent CLI or another project's working directory, install using the dedicated npm package name:
+From within your agent CLI or another project's working directory, install from this repository (`npx skills` takes a GitHub `owner/repo`, not an npm package name):
 ```bash
-npx skills add feedback-kit-skills
+npx skills add tianhaoz95/feedback-kit
 ```
 
 To install a specific skill directly:
-```bash
-npx skills add feedback-kit-skills --skill setup-ios-sdk --yes
-```
-
-You can also install directly using the GitHub repository shorthand:
 ```bash
 npx skills add tianhaoz95/feedback-kit --skill setup-ios-sdk --yes
 ```
