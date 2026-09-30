@@ -153,6 +153,7 @@ public struct FeedbackInboxView: View {
                 }
             }
             .navigationTitle("Feedback")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 // Leading: Project Switcher Menu
                 ToolbarItem(placement: .topBarLeading) {

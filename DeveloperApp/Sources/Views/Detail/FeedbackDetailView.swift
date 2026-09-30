@@ -478,8 +478,16 @@ public struct FeedbackDetailView: View {
                     .background(Color(UIColor.secondarySystemGroupedBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-                    Button {
-                        createGitHubIssue(redispatch: true)
+                    Menu {
+                        Section("Send to Coding Agent") {
+                            ForEach(availableAgentOptions) { option in
+                                Button {
+                                    createGitHubIssue(redispatch: true, agent: option.id)
+                                } label: {
+                                    Label(option.name, systemImage: option.systemImage)
+                                }
+                            }
+                        }
                     } label: {
                         HStack(spacing: 6) {
                             if isCreatingIssue {
@@ -488,11 +496,16 @@ public struct FeedbackDetailView: View {
                             } else {
                                 Image(systemName: "sparkles")
                                 Text("Send to Coding Agent Again")
+                                Spacer()
+                                Image(systemName: "chevron.down")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundColor(.secondary)
                             }
                         }
                         .font(.subheadline.weight(.semibold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
+                        .padding(.horizontal, 14)
                         .background(Color(UIColor.secondarySystemGroupedBackground))
                         .foregroundColor(.primary)
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -500,8 +513,24 @@ public struct FeedbackDetailView: View {
                     .disabled(isCreatingIssue)
                 }
             } else {
-                Button {
-                    createGitHubIssue()
+                Menu {
+                    Section("Send to Coding Agent") {
+                        ForEach(availableAgentOptions) { option in
+                            Button {
+                                createGitHubIssue(agent: option.id)
+                            } label: {
+                                Label("Send to \(option.name)", systemImage: option.systemImage)
+                            }
+                        }
+                    }
+
+                    Section {
+                        Button {
+                            createGitHubIssue(dispatch: false)
+                        } label: {
+                            Label("Open GitHub Issue Only", systemImage: "exclamationmark.circle")
+                        }
+                    }
                 } label: {
                     HStack(spacing: 6) {
                         if isCreatingIssue {
@@ -510,11 +539,15 @@ public struct FeedbackDetailView: View {
                         } else {
                             Image(systemName: "sparkles")
                             Text("Send to Coding Agent")
+                            Spacer()
+                            Image(systemName: "chevron.down")
+                                .font(.caption.weight(.semibold))
                         }
                     }
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
+                    .padding(.horizontal, 14)
                     .background(Color.accentColor)
                     .foregroundColor(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -528,6 +561,34 @@ public struct FeedbackDetailView: View {
                     .foregroundColor(.red)
             }
         }
+    }
+
+    private struct AgentOptionItem: Identifiable {
+        let id: String
+        let name: String
+        let systemImage: String
+    }
+
+    private var availableAgentOptions: [AgentOptionItem] {
+        let proj = appState.projects.first(where: { $0.id == currentItem.projectId }) ?? appState.selectedProject
+        let labels = proj?.dispatchLabels ?? ["claude", "antigravity"]
+        var items: [AgentOptionItem] = []
+        for label in labels {
+            if label == "claude" {
+                items.append(AgentOptionItem(id: "claude", name: "Claude Code", systemImage: "sparkles"))
+            } else if label == "antigravity" {
+                items.append(AgentOptionItem(id: "antigravity", name: "Antigravity", systemImage: "sparkles"))
+            } else {
+                items.append(AgentOptionItem(id: label, name: label.capitalized, systemImage: "tag"))
+            }
+        }
+        if proj?.dispatchCopilot == true {
+            items.append(AgentOptionItem(id: "copilot", name: "GitHub Copilot", systemImage: "person.badge.shield.checkmark"))
+        }
+        if items.count > 1 {
+            items.append(AgentOptionItem(id: "all", name: "All Configured Agents", systemImage: "square.stack.3d.up"))
+        }
+        return items
     }
 
     private var deleteSection: some View {
@@ -549,8 +610,8 @@ public struct FeedbackDetailView: View {
         .padding(.top, 10)
     }
 
-    private func createGitHubIssue(redispatch: Bool = false) {
-        guard let proj = appState.selectedProject else { return }
+    private func createGitHubIssue(redispatch: Bool = false, dispatch: Bool? = nil, agent: String? = nil) {
+        guard let proj = appState.projects.first(where: { $0.id == currentItem.projectId }) ?? appState.selectedProject else { return }
         isCreatingIssue = true
         issueError = nil
 
@@ -560,13 +621,17 @@ public struct FeedbackDetailView: View {
                     feedbackIds: [currentItem.id],
                     projectId: proj.id,
                     prompt: currentItem.editedPrompt,
-                    redispatch: redispatch
+                    redispatch: redispatch,
+                    dispatch: dispatch,
+                    agent: agent
                 )
                 if let idx = appState.feedbackItems.firstIndex(where: { $0.id == currentItem.id }) {
                     appState.feedbackItems[idx].githubIssueUrl = url
                     appState.feedbackItems[idx].githubIssueNumber = num
-                    appState.feedbackItems[idx].status = .inProgress
-                    appState.feedbackItems[idx].fixStage = PortalFixStage.agentWorking.rawValue
+                    if dispatch != false {
+                        appState.feedbackItems[idx].status = .inProgress
+                        appState.feedbackItems[idx].fixStage = PortalFixStage.agentWorking.rawValue
+                    }
                 }
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
             } catch {
