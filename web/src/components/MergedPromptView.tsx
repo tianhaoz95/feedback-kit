@@ -237,17 +237,17 @@ export function MergedPromptView({
       ) : null}
 
       {/* Main Grid: Left = Selected reports list, Right = Merged prompt editor */}
-      <div className="grid gap-5 xl:grid-cols-12 items-start">
+      <div className="grid gap-5 xl:grid-cols-12 xl:h-[calc(100vh-18.5rem)] xl:min-h-[580px]">
         {/* Left Column: List of Included Items (5 cols) */}
-        <div className="xl:col-span-5 space-y-3">
-          <div className="flex items-center justify-between px-1">
+        <div className="xl:col-span-5 flex flex-col min-h-0 space-y-3">
+          <div className="flex items-center justify-between px-1 shrink-0">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
               Included Reports ({selectedItems.length})
             </h3>
             <span className="text-[11px] text-neutral-400">Click card to inspect</span>
           </div>
 
-          <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-[600px] xl:max-h-none xl:flex-1 min-h-0 overflow-y-auto pr-1">
             {selectedItems.map((item, index) => {
               const urls = signedUrls[item.id];
               return (
@@ -301,9 +301,9 @@ export function MergedPromptView({
         </div>
 
         {/* Right Column: Unified Prompt Editor (7 cols) */}
-        <div className="xl:col-span-7 space-y-3">
-          <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-xs space-y-3">
-            <div className="flex items-center justify-between">
+        <div className="xl:col-span-7 flex flex-col min-h-0">
+          <div className="flex flex-1 flex-col min-h-0 rounded-xl border border-neutral-200 bg-white p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <SparkleIcon className="h-4 w-4 text-neutral-700" />
                 <h3 className="text-sm font-semibold text-neutral-900">
@@ -315,7 +315,7 @@ export function MergedPromptView({
               </span>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between shrink-0">
               <p className="text-xs text-neutral-500">
                 Copy this prompt into <b>Claude Code</b>, <b>Cursor</b>, <b>Codex</b>, or <b>Antigravity</b>.
                 The agent will fix all {selectedItems.length} issues in one coordinated pull request.
@@ -355,13 +355,13 @@ export function MergedPromptView({
                   setIsEdited(true);
                 }}
                 rows={22}
-                className="w-full rounded-lg border border-neutral-200 bg-neutral-50/50 p-3.5 font-mono text-xs text-neutral-800 leading-relaxed transition-colors placeholder:text-neutral-400 focus:border-neutral-900 focus:bg-white focus:outline-none"
+                className="w-full flex-1 min-h-[320px] xl:min-h-0 resize-y xl:resize-none rounded-lg border border-neutral-200 bg-neutral-50/50 p-3.5 font-mono text-xs text-neutral-800 leading-relaxed transition-colors placeholder:text-neutral-400 focus:border-neutral-900 focus:bg-white focus:outline-none"
               />
             ) : (
-              <MarkdownPreview content={promptText} className="w-full min-h-[480px]" />
+              <MarkdownPreview content={promptText} className="w-full flex-1 min-h-[320px] xl:min-h-0" />
             )}
 
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1 shrink-0">
               <div className="flex items-center gap-2">
                 <Button size="sm" onClick={handleCopy}>
                   {copied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
