@@ -115,6 +115,7 @@ public enum DemoData {
             attachmentMimeType: "application/json",
             githubIssueUrl: nil,
             githubIssueNumber: nil,
+            fixStage: "agent_working",
             signedScreenshotUrl: "https://images.unsplash.com/photo-1555774698-0b77e0d5fac6?w=800&auto=format&fit=crop",
             signedRawScreenshotUrl: "https://images.unsplash.com/photo-1555774698-0b77e0d5fac6?w=800&auto=format&fit=crop"
         ),
@@ -291,4 +292,46 @@ public enum DemoData {
             revokedAt: Date().addingTimeInterval(-86400 * 5)
         )
     ]
+
+    public static func sampleFeedbackEvents(for feedbackId: String) -> [PortalFeedbackEvent] {
+        let json = """
+        [
+          {
+            "id": "demo-evt-1",
+            "feedback_id": "\(feedbackId)",
+            "kind": "dispatched",
+            "actor_type": "user",
+            "actor_label": "Dashboard",
+            "body": "Sent to the coding agent via GitHub (labeled `antigravity`).",
+            "visible_to_reporter": false,
+            "created_at": "2026-09-30T00:50:00Z"
+          },
+          {
+            "id": "demo-evt-2",
+            "feedback_id": "\(feedbackId)",
+            "kind": "claimed",
+            "actor_type": "agent",
+            "actor_label": "antigravity-client",
+            "body": "Started working on this.",
+            "visible_to_reporter": false,
+            "created_at": "2026-09-30T00:51:00Z"
+          },
+          {
+            "id": "demo-evt-3",
+            "feedback_id": "\(feedbackId)",
+            "kind": "after_screenshot",
+            "actor_type": "agent",
+            "actor_label": "antigravity-client",
+            "body": "Add to cart debounced and verified on iOS 18.3.",
+            "data": {
+              "media_path": "proj-1/\(feedbackId)/after.png",
+              "media_type": "image/png"
+            },
+            "visible_to_reporter": false,
+            "created_at": "2026-09-30T00:52:00Z"
+          }
+        ]
+        """
+        return (try? JSONDecoder().decode([PortalFeedbackEvent].self, from: Data(json.utf8))) ?? []
+    }
 }

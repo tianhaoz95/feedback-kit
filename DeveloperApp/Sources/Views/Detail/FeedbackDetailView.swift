@@ -15,6 +15,7 @@ public struct FeedbackDetailView: View {
     /// nil while loading. Watching sends every step of this report's fix as a
     /// notification (0023_notify_and_watchlist.sql).
     @State private var isWatching: Bool?
+    @State private var attachmentFullScreenContext: FullScreenImageContext?
 
     public init(item: PortalFeedbackItem) {
         self.item = item
@@ -37,34 +38,36 @@ public struct FeedbackDetailView: View {
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // Status & Quick Actions Bar
-                statusBar
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // Status & Quick Actions Bar
+                    statusBar
 
-                // User Feedback Text Quote Card
-                feedbackTextCard
+                    // User Feedback Text Quote Card
+                    feedbackTextCard
 
-                // Screenshot & Annotations (if screenshot exists)
-                if currentItem.screenshotAnnotatedPath != nil || currentItem.screenshotRawPath != nil {
-                    ZoomableScreenshotView(item: currentItem)
-                }
+                    // Screenshot & Annotations (if screenshot exists)
+                    if currentItem.screenshotAnnotatedPath != nil || currentItem.screenshotRawPath != nil {
+                        ZoomableScreenshotView(item: currentItem)
+                    }
 
-                // Attachment Section (if attached)
-                if let filename = currentItem.attachmentFilename {
-                    attachmentSection(filename: filename)
-                }
+                    // Attachment Section (if attached)
+                    if let filename = currentItem.attachmentFilename {
+                        attachmentSection(filename: filename)
+                    }
 
-                // Environment & Diagnostics
-                EnvironmentSectionView(env: currentItem.environment)
+                    // Environment & Diagnostics
+                    EnvironmentSectionView(env: currentItem.environment)
 
-                // Console & network logs (web SDK reports only)
-                if !currentItem.logs.isEmpty {
-                    ConsoleLogsSectionView(logs: currentItem.logs)
-                }
+                    // Console & network logs (web SDK reports only)
+                    if !currentItem.logs.isEmpty {
+                        ConsoleLogsSectionView(logs: currentItem.logs)
+                    }
 
-                // Closed loop: agent → PR → release → reporter verifies
-                FixLoopSectionView(item: currentItem)
+                    // Closed loop: agent → PR → release → reporter verifies
+                    FixLoopSectionView(item: currentItem)
+                        .id("fix_loop_section")
 
                 // AI Prompt Generator Section
                 aiPromptSection
@@ -136,11 +139,22 @@ public struct FeedbackDetailView: View {
                 }
             }
         }
+        .fullScreenCover(item: $attachmentFullScreenContext) { ctx in
+            FullScreenImageViewer(url: ctx.url, title: ctx.title, caption: ctx.caption)
+        }
         .onAppear {
             FeedbackKit.currentScreen = "Feedback Detail"
+            if UserDefaults.standard.bool(forKey: "portal_preview_scroll_fix_loop") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    withAnimation {
+                        proxy.scrollTo("fix_loop_section", anchor: .top)
+                    }
+                }
+            }
         }
         .task(id: item.id) {
             isWatching = (try? await SupabasePortalClient.shared.isWatching(feedbackId: item.id)) ?? false
+        }
         }
     }
 
@@ -233,29 +247,63 @@ public struct FeedbackDetailView: View {
             Text("Attachment")
                 .font(.headline)
 
-            HStack {
-                Image(systemName: "paperclip")
-                    .font(.subheadline)
-                    .foregroundColor(.accentColor)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(filename)
-                        .font(.subheadline.weight(.semibold))
-                    if let mime = currentItem.attachmentMimeType {
-                        Text(mime)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Image(systemName: "paperclip")
+                        .font(.subheadline)
+                        .foregroundColor(.accentColor)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(filename)
+                            .font(.subheadline.weight(.semibold))
+                        if let mime = currentItem.attachmentMimeType {
+                            Text(mime)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    Spacer()
+
+                    if let urlStr = currentItem.signedAttachmentUrl, let url = URL(string: urlStr) {
+                        ShareLink(item: url) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.subheadline)
+                                .padding(8)
+                                .background(Color(UIColor.secondarySystemBackground))
+                                .clipShape(Circle())
+                        }
                     }
                 }
-                Spacer()
 
-                if let urlStr = currentItem.signedAttachmentUrl, let url = URL(string: urlStr) {
-                    ShareLink(item: url) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.subheadline)
-                            .padding(8)
-                            .background(Color(UIColor.secondarySystemBackground))
-                            .clipShape(Circle())
+                if currentItem.attachmentMimeType?.hasPrefix("image/") == true,
+                   let urlStr = currentItem.signedAttachmentUrl,
+                   let url = URL(string: urlStr) {
+                    Button {
+                        attachmentFullScreenContext = FullScreenImageContext(url: url, title: filename)
+                    } label: {
+                        ZStack(alignment: .bottomTrailing) {
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image.resizable().scaledToFit()
+                                case .failure:
+                                    EmptyView()
+                                default:
+                                    ProgressView()
+                                }
+                            }
+                            .frame(maxHeight: 180)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(5)
+                                .background(Color.black.opacity(0.6))
+                                .clipShape(Circle())
+                                .padding(6)
+                        }
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(12)

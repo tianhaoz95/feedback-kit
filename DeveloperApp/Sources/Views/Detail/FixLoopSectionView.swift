@@ -15,6 +15,7 @@ public struct FixLoopSectionView: View {
     @State private var mode: Mode = .note
     @State private var posting = false
     @State private var errorMessage: String?
+    @State private var fullScreenImageContext: FullScreenImageContext?
 
     private enum Mode: String, CaseIterable, Identifiable {
         case note = "Internal note"
@@ -74,6 +75,22 @@ public struct FixLoopSectionView: View {
         .background(Color(UIColor.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .task(id: "\(item.id)-\(item.fixStage ?? "")") { await load() }
+        .fullScreenCover(item: $fullScreenImageContext) { ctx in
+            FullScreenImageViewer(url: ctx.url, title: ctx.title, caption: ctx.caption)
+        }
+        .onChange(of: imageURLs) {
+            if UserDefaults.standard.bool(forKey: "portal_preview_fullscreen") {
+                if let event = events?.first(where: { ($0.mediaPath ?? $0.screenshotPath) != nil }),
+                   let path = event.mediaPath ?? event.screenshotPath,
+                   let url = imageURLs[path] {
+                    fullScreenImageContext = FullScreenImageContext(
+                        url: url,
+                        title: event.title,
+                        caption: event.body
+                    )
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -117,13 +134,33 @@ public struct FixLoopSectionView: View {
                                     .frame(width: 180, height: 240)
                                     .clipShape(RoundedRectangle(cornerRadius: 8))
                             } else if let path = event.mediaPath ?? event.screenshotPath, let url = imageURLs[path] {
-                                AsyncImage(url: url) { image in
-                                    image.resizable().scaledToFit()
-                                } placeholder: {
-                                    ProgressView()
+                                Button {
+                                    fullScreenImageContext = FullScreenImageContext(
+                                        url: url,
+                                        title: event.title,
+                                        caption: event.body
+                                    )
+                                } label: {
+                                    ZStack(alignment: .bottomTrailing) {
+                                        AsyncImage(url: url) { image in
+                                            image.resizable().scaledToFit()
+                                        } placeholder: {
+                                            ProgressView()
+                                        }
+                                        .frame(maxWidth: 160, maxHeight: 220)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                            .font(.system(size: 10, weight: .semibold))
+                                            .foregroundColor(.white)
+                                            .padding(5)
+                                            .background(Color.black.opacity(0.6))
+                                            .clipShape(Circle())
+                                            .padding(6)
+                                    }
                                 }
-                                .frame(maxWidth: 160, maxHeight: 220)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("View full screen image")
                             }
                         }
                         .padding(.leading, 10)

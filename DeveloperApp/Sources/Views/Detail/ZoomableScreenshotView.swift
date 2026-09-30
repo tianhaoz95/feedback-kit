@@ -197,11 +197,50 @@ public struct ZoomableScreenshotView: View {
             }
         }
         .fullScreenCover(isPresented: $isFullScreenPresented) {
-            FullScreenScreenshotModal(item: item)
+            FullScreenImageViewer(
+                url: currentFullscreenURL,
+                title: currentFullscreenTitle,
+                caption: currentFullscreenCaption
+            )
         }
         .task(id: "\(item.id):\(item.fixStage ?? ""):\(item.status.rawValue)") {
             await loadPreviews()
         }
+    }
+
+    private var currentFullscreenURL: URL? {
+        switch displayMode {
+        case .after:
+            if let path = currentPreview?.mediaPath {
+                return previewURLs[path]
+            }
+            return nil
+        case .raw:
+            let str = item.signedRawScreenshotUrl ?? item.signedScreenshotUrl
+            return str.flatMap(URL.init(string:))
+        case .annotated, .markup:
+            return item.signedScreenshotUrl.flatMap(URL.init(string:))
+        }
+    }
+
+    private var currentFullscreenTitle: String {
+        switch displayMode {
+        case .after:
+            return currentPreview?.title ?? "After-Fix Preview"
+        case .raw:
+            return "Raw Screenshot"
+        case .annotated:
+            return "Screenshot"
+        case .markup:
+            return "Vector Markup"
+        }
+    }
+
+    private var currentFullscreenCaption: String? {
+        if displayMode == .after {
+            return currentPreview?.body
+        }
+        return nil
     }
 
     private func loadPreviews() async {
@@ -235,17 +274,22 @@ public struct ZoomableScreenshotView: View {
             if preview.isVideo {
                 VideoPlayer(player: AVPlayer(url: url))
             } else {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFit()
-                    case .failure:
-                        Text("Preview unavailable").font(.caption).foregroundColor(.secondary)
-                    default:
-                        ProgressView()
+                Button {
+                    isFullScreenPresented = true
+                } label: {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFit()
+                        case .failure:
+                            Text("Preview unavailable").font(.caption).foregroundColor(.secondary)
+                        default:
+                            ProgressView()
+                        }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .buttonStyle(.plain)
             }
         } else {
             ProgressView()
@@ -321,64 +365,6 @@ public struct ZoomableScreenshotView: View {
     }
 }
 
-// MARK: - Full Screen Screenshot Modal
-
-private struct FullScreenScreenshotModal: View {
-    @Environment(\.dismiss) private var dismiss
-    let item: PortalFeedbackItem
-    @State private var scale: CGFloat = 1.0
-
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.black.ignoresSafeArea()
-
-                let urlString = item.signedScreenshotUrl ?? "https://images.unsplash.com/photo-1555774698-0b77e0d5fac6?w=800&auto=format&fit=crop"
-
-                AsyncImage(url: URL(string: urlString)) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFit()
-                            .scaleEffect(scale)
-                            .gesture(
-                                MagnificationGesture()
-                                    .onChanged { val in scale = max(val, 1.0) }
-                                    .onEnded { _ in if scale < 1.0 { scale = 1.0 } }
-                            )
-                    case .failure:
-                        Text("Failed to load image")
-                            .foregroundColor(.white)
-                    default:
-                        ProgressView()
-                            .tint(.white)
-                    }
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Close") {
-                        dismiss()
-                    }
-                    .foregroundColor(.white)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    if let urlStr = item.signedScreenshotUrl, let url = URL(string: urlStr) {
-                        ShareLink(item: url) {
-                            Image(systemName: "square.and.arrow.up")
-                                .foregroundColor(.white)
-                        }
-                    }
-                }
-            }
-            #if os(iOS)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(Color.black, for: .navigationBar)
-            #endif
-        }
-    }
-}
 
 // MARK: - Color Hex Initializer Helper
 

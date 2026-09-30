@@ -886,7 +886,7 @@ public final class SupabasePortalClient: ObservableObject {
     // MARK: - Fix loop timeline (0014_closed_loop.sql)
 
     public func fetchFeedbackEvents(feedbackId: String) async throws -> [PortalFeedbackEvent] {
-        if isDemoMode { return [] }
+        if isDemoMode { return DemoData.sampleFeedbackEvents(for: feedbackId) }
         let request = try makeRequest(
             path: "/rest/v1/feedback_events",
             queryItems: [

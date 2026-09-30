@@ -231,6 +231,14 @@ public struct FeedbackInboxView: View {
             }
             .onAppear {
                 FeedbackKit.currentScreen = "Feedback Inbox"
+                if let previewId = UserDefaults.standard.string(forKey: "portal_preview_feedback_id") {
+                    selectedFeedback = appState.feedbackItems.first(where: { $0.id == previewId }) ?? appState.feedbackItems.first
+                }
+            }
+            .onChange(of: appState.feedbackItems.count) {
+                if let previewId = UserDefaults.standard.string(forKey: "portal_preview_feedback_id"), selectedFeedback == nil {
+                    selectedFeedback = appState.feedbackItems.first(where: { $0.id == previewId }) ?? appState.feedbackItems.first
+                }
             }
         }
     }
