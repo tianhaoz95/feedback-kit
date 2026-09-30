@@ -40,6 +40,20 @@ npx skills add tianhaoz95/feedback-kit --list
 npx skills add tianhaoz95/feedback-kit --skill setup-ios-sdk --yes
 ```
 
+That installs from `main`. The npm package also has a `feedback-kit-skills`
+command (`bin/feedback-kit-skills.mjs`), which runs `skills add` on the
+package's bundled copy, so it installs that release's skills instead:
+
+```bash
+npx feedback-kit-skills --skill setup-ios-sdk --yes   # takes the same options as `skills add`
+```
+
+It then rewrites its entries in the project's `skills-lock.json` from npx's
+cache path to `tianhaoz95/feedback-kit` (the entry `skills add` writes for a
+GitHub install, same `computedHash`), so the lock file can be committed and
+`npx skills update` works. `npm i feedback-kit-skills` on its own only puts
+the files in `node_modules`, where no agent looks.
+
 ---
 
 ## Authoring New Skills
