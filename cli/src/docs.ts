@@ -378,7 +378,7 @@ From **Projects**, create one and open it. Every project gets a unique \`project
 
 ## Review feedback
 
-Each report shows the annotated screenshot (omitted if the reporter turned it off in the composer's + menu — see the \`sdk\` topic), description, environment details, and any attachment. Status: \`new\`, \`in_progress\`, \`resolved\`, or \`wont_fix\`.
+Each report shows the annotated screenshot (omitted if the reporter turned it off in the composer's + menu — see the \`sdk\` topic), description, environment details, and any attachment. Status: \`new\`, \`in_progress\`, \`backlog\`, \`resolved\`, or \`wont_fix\`.
 
 ## The fix loop on a report
 
@@ -538,7 +538,7 @@ feedbackkit login --dashboard-url http://localhost:3000
 | \`feedbackkit docs [topic]\` | Print this documentation (no topic = list topics). |
 | \`feedbackkit mcp [--project <id>]\` | Run an MCP server over stdio, optionally scoped to one project — see the \`mcp\` doc topic. |
 
-\`--status\` accepts \`new\`, \`in_progress\`, \`resolved\`, or \`wont_fix\`.
+\`--status\` accepts \`new\`, \`in_progress\`, \`backlog\`, \`resolved\`, or \`wont_fix\`.
 
 ## Managing access
 

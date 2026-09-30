@@ -6,6 +6,7 @@ import FeedbackKit
 public enum PortalFeedbackStatus: String, Codable, CaseIterable, Identifiable, Sendable {
     case new = "new"
     case inProgress = "in_progress"
+    case backlog = "backlog"
     case resolved = "resolved"
     case wontFix = "wont_fix"
 
@@ -15,6 +16,7 @@ public enum PortalFeedbackStatus: String, Codable, CaseIterable, Identifiable, S
         switch self {
         case .new: return "New"
         case .inProgress: return "In Progress"
+        case .backlog: return "Backlog"
         case .resolved: return "Resolved"
         case .wontFix: return "Won't Fix"
         }
@@ -24,6 +26,7 @@ public enum PortalFeedbackStatus: String, Codable, CaseIterable, Identifiable, S
         switch self {
         case .new: return "sparkles"
         case .inProgress: return "arrow.triangle.2.circlepath"
+        case .backlog: return "clock"
         case .resolved: return "checkmark.circle.fill"
         case .wontFix: return "slash.circle"
         }

@@ -10,7 +10,7 @@ import { agentOptions, loadPreferredAgent, savePreferredAgent } from "@/lib/agen
 import type { FeedbackEvent, FeedbackEventKind, FeedbackItem, FixStage, Project } from "@/lib/types";
 import { Button } from "@/components/Button";
 import { AgentGlyph } from "@/components/AgentDispatchButton";
-import { AlertIcon, CheckIcon, ExternalLinkIcon, GitHubIcon, MessageIcon, SparkleIcon } from "@/components/icons";
+import { AlertIcon, CheckIcon, ExternalLinkIcon, GitHubIcon, MessageIcon, SendIcon, SparkleIcon } from "@/components/icons";
 import { ImageOverlay } from "@/components/ImageOverlay";
 
 /** Stages where an agent may be posting progress, so the timeline polls for it. */
@@ -381,8 +381,10 @@ export function FixLoopPanel({
                   size="sm"
                   disabled={followUpState === "sending" || !followUp.trim()}
                   onClick={() => void sendFollowUp()}
+                  className="inline-flex items-center gap-1.5"
                 >
-                  {followUpState === "sending" ? "Sending…" : "Send to agent"}
+                  <SendIcon className="h-3.5 w-3.5" />
+                  <span>{followUpState === "sending" ? "Sending…" : "Send to agent"}</span>
                 </Button>
               </div>
             </>
@@ -512,8 +514,15 @@ export function FixLoopPanel({
         />
         {postError ? <p className="text-xs text-red-600">{postError}</p> : null}
         <div className="flex justify-end">
-          <Button type="button" size="sm" disabled={posting || !draft.trim()} onClick={() => void post()}>
-            {posting ? "Posting…" : mode === "question" ? "Ask" : "Post"}
+          <Button
+            type="button"
+            size="sm"
+            disabled={posting || !draft.trim()}
+            onClick={() => void post()}
+            className="inline-flex items-center gap-1.5"
+          >
+            <SendIcon className="h-3.5 w-3.5" />
+            <span>{posting ? "Posting…" : mode === "question" ? "Ask" : "Post"}</span>
           </Button>
         </div>
       </div>

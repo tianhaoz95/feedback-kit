@@ -189,6 +189,7 @@ export function ProjectPage() {
     all: feedbackItems.length,
     new: feedbackItems.filter((i) => i.status === "new").length,
     in_progress: feedbackItems.filter((i) => i.status === "in_progress").length,
+    backlog: feedbackItems.filter((i) => i.status === "backlog").length,
     resolved: feedbackItems.filter((i) => i.status === "resolved").length,
     wont_fix: feedbackItems.filter((i) => i.status === "wont_fix").length,
   };
@@ -243,8 +244,9 @@ export function ProjectPage() {
         const order: Record<FeedbackStatus, number> = {
           new: 0,
           in_progress: 1,
-          resolved: 2,
-          wont_fix: 3,
+          backlog: 2,
+          resolved: 3,
+          wont_fix: 4,
         };
         const diff = (order[a.status] ?? 99) - (order[b.status] ?? 99);
         if (diff !== 0) return diff;
@@ -1126,6 +1128,7 @@ export function ProjectPage() {
                 <option value="all">All statuses ({statusCounts.all})</option>
                 <option value="new">New ({statusCounts.new})</option>
                 <option value="in_progress">In progress ({statusCounts.in_progress})</option>
+                <option value="backlog">Backlog ({statusCounts.backlog})</option>
                 <option value="resolved">Resolved ({statusCounts.resolved})</option>
                 <option value="wont_fix">Won't fix ({statusCounts.wont_fix})</option>
               </select>

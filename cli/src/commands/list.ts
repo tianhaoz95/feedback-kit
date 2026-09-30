@@ -1,7 +1,7 @@
 import { getAuthenticatedClient } from "../supabaseClient.js";
 import type { FeedbackItem, FeedbackStatus, FixStage } from "../types.js";
 
-const VALID_STATUSES: FeedbackStatus[] = ["new", "in_progress", "resolved", "wont_fix"];
+const VALID_STATUSES: FeedbackStatus[] = ["new", "in_progress", "backlog", "resolved", "wont_fix"];
 const VALID_STAGES: FixStage[] = ["agent_working", "pr_open", "merged", "shipped", "verified", "reopened"];
 
 export async function listFeedback(options: { project?: string; status?: string; stage?: string }): Promise<void> {

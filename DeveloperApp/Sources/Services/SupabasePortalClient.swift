@@ -299,7 +299,7 @@ public final class SupabasePortalClient: ObservableObject {
                 var p = project
                 let items = demoFeedback.filter { $0.projectId == project.id && !$0.isArchived }
                 p.feedbackCount = items.count
-                p.unresolvedCount = items.filter { $0.status == .new || $0.status == .inProgress }.count
+                p.unresolvedCount = items.filter { $0.status != .resolved && $0.status != .wontFix }.count
                 return p
             }
         }
@@ -328,7 +328,7 @@ public final class SupabasePortalClient: ObservableObject {
                 group.addTask {
                     if let items = try? await self.fetchFeedbackItems(projectId: pid, includeArchived: false, resolveSignedUrls: false) {
                         let total = items.count
-                        let unresolved = items.filter { $0.status == .new || $0.status == .inProgress }.count
+                        let unresolved = items.filter { $0.status != .resolved && $0.status != .wontFix }.count
                         return (i, total, unresolved)
                     }
                     return (i, 0, 0)

@@ -53,8 +53,21 @@ export function DashboardLayout() {
   }, [feedbackEnabled, location.search]);
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <header className="sticky top-0 z-10 border-b border-neutral-200/80 bg-white/85 backdrop-blur-md">
+    <div className="relative min-h-screen bg-neutral-50/70">
+      {/* Subtle animated gradient background consistent with landing page */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div className="animate-aurora-1 absolute left-1/3 top-[-12rem] h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-blue-400/12 blur-3xl" />
+        <div className="animate-aurora-2 absolute right-[-6rem] top-[15%] h-[30rem] w-[30rem] rounded-full bg-violet-400/10 blur-3xl" />
+        <div className="animate-aurora-3 absolute bottom-[-10rem] left-[10%] h-[32rem] w-[32rem] rounded-full bg-amber-300/8 blur-3xl" />
+        <div
+          className="absolute inset-0 bg-[linear-gradient(to_right,rgba(23,23,23,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(23,23,23,0.02)_1px,transparent_1px)] bg-[size:44px_44px]"
+          style={{
+            maskImage: "radial-gradient(ellipse 75% 65% at 50% 20%, black, transparent)",
+            WebkitMaskImage: "radial-gradient(ellipse 75% 65% at 50% 20%, black, transparent)",
+          }}
+        />
+      </div>
+      <header className="sticky top-0 z-20 border-b border-neutral-200/80 bg-white/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-2 px-3 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
             <Link to="/projects" className="flex shrink-0 items-center gap-2">
@@ -131,7 +144,7 @@ export function DashboardLayout() {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-[1800px] px-4 py-6 sm:px-6 sm:py-8">
+      <main className="relative z-10 mx-auto max-w-[1800px] px-4 py-6 sm:px-6 sm:py-8">
         {organizations && organizations.length === 0 ? <NoOrganization /> : <Outlet />}
       </main>
     </div>

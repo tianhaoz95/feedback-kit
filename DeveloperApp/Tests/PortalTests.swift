@@ -118,6 +118,7 @@ final class PortalTests: XCTestCase {
     func testStatusEnumMapping() {
         XCTAssertEqual(PortalFeedbackStatus.new.displayName, "New")
         XCTAssertEqual(PortalFeedbackStatus.inProgress.displayName, "In Progress")
+        XCTAssertEqual(PortalFeedbackStatus.backlog.displayName, "Backlog")
         XCTAssertEqual(PortalFeedbackStatus.resolved.displayName, "Resolved")
         XCTAssertEqual(PortalFeedbackStatus.wontFix.displayName, "Won't Fix")
     }

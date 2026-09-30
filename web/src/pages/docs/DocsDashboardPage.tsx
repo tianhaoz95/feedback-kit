@@ -45,7 +45,7 @@ export function DocsDashboardPage() {
           Each report shows the annotated screenshot — omitted if the reporter
           turned it off in the composer&apos;s + menu — the user&apos;s description, environment
           details (OS, device, app version, locale, screen size), and any attachment. Set its status —{" "}
-          <InlineCode>new</InlineCode>, <InlineCode>in_progress</InlineCode>, <InlineCode>resolved</InlineCode>, or{" "}
+          <InlineCode>new</InlineCode>, <InlineCode>in_progress</InlineCode>, <InlineCode>backlog</InlineCode>, <InlineCode>resolved</InlineCode>, or{" "}
           <InlineCode>wont_fix</InlineCode> — to track it through your workflow.
         </p>
         <p>

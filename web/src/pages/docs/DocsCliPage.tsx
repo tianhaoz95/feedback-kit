@@ -117,7 +117,7 @@ export function DocsCliPage() {
         />
         <p className="text-neutral-600">
           <InlineCode>--status</InlineCode> accepts <InlineCode>new</InlineCode>, <InlineCode>in_progress</InlineCode>,{" "}
-          <InlineCode>resolved</InlineCode>, or <InlineCode>wont_fix</InlineCode>.
+          <InlineCode>backlog</InlineCode>, <InlineCode>resolved</InlineCode>, or <InlineCode>wont_fix</InlineCode>.
         </p>
       </DocsSection>
 

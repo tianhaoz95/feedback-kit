@@ -3,7 +3,7 @@
 // FeedbackReport/IngestPayload). Only the fields the CLI/MCP tools actually
 // use are included.
 
-export type FeedbackStatus = "new" | "in_progress" | "resolved" | "wont_fix";
+export type FeedbackStatus = "new" | "in_progress" | "backlog" | "resolved" | "wont_fix";
 
 /** Where a report's fix is in the closed loop — see 0014_closed_loop.sql. Null = nothing yet. */
 export type FixStage = "agent_working" | "pr_open" | "merged" | "shipped" | "verified" | "reopened";

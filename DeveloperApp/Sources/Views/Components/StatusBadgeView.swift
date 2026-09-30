@@ -32,6 +32,8 @@ public struct StatusBadgeView: View {
             return .blue
         case .inProgress:
             return .orange
+        case .backlog:
+            return .purple
         case .resolved:
             return .green
         case .wontFix:
@@ -45,6 +47,8 @@ public struct StatusBadgeView: View {
             return Color.blue.opacity(0.12)
         case .inProgress:
             return Color.orange.opacity(0.12)
+        case .backlog:
+            return Color.purple.opacity(0.12)
         case .resolved:
             return Color.green.opacity(0.12)
         case .wontFix:

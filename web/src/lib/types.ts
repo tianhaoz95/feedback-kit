@@ -1,4 +1,4 @@
-export type FeedbackStatus = "new" | "in_progress" | "resolved" | "wont_fix";
+export type FeedbackStatus = "new" | "in_progress" | "backlog" | "resolved" | "wont_fix";
 
 /**
  * Where a report's fix is in the closed loop (report → agent → PR → release →

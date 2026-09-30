@@ -7,6 +7,7 @@ import { ChevronDownIcon } from "@/components/icons";
 const OPTIONS: { value: FeedbackStatus; label: string }[] = [
   { value: "new", label: "New" },
   { value: "in_progress", label: "In progress" },
+  { value: "backlog", label: "Backlog" },
   { value: "resolved", label: "Resolved" },
   { value: "wont_fix", label: "Won't fix" },
 ];
