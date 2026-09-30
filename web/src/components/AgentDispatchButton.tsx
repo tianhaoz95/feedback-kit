@@ -75,8 +75,8 @@ export interface AgentDispatchButtonProps {
   /** Queue for `feedbackkit watch`; omitted where a local run doesn't apply (batches). */
   onRunLocal?: () => void;
   localState?: "idle" | "queuing" | "queued";
-  /** Opens Settings → Coding agent loop, for agents that aren't set up yet. */
-  onSetUp?: () => void;
+  /** Opens Settings → Coding agent loop at the setup steps for `agent` (an AgentOption id), or for any agent. */
+  onSetUp?: (agent?: string) => void;
   /** Overrides the primary button's tooltip (e.g. why it's disabled). */
   title?: string;
   className?: string;
@@ -269,7 +269,7 @@ export function AgentDispatchButton({
                   trailing={onSetUp ? <SettingsIcon className="h-3.5 w-3.5 text-neutral-400" /> : null}
                   onClick={() => {
                     setOpen(false);
-                    onSetUp?.();
+                    onSetUp?.(option.id);
                   }}
                 />
               ))}
@@ -318,7 +318,7 @@ function MenuItem({
           {checked ? <CheckIcon className="h-3.5 w-3.5 shrink-0 text-neutral-900" /> : trailing}
         </div>
         <p className="mt-0.5 break-words text-[11px] leading-normal text-neutral-500">
-          <TextWithCode text={muted ? `Set up in Settings → Coding agent loop. ${detail}` : detail} />
+          <TextWithCode text={muted ? `${detail}. Click for setup steps.` : detail} />
         </p>
       </div>
     </button>

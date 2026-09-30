@@ -276,7 +276,7 @@ export function DocsAgentsPage() {
               <b>Pick the agent per report.</b> The report&apos;s send button remembers the agent you used last; its menu
               lists each configured label, the trigger comment, Copilot and <b>Your machine</b> on their own (plus
               <b> All configured agents</b> when there&apos;s more than one), and the supported agents you haven&apos;t
-              set up yet, which open Settings.
+              set up yet, which open their setup steps in Settings → <b>Coding agent loop</b>.
             </>,
             <>
               <b>Screenshots while it works.</b> Agents with the FeedbackKit MCP tools call{" "}

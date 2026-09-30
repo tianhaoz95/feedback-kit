@@ -447,11 +447,25 @@ export function ProjectPage() {
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
+        next.delete("setup");
         if (tab === "feedback") {
           next.delete("tab");
         } else {
           next.set("tab", tab);
         }
+        return next;
+      },
+      { replace: true }
+    );
+  }
+
+  /** Settings → Coding agent loop, scrolled to and opened at `agent`'s setup steps. */
+  function openAgentSetup(agent?: string) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", "settings");
+        next.set("setup", agent ?? "");
         return next;
       },
       { replace: true }
@@ -1528,7 +1542,7 @@ export function ProjectPage() {
                     onClearSelection={handleClearSelection}
                     onBackToSingleView={() => setViewMode("single")}
                     project={project}
-                    onSetUpAgents={() => handleTabChange("settings")}
+                    onSetUpAgents={openAgentSetup}
                     isSendingToAgent={isCreatingIssue}
                     onSendToAgent={(options) =>
                       createIssue(
@@ -1604,7 +1618,7 @@ export function ProjectPage() {
                       }
                       onRunLocal={() => void queueLocalRun(selectedFeedback)}
                       localState={localRunState}
-                      onSetUp={() => handleTabChange("settings")}
+                      onSetUp={openAgentSetup}
                     />
                     <WatchButton feedbackId={selectedFeedback.id} organizationId={project.organization_id} />
 
@@ -1920,6 +1934,7 @@ export function ProjectPage() {
 
           <AgentDispatchCard
             project={project}
+            setupAgent={searchParams.get("setup")}
             onProjectUpdated={(updated) =>
               setProject((prev) => (prev ? { ...prev, ...updated } : prev))
             }

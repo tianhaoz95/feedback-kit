@@ -33,7 +33,7 @@ interface MergedPromptViewProps {
   /** The project's agent triggers (Settings → Coding agent loop), for the agent picker. */
   project?: Pick<Project, "id" | "dispatch_labels" | "dispatch_comment" | "dispatch_copilot">;
   /** Opens Settings → Coding agent loop, for an agent that isn't set up yet. */
-  onSetUpAgents?: () => void;
+  onSetUpAgents?: (agent?: string) => void;
   isSendingToAgent?: boolean;
   /**
    * Opens one GitHub issue for the whole batch and hands it to the coding

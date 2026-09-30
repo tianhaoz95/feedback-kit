@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import {
   disconnectGitHubUser,
@@ -12,6 +12,35 @@ import type { Project } from "@/lib/types";
 import { Button } from "@/components/Button";
 import { CopyButton } from "@/components/CopyButton";
 import { CheckIcon, SparkleIcon } from "@/components/icons";
+import { AgentGlyph } from "@/components/AgentDispatchButton";
+import type { AgentIcon } from "@/lib/agents";
+
+type SetupAgent = "claude" | "antigravity" | "copilot";
+
+const SETUP_AGENTS: { id: SetupAgent; name: string; icon: AgentIcon; docs: string }[] = [
+  { id: "claude", name: "Claude Code", icon: "claude", docs: "/docs/agents#github-hosted-actions" },
+  { id: "antigravity", name: "Antigravity", icon: "antigravity", docs: "/docs/agents#self-hosted-mac-runner" },
+  { id: "copilot", name: "GitHub Copilot", icon: "copilot", docs: "/docs/agents#github-copilot" },
+];
+
+const claudeWorkflow = `name: Claude
+on:
+  issues:
+    types: [labeled]
+jobs:
+  agent:
+    if: github.event.label.name == 'claude'
+    runs-on: ubuntu-latest
+    permissions: { contents: write, issues: write, pull-requests: write, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: \${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          label_trigger: claude
+          allowed_bots: feedbackkit-app   # FeedbackKit's GitHub App adds the label`;
+
+const runnerSkillCommand = "npx skills add feedback-kit-skills --skill setup-agent-runner --yes";
 
 /**
  * How the loop hands work to a coding agent and gets it back to the reporter
@@ -22,9 +51,12 @@ import { CheckIcon, SparkleIcon } from "@/components/icons";
  */
 export function AgentDispatchCard({
   project,
+  setupAgent,
   onProjectUpdated,
 }: {
   project: Project;
+  /** Set when a "Not set up" agent in the report's agent picker sent the user here ("" = any agent). */
+  setupAgent?: string | null;
   onProjectUpdated: (updated: Partial<Project>) => void;
 }) {
   const [labels, setLabels] = useState((project.dispatch_labels ?? []).join(", "));
@@ -36,6 +68,17 @@ export function AgentDispatchCard({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [guide, setGuide] = useState<SetupAgent>(() =>
+    SETUP_AGENTS.some((a) => a.id === setupAgent) ? (setupAgent as SetupAgent) : "claude",
+  );
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (setupAgent === null || setupAgent === undefined) return;
+    if (SETUP_AGENTS.some((a) => a.id === setupAgent)) setGuide(setupAgent as SetupAgent);
+    sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [setupAgent]);
+
   useEffect(() => {
     fetchGitHubUserConnection()
       .then(setConnection)
@@ -65,30 +108,43 @@ export function AgentDispatchCard({
 
   const releaseCommand = `npx feedbackkit-cli release --project ${project.id} --build "$BUILD_NUMBER"`;
 
-  async function save() {
-    const nextLabels = labels
-      .split(",")
-      .map((l) => l.trim())
-      .filter(Boolean);
+  const parsedLabels = labels
+    .split(",")
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  async function save(nextLabels = parsedLabels, nextCopilot = copilot) {
     const nextComment = comment.trim() || null;
     setSaving(true);
     setError(null);
     setSaved(false);
     const { error: updateError } = await supabase
       .from("projects")
-      .update({ dispatch_labels: nextLabels, dispatch_comment: nextComment, dispatch_copilot: copilot })
+      .update({ dispatch_labels: nextLabels, dispatch_comment: nextComment, dispatch_copilot: nextCopilot })
       .eq("id", project.id);
     setSaving(false);
     if (updateError) {
       setError(getErrorMessage(updateError, "Failed to save."));
       return;
     }
-    onProjectUpdated({ dispatch_labels: nextLabels, dispatch_comment: nextComment, dispatch_copilot: copilot });
+    setLabels(nextLabels.join(", "));
+    setCopilot(nextCopilot);
+    onProjectUpdated({ dispatch_labels: nextLabels, dispatch_comment: nextComment, dispatch_copilot: nextCopilot });
     setSaved(true);
   }
 
+  /** The guide's last step: turn the agent's trigger on and save right away. */
+  function enable(agent: SetupAgent) {
+    if (agent === "copilot") void save(parsedLabels, true);
+    else void save(parsedLabels.includes(agent) ? parsedLabels : [...parsedLabels, agent], copilot);
+  }
+
+  const savedLabels = project.dispatch_labels ?? [];
+  const enabled = (agent: SetupAgent) => (agent === "copilot" ? !!project.dispatch_copilot : savedLabels.includes(agent));
+  const guideAgent = SETUP_AGENTS.find((a) => a.id === guide)!;
+
   return (
-    <section className="space-y-4 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+    <section ref={sectionRef} className="scroll-mt-24 space-y-4 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
       <div>
         <div className="flex items-center gap-2">
           <SparkleIcon className="h-5 w-5 text-neutral-900" />
@@ -97,6 +153,91 @@ export function AgentDispatchCard({
         <p className="mt-1 text-xs text-neutral-500">
           Hand new GitHub issues to a coding agent automatically, and send fixes back to the person who reported
           them. When a reporter says a fix didn&apos;t work, the issue is reopened and handed to the agent again.
+        </p>
+      </div>
+
+      <div className="rounded-lg border border-neutral-200 bg-neutral-50/60 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-xs font-semibold text-neutral-900">Set up an agent</h3>
+          <div className="inline-flex rounded-lg border border-neutral-200 bg-white p-0.5">
+            {SETUP_AGENTS.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setGuide(a.id)}
+                className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                  guide === a.id ? "bg-neutral-900 text-white" : "text-neutral-600 hover:text-neutral-900"
+                }`}
+              >
+                <AgentGlyph icon={a.icon} className={`h-3.5 w-3.5 ${guide === a.id ? "brightness-0 invert" : ""}`} />
+                {a.name}
+                {enabled(a.id) ? <CheckIcon className="h-3 w-3" /> : null}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {!project.github_repo ? (
+          <p className="mt-2 text-xs text-amber-700">
+            First connect a repository in the GitHub card above: every agent here works from the GitHub issue FeedbackKit
+            creates for a report.
+          </p>
+        ) : null}
+
+        <ol className="mt-3 list-decimal space-y-3 pl-5 text-xs text-neutral-700">
+          {guide === "claude" ? (
+            <>
+              <Step title={<>Add this workflow to your repo as <code className="font-mono">.github/workflows/claude.yml</code></>}>
+                It runs Claude Code on GitHub&apos;s runners whenever FeedbackKit labels an issue <code className="font-mono">claude</code>.
+                <CodeSnippet code={claudeWorkflow} />
+              </Step>
+              <Step title={<>Add a <code className="font-mono">CLAUDE_CODE_OAUTH_TOKEN</code> repository secret</>}>
+                Run <code className="font-mono">claude setup-token</code> and paste the token into the repo&apos;s Settings → Secrets
+                and variables → Actions. To build and run iOS or macOS apps, use a self-hosted Mac instead:{" "}
+                <code className="font-mono">{runnerSkillCommand}</code>, then ask your coding agent to set up the Claude Code runner.
+              </Step>
+            </>
+          ) : guide === "antigravity" ? (
+            <>
+              <Step title="Install the setup-agent-runner skill in your repo">
+                <CodeSnippet code={runnerSkillCommand} />
+              </Step>
+              <Step title="Ask your coding agent to set up the Antigravity runner">
+                It adds a workflow that runs on the <code className="font-mono">antigravity</code> label, either on a self-hosted
+                Mac (signs in with your Antigravity account) or on GitHub&apos;s runners with a{" "}
+                <code className="font-mono">GEMINI_API_KEY</code> secret.
+              </Step>
+            </>
+          ) : (
+            <>
+              <Step title="Enable Copilot's coding agent for the repository">
+                Needs a Copilot plan that includes the coding agent. Copilot runs on Linux, so it can&apos;t build iOS or macOS
+                apps.
+              </Step>
+              <Step title="Connect your GitHub account">
+                GitHub only lets a person with a Copilot seat assign Copilot, so it runs as whoever sends the report. Each
+                teammate does this once, with the button under <b>Assign to GitHub Copilot</b> below.
+              </Step>
+            </>
+          )}
+          <Step title={guide === "copilot" ? "Turn on Copilot for this project" : <>Add the <code className="font-mono">{guide}</code> label to this project</>}>
+            {enabled(guide) ? (
+              <span className="inline-flex items-center gap-1 text-emerald-700">
+                <CheckIcon className="h-3.5 w-3.5" /> Done. {guideAgent.name} now shows up in each report&apos;s send menu.
+              </span>
+            ) : (
+              <Button type="button" size="sm" variant="secondary" disabled={saving} onClick={() => enable(guide)}>
+                {guide === "copilot" ? "Turn on Copilot" : `Add the ${guide} label`}
+              </Button>
+            )}
+          </Step>
+        </ol>
+        <p className="mt-3 text-[11px] text-neutral-500">
+          More detail:{" "}
+          <Link to={guideAgent.docs} className="font-medium text-neutral-700 underline hover:text-neutral-900">
+            {guideAgent.name} in Hand reports to an agent
+          </Link>
+          .
         </p>
       </div>
 
@@ -207,5 +348,23 @@ export function AgentDispatchCard({
         </p>
       </div>
     </section>
+  );
+}
+
+function Step({ title, children }: { title: ReactNode; children: ReactNode }) {
+  return (
+    <li className="space-y-1">
+      <div className="font-medium text-neutral-900">{title}</div>
+      <div className="text-neutral-500">{children}</div>
+    </li>
+  );
+}
+
+function CodeSnippet({ code }: { code: string }) {
+  return (
+    <div className="mt-1.5 flex items-start gap-2 rounded-lg bg-neutral-900 px-3 py-2.5">
+      <pre className="flex-1 overflow-x-auto font-mono text-[11px] leading-relaxed text-neutral-100">{code}</pre>
+      <CopyButton text={code} />
+    </div>
   );
 }
