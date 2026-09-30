@@ -16,6 +16,7 @@ public struct FeedbackDetailView: View {
     /// notification (0023_notify_and_watchlist.sql).
     @State private var isWatching: Bool?
     @State private var attachmentFullScreenContext: FullScreenImageContext?
+    @State private var navigateToChat = false
 
     public init(item: PortalFeedbackItem) {
         self.item = item
@@ -44,6 +45,9 @@ public struct FeedbackDetailView: View {
                     // Status & Quick Actions Bar
                     statusBar
 
+                    // Send to Coding Agent Section (moved to the top)
+                    sendToCodingAgentSection
+
                     // User Feedback Text Quote Card
                     feedbackTextCard
 
@@ -65,33 +69,38 @@ public struct FeedbackDetailView: View {
                         ConsoleLogsSectionView(logs: currentItem.logs)
                     }
 
-                    // Closed loop: agent → PR → release → reporter verifies
-                    FixLoopSectionView(item: currentItem)
+                    // Fix Loop Chat navigation card (moved to separate chat screen)
+                    fixLoopNavigationCard
                         .id("fix_loop_section")
 
-                // AI Prompt Generator Section
-                aiPromptSection
+                    // AI Prompt Generator Section
+                    aiPromptSection
 
-                // GitHub Issue Section
-                gitHubIssueSection
-
-                // Danger Zone / Delete
-                deleteSection
-            }
-            .padding(16)
-        }
-        .navigationTitle(currentItem.environment.screenName.map { "\($0)" } ?? "Feedback Details")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    toggleWatching()
-                } label: {
-                    Label(isWatching == true ? "Watching" : "Watch", systemImage: isWatching == true ? "eye.fill" : "eye")
+                    // Danger Zone / Delete
+                    deleteSection
                 }
-                .disabled(isWatching == nil)
-                .help(isWatching == true ? "Stop getting notified about this report" : "Get notified about every step of this report's fix")
+                .padding(16)
             }
+            .navigationTitle(currentItem.environment.screenName.map { "\($0)" } ?? "Feedback Details")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        FixLoopChatView(item: currentItem)
+                    } label: {
+                        Image(systemName: "bubble.left.and.bubble.right")
+                    }
+                    .help("Fix Loop Chat")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        toggleWatching()
+                    } label: {
+                        Label(isWatching == true ? "Watching" : "Watch", systemImage: isWatching == true ? "eye.fill" : "eye")
+                    }
+                    .disabled(isWatching == nil)
+                    .help(isWatching == true ? "Stop getting notified about this report" : "Get notified about every step of this report's fix")
+                }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button {
@@ -142,9 +151,16 @@ public struct FeedbackDetailView: View {
         .fullScreenCover(item: $attachmentFullScreenContext) { ctx in
             FullScreenImageViewer(url: ctx.url, title: ctx.title, caption: ctx.caption)
         }
+        .navigationDestination(isPresented: $navigateToChat) {
+            FixLoopChatView(item: currentItem)
+        }
         .onAppear {
             FeedbackKit.currentScreen = "Feedback Detail"
-            if UserDefaults.standard.bool(forKey: "portal_preview_scroll_fix_loop") {
+            if UserDefaults.standard.bool(forKey: "portal_preview_chat") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    navigateToChat = true
+                }
+            } else if UserDefaults.standard.bool(forKey: "portal_preview_scroll_fix_loop") {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     withAnimation {
                         proxy.scrollTo("fix_loop_section", anchor: .top)
@@ -185,7 +201,7 @@ public struct FeedbackDetailView: View {
                     .foregroundColor(.secondary)
             }
 
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 ForEach(PortalFeedbackStatus.allCases) { status in
                     let isSelected = currentItem.status == status
                     Button {
@@ -198,9 +214,11 @@ public struct FeedbackDetailView: View {
                                 .font(.system(size: 11, weight: .bold))
                             Text(status.displayName)
                                 .font(.caption2.weight(isSelected ? .bold : .medium))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        .frame(height: 32)
                         .background(isSelected ? Color.accentColor : Color(UIColor.secondarySystemBackground))
                         .foregroundColor(isSelected ? .white : .primary)
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -389,60 +407,125 @@ public struct FeedbackDetailView: View {
         }
     }
 
-    private var gitHubIssueSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("GitHub Issue")
-                .font(.headline)
+    private var fixLoopNavigationCard: some View {
+        NavigationLink {
+            FixLoopChatView(item: currentItem)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "bubble.left.and.bubble.right.fill")
+                    .font(.title3)
+                    .foregroundColor(.accentColor)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Fix Loop Chat")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.primary)
+                    Text("Timeline, notes & reporter updates")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                if let stage = currentItem.fixStage.flatMap(PortalFixStage.init(rawValue:)) {
+                    FixStageBadgeView(stage: stage)
+                }
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.secondary)
+            }
+            .padding(14)
+            .background(Color(UIColor.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var sendToCodingAgentSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("Send to Coding Agent", systemImage: "sparkles")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Spacer()
+                if let stage = currentItem.fixStage.flatMap(PortalFixStage.init(rawValue:)) {
+                    FixStageBadgeView(stage: stage)
+                }
+            }
 
             if let issueUrl = currentItem.githubIssueUrl, let issueNum = currentItem.githubIssueNumber {
-                HStack {
-                    HStack(spacing: 6) {
-                        Image(systemName: "exclamationmark.circle.fill")
-                            .foregroundColor(.green)
-                        Text("Issue #\(issueNum)")
-                            .font(.subheadline.weight(.semibold))
-                    }
-                    Spacer()
-
-                    Link(destination: URL(string: issueUrl)!) {
-                        HStack(spacing: 4) {
-                            Text("View on GitHub")
-                            Image(systemName: "arrow.up.right")
+                VStack(spacing: 8) {
+                    HStack {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text("Issue #\(issueNum)")
+                                .font(.subheadline.weight(.semibold))
                         }
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(.accentColor)
+                        Spacer()
+
+                        Link(destination: URL(string: issueUrl)!) {
+                            HStack(spacing: 4) {
+                                Text("View on GitHub")
+                                Image(systemName: "arrow.up.right")
+                            }
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.accentColor)
+                        }
                     }
+                    .padding(12)
+                    .background(Color(UIColor.secondarySystemGroupedBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                    Button {
+                        createGitHubIssue(redispatch: true)
+                    } label: {
+                        HStack(spacing: 6) {
+                            if isCreatingIssue {
+                                ProgressView()
+                                    .tint(.primary)
+                            } else {
+                                Image(systemName: "sparkles")
+                                Text("Send to Coding Agent Again")
+                            }
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color(UIColor.secondarySystemGroupedBackground))
+                        .foregroundColor(.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                    .disabled(isCreatingIssue)
                 }
-                .padding(12)
-                .background(Color(UIColor.secondarySystemGroupedBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             } else {
                 Button {
                     createGitHubIssue()
                 } label: {
-                    HStack {
+                    HStack(spacing: 6) {
                         if isCreatingIssue {
                             ProgressView()
-                                .tint(.primary)
+                                .tint(.white)
                         } else {
-                            Image(systemName: "plus.circle")
-                            Text("Create GitHub Issue")
+                            Image(systemName: "sparkles")
+                            Text("Send to Coding Agent")
                         }
                     }
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(Color(UIColor.secondarySystemGroupedBackground))
-                    .foregroundColor(.primary)
+                    .background(Color.accentColor)
+                    .foregroundColor(.white)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
                 .disabled(isCreatingIssue)
+            }
 
-                if let err = issueError {
-                    Text(err)
-                        .font(.caption2)
-                        .foregroundColor(.red)
-                }
+            if let err = issueError {
+                Text(err)
+                    .font(.caption2)
+                    .foregroundColor(.red)
             }
         }
     }
@@ -466,7 +549,7 @@ public struct FeedbackDetailView: View {
         .padding(.top, 10)
     }
 
-    private func createGitHubIssue() {
+    private func createGitHubIssue(redispatch: Bool = false) {
         guard let proj = appState.selectedProject else { return }
         isCreatingIssue = true
         issueError = nil
@@ -474,13 +557,16 @@ public struct FeedbackDetailView: View {
         Task {
             do {
                 let (url, num) = try await SupabasePortalClient.shared.createGitHubIssue(
-                    feedbackId: currentItem.id,
-                    projectId: proj.id
+                    feedbackIds: [currentItem.id],
+                    projectId: proj.id,
+                    prompt: currentItem.editedPrompt,
+                    redispatch: redispatch
                 )
                 if let idx = appState.feedbackItems.firstIndex(where: { $0.id == currentItem.id }) {
                     appState.feedbackItems[idx].githubIssueUrl = url
                     appState.feedbackItems[idx].githubIssueNumber = num
                     appState.feedbackItems[idx].status = .inProgress
+                    appState.feedbackItems[idx].fixStage = PortalFixStage.agentWorking.rawValue
                 }
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
             } catch {

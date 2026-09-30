@@ -702,4 +702,35 @@ final class PortalTests: XCTestCase {
         )
         XCTAssertNotNil(sheet.view)
     }
+
+    @MainActor
+    func testFixLoopChatViewRenders() {
+        let item = DemoData.sampleFeedbackItems[0]
+        let view = FixLoopChatView(item: item).environmentObject(AppState.shared)
+        let host = UIHostingController(rootView: view)
+        XCTAssertNotNil(host.view)
+    }
+
+    func testFixStageBadgeViewRenders() {
+        for stage in PortalFixStage.allCases {
+            let view = FixStageBadgeView(stage: stage)
+            let host = UIHostingController(rootView: view)
+            XCTAssertNotNil(host.view)
+        }
+    }
+
+    @MainActor
+    func testFeedbackDetailViewWithSendToCodingAgentRenders() {
+        let item = DemoData.sampleFeedbackItems[0]
+        let detail = FeedbackDetailView(item: item).environmentObject(AppState.shared)
+        let host = UIHostingController(rootView: NavigationStack { detail })
+        XCTAssertNotNil(host.view)
+    }
+
+    @MainActor
+    func testFeedbackInboxViewRenders() {
+        let inbox = FeedbackInboxView().environmentObject(AppState.shared)
+        let host = UIHostingController(rootView: inbox)
+        XCTAssertNotNil(host.view)
+    }
 }
