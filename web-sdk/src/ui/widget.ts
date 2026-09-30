@@ -156,7 +156,7 @@ export class Widget {
     button.title = `${label} (${shortcutLabel})`;
     button.setAttribute("aria-label", `${label} (${shortcutLabel})`);
     button.setAttribute("aria-keyshortcuts", isMac ? "Meta+Shift+F" : "Control+Shift+F");
-    button.innerHTML = `${icons.feedback}<span class="fk-trigger-label"></span>`;
+    button.innerHTML = `${icons.feedback}<span class="fk-trigger-label"></span><span class="fk-trigger-hint" aria-hidden="true">${shortcutLabel}</span>`;
     (button.querySelector(".fk-trigger-label") as HTMLElement).textContent = label;
     button.addEventListener("click", onClick);
     shadow.append(button);

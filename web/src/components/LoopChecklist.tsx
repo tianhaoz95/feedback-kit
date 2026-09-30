@@ -98,25 +98,45 @@ export function LoopChecklist({
           <p className="truncate text-xs text-neutral-500">Next: {next.title}</p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          <div className="hidden h-1.5 w-28 rounded-full bg-neutral-100 sm:block">
-            <div className="h-1.5 rounded-full bg-neutral-900" style={{ width: `${(done / steps.length) * 100}%` }} />
+          <div className="hidden h-2 w-32 overflow-hidden rounded-full bg-neutral-100 sm:block">
+            <div
+              className="relative h-2 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 transition-all duration-700 ease-out"
+              style={{ width: `${Math.max(6, (done / steps.length) * 100)}%` }}
+            >
+              <div className="absolute inset-0 bg-white/30 animate-pulse" />
+            </div>
           </div>
           <ChevronDownIcon className={`h-4 w-4 text-neutral-400 transition-transform ${collapsed ? "" : "rotate-180"}`} />
         </div>
       </button>
       {collapsed ? null : (
         <ol className="space-y-2 border-t border-neutral-100 px-4 py-3">
-          {steps.map((step) => (
-            <li key={step.id} className="flex items-start gap-2.5 text-xs">
-              <span
-                className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${
-                  step.done ? "bg-emerald-500 text-white" : "border border-neutral-300"
-                }`}
-              >
-                {step.done ? <CheckIcon className="h-3 w-3" /> : null}
-              </span>
-              <div className="min-w-0">
-                <p className={step.done ? "text-neutral-400 line-through" : "font-medium text-neutral-900"}>{step.title}</p>
+          {steps.map((step) => {
+            const isCurrent = !step.done && step.id === next.id;
+            return (
+              <li key={step.id} className="flex items-start gap-2.5 text-xs">
+                <span
+                  className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full transition-all ${
+                    step.done
+                      ? "bg-emerald-500 text-white"
+                      : isCurrent
+                      ? "border-2 border-blue-600 bg-blue-50 text-blue-600 ring-2 ring-blue-500/20"
+                      : "border border-neutral-300"
+                  }`}
+                >
+                  {step.done ? (
+                    <CheckIcon className="h-3 w-3" />
+                  ) : isCurrent ? (
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-500 opacity-75" />
+                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-blue-600" />
+                    </span>
+                  ) : null}
+                </span>
+                <div className="min-w-0">
+                  <p className={step.done ? "text-neutral-400 line-through" : isCurrent ? "font-semibold text-blue-600" : "font-medium text-neutral-900"}>
+                    {step.title}
+                  </p>
                 {step.done ? null : (
                   <p className="mt-0.5 text-neutral-500">
                     <TextWithCode text={step.howTo} />
@@ -131,8 +151,9 @@ export function LoopChecklist({
                   </p>
                 )}
               </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ol>
       )}
     </div>

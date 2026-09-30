@@ -161,9 +161,9 @@ export function DocsWebSdkPage() {
           the fix once it ships: a small card shows their original screenshot with <em>Yes, it's fixed</em> /{" "}
           <em>No, still broken</em>. Still broken reopens the capture dialog so they can show what's wrong now, and
           the report goes back to you and your coding agent. Each browser gets an anonymous reporter id, so no
-          sign-up is involved. Run <InlineCode>npx feedbackkit-cli release --build &lt;id&gt;</InlineCode> after a
-          deploy to mark merged fixes shipped.
+          sign-up is involved. Run the release command after a deploy to mark merged fixes shipped:
         </p>
+        <CodeBlock code="npx feedbackkit-cli release --build <id>" label="Terminal" />
         <p>
           Only people who chose <strong>Notify me when it&apos;s fixed</strong> in the composer&apos;s + menu (off by
           default) see the card or your questions. For everyone else, the dashboard offers <em>Mark verified</em>.

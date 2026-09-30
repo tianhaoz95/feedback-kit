@@ -11,6 +11,7 @@ public struct FeedbackDetailView: View {
     @State private var issueError: String? = nil
     @State private var isPromptEditorPresented = false
     @State private var didCopyPrompt = false
+    @State private var isPromptExpanded = false
     @State private var showDeleteConfirmation = false
     /// nil while loading. Watching sends every step of this report's fix as a
     /// notification (0023_notify_and_watchlist.sql).
@@ -332,73 +333,78 @@ public struct FeedbackDetailView: View {
 
     private var aiPromptSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Label("AI Coding Agent Prompt", systemImage: "sparkles")
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                Spacer()
+            DisclosureGroup(isExpanded: $isPromptExpanded) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Feed this prompt directly to Cursor, Claude Code, or Antigravity to reproduce and fix this issue.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 4)
 
-                Button {
-                    isPromptEditorPresented = true
-                } label: {
-                    HStack(spacing: 3) {
-                        Image(systemName: "pencil")
-                        Text("Customize")
+                    // Monospaced prompt card
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(promptText)
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundColor(.primary)
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(UIColor.systemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                        // Actions: Copy & Share
+                        HStack(spacing: 12) {
+                            Button {
+                                UIPasteboard.general.string = promptText
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                didCopyPrompt = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                    didCopyPrompt = false
+                                }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: didCopyPrompt ? "checkmark" : "doc.on.doc.fill")
+                                    Text(didCopyPrompt ? "Copied!" : "Copy Prompt")
+                                }
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(Color.accentColor)
+                                .foregroundColor(.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            }
+
+                            ShareLink(item: promptText) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "square.and.arrow.up")
+                                    Text("Share")
+                                }
+                                .font(.subheadline.weight(.semibold))
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 10)
+                                .background(Color(UIColor.secondarySystemBackground))
+                                .foregroundColor(.primary)
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            }
+                        }
                     }
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(.accentColor)
                 }
-            }
-
-            Text("Feed this prompt directly to Cursor, Claude Code, or Antigravity to reproduce and fix this issue.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            // Monospaced prompt card
-            VStack(alignment: .leading, spacing: 10) {
-                Text(promptText)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.primary)
-                    .lineLimit(8)
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(UIColor.systemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-                // Actions: Copy & Share
-                HStack(spacing: 12) {
-                    Button {
-                        UIPasteboard.general.string = promptText
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        didCopyPrompt = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            didCopyPrompt = false
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: didCopyPrompt ? "checkmark" : "doc.on.doc.fill")
-                            Text(didCopyPrompt ? "Copied!" : "Copy Prompt")
-                        }
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(Color.accentColor)
-                        .foregroundColor(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    }
-
-                    ShareLink(item: promptText) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "square.and.arrow.up")
-                            Text("Share")
-                        }
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Color(UIColor.secondarySystemBackground))
+            } label: {
+                HStack {
+                    Label("AI Coding Agent Prompt", systemImage: "sparkles")
+                        .font(.headline)
                         .foregroundColor(.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    Spacer()
+
+                    Button {
+                        isPromptEditorPresented = true
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "pencil")
+                            Text("Customize")
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.accentColor)
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(12)

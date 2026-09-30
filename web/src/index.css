@@ -68,6 +68,22 @@ body {
   animation: overlay-zoom 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Screenshot tab transition */
+@keyframes tab-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-tab-fade {
+  animation: tab-fade 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 /* Scroll-triggered reveal, used by <Reveal>. */
 .reveal {
   opacity: 0;

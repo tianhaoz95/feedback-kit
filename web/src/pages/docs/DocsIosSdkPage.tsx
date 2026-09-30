@@ -259,8 +259,11 @@ export function DocsIosSdkPage() {
         <p>
           Turn this on and FeedbackKit asks the person who reported a bug to confirm the fix — on their own
           device, in the build that contains it. Reports carry an anonymous per-install id (no sign-up), so once
-          a fix ships (<InlineCode>npx feedbackkit-cli release --build &lt;CFBundleVersion&gt;</InlineCode> after
-          uploading), the app shows the reporter's original annotated screenshot with{" "}
+          a fix ships, run the release command to announce the build:
+        </p>
+        <CodeBlock code="npx feedbackkit-cli release --build <CFBundleVersion>" label="Terminal" />
+        <p>
+          The app shows the reporter's original annotated screenshot with{" "}
           <em>Yes, it's fixed</em> / <em>No, still broken</em>. Still broken re-runs the capture flow so they can
           show what's wrong now, and the report goes straight back to you — and your coding agent. Questions you
           or the agent ask about a report show up the same way.
@@ -311,17 +314,16 @@ export function DocsIosSdkPage() {
 
       <DocsSection title="Try it">
         <p>
-          The repo includes a small iOS sample app (one SwiftUI screen, one UIKit screen) with
-          shake-to-report, the floating button, and manual "Report a Problem" buttons already wired
-          up:
+          The repo includes sample apps for iOS, macOS, and watchOS with shake-to-report, floating buttons,
+          and menu commands wired up:
         </p>
-        <CodeBlock code="./scripts/run-ios.sh" label="Terminal" />
+        <CodeBlock code="./scripts/run-ios.sh" label="Run iOS in Simulator" />
+        <CodeBlock code="./scripts/run-macos.sh" label="Run macOS natively" />
         <p>
-          There's no macOS sample app yet — <InlineCode>swift build</InlineCode> and{" "}
-          <InlineCode>swift test</InlineCode> build and run the shared test suite natively on your
-          Mac, no simulator required. Same for watchOS, but via a watch simulator destination:{" "}
-          <InlineCode>xcodebuild test -scheme FeedbackKit -destination 'id=&lt;WATCH_SIMULATOR_UDID&gt;'</InlineCode>.
+          To run unit tests across platforms:
         </p>
+        <CodeBlock code="swift test" label="macOS / SwiftPM" />
+        <CodeBlock code="xcodebuild test -scheme FeedbackKit -destination 'id=<WATCH_SIMULATOR_UDID>'" label="watchOS Simulator" />
       </DocsSection>
     </div>
   );

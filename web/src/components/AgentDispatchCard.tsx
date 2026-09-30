@@ -337,14 +337,18 @@ export function AgentDispatchCard({
                 </button>
               </label>
             ))}
-            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-3 py-2 text-neutral-700">
-              <CheckIcon className="h-3.5 w-3.5 text-neutral-400" />
-              <AgentGlyph icon="local" className="h-4 w-4" />
-              <span className="font-medium text-neutral-900">Your machine</span>
-              <span className="text-neutral-500">
-                always available — Claude Code or Codex, run by <code className="font-mono">npx feedbackkit-cli watch</code>{" "}
-                in your repo
-              </span>
+            <div className="flex flex-col gap-1.5 rounded-b-lg border-t border-neutral-100 bg-neutral-50/50 px-3 py-2.5 text-neutral-700">
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                <CheckIcon className="h-3.5 w-3.5 text-neutral-400" />
+                <AgentGlyph icon="local" className="h-4 w-4" />
+                <span className="font-medium text-neutral-900">Your machine (`watch`)</span>
+                <span className="text-neutral-500">
+                  always available — Claude Code or Codex, run by <code className="font-mono text-xs">npx feedbackkit-cli watch</code> in your repo
+                </span>
+              </div>
+              <p className="pl-6 text-[11px] leading-relaxed text-neutral-500">
+                <strong>Environment isolation:</strong> Unlike GitHub Actions which provisions clean virtual machines, <code className="font-mono text-[10px]">feedbackkit watch</code> isolates local runs using a <strong>Git worktree</strong> on a fresh branch (<code className="font-mono text-[10px]">git worktree add</code>). The agent works exclusively inside that temporary directory, leaving your active branch and local working tree untouched. When done, the runner pushes the branch and opens a PR.
+              </p>
             </div>
           </div>
           <span className="mt-1 block text-neutral-500">GitHub Copilot is an assignment rather than a label; it&apos;s below.</span>

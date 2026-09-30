@@ -41,6 +41,32 @@ function tintFor(id: string) {
   return CARD_TINTS[hash % CARD_TINTS.length];
 }
 
+function ProjectAvatar({ project }: { project: Project }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const socialPreviewUrl = project.github_repo
+    ? `https://opengraph.githubassets.com/1/${project.github_repo}`
+    : null;
+
+  if (socialPreviewUrl && !imgFailed) {
+    return (
+      <img
+        src={socialPreviewUrl}
+        alt={project.name}
+        onError={() => setImgFailed(true)}
+        className="h-14 w-14 sm:h-16 sm:w-16 shrink-0 rounded-xl object-cover border border-neutral-200 shadow-2xs"
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 items-center justify-center rounded-xl text-xl sm:text-2xl font-bold shadow-2xs ${tintFor(project.id)}`}
+    >
+      {project.name.slice(0, 1).toUpperCase()}
+    </div>
+  );
+}
+
 function formatCreatedDate(dateStr: string): string {
   try {
     return new Date(dateStr).toLocaleDateString(undefined, {
@@ -169,13 +195,13 @@ export function ProjectsPage() {
               {[0, 1].map((i) => (
                 <div
                   key={i}
-                  className="flex min-w-0 animate-pulse items-center justify-between rounded-xl border border-neutral-200 bg-white p-4 sm:p-5"
+                  className="flex min-w-0 animate-pulse items-center justify-between rounded-xl border border-neutral-200 bg-white p-5 sm:p-6"
                 >
-                  <div className="flex flex-1 items-center gap-3.5 sm:gap-4">
-                    <div className="h-11 w-11 shrink-0 rounded-xl bg-neutral-100" />
-                    <div className="flex-1 max-w-sm space-y-2">
-                      <div className="h-4 w-1/2 rounded bg-neutral-100" />
-                      <div className="h-3 w-2/3 rounded bg-neutral-100" />
+                  <div className="flex flex-1 items-center gap-4 sm:gap-5">
+                    <div className="h-14 w-14 sm:h-16 sm:w-16 shrink-0 rounded-xl bg-neutral-100" />
+                    <div className="flex-1 max-w-sm space-y-2.5">
+                      <div className="h-5 w-1/2 rounded bg-neutral-100" />
+                      <div className="h-3.5 w-2/3 rounded bg-neutral-100" />
                     </div>
                   </div>
                   <div className="hidden h-4 w-20 rounded bg-neutral-100 sm:block" />
@@ -195,7 +221,7 @@ export function ProjectsPage() {
                 return (
                   <div
                     key={project.id}
-                    className={`group relative flex flex-col justify-between gap-4 rounded-xl border bg-white p-4 shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md sm:flex-row sm:items-center sm:p-5 ${
+                    className={`group relative flex flex-col justify-between gap-4 rounded-xl border bg-white p-5 shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md sm:flex-row sm:items-center sm:p-6 ${
                       isPinned
                         ? "border-amber-200/80 bg-gradient-to-r from-amber-50/20 via-white to-white hover:border-amber-300"
                         : "border-neutral-200 hover:border-neutral-300"
@@ -206,15 +232,11 @@ export function ProjectsPage() {
                       className="absolute inset-0 z-0 rounded-xl"
                       aria-label={`View project ${project.name}`}
                     />
-                    <div className="flex min-w-0 items-center gap-3.5 sm:gap-4 pointer-events-none">
-                      <div
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-base font-semibold shadow-2xs ${tintFor(project.id)}`}
-                      >
-                        {project.name.slice(0, 1).toUpperCase()}
-                      </div>
+                    <div className="flex min-w-0 items-center gap-4 sm:gap-5 pointer-events-none">
+                      <ProjectAvatar project={project} />
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h2 className="truncate font-semibold text-neutral-900 transition-colors group-hover:text-blue-600 sm:text-base">
+                          <h2 className="truncate text-base sm:text-lg font-semibold text-neutral-900 transition-colors group-hover:text-blue-600">
                             {project.name}
                           </h2>
                           {isPinned && (
@@ -231,14 +253,14 @@ export function ProjectsPage() {
                               className="pointer-events-auto relative z-10 inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs font-medium text-neutral-600 transition-colors hover:border-neutral-300 hover:bg-neutral-100 hover:text-neutral-900"
                               title={`Open ${project.github_repo} on GitHub in a new tab`}
                             >
-                              <GitHubIcon className="h-3 w-3 text-neutral-700" />
-                              <span className="max-w-[200px] truncate">{project.github_repo}</span>
+                              <GitHubIcon className="h-3.5 w-3.5 text-neutral-700" />
+                              <span className="max-w-[220px] truncate">{project.github_repo}</span>
                               <ExternalLinkIcon className="h-2.5 w-2.5 text-neutral-400" />
                             </a>
                           ) : null}
                         </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
-                          <code className="rounded bg-neutral-100 px-1.5 py-0.5 font-mono text-[11px] text-neutral-500">
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs sm:text-sm text-neutral-500">
+                          <code className="rounded bg-neutral-100 px-1.5 py-0.5 font-mono text-xs text-neutral-600">
                             {project.project_key}
                           </code>
                           <span className="hidden text-neutral-300 sm:inline">·</span>

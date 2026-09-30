@@ -73,18 +73,28 @@ function renderInline(text: string): ReactNode[] {
         </em>,
       );
     } else if (match[13]) {
-      // Raw URL
+      // Raw URL - trim trailing punctuation like ., !, ?, ), ]
+      let rawUrl = match[13];
+      let trailingPunct = "";
+      const punctMatch = rawUrl.match(/[.,;:!?)]+$/);
+      if (punctMatch) {
+        trailingPunct = punctMatch[0];
+        rawUrl = rawUrl.slice(0, -trailingPunct.length);
+      }
       elements.push(
         <a
           key={key++}
-          href={match[13]}
+          href={rawUrl}
           target="_blank"
           rel="noreferrer"
-          className="text-blue-600 hover:text-blue-800 underline break-all"
+          className="text-blue-600 hover:text-blue-800 hover:underline break-all font-medium"
         >
-          {match[13]}
+          {rawUrl}
         </a>,
       );
+      if (trailingPunct) {
+        elements.push(trailingPunct);
+      }
     }
 
     lastIndex = regex.lastIndex;
@@ -181,39 +191,43 @@ export function MarkdownPreview({ content, className = "" }: MarkdownPreviewProp
     }
 
     // Heading 1 (# )
-    if (line.startsWith("# ")) {
+    if (line.trim().startsWith("# ")) {
       nodes.push(
-        <div key={key++} className="mt-4 mb-2 border-b border-neutral-200 pb-1.5">
-          <h1 className="text-sm font-bold text-neutral-900 tracking-tight">{renderInline(line.slice(2))}</h1>
+        <div key={key++} className="mt-5 mb-2.5 border-b border-neutral-200 pb-2">
+          <h1 className="text-lg sm:text-xl font-bold text-neutral-900 tracking-tight">{renderInline(line.trim().slice(2))}</h1>
         </div>,
       );
       i++;
       continue;
     }
 
-    // Heading 2 (## ) - Syntax highlighted section header!
-    if (line.startsWith("## ")) {
+    // Heading 2 (## )
+    if (line.trim().startsWith("## ")) {
       nodes.push(
-        <div
-          key={key++}
-          className="mt-4 mb-2 flex items-center gap-2 rounded-r-md border-l-2 border-blue-500 bg-blue-50/50 px-2.5 py-1"
-        >
-          <span className="rounded bg-blue-100 px-1 py-0.2 font-mono text-[10px] font-bold text-blue-700 shadow-2xs">
-            ##
-          </span>
-          <h2 className="text-xs font-bold text-neutral-900 tracking-wide uppercase">{renderInline(line.slice(3))}</h2>
+        <div key={key++} className="mt-4 mb-2">
+          <h2 className="text-base sm:text-lg font-semibold text-neutral-900 tracking-tight">{renderInline(line.trim().slice(3))}</h2>
         </div>,
       );
       i++;
       continue;
     }
 
-    // Heading 3 (### ) - Subheading with syntax marker
-    if (line.startsWith("### ")) {
+    // Heading 3 (### )
+    if (line.trim().startsWith("### ")) {
       nodes.push(
-        <div key={key++} className="mt-3 mb-1 flex items-center gap-1.5">
-          <span className="font-mono text-[10px] font-semibold text-neutral-400">###</span>
-          <h3 className="text-xs font-semibold text-neutral-800">{renderInline(line.slice(4))}</h3>
+        <div key={key++} className="mt-3.5 mb-1.5">
+          <h3 className="text-sm font-semibold text-neutral-800">{renderInline(line.trim().slice(4))}</h3>
+        </div>,
+      );
+      i++;
+      continue;
+    }
+
+    // Heading 4+ (#### )
+    if (line.trim().startsWith("#### ")) {
+      nodes.push(
+        <div key={key++} className="mt-2.5 mb-1">
+          <h4 className="text-xs font-semibold text-neutral-700">{renderInline(line.trim().slice(5))}</h4>
         </div>,
       );
       i++;
@@ -221,13 +235,13 @@ export function MarkdownPreview({ content, className = "" }: MarkdownPreviewProp
     }
 
     // Blockquote (> )
-    if (line.startsWith("> ")) {
+    if (line.trim().startsWith("> ")) {
       nodes.push(
         <blockquote
           key={key++}
-          className="my-1.5 rounded-r border-l-2 border-neutral-300 bg-neutral-50/60 py-1 pl-3 text-xs italic text-neutral-600"
+          className="my-2 rounded-r-md border-l-4 border-neutral-300 bg-neutral-50 px-3 py-1.5 text-xs italic text-neutral-600"
         >
-          {renderInline(line.slice(2))}
+          {renderInline(line.trim().slice(2))}
         </blockquote>,
       );
       i++;
@@ -268,7 +282,7 @@ export function MarkdownPreview({ content, className = "" }: MarkdownPreviewProp
 
     // Regular Paragraph
     nodes.push(
-      <p key={key++} className="my-1 text-xs text-neutral-800 leading-relaxed">
+      <p key={key++} className="my-1.5 text-xs text-neutral-700 leading-relaxed">
         {renderInline(line)}
       </p>,
     );

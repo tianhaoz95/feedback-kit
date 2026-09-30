@@ -272,7 +272,7 @@ export function FixLoopPanel({
 
       {/* Stepper: Reported → Agent working → PR → Merged → Shipped → Verified */}
       <ol className="flex flex-wrap items-center gap-1.5 text-[11px]">
-        <StepPill label="Reported" done />
+        <StepPill label="Reported" done={stage !== null} current={stage === null} />
         {FIX_STAGE_ORDER.map((s, i) => (
           <StepPill key={s} label={FIX_STAGE_META[s].label} done={i <= reachedIndex} current={s === stage} />
         ))}
@@ -533,15 +533,22 @@ export function FixLoopPanel({
 function StepPill({ label, done = false, current = false }: { label: string; done?: boolean; current?: boolean }) {
   return (
     <li
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 transition-all duration-300 ${
         current
-          ? "border-neutral-900 bg-neutral-900 text-white"
+          ? "border-neutral-900 bg-neutral-900 text-white shadow-xs ring-2 ring-neutral-900/20 font-medium"
           : done
           ? "border-emerald-200 bg-emerald-50 text-emerald-800"
           : "border-neutral-200 bg-white text-neutral-400"
       }`}
     >
-      {done && !current ? <CheckIcon className="h-3 w-3" /> : null}
+      {current ? (
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
+        </span>
+      ) : done ? (
+        <CheckIcon className="h-3 w-3 text-emerald-600" />
+      ) : null}
       {label}
     </li>
   );

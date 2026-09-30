@@ -159,12 +159,12 @@ export function DocsHowItWorksPage() {
 
       <Step index={5}>
         <p>
-          After you upload build 42, one command, run by hand or in CI with an access token, checks which merged
-          fixes are in that build's commit and marks them <b>Shipped</b>:
+          Once your GitHub Actions release workflow (or CI script) uploads build 42, it automatically runs the
+          release command with an access token to check which merged fixes are in that build's commit and marks them <b>Shipped</b>:
         </p>
-        <CodeBlock code={`npx feedbackkit-cli release --build 42`} label="Terminal or CI" />
+        <CodeBlock code={`npx feedbackkit-cli release --build 42`} label="GitHub Actions workflow or CI" />
         <p>
-          Add it to the end of your release script. The <InlineCode>setup-release-loop</InlineCode> skill can wire
+          Automating this in GitHub Actions removes any manual bottleneck. The <InlineCode>setup-release-loop</InlineCode> skill can wire
           it in for you. See <Link to="/docs/cli" className={docLink}>CLI</Link> for access tokens and{" "}
           <InlineCode>--dry-run</InlineCode>.
         </p>

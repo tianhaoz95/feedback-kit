@@ -38,9 +38,9 @@ export const LIFECYCLE_STEPS = [
     caption: "The FeedbackKit: <id> trailer links the PR. Merging moves the report to Merged.",
   },
   {
-    title: "You ship a build",
-    where: "CI or your terminal",
-    caption: "One release command marks every merged fix in that build as shipped.",
+    title: "GitHub Actions ships a build",
+    where: "GitHub Actions · CI",
+    caption: "A release workflow automatically marks every merged fix in that build as shipped.",
   },
   {
     title: "The reporter confirms",
@@ -767,9 +767,21 @@ function MergeScene() {
 
 function ShipScene() {
   return (
-    <Terminal title="CI · after TestFlight / Beta upload">
+    <Terminal title="GitHub Actions · .github/workflows/release.yml">
+      <div className="flex items-center justify-between pb-2 border-b border-neutral-800 text-[11px] text-neutral-400">
+        <div className="flex items-center gap-1.5">
+          <GitHubIcon className="h-3 w-3 text-neutral-300" />
+          <span className="font-semibold text-neutral-200">release.yml</span>
+        </div>
+        <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[9.5px] font-semibold text-emerald-400">
+          Build #42 · Success
+        </span>
+      </div>
+      <p className="pt-2 text-neutral-400 text-xs">
+        <span className="text-emerald-400">▶</span> Run release notification
+      </p>
       <p className="text-neutral-400">
-        <span className="text-emerald-400">$</span>{" "}
+        <span className="text-neutral-500">$</span>{" "}
         <Typed text="npx feedbackkit-cli release --build 42" delay={0.2} />
       </p>
       <p className="lc-in pt-1 text-neutral-400" style={d(1.6)}>
@@ -785,8 +797,9 @@ function ShipScene() {
       <p className="lc-in font-medium text-emerald-400" style={d(2.6)}>
         ✓ Shipped 1 fix. Reporter will be prompted on build 42 or newer.
       </p>
-      <div className="pt-2 font-sans">
+      <div className="pt-2 font-sans flex items-center justify-between">
         <StageBadge stage="shipped" className="lc-pop" style={d(3.1)} />
+        <span className="text-[10px] text-neutral-500 font-mono">Automated by GitHub Actions</span>
       </div>
     </Terminal>
   );

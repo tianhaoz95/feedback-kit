@@ -142,8 +142,8 @@ export function ScreenshotViewer({
               type="button"
               disabled={(m === "original" && !rawUrl) || (m === "annotated" && !annotatedUrl && !rawUrl)}
               onClick={() => setMode(m)}
-              className={`rounded px-2 py-0.5 transition-colors disabled:opacity-40 ${
-                mode === m ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-900"
+              className={`rounded px-2.5 py-1 transition-all duration-150 disabled:opacity-40 ${
+                mode === m ? "bg-neutral-900 text-white shadow-2xs font-semibold" : "text-neutral-500 hover:text-neutral-900"
               }`}
             >
               {m === "annotated" ? "Annotated" : m === "original" ? "Original" : `After${previews.length > 1 ? ` (${previews.length})` : ""}`}
@@ -186,31 +186,33 @@ export function ScreenshotViewer({
           ) : null}
         </div>
       </div>
-      {mode === "after" && preview ? (
-        <AfterView
-          previews={previews}
-          preview={preview}
-          onPick={(i) => setPreviewIndex(i)}
-          onExpand={() => setIsExpanded(true)}
-          resolvedAt={resolvedAt}
-        />
-      ) : (
-      <div className="flex items-center justify-center bg-neutral-900/5 p-4">
-        <div
-          className="relative cursor-pointer"
-          onClick={() => setIsExpanded(true)}
-          title="Click to expand"
-        >
-          <img
-            ref={imgRef}
-            src={src ?? undefined}
-            alt={mode === "annotated" ? "Annotated screenshot" : "Original screenshot"}
-            className="block max-h-[520px] w-auto rounded-lg object-contain shadow-xs"
+      <div key={mode} className="animate-tab-fade">
+        {mode === "after" && preview ? (
+          <AfterView
+            previews={previews}
+            preview={preview}
+            onPick={(i) => setPreviewIndex(i)}
+            onExpand={() => setIsExpanded(true)}
+            resolvedAt={resolvedAt}
           />
-          <canvas ref={canvasRef} className="pointer-events-none absolute left-0 top-0 rounded-lg" />
-        </div>
+        ) : (
+          <div className="flex items-center justify-center bg-neutral-900/5 p-4">
+            <div
+              className="relative cursor-pointer"
+              onClick={() => setIsExpanded(true)}
+              title="Click to expand"
+            >
+              <img
+                ref={imgRef}
+                src={src ?? undefined}
+                alt={mode === "annotated" ? "Annotated screenshot" : "Original screenshot"}
+                className="block max-h-[520px] w-auto rounded-lg object-contain shadow-xs"
+              />
+              <canvas ref={canvasRef} className="pointer-events-none absolute left-0 top-0 rounded-lg" />
+            </div>
+          </div>
+        )}
       </div>
-      )}
       {isExpanded && linkUrl && (
         <ImageOverlay
           src={linkUrl}

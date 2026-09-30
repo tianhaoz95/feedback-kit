@@ -57,6 +57,7 @@ export function BillingPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [billingNotConfigured, setBillingNotConfigured] = useState(false);
+  const [showAllPlans, setShowAllPlans] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -212,11 +213,22 @@ export function BillingPage() {
               {billing.cancel_at_period_end ? " · Cancels at period end" : ""}
             </p>
           </div>
-          {isPaid && isOwner ? (
-            <Button variant="secondary" size="sm" disabled={isPending} onClick={manage}>
-              {isPending ? "Opening…" : "Manage billing"}
-            </Button>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            {isPaid ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowAllPlans((prev) => !prev)}
+              >
+                {showAllPlans ? "Hide available plans" : "View all plans"}
+              </Button>
+            ) : null}
+            {isPaid && isOwner ? (
+              <Button variant="secondary" size="sm" disabled={isPending} onClick={manage}>
+                {isPending ? "Opening…" : "Manage billing"}
+              </Button>
+            ) : null}
+          </div>
         </div>
         {usage?.limited ? (
           <div className="mt-4 grid gap-3 border-t border-neutral-100 pt-4 sm:grid-cols-3">
@@ -227,39 +239,86 @@ export function BillingPage() {
         ) : null}
       </div>
 
-      {!isPaid ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <PlanCard title="Free" price="$0" features={FREE_FEATURES} current />
-          <PlanCard
-            title="Team"
-            price={formatUsd(TEAM_PRICE_PER_SEAT_USD)}
-            priceNote="per member / month"
-            features={TEAM_FEATURES}
-            highlight
-            action={
-              <div className="space-y-3">
-                <div className="rounded-lg bg-neutral-50 p-3 text-sm">
-                  <div className="flex items-center justify-between text-neutral-600">
-                    <span className="flex items-center gap-1.5">
-                      <UsersIcon className="h-4 w-4 text-neutral-400" />
-                      {seats} {seats === 1 ? "member" : "members"} × {formatUsd(TEAM_PRICE_PER_SEAT_USD)}
-                    </span>
-                    <span className="font-semibold text-neutral-900">{formatUsd(total)}/mo</span>
+      {!isPaid || showAllPlans ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-neutral-900">Available plans</h2>
+            {isPaid && (
+              <button
+                type="button"
+                onClick={() => setShowAllPlans(false)}
+                className="text-xs text-neutral-500 hover:text-neutral-900 cursor-pointer"
+              >
+                Close
+              </button>
+            )}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <PlanCard
+              title="Free"
+              price="$0"
+              features={FREE_FEATURES}
+              current={!isPaid}
+              action={
+                isPaid ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-neutral-500">
+                      To downgrade to the Free plan, cancel your Team subscription in the Stripe billing portal.
+                    </p>
+                    {isOwner && (
+                      <Button variant="secondary" size="sm" disabled={isPending} onClick={manage} className="w-full">
+                        Manage via billing portal
+                      </Button>
+                    )}
                   </div>
-                  <p className="mt-1 text-xs text-neutral-500">
-                    Seats follow your <Link to="/team" className="underline">team</Link>: adding or removing someone
-                    changes the next invoice, prorated.
-                  </p>
-                </div>
-                <Button size="sm" disabled={isPending || !isOwner} onClick={upgrade} className="w-full">
-                  {isPending ? "Opening…" : `Upgrade to Team · ${formatUsd(total)}/mo`}
-                </Button>
-                {!isOwner ? (
-                  <p className="text-center text-xs text-neutral-500">Only an owner of {current.name} can change the plan.</p>
-                ) : null}
-              </div>
-            }
-          />
+                ) : undefined
+              }
+            />
+            <PlanCard
+              title="Team"
+              price={formatUsd(TEAM_PRICE_PER_SEAT_USD)}
+              priceNote="per member / month"
+              features={TEAM_FEATURES}
+              current={isPaid}
+              highlight={!isPaid}
+              action={
+                isPaid ? (
+                  <div className="space-y-2">
+                    <div className="rounded-lg bg-neutral-50 p-3 text-xs text-neutral-600">
+                      <span className="font-medium text-neutral-900">Your active plan</span> · {seats} {seats === 1 ? "seat" : "seats"} ({formatUsd(total)}/mo)
+                    </div>
+                    {isOwner && (
+                      <Button variant="secondary" size="sm" disabled={isPending} onClick={manage} className="w-full">
+                        {isPending ? "Opening…" : "Manage subscription in Stripe"}
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="rounded-lg bg-neutral-50 p-3 text-sm">
+                      <div className="flex items-center justify-between text-neutral-600">
+                        <span className="flex items-center gap-1.5">
+                          <UsersIcon className="h-4 w-4 text-neutral-400" />
+                          {seats} {seats === 1 ? "member" : "members"} × {formatUsd(TEAM_PRICE_PER_SEAT_USD)}
+                        </span>
+                        <span className="font-semibold text-neutral-900">{formatUsd(total)}/mo</span>
+                      </div>
+                      <p className="mt-1 text-xs text-neutral-500">
+                        Seats follow your <Link to="/team" className="underline">team</Link>: adding or removing someone
+                        changes the next invoice, prorated.
+                      </p>
+                    </div>
+                    <Button size="sm" disabled={isPending || !isOwner} onClick={upgrade} className="w-full">
+                      {isPending ? "Opening…" : `Upgrade to Team · ${formatUsd(total)}/mo`}
+                    </Button>
+                    {!isOwner ? (
+                      <p className="text-center text-xs text-neutral-500">Only an owner of {current.name} can change the plan.</p>
+                    ) : null}
+                  </div>
+                )
+              }
+            />
+          </div>
         </div>
       ) : null}
     </div>

@@ -69,6 +69,39 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .fk-trigger[data-compact="true"] { width: 48px; height: 48px; padding: 0; justify-content: center; border-radius: 24px; }
 .fk-trigger[data-compact="true"] .fk-trigger-label { display: none; }
 .fk-trigger[aria-busy="true"] { opacity: 0.6; pointer-events: none; }
+.fk-trigger-hint {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: rgba(17, 17, 20, 0.92);
+  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  letter-spacing: 0.02em;
+}
+.fk-trigger-hint::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: rgba(17, 17, 20, 0.92);
+}
+.fk-trigger:hover .fk-trigger-hint,
+.fk-trigger:focus-visible .fk-trigger-hint {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
 
 /* ---------- overlay ---------- */
 .fk-overlay {

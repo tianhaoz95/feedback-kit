@@ -36,7 +36,7 @@ const RAW_NAV: RawNavItem[] = [
       "3. It becomes a prompt",
       "4. Your coding agent fixes it",
       "5. The fix merges",
-      "6. You ship a build",
+      "6. GitHub Actions ships a build",
       "7. The reporter confirms",
       "8. You promote the release",
       "What moves each stage",
