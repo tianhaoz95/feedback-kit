@@ -85,6 +85,16 @@ extension View {
             content().frame(minWidth: 720, minHeight: 560)
         }
     }
+
+    func fullScreenCover<Item: Identifiable, Content: View>(
+        item: Binding<Item?>,
+        onDismiss: (() -> Void)? = nil,
+        @ViewBuilder content: @escaping (Item) -> Content
+    ) -> some View {
+        sheet(item: item, onDismiss: onDismiss) { val in
+            content(val).frame(minWidth: 720, minHeight: 560)
+        }
+    }
 }
 
 extension ToolbarItemPlacement {

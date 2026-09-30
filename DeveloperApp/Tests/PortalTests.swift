@@ -474,6 +474,37 @@ final class PortalTests: XCTestCase {
         XCTAssertNotNil(host.view)
     }
 
+    func testFullScreenImageViewerRenders() {
+        let context = FullScreenImageContext(
+            url: URL(string: "https://example.com/screenshot.png")!,
+            title: "After-fix preview",
+            caption: "Verified by coding agent"
+        )
+        XCTAssertEqual(context.title, "After-fix preview")
+        XCTAssertEqual(context.caption, "Verified by coding agent")
+        XCTAssertEqual(context.url.absoluteString, "https://example.com/screenshot.png")
+
+        let viewer = FullScreenImageViewer(
+            url: context.url,
+            title: context.title,
+            caption: context.caption
+        )
+        let host = UIHostingController(rootView: viewer)
+        XCTAssertNotNil(host.view)
+    }
+
+    func testFeedbackDetailViewWithImageAttachmentRenders() {
+        var item = DemoData.sampleFeedbackItems[0]
+        item.attachmentPath = "proj-1/fb-101/attachment/photo.png"
+        item.attachmentFilename = "photo.png"
+        item.attachmentMimeType = "image/png"
+        item.signedAttachmentUrl = "https://example.com/photo.png"
+
+        let detail = FeedbackDetailView(item: item).environmentObject(AppState.shared)
+        let host = UIHostingController(rootView: detail)
+        XCTAssertNotNil(host.view)
+    }
+
     // MARK: - Teams & notifications (0016_teams.sql, 0017_notifications.sql)
 
     func testDecodesTeamRowsFromTheServer() throws {
