@@ -13,6 +13,15 @@ public struct ZoomableScreenshotView: View {
         case after = "After"
 
         public var id: String { rawValue }
+
+        public var iconName: String {
+            switch self {
+            case .annotated: return "pencil.tip.crop.circle"
+            case .raw: return "photo"
+            case .markup: return "scribble"
+            case .after: return "sparkles"
+            }
+        }
     }
 
     @State private var displayMode: DisplayMode = .annotated
@@ -54,11 +63,13 @@ public struct ZoomableScreenshotView: View {
                 if availableModes.count > 2 {
                     Picker("Mode", selection: $displayMode) {
                         ForEach(availableModes) { mode in
-                            Text(mode == .markup ? "Markup" : mode.rawValue).tag(mode)
+                            Image(systemName: mode.iconName)
+                                .tag(mode)
+                                .accessibilityLabel(mode.rawValue)
                         }
                     }
                     .pickerStyle(.segmented)
-                    .frame(maxWidth: 300)
+                    .frame(maxWidth: CGFloat(availableModes.count) * 44)
                 }
 
                 Button {

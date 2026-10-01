@@ -39,12 +39,10 @@ public struct FixLoopChatView: View {
         VStack(spacing: 0) {
             headerBanner
 
-            Divider()
-
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        if let stage = stage {
+                        if let stage = stage, (currentItem.fixedInBuild != nil || currentItem.fixPrUrl != nil || currentItem.fixSummary != nil) {
                             stageSummaryCard(stage: stage)
                         }
 
@@ -81,8 +79,6 @@ public struct FixLoopChatView: View {
                 }
             }
 
-            Divider()
-
             composerBar
         }
         .navigationTitle("Fix Loop")
@@ -90,7 +86,7 @@ public struct FixLoopChatView: View {
         .toolbar {
             if let stage = stage {
                 ToolbarItem(placement: .topBarTrailing) {
-                    FixStageBadgeView(stage: stage)
+                    FixStageBadgeView(stage: stage, inToolbar: true)
                 }
             }
         }
@@ -120,17 +116,21 @@ public struct FixLoopChatView: View {
     @ViewBuilder
     private var headerBanner: some View {
         if stage == .reopened {
-            HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundColor(.red)
-                Text("The reporter says the fix\(currentItem.fixedInBuild.map { " in build \($0)" } ?? "") didn't work.")
-                    .font(.caption.weight(.medium))
-                    .foregroundColor(.red)
-                Spacer()
+            VStack(spacing: 0) {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.red)
+                    Text("The reporter says the fix\(currentItem.fixedInBuild.map { " in build \($0)" } ?? "") didn't work.")
+                        .font(.caption.weight(.medium))
+                        .foregroundColor(.red)
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.red.opacity(0.1))
+
+                Divider()
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(Color.red.opacity(0.1))
         }
     }
 

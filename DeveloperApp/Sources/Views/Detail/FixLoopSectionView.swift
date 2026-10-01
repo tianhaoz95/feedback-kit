@@ -267,25 +267,40 @@ public struct FixLoopSectionView: View {
 
 public struct FixStageBadgeView: View {
     public let stage: PortalFixStage
+    public var inToolbar: Bool
 
-    public init(stage: PortalFixStage) {
+    public init(stage: PortalFixStage, inToolbar: Bool = false) {
         self.stage = stage
+        self.inToolbar = inToolbar
     }
 
     public var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: stage.systemImage)
-                .font(.system(size: 9, weight: .bold))
-            Text(stage.label)
-                .font(.caption2.weight(.semibold))
-                .lineLimit(1)
+        if inToolbar {
+            HStack(spacing: 4) {
+                Image(systemName: stage.systemImage)
+                    .font(.caption2.weight(.bold))
+                Text(stage.label)
+                    .font(.caption2.weight(.semibold))
+                    .lineLimit(1)
+            }
+            .foregroundColor(color)
+            .padding(.horizontal, 4)
+            .fixedSize()
+        } else {
+            HStack(spacing: 3) {
+                Image(systemName: stage.systemImage)
+                    .font(.system(size: 9, weight: .bold))
+                Text(stage.label)
+                    .font(.caption2.weight(.semibold))
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .foregroundColor(color)
+            .background(color.opacity(0.12))
+            .clipShape(Capsule())
+            .fixedSize()
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .foregroundColor(color)
-        .background(color.opacity(0.12))
-        .clipShape(Capsule())
-        .fixedSize()
     }
 
     private var color: Color {
