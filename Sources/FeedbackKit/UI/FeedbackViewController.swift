@@ -1,5 +1,6 @@
 #if os(iOS)
 import AVFoundation
+import PhotosUI
 import UIKit
 import UniformTypeIdentifiers
 
@@ -516,6 +517,9 @@ final class FeedbackViewController: UIViewController {
         var attach: [UIMenuElement] = [
             UIAction(title: "Attach File…", image: UIImage(systemName: "paperclip")) { [weak self] _ in
                 self?.attachFileTapped()
+            },
+            UIAction(title: "Photo Library", image: UIImage(systemName: "photo.on.rectangle")) { [weak self] _ in
+                self?.pickPhotoTapped()
             }
         ]
         if Self.canTakePhoto {
@@ -559,6 +563,15 @@ final class FeedbackViewController: UIViewController {
         if notifyReporter { parts.append("Notify me") }
         optionsSummaryLabel.text = parts.joined(separator: " · ")
         optionsSummaryLabel.isHidden = parts.isEmpty
+    }
+
+    private func pickPhotoTapped() {
+        var configuration = PHPickerConfiguration()
+        configuration.selectionLimit = 1
+        configuration.filter = .images
+        let picker = PHPickerViewController(configuration: configuration)
+        picker.delegate = self
+        present(picker, animated: true)
     }
 
     private func attachFileTapped() {
@@ -698,6 +711,44 @@ extension FeedbackViewController: UIImagePickerControllerDelegate, UINavigationC
 
     func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
         picker.dismiss(animated: true)
+    }
+}
+
+extension FeedbackViewController: PHPickerViewControllerDelegate {
+    func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+        picker.dismiss(animated: true)
+        guard let provider = results.first?.itemProvider else { return }
+        if provider.canLoadObject(ofClass: UIImage.self) {
+            provider.loadObject(ofClass: UIImage.self) { [weak self] object, _ in
+                guard let image = object as? UIImage,
+                      let data = image.jpegData(compressionQuality: 0.85) else { return }
+                let suggested = provider.suggestedName?.trimmingCharacters(in: .whitespacesAndNewlines)
+                let filename: String
+                if let suggested = suggested, !suggested.isEmpty {
+                    let ext = (suggested as NSString).pathExtension.lowercased()
+                    if ext == "jpg" || ext == "jpeg" {
+                        filename = suggested
+                    } else {
+                        let nameWithoutExt = (suggested as NSString).deletingPathExtension
+                        filename = "\(nameWithoutExt).jpg"
+                    }
+                } else {
+                    filename = "Photo.jpg"
+                }
+                DispatchQueue.main.async {
+                    self?.setAttachment(filename: filename, mimeType: "image/jpeg", data: data)
+                }
+            }
+        } else if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+            provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { [weak self] data, _ in
+                guard let data = data else { return }
+                let suggested = provider.suggestedName?.trimmingCharacters(in: .whitespacesAndNewlines)
+                let filename = (suggested?.isEmpty == false) ? "\(suggested!).jpg" : "Photo.jpg"
+                DispatchQueue.main.async {
+                    self?.setAttachment(filename: filename, mimeType: "image/jpeg", data: data)
+                }
+            }
+        }
     }
 }
 

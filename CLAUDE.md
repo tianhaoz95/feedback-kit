@@ -690,7 +690,7 @@ Rules for skills:
   checklist and the stuck-report hints.
 - **Reporters opt in to hearing back (`0023_notify_and_watchlist.sql`).**
   The composer's attach (**+**) button is a menu on every platform: Attach
-  File, Take Photo (iOS, only with the host app's `NSCameraUsageDescription`;
+  File, Photo Library (iOS), Take Photo (iOS, only with the host app's `NSCameraUsageDescription`;
   touch devices on the web), then the "Include Screenshot" and "Notify Me
   When It's Fixed" toggles — except that the web SDK shows "Include
   screenshot" as a switch under the text box instead (reporters didn't find

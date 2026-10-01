@@ -197,7 +197,7 @@ export function DocsIosSdkPage() {
       <DocsSection title="The composer's + menu">
         <p>
           The <strong>+</strong> button next to the text field opens a menu: <strong>Attach File…</strong>,{" "}
-          <strong>Take Photo</strong>, and two options with checkmarks, <strong>Include Screenshot</strong> (on by
+          <strong>Photo Library</strong>, <strong>Take Photo</strong>, and two options with checkmarks, <strong>Include Screenshot</strong> (on by
           default) and <strong>Notify Me When It&apos;s Fixed</strong> (off by default). Options that differ from
           the defaults are listed next to the send button.
         </p>
