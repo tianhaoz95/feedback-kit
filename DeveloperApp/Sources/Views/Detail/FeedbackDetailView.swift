@@ -61,9 +61,6 @@ public struct FeedbackDetailView: View {
 
                     // AI Prompt Generator Section
                     promptNavigationCard
-
-                    // Danger Zone / Delete
-                    deleteSection
                 }
                 .padding(16)
             }
@@ -102,6 +99,8 @@ public struct FeedbackDetailView: View {
                                 systemImage: currentItem.isArchived ? "tray.and.arrow.up" : "archivebox"
                             )
                         }
+
+                        Divider()
 
                         Button(role: .destructive) {
                             showDeleteConfirmation = true
@@ -532,25 +531,6 @@ public struct FeedbackDetailView: View {
             items.append(AgentOptionItem(id: "all", name: "All Configured Agents", systemImage: "square.stack.3d.up"))
         }
         return items
-    }
-
-    private var deleteSection: some View {
-        Button(role: .destructive) {
-            showDeleteConfirmation = true
-        } label: {
-            HStack {
-                Spacer()
-                Image(systemName: "trash")
-                Text("Delete Feedback Report")
-                Spacer()
-            }
-            .font(.subheadline.weight(.medium))
-            .padding(.vertical, 12)
-            .background(Color.red.opacity(0.1))
-            .foregroundColor(.red)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        }
-        .padding(.top, 10)
     }
 
     private func createGitHubIssue(redispatch: Bool = false, dispatch: Bool? = nil, agent: String? = nil) {
