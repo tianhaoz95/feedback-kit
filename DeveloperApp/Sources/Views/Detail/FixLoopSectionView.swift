@@ -183,7 +183,6 @@ public struct FixLoopSectionView: View {
                 }
             }
             .pickerStyle(.segmented)
-            .disabled(!canReachReporter && mode != .note)
 
             if !canReachReporter && mode != .note {
                 Text(item.reporterId == nil

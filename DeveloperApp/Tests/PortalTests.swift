@@ -734,4 +734,56 @@ final class PortalTests: XCTestCase {
         let host = UIHostingController(rootView: inbox)
         XCTAssertNotNil(host.view)
     }
+
+    @MainActor
+    func testPromptDetailViewRenders() {
+        SupabasePortalClient.shared.enableDemoMode()
+        let item = DemoData.sampleFeedbackItems[0]
+        let view = PromptDetailView(item: item).environmentObject(AppState.shared)
+        let host = UIHostingController(rootView: NavigationStack { view })
+        XCTAssertNotNil(host.view)
+    }
+
+    func testEnvironmentSectionViewCollapsible() {
+        let env = DemoData.sampleFeedbackItems[0].environment
+        let collapsed = EnvironmentSectionView(env: env, initiallyExpanded: false)
+        let hostCollapsed = UIHostingController(rootView: collapsed)
+        XCTAssertNotNil(hostCollapsed.view)
+
+        let expanded = EnvironmentSectionView(env: env, initiallyExpanded: true)
+        let hostExpanded = UIHostingController(rootView: expanded)
+        XCTAssertNotNil(hostExpanded.view)
+    }
+
+    @MainActor
+    func testFetchFeedbackItemsPagination() async throws {
+        let client = SupabasePortalClient.shared
+        client.enableDemoMode()
+
+        let allItems = try await client.fetchFeedbackItems(projectId: "proj-1", includeArchived: true, resolveSignedUrls: false)
+        XCTAssertGreaterThan(allItems.count, 1)
+
+        let page1 = try await client.fetchFeedbackItems(projectId: "proj-1", includeArchived: true, resolveSignedUrls: false, limit: 1, offset: 0)
+        XCTAssertEqual(page1.count, 1)
+        XCTAssertEqual(page1.first?.id, allItems.first?.id)
+
+        let page2 = try await client.fetchFeedbackItems(projectId: "proj-1", includeArchived: true, resolveSignedUrls: false, limit: 1, offset: 1)
+        XCTAssertEqual(page2.count, 1)
+        XCTAssertEqual(page2.first?.id, allItems[1].id)
+    }
+
+    @MainActor
+    func testAppStateLoadMoreFeedback() async throws {
+        let appState = AppState.shared
+        let client = SupabasePortalClient.shared
+        client.enableDemoMode()
+
+        await appState.loadProjects()
+        XCTAssertFalse(appState.feedbackItems.isEmpty)
+
+        let initialCount = appState.feedbackItems.count
+        // Calling loadMoreFeedback when all items were loaded in demo mode should preserve count
+        await appState.loadMoreFeedback()
+        XCTAssertGreaterThanOrEqual(appState.feedbackItems.count, initialCount)
+    }
 }

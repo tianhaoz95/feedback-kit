@@ -88,6 +88,9 @@ public final class AppState: ObservableObject {
     @Published public var selectedFeedbackIds: Set<String> = []
 
     @Published public var isLoading: Bool = true
+    @Published public var isLoadingMore: Bool = false
+    @Published public var hasMoreFeedback: Bool = true
+    public let feedbackPageSize: Int = 30
     @Published public var errorMessage: String? = nil
 
     private var isSyncingProjects: Bool = false
@@ -319,12 +322,19 @@ public final class AppState: ObservableObject {
             }
 
             do {
-                async let itemsTask = client.fetchFeedbackItems(projectId: proj.id, includeArchived: true)
+                async let itemsTask = client.fetchFeedbackItems(
+                    projectId: proj.id,
+                    includeArchived: true,
+                    resolveSignedUrls: true,
+                    limit: self.feedbackPageSize,
+                    offset: 0
+                )
                 async let templateTask = client.fetchPromptTemplate(projectId: proj.id)
 
                 let (items, template) = try await (itemsTask, templateTask)
                 self.feedbackItems = items
                 self.promptTemplate = template
+                self.hasMoreFeedback = items.count >= self.feedbackPageSize
             } catch is CancellationError {
                 // Task was cancelled, ignore
                 return
@@ -336,6 +346,33 @@ public final class AppState: ObservableObject {
         inFlightFeedbackTask = task
         await task.value
         inFlightFeedbackTask = nil
+    }
+
+    public func loadMoreFeedback() async {
+        guard !isLoading && !isLoadingMore && hasMoreFeedback else { return }
+        guard let proj = selectedProject else { return }
+
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+
+        do {
+            let offset = feedbackItems.count
+            let newItems = try await client.fetchFeedbackItems(
+                projectId: proj.id,
+                includeArchived: true,
+                resolveSignedUrls: true,
+                limit: feedbackPageSize,
+                offset: offset
+            )
+            let existingIds = Set(feedbackItems.map { $0.id })
+            let uniqueNew = newItems.filter { !existingIds.contains($0.id) }
+            feedbackItems.append(contentsOf: uniqueNew)
+            hasMoreFeedback = newItems.count >= feedbackPageSize
+        } catch is CancellationError {
+            return
+        } catch {
+            // Keep what's loaded
+        }
     }
 
     public func updateStatus(item: PortalFeedbackItem, to newStatus: PortalFeedbackStatus) async {

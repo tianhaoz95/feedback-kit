@@ -354,7 +354,6 @@ public struct FixLoopChatView: View {
                 }
             }
             .pickerStyle(.segmented)
-            .disabled(!canReachReporter && mode != .note)
 
             if !canReachReporter && mode != .note {
                 Text(currentItem.reporterId == nil

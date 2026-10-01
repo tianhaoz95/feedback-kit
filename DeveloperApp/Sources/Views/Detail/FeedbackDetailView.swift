@@ -9,9 +9,6 @@ public struct FeedbackDetailView: View {
 
     @State private var isCreatingIssue = false
     @State private var issueError: String? = nil
-    @State private var isPromptEditorPresented = false
-    @State private var didCopyPrompt = false
-    @State private var isPromptExpanded = false
     @State private var showDeleteConfirmation = false
     /// nil while loading. Watching sends every step of this report's fix as a
     /// notification (0023_notify_and_watchlist.sql).
@@ -25,18 +22,6 @@ public struct FeedbackDetailView: View {
 
     private var currentItem: PortalFeedbackItem {
         appState.feedbackItems.first(where: { $0.id == item.id }) ?? item
-    }
-
-    private var promptText: String {
-        if let custom = currentItem.editedPrompt, !custom.isEmpty {
-            return custom
-        }
-        return PromptGenerator.renderPrompt(
-            template: appState.promptTemplate?.templateText ?? PromptGenerator.defaultTemplate,
-            feedback: currentItem,
-            screenshotUrl: currentItem.signedScreenshotUrl,
-            attachmentUrl: currentItem.signedAttachmentUrl
-        )
     }
 
     public var body: some View {
@@ -75,7 +60,7 @@ public struct FeedbackDetailView: View {
                         .id("fix_loop_section")
 
                     // AI Prompt Generator Section
-                    aiPromptSection
+                    promptNavigationCard
 
                     // Danger Zone / Delete
                     deleteSection
@@ -94,61 +79,54 @@ public struct FeedbackDetailView: View {
                     .help("Fix Loop Chat")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        toggleWatching()
-                    } label: {
-                        Label(isWatching == true ? "Watching" : "Watch", systemImage: isWatching == true ? "eye.fill" : "eye")
-                    }
-                    .disabled(isWatching == nil)
-                    .help(isWatching == true ? "Stop getting notified about this report" : "Get notified about every step of this report's fix")
-                }
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button {
-                        Task {
-                            await appState.toggleArchive(item: currentItem)
+                    Menu {
+                        Button {
+                            toggleWatching()
+                        } label: {
+                            Label(
+                                isWatching == true ? "Stop Watching" : "Watch Report",
+                                systemImage: isWatching == true ? "eye.slash" : "eye"
+                            )
+                        }
+                        .disabled(isWatching == nil)
+
+                        Divider()
+
+                        Button {
+                            Task {
+                                await appState.toggleArchive(item: currentItem)
+                            }
+                        } label: {
+                            Label(
+                                currentItem.isArchived ? "Unarchive" : "Archive",
+                                systemImage: currentItem.isArchived ? "tray.and.arrow.up" : "archivebox"
+                            )
+                        }
+
+                        Button(role: .destructive) {
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label("Delete Report", systemImage: "trash")
                         }
                     } label: {
-                        Label(
-                            currentItem.isArchived ? "Unarchive" : "Archive",
-                            systemImage: currentItem.isArchived ? "tray.and.arrow.up" : "archivebox"
-                        )
-                    }
-
-                    Button(role: .destructive) {
-                        showDeleteConfirmation = true
-                    } label: {
-                        Label("Delete Report", systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-            }
-        }
-        .alert(
-            "Delete this feedback report?",
-            isPresented: $showDeleteConfirmation
-        ) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
-                Task {
-                    await appState.delete(item: currentItem)
-                    dismiss()
-                }
-            }
-        } message: {
-            Text("This action cannot be undone.")
-        }
-        .sheet(isPresented: $isPromptEditorPresented) {
-            PromptEditorSheet(item: currentItem, initialPrompt: promptText) { edited in
-                Task {
-                    try? await SupabasePortalClient.shared.saveEditedPrompt(id: currentItem.id, prompt: edited)
-                    if let idx = appState.feedbackItems.firstIndex(where: { $0.id == currentItem.id }) {
-                        appState.feedbackItems[idx].editedPrompt = edited
+                        Image(systemName: "ellipsis.circle")
                     }
                 }
             }
-        }
+            .alert(
+                "Delete this feedback report?",
+                isPresented: $showDeleteConfirmation
+            ) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete", role: .destructive) {
+                    Task {
+                        await appState.delete(item: currentItem)
+                        dismiss()
+                    }
+                }
+            } message: {
+                Text("This action cannot be undone.")
+            }
         .fullScreenCover(item: $attachmentFullScreenContext) { ctx in
             FullScreenImageViewer(url: ctx.url, title: ctx.title, caption: ctx.caption)
         }
@@ -191,43 +169,53 @@ public struct FeedbackDetailView: View {
     // MARK: - Subviews
 
     private var statusBar: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text("Status")
                     .font(.caption.weight(.semibold))
                     .foregroundColor(.secondary)
-                Spacer()
-                Text(PortalDateFormatter.formatShort(currentItem.createdAt))
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
 
-            HStack(spacing: 6) {
-                ForEach(PortalFeedbackStatus.allCases) { status in
-                    let isSelected = currentItem.status == status
-                    Button {
-                        Task {
-                            await appState.updateStatus(item: currentItem, to: status)
+                Menu {
+                    ForEach(PortalFeedbackStatus.allCases) { status in
+                        Button {
+                            Task {
+                                await appState.updateStatus(item: currentItem, to: status)
+                            }
+                        } label: {
+                            HStack {
+                                Label(status.displayName, systemImage: status.iconName)
+                                if currentItem.status == status {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
                         }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: status.iconName)
-                                .font(.system(size: 11, weight: .bold))
-                            Text(status.displayName)
-                                .font(.caption2.weight(isSelected ? .bold : .medium))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.75)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 32)
-                        .background(isSelected ? Color.accentColor : Color(UIColor.secondarySystemBackground))
-                        .foregroundColor(isSelected ? .white : .primary)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     }
+                } label: {
+                    HStack(spacing: 8) {
+                        StatusBadgeView(status: currentItem.status)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption2.weight(.bold))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color(UIColor.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
             }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 6) {
+                Text("Reported")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.secondary)
+                Text(PortalDateFormatter.formatShort(currentItem.createdAt))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
-        .padding(12)
+        .padding(14)
         .background(Color(UIColor.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
@@ -331,86 +319,35 @@ public struct FeedbackDetailView: View {
         }
     }
 
-    private var aiPromptSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            DisclosureGroup(isExpanded: $isPromptExpanded) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Feed this prompt directly to Cursor, Claude Code, or Antigravity to reproduce and fix this issue.")
+    private var promptNavigationCard: some View {
+        NavigationLink {
+            PromptDetailView(item: currentItem)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "sparkles")
+                    .font(.title3)
+                    .foregroundColor(.purple)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("AI Coding Agent Prompt")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.primary)
+                    Text("Preview, copy & customize prompt")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                        .padding(.top, 4)
-
-                    // Monospaced prompt card
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(promptText)
-                            .font(.system(.caption, design: .monospaced))
-                            .foregroundColor(.primary)
-                            .padding(10)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color(UIColor.systemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-                        // Actions: Copy & Share
-                        HStack(spacing: 12) {
-                            Button {
-                                UIPasteboard.general.string = promptText
-                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                didCopyPrompt = true
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                    didCopyPrompt = false
-                                }
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Image(systemName: didCopyPrompt ? "checkmark" : "doc.on.doc.fill")
-                                    Text(didCopyPrompt ? "Copied!" : "Copy Prompt")
-                                }
-                                .font(.subheadline.weight(.semibold))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(Color.accentColor)
-                                .foregroundColor(.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                            }
-
-                            ShareLink(item: promptText) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "square.and.arrow.up")
-                                    Text("Share")
-                                }
-                                .font(.subheadline.weight(.semibold))
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 10)
-                                .background(Color(UIColor.secondarySystemBackground))
-                                .foregroundColor(.primary)
-                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                            }
-                        }
-                    }
                 }
-            } label: {
-                HStack {
-                    Label("AI Coding Agent Prompt", systemImage: "sparkles")
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                    Spacer()
 
-                    Button {
-                        isPromptEditorPresented = true
-                    } label: {
-                        HStack(spacing: 3) {
-                            Image(systemName: "pencil")
-                            Text("Customize")
-                        }
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(.accentColor)
-                    }
-                    .buttonStyle(.plain)
-                }
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.secondary)
             }
-            .padding(12)
+            .padding(14)
             .background(Color(UIColor.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
+        .buttonStyle(.plain)
     }
 
     private var fixLoopNavigationCard: some View {

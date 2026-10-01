@@ -548,7 +548,9 @@ public final class SupabasePortalClient: ObservableObject {
     public func fetchFeedbackItems(
         projectId: String? = nil,
         includeArchived: Bool = false,
-        resolveSignedUrls: Bool = true
+        resolveSignedUrls: Bool = true,
+        limit: Int? = nil,
+        offset: Int? = nil
     ) async throws -> [PortalFeedbackItem] {
         if isDemoMode {
             var items = demoFeedback
@@ -557,6 +559,17 @@ public final class SupabasePortalClient: ObservableObject {
             }
             if !includeArchived {
                 items = items.filter { !$0.isArchived }
+            }
+            items.sort(by: { $0.createdAt > $1.createdAt })
+            if let offset = offset, offset > 0 {
+                if offset < items.count {
+                    items = Array(items.dropFirst(offset))
+                } else {
+                    items = []
+                }
+            }
+            if let limit = limit, limit > 0 {
+                items = Array(items.prefix(limit))
             }
             if resolveSignedUrls {
                 for i in 0..<items.count {
@@ -571,7 +584,7 @@ public final class SupabasePortalClient: ObservableObject {
                     }
                 }
             }
-            return items.sorted(by: { $0.createdAt > $1.createdAt })
+            return items
         }
 
         var queryItems: [URLQueryItem] = [
@@ -583,6 +596,12 @@ public final class SupabasePortalClient: ObservableObject {
         }
         if !includeArchived {
             queryItems.append(URLQueryItem(name: "is_archived", value: "eq.false"))
+        }
+        if let limit = limit {
+            queryItems.append(URLQueryItem(name: "limit", value: "\(limit)"))
+        }
+        if let offset = offset {
+            queryItems.append(URLQueryItem(name: "offset", value: "\(offset)"))
         }
 
         let request = try makeRequest(path: "/rest/v1/feedback_items", queryItems: queryItems)
