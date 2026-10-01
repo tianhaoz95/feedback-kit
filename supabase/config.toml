@@ -455,6 +455,11 @@ verify_jwt = false
 [functions.cleanup-previews]
 verify_jwt = false
 
+# Serves feedback screenshots directly to GitHub issues and coding agents
+# authenticated via an HMAC signature token, without committing images to git.
+[functions.feedback-screenshot]
+verify_jwt = false
+
 
 [analytics]
 enabled = true

@@ -63,45 +63,6 @@ export async function getInstallationToken(
   }
 }
 
-export async function uploadScreenshotToRepo(
-  token: string,
-  owner: string,
-  repo: string,
-  feedbackId: string,
-  imageBytes: Uint8Array,
-): Promise<string | null> {
-  try {
-    const path = `.feedback/screenshots/${feedbackId}.png`;
-    let binary = "";
-    const chunkSize = 8192;
-    for (let i = 0; i < imageBytes.length; i += chunkSize) {
-      binary += String.fromCharCode(...imageBytes.subarray(i, i + chunkSize));
-    }
-    const content = btoa(binary);
-
-    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github+json",
-        "User-Agent": "FeedbackKit",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        message: `chore(feedback): upload screenshot for feedback ${feedbackId}`,
-        content,
-      }),
-    });
-
-    if (res.ok) {
-      return `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${path}`;
-    }
-  } catch (err) {
-    console.warn("Failed to commit screenshot to repo contents:", err);
-  }
-  return null;
-}
-
 export async function createGitHubIssue(
   token: string,
   owner: string,

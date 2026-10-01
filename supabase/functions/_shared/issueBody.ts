@@ -130,11 +130,19 @@ ${ids.map((id) => `FeedbackKit: ${id}`).join("\n")}
 \`\`\``;
 }
 
-export function singleIssueBody(assets: ReportAssets, deliveryMode: string | null | undefined): string {
+export function singleIssueBody(
+  assets: ReportAssets,
+  deliveryMode: string | null | undefined,
+  dashboardBaseUrl: string = "https://feedback-kit.hejitech.workers.dev",
+): string {
   const { feedback } = assets;
+  const projectSlug = feedback.project_id ? `/projects/${feedback.project_id}` : "";
+  const feedbackDashboardUrl = `${dashboardBaseUrl}${projectSlug}/feedback/${feedback.id}`;
   const screenshotSection = assets.screenshotMd ? `\n## Screenshot\n${assets.screenshotMd}\n` : "";
   return `## Description
 ${feedback.text || "*(No description provided)*"}
+
+**FeedbackKit:** [View report in FeedbackKit Dashboard](${feedbackDashboardUrl})
 ${productsSection(feedback, "##")}${screenshotSection}
 ## Environment
 ${environmentTable(feedback)}${attachmentSection(assets, "##")}${logsDetails(feedback)}
@@ -143,7 +151,7 @@ ${promptDetails("🤖 Coding Agent Prompt", assets.promptText)}
 ${closingTheLoopSection([feedback.id], deliveryMode)}
 
 ---
-*Logged via [FeedbackKit](https://feedback-kit.hejitech.workers.dev/) from report \`${feedback.id}\`*`;
+*Logged via [FeedbackKit](${feedbackDashboardUrl}) from report \`${feedback.id}\`*`;
 }
 
 /**
@@ -163,18 +171,28 @@ export function batchIssueBody(
   reports: ReportAssets[],
   deliveryMode: string | null | undefined,
   promptOverride?: string | null,
+  dashboardBaseUrl: string = "https://feedback-kit.hejitech.workers.dev",
 ): string {
   const build = (withLogs: boolean) => {
     const index = reports
-      .map((r, i) => `${i + 1}. ${screenPrefix(r.feedback)}${snippet(r.feedback.text, 80) ?? "*(no description)*"} — \`${r.feedback.id}\``)
+      .map((r, i) => {
+        const f = r.feedback;
+        const projectSlug = f.project_id ? `/projects/${f.project_id}` : "";
+        const dashboardUrl = `${dashboardBaseUrl}${projectSlug}/feedback/${f.id}`;
+        return `${i + 1}. ${screenPrefix(f)}${snippet(f.text, 80) ?? "*(no description)*"} — [\`${f.id}\`](${dashboardUrl})`;
+      })
       .join("\n");
     const sections = reports
       .map((r, i) => {
         const f = r.feedback;
+        const projectSlug = f.project_id ? `/projects/${f.project_id}` : "";
+        const dashboardUrl = `${dashboardBaseUrl}${projectSlug}/feedback/${f.id}`;
         return `## ${i + 1}. ${screenPrefix(f)}${snippet(f.text, 60) ?? "Bug report"}
 
 ### Description
 ${f.text || "*(No description provided)*"}
+
+**FeedbackKit:** [View report in FeedbackKit Dashboard](${dashboardUrl})
 ${productsSection(f, "###")}
 ### Screenshot
 ${r.screenshotMd}
@@ -198,7 +216,7 @@ ${promptDetails("🤖 Coding Agent Prompt (all reports)", batchPrompt(reports, p
 ${closingTheLoopSection(reports.map((r) => r.feedback.id), deliveryMode)}
 
 ---
-*Logged via [FeedbackKit](https://feedback-kit.hejitech.workers.dev/) from ${reports.length} reports*`;
+*Logged via [FeedbackKit](${dashboardBaseUrl}) from ${reports.length} reports*`;
   };
   const body = build(true);
   return body.length <= MAX_ISSUE_BODY ? body : build(false);

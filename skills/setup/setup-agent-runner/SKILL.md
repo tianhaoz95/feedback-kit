@@ -92,7 +92,7 @@ As the user the runner service runs as:
    S=~/.gemini/antigravity-cli/settings.json; [ -f "$S" ] || echo '{}' > "$S"
    jq '.permissions.allow = ((.permissions.allow // []) + [
      "command(ls)", "command(cat)", "command(grep)", "command(find)", "command(head)", "command(tail)", "command(wc)", "command(pwd)",
-     "read_url(raw.githubusercontent.com)", "read_url(github.com)",
+     "read_url(raw.githubusercontent.com)", "read_url(github.com)", "read_url(*.supabase.co)", "read_url(supabase.co)",
      "command(rg)", "command(sort)", "command(uniq)", "command(diff)", "command(stat)", "command(file)", "command(which)", "command(mkdir)",
      "command(git log)", "command(git show)", "command(git diff)", "command(git status)", "command(git blame)",
      "command(git grep)", "command(git ls-files)", "command(git rev-parse)",
@@ -100,7 +100,7 @@ As the user the runner service runs as:
    ] | unique)' "$S" > "$S.tmp" && mv "$S.tmp" "$S"
    ```
 
-   The `read_url` rules let it open the report's screenshot, which FeedbackKit stores in the repository and links from the issue; without them the run stops the moment it tries. Swap the last line for the project's tools (e.g. `command(node)`, `command(npm)` for a web app). Allow only git's read subcommands, as above (agents look up history often, and a denied `git log` ends the run); never plain `command(git)`: the workflow does all commits and pushes. Never use `--dangerously-skip-permissions` here — report text is untrusted input.
+   The `read_url` rules let it open the report's screenshot linked from the issue; without them the run stops the moment it tries. Swap the last line for the project's tools (e.g. `command(node)`, `command(npm)` for a web app). Allow only git's read subcommands, as above (agents look up history often, and a denied `git log` ends the run); never plain `command(git)`: the workflow does all commits and pushes. Never use `--dangerously-skip-permissions` here — report text is untrusted input.
 3. Optional but recommended — the FeedbackKit MCP tools, so the agent claims the report, can ask the reporter, and attaches a screenshot or short video of the fix (the loop works without them, through the PR's `FeedbackKit:` line). Register the server and allow its tools, then create the agent-runner token (below):
 
    ```bash

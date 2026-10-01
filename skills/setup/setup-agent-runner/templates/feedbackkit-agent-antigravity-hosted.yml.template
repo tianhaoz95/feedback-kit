@@ -110,7 +110,7 @@ jobs:
               "command(rg)", "command(sort)", "command(uniq)", "command(diff)", "command(stat)", "command(file)", "command(which)", "command(mkdir)",
               "command(git log)", "command(git show)", "command(git diff)", "command(git status)", "command(git blame)",
               "command(git grep)", "command(git ls-files)", "command(git rev-parse)",
-              "read_url(raw.githubusercontent.com)", "read_url(github.com)",
+              "read_url(raw.githubusercontent.com)", "read_url(github.com)", "read_url(*.supabase.co)", "read_url(supabase.co)",
               "mcp(feedbackkit/claim_feedback)", "mcp(feedbackkit/post_update)", "mcp(feedbackkit/ask_reporter)",
               "mcp(feedbackkit/attach_preview)", "mcp(feedbackkit/get_feedback)", "mcp(feedbackkit/get_prompt)",
               "command(xcodebuild)", "command(xcrun)", "command(swift)", "command(xcodegen)"

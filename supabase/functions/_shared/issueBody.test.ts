@@ -5,6 +5,7 @@ function report(id: string, text: string, extra: Record<string, unknown> = {}): 
   return {
     feedback: {
       id,
+      project_id: "test-proj-id",
       text,
       created_at: "2026-09-01T12:00:00Z",
       environment: { screenName: "Cart", osName: "iOS", osVersion: "18.0", deviceModel: "iPhone" },
@@ -21,20 +22,22 @@ function report(id: string, text: string, extra: Record<string, unknown> = {}): 
 const a = report("11111111-1111-1111-1111-111111111111", "Checkout button overlaps the total");
 const b = report("22222222-2222-2222-2222-222222222222", "Remove button does nothing");
 
-Deno.test("single issue keeps one trailer and the report's prompt", () => {
+Deno.test("single issue keeps one trailer, prompt, and dashboard link", () => {
   const body = singleIssueBody(a, "batch");
   assertStringIncludes(body, "FeedbackKit: 11111111-1111-1111-1111-111111111111");
   assertStringIncludes(body, "Fix: Checkout button overlaps the total");
+  assertStringIncludes(body, "[View report in FeedbackKit Dashboard](https://feedback-kit.hejitech.workers.dev/projects/test-proj-id/feedback/11111111-1111-1111-1111-111111111111)");
   assertEquals(issueTitle(a.feedback), "[Feedback] [Cart] Checkout button overlaps the total");
 });
 
-Deno.test("batch issue has a section and a trailer per report", () => {
+Deno.test("batch issue has a section, trailer, and dashboard link per report", () => {
   const body = batchIssueBody([a, b], "batch");
   assertMatch(body, /## 1\. \[Cart\] Checkout button/);
   assertMatch(body, /## 2\. \[Cart\] Remove button/);
   assertStringIncludes(body, "FeedbackKit: 11111111-1111-1111-1111-111111111111\nFeedbackKit: 22222222-2222-2222-2222-222222222222");
   assertStringIncludes(body, "## Report 2 of 2");
   assertStringIncludes(body, "one trailer per report you fixed");
+  assertStringIncludes(body, "[View report in FeedbackKit Dashboard](https://feedback-kit.hejitech.workers.dev/projects/test-proj-id/feedback/11111111-1111-1111-1111-111111111111)");
   assertEquals(batchIssueTitle([a.feedback, b.feedback]), "[Feedback] 2 reports: [Cart] Checkout button overlaps the total (+1 more)");
 });
 

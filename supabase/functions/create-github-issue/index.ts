@@ -12,7 +12,6 @@ import {
 import {
   getInstallationIdForRepo,
   getInstallationToken,
-  uploadScreenshotToRepo,
   createGitHubIssue,
   dispatchIssueToAgent,
   getProjectInstallationToken,
@@ -21,6 +20,7 @@ import {
   dispatchSettingsFor,
   requestFollowUp,
 } from "../_shared/github.ts";
+import { signScreenshotToken } from "../_shared/screenshotToken.ts";
 
 interface RequestBody {
   project_id: string;
@@ -294,7 +294,7 @@ Deno.serve(async (req) => {
 
     const reports: ReportAssets[] = [];
     for (const feedback of items) {
-      const { screenshotMd, screenshotUrl } = await resolveScreenshot(adminClient, tokenInstall, owner, repo, feedback);
+      const { screenshotMd, screenshotUrl } = await resolveScreenshot(adminClient, supabaseUrl, supabaseServiceKey, feedback);
       let attachmentUrl: string | null = null;
       if (feedback.attachment_path) {
         const { data: signedAtt } = await adminClient.storage
@@ -363,44 +363,40 @@ Deno.serve(async (req) => {
 });
 
 /**
- * The annotated screenshot, committed to the repo so the link lasts; a 7-day
- * signed URL if that fails.
+ * Resolves the annotated screenshot URL using the feedback-screenshot proxy
+ * with an HMAC token, avoiding committing binary screenshots into git while
+ * ensuring GitHub issues and coding agents can view the image permanently.
+ * Falls back to a 7-day signed storage URL if needed.
  */
 async function resolveScreenshot(
   // deno-lint-ignore no-explicit-any
   adminClient: any,
-  tokenInstall: string,
-  owner: string,
-  repo: string,
-  feedback: { id: string; screenshot_annotated_path?: string | null },
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  feedback: { id: string; screenshot_annotated_path?: string | null; screenshot_raw_path?: string | null },
 ): Promise<{ screenshotMd: string; screenshotUrl: string | null }> {
   let screenshotMd = "*(No screenshot included)*";
   let screenshotUrl: string | null = null;
-  if (!feedback.screenshot_annotated_path) return { screenshotMd, screenshotUrl };
-  try {
-    const { data: fileData, error: dlErr } = await adminClient.storage
-      .from("feedback-screenshots")
-      .download(feedback.screenshot_annotated_path);
+  const path = feedback.screenshot_annotated_path || feedback.screenshot_raw_path;
+  if (!path) return { screenshotMd, screenshotUrl };
 
-    if (!dlErr && fileData) {
-      const bytes = new Uint8Array(await fileData.arrayBuffer());
-      const repoAssetUrl = await uploadScreenshotToRepo(tokenInstall, owner, repo, feedback.id, bytes);
-      if (repoAssetUrl) {
-        screenshotUrl = repoAssetUrl;
-        screenshotMd = `![Feedback Screenshot](${repoAssetUrl})`;
-      } else {
-        // Fallback to 7-day signed URL
-        const { data: signed } = await adminClient.storage
-          .from("feedback-screenshots")
-          .createSignedUrl(feedback.screenshot_annotated_path, 60 * 60 * 24 * 7);
-        if (signed?.signedUrl) {
-          screenshotUrl = signed.signedUrl;
-          screenshotMd = `![Feedback Screenshot](${signed.signedUrl})\n*(Signed URL valid for 7 days)*`;
-        }
-      }
-    }
+  try {
+    const token = await signScreenshotToken(feedback.id, supabaseServiceKey);
+    screenshotUrl = `${supabaseUrl}/functions/v1/feedback-screenshot?id=${feedback.id}&token=${token}`;
+    screenshotMd = `![Feedback Screenshot](${screenshotUrl})`;
   } catch (e) {
-    console.warn("Screenshot handling error:", e);
+    console.warn("Screenshot proxy token error, falling back to signed URL:", e);
+    try {
+      const { data: signed } = await adminClient.storage
+        .from("feedback-screenshots")
+        .createSignedUrl(path, 60 * 60 * 24 * 7);
+      if (signed?.signedUrl) {
+        screenshotUrl = signed.signedUrl;
+        screenshotMd = `![Feedback Screenshot](${signed.signedUrl})\n*(Signed URL valid for 7 days)*`;
+      }
+    } catch (fallbackErr) {
+      console.warn("Storage signed URL fallback error:", fallbackErr);
+    }
   }
   return { screenshotMd, screenshotUrl };
 }
