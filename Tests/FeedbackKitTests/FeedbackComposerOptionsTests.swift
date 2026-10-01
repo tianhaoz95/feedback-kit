@@ -27,6 +27,8 @@ final class FeedbackComposerOptionsTests: XCTestCase {
         XCTAssertEqual(byTitle["Include Screenshot"]?.state, .on)
         XCTAssertEqual(byTitle["Notify Me When It's Fixed"]?.state, .off)
         XCTAssertNotNil(byTitle["Attach File…"])
+        XCTAssertNotNil(byTitle["Photo Library"])
+        XCTAssertEqual(byTitle["Photo Library"]?.image, UIImage(systemName: "photo.on.rectangle"))
     }
 
     func testTogglingUpdatesTheMenuCheckmarks() {
