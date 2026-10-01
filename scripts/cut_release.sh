@@ -22,19 +22,32 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+CURRENT_TAG="$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname 2>/dev/null | head -n1 || echo 'v1.0.54')"
+CURRENT_VER="${CURRENT_TAG#v}"
+IFS="." read -r C_MAJOR C_MINOR C_PATCH <<< "${CURRENT_VER:-1.0.54}"
+NEXT_PATCH="${C_MAJOR:-1}.${C_MINOR:-0}.$(( ${C_PATCH:-54} + 1 ))"
+NEXT_MINOR="${C_MAJOR:-1}.$(( ${C_MINOR:-0} + 1 )).0"
+NEXT_MAJOR="$(( ${C_MAJOR:-1} + 1 )).0.0"
+
 usage() {
   local exit_code="${1:-1}"
-  cat <<'EOF' >&2
+  cat <<EOF >&2
 Usage:
-  cut_release.sh <tag-or-version> [options]
+  cut_release.sh <tag-or-version | --patch | --minor | --major> [options]
 
-Tag examples:
-  1.0.0 (or v1.0.0)    Unified release (triggers TestFlight + macOS DMGs + npm CLI/Skills/Web SDK)
-  1.0.0 --mac-demo     macOS demo app only (tag mac-demo-v1.0.0)
-  1.0.0 --mac-portal   macOS Developer Portal only (tag portal-mac-v1.0.0)
-  1.0.0 --cli          CLI only (tag cli-v1.0.0)
-  1.0.0 --skills       Skills only (tag skills-v1.0.0)
-  1.0.0 --web-sdk      Web SDK only (tag web-sdk-v1.0.0)
+Current version:
+  ${CURRENT_TAG} (${CURRENT_VER}) -> Next patch: ${NEXT_PATCH}
+
+Tag / boost examples:
+  --patch              Boost patch version (${NEXT_PATCH})
+  --minor              Boost minor version (${NEXT_MINOR})
+  --major              Boost major version (${NEXT_MAJOR})
+  ${NEXT_PATCH} (or v${NEXT_PATCH})  Unified release (triggers TestFlight + macOS DMGs + npm CLI/Skills/Web SDK)
+  ${NEXT_PATCH} --mac-demo     macOS demo app only (tag mac-demo-v${NEXT_PATCH})
+  ${NEXT_PATCH} --mac-portal   macOS Developer Portal only (tag portal-mac-v${NEXT_PATCH})
+  ${NEXT_PATCH} --cli          CLI only (tag cli-v${NEXT_PATCH})
+  ${NEXT_PATCH} --skills       Skills only (tag skills-v${NEXT_PATCH})
+  ${NEXT_PATCH} --web-sdk      Web SDK only (tag web-sdk-v${NEXT_PATCH})
 
 Options:
   --notes "..."        Custom release notes (defaults to GitHub auto-generated notes)
@@ -53,6 +66,18 @@ PREFIX_TYPE="default"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --patch|patch)
+      VERSION="$NEXT_PATCH"
+      shift
+      ;;
+    --minor|minor)
+      VERSION="$NEXT_MINOR"
+      shift
+      ;;
+    --major|major)
+      VERSION="$NEXT_MAJOR"
+      shift
+      ;;
     --mac-demo)
       PREFIX_TYPE="mac-demo"
       shift

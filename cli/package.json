@@ -1,6 +1,6 @@
 {
   "name": "feedbackkit-cli",
-  "version": "0.1.0",
+  "version": "1.0.55",
   "description": "CLI + MCP server for reading FeedbackKit dashboard feedback from a coding agent.",
   "type": "module",
   "bin": {

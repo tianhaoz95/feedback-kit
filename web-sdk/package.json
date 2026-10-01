@@ -1,6 +1,6 @@
 {
   "name": "feedbackkit-web",
-  "version": "0.1.0",
+  "version": "1.0.55",
   "description": "Drop-in in-app feedback for websites: capture a screenshot, annotate it, describe the problem, and get a structured FeedbackKit report.",
   "type": "module",
   "main": "./dist/feedbackkit.js",

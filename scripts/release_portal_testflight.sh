@@ -39,6 +39,14 @@ if [[ "$VERSION" == "--version" ]]; then
   VERSION="${2:-}"
 fi
 VERSION="${VERSION#v}"
+if [[ -z "$VERSION" ]]; then
+  TAG="$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname 2>/dev/null | head -n1 || true)"
+  VERSION="${TAG#v}"
+fi
+if [[ -z "$VERSION" ]]; then
+  VERSION="$(sed -n 's/^ *MARKETING_VERSION: *"\{0,1\}\([0-9.]*\)"\{0,1\}.*$/\1/p' "$REPO_ROOT/DeveloperApp/project.yml" | tail -1)"
+fi
+VERSION="${VERSION#v}"
 
 # --- Validate credentials ---------------------------------------------------
 
@@ -153,8 +161,8 @@ xcodebuild -exportArchive \
 echo "✅ Build $BUILD_NUMBER uploaded to App Store Connect."
 echo "   It will appear in TestFlight once Apple finishes processing (usually a few minutes)."
 
-# Close the loop: mark every merged fix contained in this commit as shipped
-# in $BUILD_NUMBER, so the people who reported those bugs get asked "is it
-# fixed?" when they open this build. TestFlight is the beta channel; the
-# owner promotes a verified build to the App Store (then `feedbackkit promote`).
-"$REPO_ROOT/scripts/feedbackkit_announce.sh" "$BUILD_NUMBER" --channel beta --product developer-portal-ios
+ANNOUNCE_ARGS=("$BUILD_NUMBER" --channel beta --product developer-portal-ios)
+if [[ -n "$VERSION" ]]; then
+  ANNOUNCE_ARGS+=(--app-version "$VERSION")
+fi
+"$REPO_ROOT/scripts/feedbackkit_announce.sh" "${ANNOUNCE_ARGS[@]}"

@@ -51,6 +51,13 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ "$CHECK_ONLY" -eq 0 ]]; then
+  if [[ -z "$TAG" && -z "$VERSION" ]]; then
+    TAG="$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname 2>/dev/null | head -n1 || true)"
+    VERSION="${TAG#v}"
+  fi
+  if [[ -z "$VERSION" ]]; then
+    VERSION="$(sed -n 's/^ *MARKETING_VERSION: *"\{0,1\}\([0-9.]*\)"\{0,1\}.*$/\1/p' "$REPO_ROOT/DemoApp/project.yml" | tail -1)"
+  fi
   if [[ -n "$TAG" ]]; then
     if [[ "$TAG" =~ ^mac-demo-v ]]; then
       VERSION="${TAG#mac-demo-v}"

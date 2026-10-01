@@ -77,11 +77,21 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ "$CHECK_ONLY" -eq 0 && "$BETA" -eq 1 ]]; then
-  # Betas keep the project's marketing version; only the build number moves.
-  VERSION="$(sed -n 's/^ *MARKETING_VERSION: *"\{0,1\}\([0-9.]*\)"\{0,1\}.*$/\1/p' "$REPO_ROOT/DeveloperApp/project.yml" | tail -1)"
+  # Betas keep the current release version; only the build number moves.
+  if [[ -z "$VERSION" ]]; then
+    TAG="$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname 2>/dev/null | head -n1 || true)"
+    VERSION="${TAG#v}"
+  fi
+  if [[ -z "$VERSION" ]]; then
+    VERSION="$(sed -n 's/^ *MARKETING_VERSION: *"\{0,1\}\([0-9.]*\)"\{0,1\}.*$/\1/p' "$REPO_ROOT/DeveloperApp/project.yml" | tail -1)"
+  fi
   [[ -n "$VERSION" ]] || VERSION="1.0.0"
   TAG="$BETA_TAG"
 elif [[ "$CHECK_ONLY" -eq 0 ]]; then
+  if [[ -z "$TAG" && -z "$VERSION" ]]; then
+    TAG="$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname 2>/dev/null | head -n1 || true)"
+    VERSION="${TAG#v}"
+  fi
   if [[ -n "$TAG" ]]; then
     if [[ "$TAG" =~ ^portal-mac-v ]]; then
       VERSION="${TAG#portal-mac-v}"

@@ -87,7 +87,16 @@ jobs:
           if [ "${{ github.event_name }}" = "release" ]; then
             TAG="${{ github.event.release.tag_name }}"
             VERSION="${TAG#v}"
+          else
+            TAG="$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname 2>/dev/null | head -n1 || true)"
+            VERSION="${TAG#v}"
+          fi
+          if [ -z "$VERSION" ]; then
+            VERSION="$(sed -n 's/^ *MARKETING_VERSION: *"\{0,1\}\([0-9.]*\)"\{0,1\}.*$/\1/p' DeveloperApp/project.yml | tail -1)"
+          fi
+          if [ -n "$VERSION" ]; then
             echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+            echo "Resolved version: $VERSION (from ${TAG:-DeveloperApp/project.yml})"
           fi
 
       - name: Set up FeedbackKit CLI (build announcement)
@@ -98,6 +107,7 @@ jobs:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID || secrets.APPLE_API_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID || secrets.APPLE_API_ISSUER }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          VERSION: ${{ env.VERSION }}
           # Announces the build to FeedbackKit reporters when set (optional).
           FEEDBACKKIT_RELEASE_TOKEN: ${{ secrets.FEEDBACKKIT_RELEASE_TOKEN }}
         run: ./scripts/release_portal_testflight.sh

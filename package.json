@@ -1,6 +1,6 @@
 {
   "name": "feedback-kit-skills",
-  "version": "0.1.0",
+  "version": "1.0.55",
   "description": "Agent Skills for FeedbackKit — automated setup for iOS, macOS, watchOS, and MCP server",
   "type": "module",
   "repository": {
