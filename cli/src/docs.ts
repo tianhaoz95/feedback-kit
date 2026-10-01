@@ -903,7 +903,7 @@ Tell the agent to fix report <id> (or paste the copied prompt, which includes th
 
 ## Self-hosted Mac runner
 
-Same label, on a Mac registered as a runner, so the agent builds the app and runs the Simulator. \`setup-agent-runner\` has two templates: **Claude Code** (token secret, \`--allowedTools\`, the action pushes its branch, FeedbackKit MCP through a per-run token from the \`FEEDBACKKIT_AGENT_TOKEN\` secret) and **Google Antigravity** (\`agy -p\` signed in once as the runner user, allow rules in \`~/.gemini/antigravity-cli/settings.json\` including \`mcp(feedbackkit/<tool>)\`; the agent only edits files and the workflow commits with the trailer and \`Fixes #n\`, pushes and opens the PR). Private repos only (use the GitHub-hosted Antigravity template on a public repo). Use a different label per agent if both are installed.
+Same label, on a Mac registered as a runner, so the agent builds the app and runs the Simulator. \`setup-agent-runner\` has two templates: **Claude Code** (token secret, \`--allowedTools\`, the action pushes its branch, FeedbackKit MCP through a per-run token from the \`FEEDBACKKIT_AGENT_TOKEN\` secret) and **Google Antigravity** (\`agy -p\` signed in once as the runner user, allow rules in \`~/.gemini/antigravity-cli/settings.json\` including \`mcp(feedbackkit/<tool>)\`; the agent only edits files and the workflow commits with the trailer and \`Fixes #n\`, pushes and opens the PR). Prefer a private repo; the skill also installs a job-started hook on the Mac so only the agent workflows from the default branch can use the runner (on a public repo, also require approval for outside contributors, or use the GitHub-hosted Antigravity template). Use a different label per agent if both are installed.
 
 ## GitHub Copilot
 

@@ -1,0 +1,44 @@
+#!/bin/bash
+# Job-started hook for the FeedbackKit agent runner on this Mac.
+#
+# The runner reads ACTIONS_RUNNER_HOOK_JOB_STARTED from its own .env (on this
+# Mac, not in the repository), so no pull request can change or skip it. It
+# runs before every job's first step; a non-zero exit fails the job.
+#
+# Why: GitHub runs a pull request's own workflow files for the `pull_request`
+# event, so a fork PR can add a job with `runs-on: [self-hosted, ...]`, and an
+# `if:` in our workflows can't stop a workflow we didn't write. This hook only
+# lets the agent workflows run, as committed on the default branch.
+#
+# Replace __REPO__ (OWNER/REPO), __DEFAULT_BRANCH__ (e.g. main) and
+# __WORKFLOWS__ (the agent workflow files, space-separated, e.g.
+# "feedbackkit-agent.yml"). A workflow not listed here fails with
+# "Refused by runner policy".
+
+REPO="__REPO__"
+BRANCH="__DEFAULT_BRANCH__"
+WORKFLOWS="__WORKFLOWS__"
+
+deny() { echo "::error::Refused by runner policy: $1"; exit 1; }
+
+[ "$GITHUB_REPOSITORY" = "$REPO" ] || deny "repository $GITHUB_REPOSITORY"
+
+# A fork PR's `pull_request` run reports …@refs/pull/<n>/merge here.
+allowed=""
+for wf in $WORKFLOWS; do
+  [ "$GITHUB_WORKFLOW_REF" = "$REPO/.github/workflows/$wf@refs/heads/$BRANCH" ] && allowed=1
+done
+[ -n "$allowed" ] || deny "workflow $GITHUB_WORKFLOW_REF"
+
+case "$GITHUB_EVENT_NAME" in
+  issues|issue_comment) ;;
+  pull_request_target)
+    # Runs the default branch's workflow, but the agent would still work on the
+    # PR's code: only accept branches of this repository.
+    head=$(/usr/bin/plutil -extract pull_request.head.repo.full_name raw -o - "$GITHUB_EVENT_PATH" 2>/dev/null)
+    [ "$head" = "$REPO" ] || deny "pull request from '$head'"
+    ;;
+  *) deny "event $GITHUB_EVENT_NAME" ;;
+esac
+
+echo "Runner policy: allowed ($GITHUB_EVENT_NAME, $GITHUB_WORKFLOW_REF)"

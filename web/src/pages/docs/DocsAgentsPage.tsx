@@ -223,8 +223,10 @@ export function DocsAgentsPage() {
           ]}
         />
         <DocsCallout tone="warning">
-          Use it only on private repositories: GitHub warns that anyone who can open a pull request on a public repo
-          could run code on a self-hosted runner.
+          Prefer a private repository: GitHub warns that anyone who can open a pull request on a public repo could
+          try to run code on a self-hosted runner. The skill installs a job-started hook on the Mac that only lets the
+          agent workflows, as committed on the default branch, use the runner. On a public repo, also require approval
+          for outside contributors&apos; workflow runs, or use the GitHub-hosted route instead.
         </DocsCallout>
       </DocsSection>
 
