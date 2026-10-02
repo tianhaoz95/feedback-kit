@@ -26,6 +26,9 @@ targets:
         # verification compares the device's CFBundleVersion to the build a fix shipped in).
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        # Only standard HTTPS (exempt), so App Store Connect skips the export
+        # compliance question on every TestFlight upload.
+        ITSAppUsesNonExemptEncryption: false
         # Lets FeedbackKit's composer offer "Take Photo" (the SDK hides it without this key).
         NSCameraUsageDescription: "Take a photo to attach to your feedback."
         UILaunchScreen: {}
@@ -80,6 +83,9 @@ targets:
         # verification compares the device's CFBundleVersion to the build a fix shipped in).
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        # Only standard HTTPS (exempt), so App Store Connect skips the export
+        # compliance question on every TestFlight upload.
+        ITSAppUsesNonExemptEncryption: false
         # Same reasoning as the iOS target's NSAppTransportSecurity above.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
@@ -112,6 +118,9 @@ targets:
         # verification compares the device's CFBundleVersion to the build a fix shipped in).
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        # Only standard HTTPS (exempt), so App Store Connect skips the export
+        # compliance question on every TestFlight upload.
+        ITSAppUsesNonExemptEncryption: false
         # Both required for a truly standalone watch app (no iOS host, no
         # WKCompanionAppBundleIdentifier): WKApplication marks it as a watch
         # app at all, WKWatchOnly says it has no iOS companion. Confirmed by

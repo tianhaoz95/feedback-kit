@@ -19,6 +19,9 @@ targets:
         # verification compares the device's CFBundleVersion to the build a fix shipped in).
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        # Only standard HTTPS (exempt), so App Store Connect skips the export
+        # compliance question on every TestFlight upload.
+        ITSAppUsesNonExemptEncryption: false
         # Lets FeedbackKit's composer offer "Take Photo" (the SDK hides it without this key).
         NSCameraUsageDescription: "Take a photo to attach to your feedback."
         CFBundleDisplayName: "Portal"
@@ -81,6 +84,9 @@ targets:
         # verification compares the device's CFBundleVersion to the build a fix shipped in).
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        # Only standard HTTPS (exempt), so App Store Connect skips the export
+        # compliance question on every TestFlight upload.
+        ITSAppUsesNonExemptEncryption: false
         CFBundleDisplayName: "FeedbackKit Portal"
         CFBundleName: "FeedbackKit Portal"
         LSApplicationCategoryType: public.app-category.developer-tools
