@@ -168,11 +168,13 @@ public struct FeedbackDetailView: View {
     // MARK: - Subviews
 
     private var statusBar: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Status")
-                    .font(.caption.weight(.semibold))
+        VStack(spacing: 0) {
+            HStack {
+                Label("Status", systemImage: "flag.fill")
+                    .font(.subheadline.weight(.medium))
                     .foregroundColor(.secondary)
+
+                Spacer()
 
                 Menu {
                     ForEach(PortalFeedbackStatus.allCases) { status in
@@ -190,31 +192,29 @@ public struct FeedbackDetailView: View {
                         }
                     }
                 } label: {
-                    HStack(spacing: 8) {
-                        StatusBadgeView(status: currentItem.status)
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.caption2.weight(.bold))
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color(UIColor.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    StatusBadgeView(status: currentItem.status, showChevron: true)
                 }
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
 
-            Spacer()
+            Divider()
+                .padding(.horizontal, 14)
 
-            VStack(alignment: .trailing, spacing: 6) {
-                Text("Reported")
-                    .font(.caption.weight(.semibold))
+            HStack {
+                Label("Reported", systemImage: "clock.fill")
+                    .font(.subheadline.weight(.medium))
                     .foregroundColor(.secondary)
+
+                Spacer()
+
                 Text(PortalDateFormatter.formatShort(currentItem.createdAt))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.subheadline)
+                    .foregroundColor(.primary)
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
         }
-        .padding(14)
         .background(Color(UIColor.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
