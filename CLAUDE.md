@@ -357,16 +357,21 @@ Rules for skills:
 - **Stripe: the hosted project bills in *live* mode** (since 2026-10-02)
   on the owner's live account (`acct_1TCka6JiNqYDPd3o`), which is shared
   with their other products, so every FeedbackKit object is tagged
-  `metadata.app = feedbackkit`: product "FeedbackKit Indie"
-  `prod_VMu4RcJfcklU8t`, `price_1UMAGNJiNqYDPd3oy7IYkivX` ($9/month,
-  `feedbackkit_indie_monthly`), `price_1UMAGOJiNqYDPd3o5rNwoGXZ` ($79/year,
-  `feedbackkit_indie_annual`), webhook `we_1UMANfJiNqYDPd3oxySf4Seg` → the
-  hosted `stripe-webhook`, and portal configuration
+  `metadata.app = feedbackkit`. Monthly and annual are separate products
+  so a coupon can target one of them: "FeedbackKit Indie (monthly)"
+  `prod_VMu4RcJfcklU8t` with `price_1UMAGNJiNqYDPd3oy7IYkivX` ($9/month,
+  `feedbackkit_indie_monthly`), and "FeedbackKit Indie (annual)"
+  `prod_VMuJIrSG5k9cV4` with `price_1UMAUlJiNqYDPd3oWNP1Ccra` ($79/year,
+  `feedbackkit_indie_annual`). Webhook `we_1UMANfJiNqYDPd3oxySf4Seg` → the
+  hosted `stripe-webhook`; portal configuration
   `bpc_1UMANgJiNqYDPd3oxbz8tUpf` (passed explicitly via
   `STRIPE_PORTAL_CONFIGURATION_ID`, since the account default isn't
-  FeedbackKit's). Coupons: `aH6YslMH` behind the public `FOUNDER` code ($30
-  off forever, 50 redemptions, minimum $79 so annual only), and `Gmqp866r`
-  (100% off forever, 25 redemptions) behind a hard-to-guess developer code
+  FeedbackKit's; it allows switching between the two prices, no quantity
+  changes). Coupons: `h1UEzwvK` behind the public `FOUNDER` code ($30 off
+  forever, annual product only, so switching to monthly in the portal
+  doesn't make monthly free; 50 redemptions, minimum $79), and `l7mUEuLZ`
+  (100% off forever, both products, 25 redemptions) behind a hard-to-guess
+  developer code
   the owner keeps out of the repo; checkout uses
   `payment_method_collection: "if_required"` so that code needs no card.
   Supabase secrets: `STRIPE_SECRET_KEY` (the full live secret key, the
