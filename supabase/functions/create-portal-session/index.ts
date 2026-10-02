@@ -52,9 +52,14 @@ Deno.serve(async (req) => {
     return json({ error: "no_billing_account", message: "Subscribe to a plan first." }, 400);
   }
 
+  // The Stripe account is shared with other products, so FeedbackKit's
+  // portal settings (which plans a customer can switch between) are their
+  // own configuration rather than the account default.
+  const configuration = Deno.env.get("STRIPE_PORTAL_CONFIGURATION_ID") || undefined;
   const session = await stripe.billingPortal.sessions.create({
     customer: billing.stripe_customer_id,
     return_url: body.return_url,
+    ...(configuration ? { configuration } : {}),
   });
 
   return json({ url: session.url }, 200);

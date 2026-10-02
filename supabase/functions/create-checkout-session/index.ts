@@ -86,6 +86,12 @@ Deno.serve(async (req) => {
   }
 
   let customerId = billing.stripe_customer_id as string | null;
+  // A customer saved under another Stripe account or mode (the sandbox, before
+  // billing went live) doesn't exist here: start over with a new one.
+  if (customerId) {
+    const existing = await stripe.customers.retrieve(customerId).catch(() => null);
+    if (!existing || existing.deleted) customerId = null;
+  }
   if (!customerId) {
     const customer = await stripe.customers.create({
       metadata: { organization_id: body.organization_id },
@@ -105,6 +111,8 @@ Deno.serve(async (req) => {
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
     allow_promotion_codes: true,
+    // A 100%-off code (the team's own developer code) needs no card.
+    payment_method_collection: "if_required",
     success_url: body.success_url,
     cancel_url: body.cancel_url,
     metadata: { organization_id: body.organization_id },

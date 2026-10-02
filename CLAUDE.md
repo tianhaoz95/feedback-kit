@@ -354,29 +354,26 @@ Rules for skills:
   (`verify_jwt = false` in `supabase/config.toml` for `ingest-feedback`)
   because the caller is an anonymous iOS device identified only by
   `project_key`. It uses the service-role key and bypasses RLS by design.
-- **Stripe: the hosted project runs on the Stripe *sandbox*** ("HEJI
-  TECHNOLOGY LLC sandbox", `acct_1TCkamJrt9vpMc7K`): product "FeedbackKit
-  Team", price `price_1UKjKeJrt9vpMc7K7RMjRMiD` ($15/seat/month, lookup key
-  `feedbackkit_team_monthly`), webhook `we_1UKjKkJrt9vpMc7KQAOOFjfo` → the
-  hosted `stripe-webhook`, and a customer-portal configuration.
-  `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID_TEAM` and `STRIPE_WEBHOOK_SECRET` are
-  Supabase secrets on the hosted project (that per-seat price predates the
-  flat Indie plan; checkout now reads `STRIPE_PRICE_ID_INDIE_MONTHLY` /
-  `STRIPE_PRICE_ID_INDIE_ANNUAL` and answers 501 until they're set), so checkout accepts test cards
-  only. The flat Indie plan already exists in the **live** account
-  (`acct_1TCka6JiNqYDPd3o`, shared with the owner's other products, so
-  everything is tagged `metadata.app = feedbackkit`): product
+- **Stripe: the hosted project bills in *live* mode** (since 2026-10-02)
+  on the owner's live account (`acct_1TCka6JiNqYDPd3o`), which is shared
+  with their other products, so every FeedbackKit object is tagged
+  `metadata.app = feedbackkit`: product "FeedbackKit Indie"
   `prod_VMu4RcJfcklU8t`, `price_1UMAGNJiNqYDPd3oy7IYkivX` ($9/month,
   `feedbackkit_indie_monthly`), `price_1UMAGOJiNqYDPd3o5rNwoGXZ` ($79/year,
-  `feedbackkit_indie_annual`), and the `FOUNDER` promotion code (coupon
-  `aH6YslMH`, $30 off forever, 50 redemptions, minimum $79 so annual only).
-  They aren't wired up: the hosted functions still hold the sandbox key, so
-  `STRIPE_PRICE_ID_INDIE_*` stay unset (checkout answers 501) until the
-  live key, webhook and portal configuration replace the sandbox ones.
-  Going live means recreating the price, webhook and portal
-  configuration in the live account and replacing those three secrets; do
-  that only when the owner asks. Live keys are deliberately not stored in
-  Supabase or GitHub until then.
+  `feedbackkit_indie_annual`), webhook `we_1UMANfJiNqYDPd3oxySf4Seg` → the
+  hosted `stripe-webhook`, and portal configuration
+  `bpc_1UMANgJiNqYDPd3oxbz8tUpf` (passed explicitly via
+  `STRIPE_PORTAL_CONFIGURATION_ID`, since the account default isn't
+  FeedbackKit's). Coupons: `aH6YslMH` behind the public `FOUNDER` code ($30
+  off forever, 50 redemptions, minimum $79 so annual only), and `Gmqp866r`
+  (100% off forever, 25 redemptions) behind a hard-to-guess developer code
+  the owner keeps out of the repo; checkout uses
+  `payment_method_collection: "if_required"` so that code needs no card.
+  Supabase secrets: `STRIPE_SECRET_KEY` (the full live secret key, the
+  owner's call), `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID_INDIE_MONTHLY`,
+  `STRIPE_PRICE_ID_INDIE_ANNUAL`, `STRIPE_PORTAL_CONFIGURATION_ID`. No GitHub
+  secret is involved: functions read these at runtime. The earlier sandbox
+  setup (`acct_1TCkamJrt9vpMc7K`, per-seat "FeedbackKit Team") is unused.
 - **Stripe access for coding agents is a restricted key the owner controls.**
   The owner keeps Stripe keys locally in `~/Credentials/stripe.env`
   (never commit it or copy values anywhere else). For agent work there is
