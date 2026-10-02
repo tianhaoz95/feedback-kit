@@ -577,19 +577,14 @@ function PaidCelebration({ planName }: { planName: string }) {
         />
       ))}
       <div className="relative flex flex-wrap items-center justify-between gap-5">
-        <div className="flex items-start gap-4">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-emerald-500 text-white shadow-md">
-            <SparkleIcon className="h-6 w-6" />
-          </span>
-          <div>
-            <h2 className="text-xl font-semibold tracking-tight text-neutral-900 sm:text-2xl">
-              You&apos;re on {planName}. Thanks for backing FeedbackKit!
-            </h2>
-            <p className="mt-1 max-w-xl text-sm text-neutral-600">
-              Every app, every report and every screenshot is yours to keep. Now go close some loops: your users are
-              about to see their bugs fixed faster than ever.
-            </p>
-          </div>
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight text-neutral-900 sm:text-2xl">
+            You&apos;re on {planName}. Thanks for backing FeedbackKit!
+          </h2>
+          <p className="mt-1 max-w-xl text-sm text-neutral-600">
+            Every app, every report and every screenshot is yours to keep. Now go close some loops: your users are
+            about to see their bugs fixed faster than ever.
+          </p>
         </div>
         <Link
           to="/projects"
