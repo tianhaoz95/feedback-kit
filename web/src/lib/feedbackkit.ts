@@ -16,17 +16,13 @@ import { FeedbackKit } from "feedbackkit-web";
  */
 const DOGFOOD_PROJECT_KEY = "pk_cde764e9b97ba261cdd084e7e3e4cf04ce31";
 
-const WEB_DASHBOARD_PRODUCT = {
-  key: "web-dashboard",
-  name: "Web Dashboard",
-  description: "The FeedbackKit web dashboard (web/ — Vite + React SPA on Cloudflare).",
-};
-
-const WEBSITE_PRODUCT = {
-  key: "website",
-  name: "Website",
-  description: "The public FeedbackKit site: landing page and docs (web/, same SPA as the dashboard).",
-};
+/**
+ * Product preselected in the composer for each surface. The chips themselves
+ * come from the project's product catalog (Settings › Products), fetched by
+ * the SDK, so a report can be tagged with any product — e.g. web + backend +
+ * Portal. A key missing from the catalog falls back to its default product.
+ */
+const DEFAULT_PRODUCT_KEY = { dashboard: "web-dashboard", website: "website" } as const;
 
 /** Which part of the SPA is asking — decides the product preselected in the composer. */
 export type FeedbackSurface = "dashboard" | "website";
@@ -62,17 +58,12 @@ export function setUpFeedbackKit(surface: FeedbackSurface = "dashboard"): boolea
     searchParams?.has("no_screenshot")
   );
 
-  const defaultProduct = surface === "website" ? WEBSITE_PRODUCT : WEB_DASHBOARD_PRODUCT;
   // Re-running configure when the surface changes is safe: it only swaps the
   // configuration (log capture is started once).
   FeedbackKit.configure({
     projectKey,
     endpoint,
-    products: [
-      { ...WEB_DASHBOARD_PRODUCT, isDefault: surface === "dashboard" },
-      { ...WEBSITE_PRODUCT, isDefault: surface === "website" },
-    ],
-    defaultProductKey: defaultProduct.key,
+    defaultProductKey: DEFAULT_PRODUCT_KEY[surface],
     appVersion: __APP_VERSION__,
     appBuild: __APP_COMMIT__ || import.meta.env.MODE,
     captureScreenshot: includeScreenshot,

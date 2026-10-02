@@ -13,36 +13,27 @@ import AppKit
 /// whoever reported a problem to confirm the fix once the build that
 /// contains it is running (see DESIGN.md §7).
 ///
-/// Each app reports under its own product key so the inbox can filter by
-/// surface, and the signed-in developer is attached as `FeedbackKit.user`
+/// The composer's product chips come from the project's product catalog
+/// (fetched by the SDK, so a report can span several products — e.g. Portal +
+/// backend); each app only preselects its own product key so the inbox can
+/// filter by surface. The the signed-in developer is attached as `FeedbackKit.user`
 /// so the team can follow up.
 enum PortalDogfood {
     static let endpoint = URL(string: "https://gpucoladcyvijefdjudf.supabase.co/functions/v1/ingest-feedback")!
     static let projectKey = "pk_cde764e9b97ba261cdd084e7e3e4cf04ce31"
 
     #if os(macOS)
-    static let product = FeedbackProduct(
-        key: "developer-portal-macos",
-        name: "Developer Portal (macOS)",
-        description: "The FeedbackKit Developer Portal Mac app (DeveloperApp/, FeedbackPortalMac target — SwiftUI sharing the iOS Portal's views).",
-        isDefault: true
-    )
+    static let defaultProductKey = "developer-portal-macos"
     static let floatingButtonDefaultsKey = "portal_floating_feedback_button_enabled"
     #else
-    static let product = FeedbackProduct(
-        key: "developer-portal-ios",
-        name: "Developer Portal (iOS)",
-        description: "The FeedbackKit Developer Portal iOS app (DeveloperApp/, FeedbackPortal target — SwiftUI).",
-        isDefault: true
-    )
+    static let defaultProductKey = "developer-portal-ios"
     #endif
 
     static func configure() {
         FeedbackKit.configure(.init(
             endpointURL: endpoint,
             projectKey: projectKey,
-            products: [product],
-            defaultProductKey: product.key
+            defaultProductKey: defaultProductKey
         ))
         #if os(macOS)
         UserDefaults.standard.register(defaults: [floatingButtonDefaultsKey: false])
