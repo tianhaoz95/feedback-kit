@@ -300,6 +300,19 @@ final class FeedbackViewController: UIViewController {
         optionsSummaryLabel.adjustsFontForContentSizeCategory = true
         updateOptionsSummary()
 
+        attachButton.setContentCompressionResistancePriority(.required, for: .vertical)
+        sendButton.setContentCompressionResistancePriority(.required, for: .vertical)
+        optionsSummaryLabel.setContentCompressionResistancePriority(.required, for: .vertical)
+
+        attachButton.translatesAutoresizingMaskIntoConstraints = false
+        sendButton.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            attachButton.widthAnchor.constraint(equalToConstant: 32),
+            attachButton.heightAnchor.constraint(equalToConstant: 32),
+            sendButton.widthAnchor.constraint(equalToConstant: 32),
+            sendButton.heightAnchor.constraint(equalToConstant: 32)
+        ])
+
         // The options/attach menu on the left, a summary of non-default
         // options and send on the right — the composer's "second row", under
         // the text input.
@@ -309,6 +322,8 @@ final class FeedbackViewController: UIViewController {
         buttonRow.axis = .horizontal
         buttonRow.alignment = .center
         buttonRow.spacing = 6
+        buttonRow.setContentCompressionResistancePriority(.required, for: .vertical)
+        buttonRow.heightAnchor.constraint(greaterThanOrEqualToConstant: 32).isActive = true
 
         buildProductsRow()
 
@@ -457,7 +472,7 @@ final class FeedbackViewController: UIViewController {
 
             toolbar.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 8),
             toolbar.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -4),
-            toolbar.bottomAnchor.constraint(equalTo: composerContainer.topAnchor, constant: -8),
+            toolbar.bottomAnchor.constraint(lessThanOrEqualTo: composerContainer.topAnchor, constant: -8),
             toolbar.widthAnchor.constraint(equalToConstant: 56),
 
             // No fixed height here on purpose: the composer sizes itself from
@@ -677,7 +692,9 @@ final class FeedbackViewController: UIViewController {
         let size = textView.sizeThatFits(CGSize(width: max(width, 100), height: .greatestFiniteMagnitude))
         let targetHeight = min(max(size.height, 24), 120)
         textViewHeightConstraint?.constant = targetHeight
-        let shouldScroll = size.height > 120
+        let isMultiline = size.height > 28 || textView.text.contains("\n")
+        let exceedsBounds = textView.bounds.height > 0 && size.height > textView.bounds.height
+        let shouldScroll = isMultiline || exceedsBounds || size.height > 120
         if textView.isScrollEnabled != shouldScroll {
             textView.isScrollEnabled = shouldScroll
         }
