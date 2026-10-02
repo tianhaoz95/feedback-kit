@@ -276,6 +276,8 @@ export interface OrganizationBilling {
   seats: number | null;
   /** End of the Indie trial every new organization starts with (0028); null for older ones. */
   trial_ends_at: string | null;
+  /** Exempt from every plan limit (0019), e.g. the team's own dogfood organization. */
+  limits_exempt?: boolean;
   updated_at: string;
 }
 

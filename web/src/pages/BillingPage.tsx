@@ -173,6 +173,9 @@ export function BillingPage() {
 
   const isPaid = billing.plan !== "free";
   const trialDays = trialDaysLeft(usage, billing.plan);
+  // Exempt organizations (0019's limits_exempt, e.g. the team's own dogfood
+  // org) are unlimited whatever `plan` says, so don't present them as Free.
+  const limitsWaived = !isPaid && billing.limits_exempt === true;
   const lockedReports = usage?.locked_reports ?? 0;
   const indiePrice = billingInterval === "year" ? INDIE_PRICE_ANNUAL_USD : INDIE_PRICE_MONTHLY_USD;
   const indiePriceLabel = `${formatUsd(indiePrice)}/${billingInterval === "year" ? "year" : "month"}`;
@@ -216,12 +219,14 @@ export function BillingPage() {
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-lg font-semibold text-neutral-900">
-              {trialDays !== null ? "Indie trial" : PLAN_NAME[billing.plan]}
+              {trialDays !== null ? "Indie trial" : limitsWaived ? "Free · limits waived" : PLAN_NAME[billing.plan]}
             </p>
             <p className="text-sm text-neutral-500">
               {trialDays !== null
                 ? `${trialDays} ${trialDays === 1 ? "day" : "days"} left, then Free unless you upgrade`
-                : STATUS_LABEL[billing.status]}
+                : limitsWaived
+                  ? "Plan limits don't apply to this organization: projects, members and reports are unlimited"
+                  : STATUS_LABEL[billing.status]}
               {billing.current_period_end
                 ? ` · Renews ${new Date(billing.current_period_end).toLocaleDateString()}`
                 : ""}
@@ -280,7 +285,7 @@ export function BillingPage() {
               title="Free"
               price="$0"
               features={FREE_FEATURES}
-              current={!isPaid && trialDays === null}
+              current={!isPaid && trialDays === null && !limitsWaived}
               action={
                 isPaid ? (
                   <div className="space-y-2">
