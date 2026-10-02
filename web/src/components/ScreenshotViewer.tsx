@@ -6,6 +6,17 @@ import type { SignedPreview } from "@/lib/useAfterPreviews";
 import { ExternalLinkIcon, ExpandIcon } from "@/components/icons";
 import { ImageOverlay } from "@/components/ImageOverlay";
 
+/**
+ * The backdrop behind a screenshot (Before and After): a faint dot grid over a
+ * soft violet → white → mint wash, like a design tool's canvas, in the
+ * landing page's accent colors, instead of a flat gray.
+ */
+const STAGE_STYLE = {
+  backgroundImage:
+    "radial-gradient(circle at 1px 1px, rgb(23 23 23 / 0.07) 1px, transparent 0), linear-gradient(135deg, #ede9fe 0%, #fafafa 50%, #d1fae5 100%)",
+  backgroundSize: "16px 16px, 100% 100%",
+} as const;
+
 type Mode = "annotated" | "original" | "after";
 
 /**
@@ -196,7 +207,7 @@ export function ScreenshotViewer({
             resolvedAt={resolvedAt}
           />
         ) : (
-          <div className="flex items-center justify-center bg-neutral-900/5 p-4">
+          <div className="flex items-center justify-center p-6" style={STAGE_STYLE}>
             <div
               className="relative cursor-pointer"
               onClick={() => setIsExpanded(true)}
@@ -206,7 +217,7 @@ export function ScreenshotViewer({
                 ref={imgRef}
                 src={src ?? undefined}
                 alt={mode === "annotated" ? "Annotated screenshot" : "Original screenshot"}
-                className="block max-h-[520px] w-auto rounded-lg object-contain shadow-xs"
+                className="block max-h-[520px] w-auto rounded-lg object-contain shadow-lg ring-1 ring-black/5"
               />
               <canvas ref={canvasRef} className="pointer-events-none absolute left-0 top-0 rounded-lg" />
             </div>
@@ -263,7 +274,7 @@ function AfterView({
   const current = previews.indexOf(preview);
   return (
     <div>
-      <div className="flex min-h-40 items-center justify-center bg-neutral-900/5 p-4">
+      <div className="flex min-h-40 items-center justify-center p-6" style={STAGE_STYLE}>
         {preview.expiredAt || !preview.path ? (
           <p className="px-6 py-10 text-center text-xs text-neutral-500">
             Preview expired: it was deleted {new Date(preview.expiredAt ?? preview.createdAt).toLocaleDateString()}, 14 days
@@ -277,13 +288,13 @@ function AfterView({
             src={preview.url}
             controls
             playsInline
-            className="block max-h-[520px] w-auto rounded-lg bg-black shadow-xs"
+            className="block max-h-[520px] w-auto rounded-lg bg-black shadow-lg ring-1 ring-black/5"
           />
         ) : (
           <img
             src={preview.url}
             alt={preview.caption ?? "After the fix"}
-            className="block max-h-[520px] w-auto rounded-lg object-contain shadow-xs cursor-pointer"
+            className="block max-h-[520px] w-auto rounded-lg object-contain shadow-lg ring-1 ring-black/5 cursor-pointer"
             onClick={onExpand}
             title="Click to expand"
           />

@@ -1,5 +1,6 @@
 import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { track } from "@/lib/analytics";
+import { Link } from "react-router-dom";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { useOrganization } from "@/lib/organization";
@@ -299,6 +300,10 @@ export function BillingPage() {
         </div>
       ) : null}
 
+      {isPaid && (billing.status === "active" || billing.status === "trialing") ? (
+        <PaidCelebration planName={PLAN_NAME[billing.plan]} />
+      ) : null}
+
       <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
         <div className="flex items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-100 text-neutral-500">
@@ -540,6 +545,61 @@ function StatusCard({
         <div className="mt-1">{children}</div>
       </div>
     </div>
+  );
+}
+
+/** Confetti pieces for PaidCelebration: position, color, size and tilt. */
+const CONFETTI = [
+  { left: "4%", top: "10%", color: "bg-violet-400", size: "h-2 w-4", rotate: "rotate-12" },
+  { left: "16%", top: "86%", color: "bg-emerald-400", size: "h-2.5 w-2.5 rounded-full", rotate: "" },
+  { left: "30%", top: "8%", color: "bg-amber-300", size: "h-1.5 w-3", rotate: "-rotate-12" },
+  { left: "47%", top: "88%", color: "bg-sky-400", size: "h-2 w-2 rounded-full", rotate: "" },
+  { left: "60%", top: "10%", color: "bg-pink-400", size: "h-1.5 w-3.5", rotate: "rotate-45" },
+  { left: "70%", top: "60%", color: "bg-violet-300", size: "h-2.5 w-2.5 rounded-full", rotate: "" },
+  { left: "82%", top: "12%", color: "bg-emerald-300", size: "h-2 w-4", rotate: "-rotate-45" },
+  { left: "95%", top: "84%", color: "bg-amber-400", size: "h-2 w-2 rounded-full", rotate: "" },
+];
+
+/**
+ * A thank-you above the current plan for an organization that's paying:
+ * confetti on a soft violet → mint wash, what the plan unlocks, and a nudge
+ * back to the work.
+ */
+function PaidCelebration({ planName }: { planName: string }) {
+  return (
+    <section className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-br from-violet-50 via-white to-emerald-50 px-6 py-7 shadow-sm sm:px-8">
+      {CONFETTI.map((piece) => (
+        <span
+          key={`${piece.left}-${piece.top}`}
+          aria-hidden
+          className={`pointer-events-none absolute rounded-sm opacity-70 ${piece.color} ${piece.size} ${piece.rotate}`}
+          style={{ left: piece.left, top: piece.top }}
+        />
+      ))}
+      <div className="relative flex flex-wrap items-center justify-between gap-5">
+        <div className="flex items-start gap-4">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-emerald-500 text-white shadow-md">
+            <SparkleIcon className="h-6 w-6" />
+          </span>
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight text-neutral-900 sm:text-2xl">
+              You&apos;re on {planName}. Thanks for backing FeedbackKit!
+            </h2>
+            <p className="mt-1 max-w-xl text-sm text-neutral-600">
+              Every app, every report and every screenshot is yours to keep. Now go close some loops: your users are
+              about to see their bugs fixed faster than ever.
+            </p>
+          </div>
+        </div>
+        <Link
+          to="/projects"
+          className="inline-flex items-center gap-1.5 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-all duration-150 hover:-translate-y-0.5 hover:bg-neutral-800 active:translate-y-0 active:scale-95"
+        >
+          Open your projects
+          <ArrowRightIcon className="h-4 w-4" />
+        </Link>
+      </div>
+    </section>
   );
 }
 
