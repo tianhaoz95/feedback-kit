@@ -802,4 +802,27 @@ final class PortalTests: XCTestCase {
         await appState.loadMoreFeedback()
         XCTAssertGreaterThanOrEqual(appState.feedbackItems.count, initialCount)
     }
+
+    @MainActor
+    func testAppStateRefreshFeedbackItem() async throws {
+        let appState = AppState.shared
+        let client = SupabasePortalClient.shared
+        client.enableDemoMode()
+
+        await appState.loadProjects()
+        XCTAssertFalse(appState.feedbackItems.isEmpty)
+
+        let firstItem = DemoData.sampleFeedbackItems[0]
+        let initial = await appState.refreshFeedbackItem(id: firstItem.id)
+        XCTAssertNotNil(initial)
+        XCTAssertEqual(initial?.id, firstItem.id)
+
+        // Mutate status on client in demo mode
+        try await client.updateFeedbackStatus(id: firstItem.id, status: .resolved)
+
+        // Refresh single feedback item
+        let refreshed = await appState.refreshFeedbackItem(id: firstItem.id)
+        XCTAssertEqual(refreshed?.status, .resolved)
+        XCTAssertEqual(appState.feedbackItems.first(where: { $0.id == firstItem.id })?.status, .resolved)
+    }
 }
