@@ -428,7 +428,7 @@ The header bell shows new reports, reporter replies, reports reopened as still b
 
 ## Billing
 
-Per organization; every plan includes the whole fix loop. Free is for one person: 1 project, 1 member, 50 readable reports a month. Reports past that are kept but locked until next month or an upgrade (projects warn from 40), and Free screenshots/attachments are deleted after 90 days. Indie: $9/month or $79/year flat, unlimited projects and reports, up to 3 members, 25 GB fair-use storage; upgrading unlocks locked reports. New organizations get a 14-day Indie trial. Larger teams: priced case by case by email. Only owners change the plan.
+Per organization; every plan includes the whole fix loop. Free is for one person: 1 project, 1 member, 50 readable reports a month. Reports past that are kept but locked until next month or an upgrade (projects warn from 40), and Free screenshots/attachments are deleted after 90 days. Indie: $9/month or $79/year flat, unlimited projects and reports, up to 3 members, 25 GB fair-use storage; upgrading unlocks locked reports. New organizations get a 14-day Indie trial. Larger teams: priced case by case by email. Only owners change the plan. Moving to Free (cancel or trial end) deletes nothing: projects past the first are paused (readable, new reports locked; owners pick the active one on Billing), extra members become read-only, and older screenshots get a 90-day grace. Upgrading lifts it all.
 
 ## Your account
 

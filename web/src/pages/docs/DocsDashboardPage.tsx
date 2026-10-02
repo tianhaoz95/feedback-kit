@@ -183,7 +183,10 @@ export function DocsDashboardPage() {
           days. Projects show a warning from 40 reports on, and Billing shows the usage. Indie is a flat $9 a month or
           $79 a year with unlimited projects and reports and up to 3 members; upgrading unlocks every locked report.
           New organizations start with a 14-day Indie trial. Larger teams are priced case by case: email us. Only
-          owners can change the plan.
+          owners can change the plan. Moving to Free (cancelling, or the trial ending) deletes nothing: projects past
+          the first are paused (readable, new reports locked; owners pick the active one on Billing), extra members
+          become read-only, and older screenshots get 90 more days before the Free retention removes them. Upgrading
+          lifts all of it at once.
         </p>
       </DocsSection>
 

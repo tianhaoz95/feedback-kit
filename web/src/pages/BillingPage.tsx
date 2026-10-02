@@ -16,7 +16,7 @@ import {
   type BillingInterval,
   type OrganizationUsage,
 } from "@/lib/pricing";
-import type { OrganizationBilling } from "@/lib/types";
+import type { OrganizationBilling, Project } from "@/lib/types";
 import { Button } from "@/components/Button";
 import { CheckIcon, CreditCardIcon } from "@/components/icons";
 
@@ -59,6 +59,7 @@ export function BillingPage() {
   const isOwner = current?.role === "owner";
   const [billing, setBilling] = useState<OrganizationBilling | null | undefined>(undefined);
   const [usage, setUsage] = useState<OrganizationUsage | null>(null);
+  const [projects, setProjects] = useState<Pick<Project, "id" | "name">[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [billingNotConfigured, setBillingNotConfigured] = useState(false);
@@ -80,6 +81,14 @@ export function BillingPage() {
         supabase.rpc("organization_usage", { p_org_id: organizationId }).then(({ data }) => {
           if (!cancelled) setUsage((data as OrganizationUsage | null) ?? null);
         });
+        supabase
+          .from("projects")
+          .select("id, name")
+          .eq("organization_id", organizationId)
+          .order("created_at")
+          .then(({ data }) => {
+            if (!cancelled) setProjects(data ?? []);
+          });
         if (cancelled) return;
         if (billingRes.error) throw billingRes.error;
         setLoadError(null);
@@ -132,6 +141,20 @@ export function BillingPage() {
     });
   }
 
+  function chooseActiveProject(projectId: string) {
+    if (!organizationId) return;
+    setActionError(null);
+    startTransition(async () => {
+      const { error } = await supabase.rpc("set_active_project", { p_org_id: organizationId, p_project_id: projectId });
+      if (error) {
+        setActionError(getErrorMessage(error, "Couldn't change the active project."));
+        return;
+      }
+      const { data } = await supabase.rpc("organization_usage", { p_org_id: organizationId });
+      setUsage((data as OrganizationUsage | null) ?? null);
+    });
+  }
+
   function manage() {
     if (!organizationId) return;
     setActionError(null);
@@ -177,6 +200,8 @@ export function BillingPage() {
   // org) are unlimited whatever `plan` says, so don't present them as Free.
   const limitsWaived = !isPaid && billing.limits_exempt === true;
   const lockedReports = usage?.locked_reports ?? 0;
+  const pausedIds = usage?.paused_project_ids ?? [];
+  const activeProject = projects.find((p) => !pausedIds.includes(p.id));
   const indiePrice = billingInterval === "year" ? INDIE_PRICE_ANNUAL_USD : INDIE_PRICE_MONTHLY_USD;
   const indiePriceLabel = `${formatUsd(indiePrice)}/${billingInterval === "year" ? "year" : "month"}`;
 
@@ -208,6 +233,46 @@ export function BillingPage() {
           {lockedReports} {lockedReports === 1 ? "report is" : "reports are"} waiting, locked because this month&apos;s{" "}
           {FREE_LIMITS.reportsPerMonth} Free reports are used. Upgrade to Indie and {lockedReports === 1 ? "it unlocks" : "they unlock"}{" "}
           right away.
+        </div>
+      ) : null}
+
+      {!isPaid && pausedIds.length > 0 ? (
+        <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+          <h2 className="text-sm font-medium text-neutral-900">
+            {pausedIds.length} of {projects.length} projects paused
+          </h2>
+          <p className="mt-1 text-sm text-neutral-600">
+            The Free plan includes {FREE_LIMITS.projects} active project. Paused projects keep their history, and their
+            apps keep sending, but new reports arrive locked until you upgrade.
+          </p>
+          {isOwner && projects.length > 1 ? (
+            <label className="mt-3 flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+              Active project
+              <select
+                value={activeProject?.id ?? ""}
+                disabled={isPending}
+                onChange={(e) => chooseActiveProject(e.target.value)}
+                className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm"
+              >
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : activeProject ? (
+            <p className="mt-2 text-sm text-neutral-700">
+              Active project: <span className="font-medium">{activeProject.name}</span>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {!isPaid && usage?.media_grace_until ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          On Free, screenshots and attachments are kept {FREE_LIMITS.retentionDays} days. Ones older than that will be
+          removed on {new Date(usage.media_grace_until).toLocaleDateString()} unless you upgrade before then; report
+          text is always kept.
         </div>
       ) : null}
 

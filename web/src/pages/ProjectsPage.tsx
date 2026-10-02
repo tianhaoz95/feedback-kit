@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { useOrganization } from "@/lib/organization";
 import { getErrorMessage } from "@/lib/errors";
 import type { Project } from "@/lib/types";
+import type { OrganizationUsage } from "@/lib/pricing";
 import { extractRepo } from "@/lib/github-url";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
@@ -83,6 +84,7 @@ function formatCreatedDate(dateStr: string): string {
 export function ProjectsPage() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[] | null>(null);
+  const [pausedIds, setPausedIds] = useState<Set<string>>(new Set());
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(getInitialPinned);
   const { current, error: orgError } = useOrganization();
   const organizationId = current?.id ?? null;
@@ -148,6 +150,10 @@ export function ProjectsPage() {
     if (!organizationId) return;
     let cancelled = false;
     setProjects(null);
+    // Best effort: without usage the list just shows no "Paused" badges.
+    supabase.rpc("organization_usage", { p_org_id: organizationId }).then(({ data }) => {
+      if (!cancelled) setPausedIds(new Set((data as OrganizationUsage | null)?.paused_project_ids ?? []));
+    });
 
     (async () => {
       try {
@@ -298,6 +304,15 @@ export function ProjectsPage() {
                           <h2 className="truncate text-base sm:text-lg font-semibold text-neutral-900 transition-colors group-hover:text-blue-600">
                             {project.name}
                           </h2>
+                          {pausedIds.has(project.id) ? (
+                            <Link
+                              to="/billing"
+                              title="Paused on the Free plan: new reports arrive locked. Upgrade, or make it the active project on Billing."
+                              className="pointer-events-auto relative z-10 inline-flex items-center rounded-full border border-neutral-200 bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-600 hover:bg-neutral-200"
+                            >
+                              Paused
+                            </Link>
+                          ) : null}
                           {isPinned && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200/60 shadow-2xs">
                               <PinIcon className="h-2.5 w-2.5" />

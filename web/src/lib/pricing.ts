@@ -41,6 +41,13 @@ export interface OrganizationUsage {
   projects: number;
   members: number;
   storage_bytes?: number;
+  /** Projects past the Free project limit (0029): readable, but their new reports arrive locked. */
+  paused_project_ids?: string[];
+  active_project_id?: string | null;
+  /** False for a member past the plan's member limit, who is read-only until an upgrade. */
+  can_write?: boolean;
+  /** Until when media from before a downgrade is kept (null: no grace running). */
+  media_grace_until?: string | null;
   limits: {
     projects: number | null;
     members: number | null;

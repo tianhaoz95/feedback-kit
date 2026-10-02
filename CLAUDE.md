@@ -690,6 +690,13 @@ Rules for skills:
   report is stored with `locked = true` instead of refused: a restrictive
   RLS policy hides it until an upgrade unlocks it, so anything new that
   reads `feedback_items` with the service role must skip locked rows itself.
+  A downgrade (`0029_downgrade_pause.sql`) pauses rather than removes:
+  projects past the limit lock their new reports (`report_admission` →
+  `project_is_paused`), members past it are read-only via restrictive
+  `to authenticated` write policies (`member_can_write`) on projects,
+  feedback_items/events, products, prompt_templates, releases and
+  access_tokens (add one for any new member-writable table), and Free media
+  retention waits 90 days from `organization_free_since()`.
   The numbers live in `plan_limit(plan, name)` and are mirrored by hand in
   `web/src/lib/pricing.ts` (`FREE_LIMITS`/`INDIE_LIMITS`), the terms page,
   `cli/src/docs.ts` and the Portal's `TeamView`.

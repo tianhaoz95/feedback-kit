@@ -722,6 +722,23 @@ the reporter's feedback and showed the developer nothing to upgrade for;
 created during the trial (members, projects) are kept, as with every limit
 here: only new writes are refused.
 
+**Downgrades pause, they don't take away** (`0029_downgrade_pause.sql`).
+An organization that grew on Indie (or during its trial) and moves to Free
+would otherwise keep more than any Free user gets, which also made "pay one
+month, create thirty projects, cancel" a loophole. Instead the extras are
+paused: one project stays active (`active_project_id`, chosen on Billing, or
+the oldest), the others keep their history and keep receiving, but their
+new reports arrive locked and don't count toward the active project's 50;
+members past the limit (owners first, then by join date) become read-only
+through restrictive RLS on the tables members write. SECURITY DEFINER RPCs
+aren't covered by those policies; the ones that matter here are owner-only
+anyway. Media retention counts from the later of a report's arrival and
+`free_since` (stamped by a trigger when `plan` leaves a paid value or
+`limits_exempt` is cleared; a finished trial counts from `trial_ends_at`),
+so a long-time customer's screenshots get a full 90 days after a downgrade.
+Report text and projects are never deleted: they cost almost nothing, and
+"your 9 paused apps are still here" is the reason to come back.
+
 **Cost bounds.** Hosting is roughly fixed (Supabase Pro once anyone pays;
 Cloudflare static assets are free), and a customer's marginal cost is
 storage and egress for screenshots, so the limits that protect the margin

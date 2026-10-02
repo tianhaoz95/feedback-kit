@@ -84,7 +84,10 @@ export function TermsPage() {
           cancelled. It includes up to {INDIE_LIMITS.members} members and {INDIE_LIMITS.storageGb} GB of stored
           screenshots and attachments as fair use; past that, new reports keep their text but not their media. Larger
           teams are priced by agreement. You can cancel at any time; the plan stays active until the end of the paid
-          period. Fees are non-refundable except where the law requires otherwise. Prices exclude taxes. We will give
+          period. When an organization moves to Free (a cancelled subscription or a finished trial), nothing is deleted
+          at once: projects past the Free limit are paused (readable, with new reports locked), members past it become
+          read-only, and media older than {FREE_LIMITS.retentionDays} days is kept for {FREE_LIMITS.retentionDays} more
+          days before it is removed. Fees are non-refundable except where the law requires otherwise. Prices exclude taxes. We will give
           at least 30 days&apos; notice of a price increase for an existing subscription.
         </p>
       </LegalSection>

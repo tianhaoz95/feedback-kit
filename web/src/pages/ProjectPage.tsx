@@ -1451,7 +1451,7 @@ export function ProjectPage() {
 
       {activeTab === "feedback" && (
         <section>
-          <UsageBanner organizationId={project.organization_id} />
+          <UsageBanner organizationId={project.organization_id} projectId={project.id} />
           <LoopChecklist project={project} feedbackItems={feedbackItems} onGoToTab={handleTabChange} />
           {feedbackItems.length === 0 ? (
             <EmptyState
