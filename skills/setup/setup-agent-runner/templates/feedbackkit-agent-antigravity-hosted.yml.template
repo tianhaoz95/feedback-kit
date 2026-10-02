@@ -42,11 +42,6 @@ permissions:
   # Starts CI on the agent's PR (see the last step).
   actions: write
 
-# One run per issue or PR; a re-dispatch (reporter reopened) replaces a stale one.
-concurrency:
-  group: feedbackkit-agent-antigravity-hosted-${{ github.event.issue.number || github.event.pull_request.number }}
-  cancel-in-progress: true
-
 jobs:
   agent:
     if: >-
@@ -54,6 +49,14 @@ jobs:
       (github.event_name == 'issues' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: __RUNNER__
     timeout-minutes: 60
+    # One run per issue or PR; a re-dispatch (reporter reopened) replaces a
+    # stale one. On the job, not the workflow: runs this job's `if` skips (the
+    # agent's own issue comments, other labels) then never join the group, so
+    # they can't cancel a working run. At the workflow level they did: the
+    # agent's first progress comment cancelled the run it came from.
+    concurrency:
+      group: feedbackkit-agent-antigravity-hosted-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: true
     env:
       # Untrusted text (from the app user's report) only ever reaches the
       # shell through environment variables, never interpolated into scripts.

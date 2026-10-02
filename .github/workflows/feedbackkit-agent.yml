@@ -26,11 +26,6 @@ permissions:
   pull-requests: write
   id-token: write
 
-# One run per issue; a re-dispatch (reporter reopened) replaces a stale one.
-concurrency:
-  group: feedbackkit-agent-${{ github.event.issue.number }}
-  cancel-in-progress: true
-
 jobs:
   agent:
     # Label from FeedbackKit (or a person), or an @claude comment from someone with write access.
@@ -42,6 +37,14 @@ jobs:
         github.event.comment.user.login == 'feedbackkit-app[bot]'))
     runs-on: [self-hosted, macOS, feedbackkit-agent]
     timeout-minutes: 60
+    # One run per issue or PR; a re-dispatch (reporter reopened) replaces a
+    # stale one. On the job, not the workflow: runs this job's `if` skips (the
+    # agent's own issue comments, other labels) then never join the group, so
+    # they can't cancel a working run. At the workflow level they did: the
+    # agent's first progress comment cancelled the run it came from.
+    concurrency:
+      group: feedbackkit-agent-${{ github.event.issue.number }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
         with:
