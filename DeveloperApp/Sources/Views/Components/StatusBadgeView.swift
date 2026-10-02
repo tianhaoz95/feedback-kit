@@ -3,31 +3,41 @@ import SwiftUI
 public struct StatusBadgeView: View {
     public let status: PortalFeedbackStatus
     public var compact: Bool = false
+    public var showChevron: Bool = false
 
-    public init(status: PortalFeedbackStatus, compact: Bool = false) {
+    public init(status: PortalFeedbackStatus, compact: Bool = false, showChevron: Bool = false) {
         self.status = status
         self.compact = compact
+        self.showChevron = showChevron
     }
 
     public var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: compact ? 4 : 6) {
             Image(systemName: status.iconName)
                 .font(compact ? .system(size: 9, weight: .bold) : .system(size: 11, weight: .bold))
 
             if !compact {
                 Text(status.displayName)
-                    .font(.caption2.weight(.semibold))
+                    .font(.caption.weight(.semibold))
+            }
+
+            if showChevron {
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(status.color.opacity(0.8))
             }
         }
-        .padding(.horizontal, compact ? 6 : 8)
-        .padding(.vertical, compact ? 2 : 4)
-        .foregroundColor(foregroundColor)
-        .background(backgroundColor)
+        .padding(.horizontal, compact ? 6 : 10)
+        .padding(.vertical, compact ? 2 : 5)
+        .foregroundColor(status.color)
+        .background(status.color.opacity(0.12))
         .clipShape(Capsule())
     }
+}
 
-    private var foregroundColor: Color {
-        switch status {
+extension PortalFeedbackStatus {
+    public var color: Color {
+        switch self {
         case .new:
             return .blue
         case .inProgress:
@@ -38,21 +48,6 @@ public struct StatusBadgeView: View {
             return .green
         case .wontFix:
             return .secondary
-        }
-    }
-
-    private var backgroundColor: Color {
-        switch status {
-        case .new:
-            return Color.blue.opacity(0.12)
-        case .inProgress:
-            return Color.orange.opacity(0.12)
-        case .backlog:
-            return Color.purple.opacity(0.12)
-        case .resolved:
-            return Color.green.opacity(0.12)
-        case .wontFix:
-            return Color.secondary.opacity(0.12)
         }
     }
 }

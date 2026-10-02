@@ -494,6 +494,7 @@ final class PortalTests: XCTestCase {
         XCTAssertNotNil(host.view)
     }
 
+    @MainActor
     func testFeedbackDetailViewWithImageAttachmentRenders() {
         var item = DemoData.sampleFeedbackItems[0]
         item.attachmentPath = "proj-1/fb-101/attachment/photo.png"
@@ -501,6 +502,21 @@ final class PortalTests: XCTestCase {
         item.attachmentMimeType = "image/png"
         item.signedAttachmentUrl = "https://example.com/photo.png"
 
+        let detail = FeedbackDetailView(item: item).environmentObject(AppState.shared)
+        let host = UIHostingController(rootView: detail)
+        XCTAssertNotNil(host.view)
+    }
+
+    @MainActor
+    func testStatusBadgeViewVariantsAndDetailStatusBarRenders() {
+        for status in PortalFeedbackStatus.allCases {
+            let badge = StatusBadgeView(status: status, compact: false, showChevron: true)
+            let host = UIHostingController(rootView: badge)
+            XCTAssertNotNil(host.view)
+            _ = status.color
+        }
+
+        let item = DemoData.sampleFeedbackItems[0]
         let detail = FeedbackDetailView(item: item).environmentObject(AppState.shared)
         let host = UIHostingController(rootView: detail)
         XCTAssertNotNil(host.view)
