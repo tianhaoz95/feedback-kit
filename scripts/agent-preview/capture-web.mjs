@@ -176,13 +176,15 @@ async function seed(backend, report) {
   if (signInError) throw new Error(`preview sign-in: ${signInError.message}`);
   const session = signIn.session;
 
+  let orgId = null;
   if (report) {
     const user = createClient(backend.url, backend.anonKey, {
       ...options,
       global: { headers: { Authorization: `Bearer ${session.access_token}` } },
     });
-    const { data: orgId, error: orgError } = await user.rpc("create_organization", { p_name: "Preview" });
+    const { data: createdOrgId, error: orgError } = await user.rpc("create_organization", { p_name: "Preview" });
     if (orgError) throw new Error(`organization: ${orgError.message}`);
+    orgId = createdOrgId;
     const { item, events, project, images } = report;
     // The hosted read only has id/name; a --report-file project may carry more (e.g. dispatch settings).
     await insertLenient(admin, "projects", { name: "Preview project", ...project, id: item.project_id, organization_id: orgId });
@@ -190,11 +192,14 @@ async function seed(backend, report) {
     for (const event of events) {
       await insertLenient(admin, "feedback_events", { ...event, actor_user_id: null }).catch((err) => log(`skipped an event: ${err.message}`));
     }
+    if (report.billing) {
+      await admin.from("organization_billing").update(report.billing).not("organization_id", "is", null);
+    }
     for (const [path, bytes] of Object.entries(images)) {
       await admin.storage.from("feedback-screenshots").upload(path, bytes, { contentType: "image/png", upsert: true });
     }
   }
-  return session;
+  return { ...session, orgId };
 }
 
 // ---- Render and capture -------------------------------------------------------
@@ -254,7 +259,13 @@ async function capture({ route, backend, session, width, height, out }) {
       if (session && backend) {
         // supabase-js's default storage key: sb-<first label of the API host>-auth-token.
         const key = `sb-${new URL(backend.url).hostname.split(".")[0]}-auth-token`;
-        await context.addInitScript(([k, v]) => localStorage.setItem(k, v), [key, JSON.stringify(session)]);
+        await context.addInitScript(
+          ([k, v, orgId]) => {
+            localStorage.setItem(k, v);
+            if (orgId) localStorage.setItem("feedbackkit.currentOrganizationId", orgId);
+          },
+          [key, JSON.stringify(session), session?.orgId],
+        );
       }
       const page = await context.newPage();
       await page.goto(`${origin}${route}`, { waitUntil: "networkidle", timeout: 90_000 });
