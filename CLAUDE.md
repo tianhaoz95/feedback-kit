@@ -685,7 +685,10 @@ Rules for skills:
   missing). Plans: `free` (1 project, 1 member, 50 readable reports a month,
   media deleted after 90 days), `indie` (flat $9/$79, 3 members, 25 GB
   fair use, also every new org's 14-day trial via `trial_ends_at`), and
-  `team`/`pro`/`limits_exempt` (unlimited, case by case);
+  `team`/`pro`/`limits_exempt` (unlimited, case by case). No organization
+  is exempt, not even the team's own HEJI TECH (cleared 2026-10-02 so its
+  behavior matches a customer's when debugging); the team runs on Indie
+  with its developer code. Don't set `limits_exempt` on it again;
   `organization_plan()` resolves which applies. Past the Free report limit a
   report is stored with `locked = true` instead of refused: a restrictive
   RLS policy hides it until an upgrade unlocks it, so anything new that
