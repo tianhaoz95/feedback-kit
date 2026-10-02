@@ -363,7 +363,17 @@ Rules for skills:
   Supabase secrets on the hosted project (that per-seat price predates the
   flat Indie plan; checkout now reads `STRIPE_PRICE_ID_INDIE_MONTHLY` /
   `STRIPE_PRICE_ID_INDIE_ANNUAL` and answers 501 until they're set), so checkout accepts test cards
-  only. Going live means recreating the price, webhook and portal
+  only. The flat Indie plan already exists in the **live** account
+  (`acct_1TCka6JiNqYDPd3o`, shared with the owner's other products, so
+  everything is tagged `metadata.app = feedbackkit`): product
+  `prod_VMu4RcJfcklU8t`, `price_1UMAGNJiNqYDPd3oy7IYkivX` ($9/month,
+  `feedbackkit_indie_monthly`), `price_1UMAGOJiNqYDPd3o5rNwoGXZ` ($79/year,
+  `feedbackkit_indie_annual`), and the `FOUNDER` promotion code (coupon
+  `aH6YslMH`, $30 off forever, 50 redemptions, minimum $79 so annual only).
+  They aren't wired up: the hosted functions still hold the sandbox key, so
+  `STRIPE_PRICE_ID_INDIE_*` stay unset (checkout answers 501) until the
+  live key, webhook and portal configuration replace the sandbox ones.
+  Going live means recreating the price, webhook and portal
   configuration in the live account and replacing those three secrets; do
   that only when the owner asks. Live keys are deliberately not stored in
   Supabase or GitHub until then.
