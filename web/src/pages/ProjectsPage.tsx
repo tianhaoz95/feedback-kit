@@ -5,9 +5,10 @@ import { supabase } from "@/lib/supabase";
 import { useOrganization } from "@/lib/organization";
 import { getErrorMessage } from "@/lib/errors";
 import type { Project } from "@/lib/types";
+import { extractRepo } from "@/lib/github-url";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
-import { ArrowRightIcon, ExternalLinkIcon, FolderIcon, GitHubIcon, PinIcon, PlusIcon } from "@/components/icons";
+import { ArrowRightIcon, ExternalLinkIcon, FolderIcon, GitHubIcon, PinIcon, PlusIcon, XIcon } from "@/components/icons";
 
 const CARD_TINTS = [
   "bg-violet-100 text-violet-600",
@@ -87,8 +88,34 @@ export function ProjectsPage() {
   const organizationId = current?.id ?? null;
   const [loadError, setLoadError] = useState<string | null>(null);
   const orgLoadError = orgError ?? loadError;
-  const [error, setError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [projectName, setProjectName] = useState("");
+  const [githubRepoInput, setGithubRepoInput] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  function handleOpenModal() {
+    setProjectName("");
+    setGithubRepoInput("");
+    setModalError(null);
+    setIsModalOpen(true);
+  }
+
+  function handleCloseModal() {
+    if (isPending) return;
+    setIsModalOpen(false);
+  }
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && !isPending) {
+        setIsModalOpen(false);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isModalOpen, isPending]);
 
   function togglePin(projectId: string) {
     setPinnedIds((prev) => {
@@ -148,40 +175,66 @@ export function ProjectsPage() {
     };
   }, [organizationId]);
 
-  function createProject(formData: FormData) {
-    const name = String(formData.get("name") || "").trim();
+  function handleCreateProject(e: React.FormEvent) {
+    e.preventDefault();
+    const name = projectName.trim();
     if (!name) return;
 
     if (!organizationId) {
-      setError("Still figuring out your organization — wait a moment and try again.");
+      setModalError("Still figuring out your organization — wait a moment and try again.");
       return;
     }
 
-    setError(null);
+    let canonicalRepo: string | null = null;
+    const rawRepo = githubRepoInput.trim();
+    if (rawRepo) {
+      const extracted = extractRepo(rawRepo);
+      if (!extracted) {
+        setModalError("Please enter a valid GitHub repository in owner/repo format or URL.");
+        return;
+      }
+      canonicalRepo = `${extracted.owner}/${extracted.repo}`;
+    }
+
+    setModalError(null);
     startTransition(async () => {
       try {
-        const { data, error } = await supabase
+        const payload: { organization_id: string; name: string; github_repo?: string } = {
+          organization_id: organizationId,
+          name,
+        };
+        if (canonicalRepo) {
+          payload.github_repo = canonicalRepo;
+        }
+
+        const { data, error: insertError } = await supabase
           .from("projects")
-          .insert({ organization_id: organizationId, name })
+          .insert(payload)
           .select("id")
           .single();
 
-        if (error) throw error;
-        track("project_created", {}, organizationId);
+        if (insertError) throw insertError;
+        track("project_created", { has_github_repo: Boolean(canonicalRepo) }, organizationId);
         navigate(`/projects/${data.id}`);
       } catch (err) {
-        setError(getErrorMessage(err, "Couldn't create the project. Try again."));
+        setModalError(getErrorMessage(err, "Couldn't create the project. Try again."));
       }
     });
   }
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-xl font-semibold text-neutral-900">Projects</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Each project gets its own key to put in your app or website so feedback routes here.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-neutral-900">Projects</h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            Each project gets its own key to put in your app or website so feedback routes here.
+          </p>
+        </div>
+        <Button onClick={handleOpenModal} className="self-start sm:self-auto shrink-0">
+          <PlusIcon className="h-4 w-4" />
+          Add New Project
+        </Button>
       </div>
 
       {orgLoadError ? (
@@ -213,6 +266,12 @@ export function ProjectsPage() {
               icon={<FolderIcon className="h-6 w-6" />}
               title="No projects yet"
               description="Create your first project to get a key you can put in your app or website — feedback from it will show up here."
+              action={
+                <Button onClick={handleOpenModal}>
+                  <PlusIcon className="h-4 w-4" />
+                  Add New Project
+                </Button>
+              }
             />
           ) : (
             <div className="space-y-3">
@@ -305,38 +364,115 @@ export function ProjectsPage() {
             </div>
           )}
 
-          <div className="max-w-md rounded-xl border border-neutral-200 bg-white p-5 shadow-xs">
-            <h2 className="text-sm font-semibold text-neutral-900">Create a new project</h2>
-            <p className="mt-0.5 text-xs text-neutral-500">
-              Give your project a name to generate an API key.
-            </p>
-            {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                createProject(new FormData(event.currentTarget));
-              }}
-              className="mt-3.5 flex gap-2"
-            >
-              <input
-                name="name"
-                required
-                placeholder="e.g. Consumer App"
-                className="flex-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 transition-colors placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none"
-              />
-              <Button type="submit" disabled={isPending}>
-                {isPending ? (
-                  "Creating…"
-                ) : (
-                  <>
-                    <PlusIcon className="h-4 w-4" />
-                    Create
-                  </>
-                )}
-              </Button>
+        </>
+      )}
+
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 backdrop-blur-xs p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-project-dialog-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleCloseModal();
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-6 shadow-xl space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 id="add-project-dialog-title" className="text-base font-semibold text-neutral-900">
+                  Add New Project
+                </h3>
+                <p className="mt-1 text-xs text-neutral-500 leading-relaxed">
+                  Give your project a name to generate an API key and optionally link a GitHub repository.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseModal}
+                disabled={isPending}
+                className="rounded-lg p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 transition-colors cursor-pointer disabled:opacity-50"
+                aria-label="Close dialog"
+              >
+                <XIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {modalError && (
+              <div className="rounded-lg bg-red-50 px-3.5 py-2.5 text-xs text-red-700">
+                {modalError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateProject} className="space-y-4">
+              <div>
+                <label htmlFor="project-name-input" className="block text-xs font-medium text-neutral-700">
+                  Project name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="project-name-input"
+                  name="name"
+                  type="text"
+                  required
+                  autoFocus
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  placeholder="e.g. Consumer App"
+                  className="mt-1.5 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 transition-colors placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="project-github-repo-input" className="block text-xs font-medium text-neutral-700">
+                  GitHub repository <span className="text-neutral-400 font-normal">(optional)</span>
+                </label>
+                <div className="relative mt-1.5">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <GitHubIcon className="h-4 w-4 text-neutral-400" />
+                  </div>
+                  <input
+                    id="project-github-repo-input"
+                    name="github_repo"
+                    type="text"
+                    value={githubRepoInput}
+                    onChange={(e) => setGithubRepoInput(e.target.value)}
+                    placeholder="owner/repo or https://github.com/owner/repo"
+                    className="w-full rounded-lg border border-neutral-200 bg-white pl-9 pr-3 py-2 text-sm text-neutral-900 transition-colors placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-neutral-500">
+                  Link a repository to track issues and dispatch coding agents.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleCloseModal}
+                  disabled={isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isPending || !projectName.trim()}
+                >
+                  {isPending ? (
+                    "Creating…"
+                  ) : (
+                    <>
+                      <PlusIcon className="h-4 w-4" />
+                      Create project
+                    </>
+                  )}
+                </Button>
+              </div>
             </form>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
