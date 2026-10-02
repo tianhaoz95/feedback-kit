@@ -18,7 +18,7 @@ import {
 } from "@/lib/pricing";
 import type { OrganizationBilling, Project } from "@/lib/types";
 import { Button } from "@/components/Button";
-import { CheckIcon, CreditCardIcon } from "@/components/icons";
+import { ArrowRightIcon, CheckIcon, CreditCardIcon, ImageOffIcon, LayersIcon, LockIcon, SparkleIcon } from "@/components/icons";
 
 // The prices live in lib/pricing.ts and the limits in
 // supabase/migrations/0028_indie_pricing.sql.
@@ -203,6 +203,15 @@ export function BillingPage() {
   const pausedIds = usage?.paused_project_ids ?? [];
   const activeProject = projects.find((p) => !pausedIds.includes(p.id));
   const indiePrice = billingInterval === "year" ? INDIE_PRICE_ANNUAL_USD : INDIE_PRICE_MONTHLY_USD;
+  const showHero = !isPaid && !limitsWaived;
+  const heroHeadline =
+    pausedIds.length > 0
+      ? `Bring your ${pausedIds.length} paused ${pausedIds.length === 1 ? "project" : "projects"} back to life`
+      : lockedReports > 0
+        ? `${lockedReports} ${lockedReports === 1 ? "report is" : "reports are"} waiting for you`
+        : trialDays !== null
+          ? `Keep the momentum: ${trialDays} ${trialDays === 1 ? "day" : "days"} left in your trial`
+          : "Ship every app with Indie";
   const indiePriceLabel = `${formatUsd(indiePrice)}/${billingInterval === "year" ? "year" : "month"}`;
 
   return (
@@ -228,65 +237,86 @@ export function BillingPage() {
       {actionError ? (
         <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div>
       ) : null}
-      {!isPaid && lockedReports > 0 ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {lockedReports} {lockedReports === 1 ? "report is" : "reports are"} waiting, locked because this month&apos;s{" "}
-          {FREE_LIMITS.reportsPerMonth} Free reports are used. Upgrade to Indie and {lockedReports === 1 ? "it unlocks" : "they unlock"}{" "}
-          right away.
-        </div>
+      {showHero ? (
+        <UpgradeHero
+          headline={heroHeadline}
+          interval={billingInterval}
+          onIntervalChange={setBillingInterval}
+          price={indiePrice}
+          isOwner={isOwner}
+          isPending={isPending}
+          onUpgrade={upgrade}
+          ownerNote={`Only an owner of ${current.name} can change the plan.`}
+        />
       ) : null}
 
-      {!isPaid && pausedIds.length > 0 ? (
-        <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-medium text-neutral-900">
-            {pausedIds.length} of {projects.length} projects paused
-          </h2>
-          <p className="mt-1 text-sm text-neutral-600">
-            The Free plan includes {FREE_LIMITS.projects} active project. Paused projects keep their history, and their
-            apps keep sending, but new reports arrive locked until you upgrade.
-          </p>
-          {isOwner && projects.length > 1 ? (
-            <label className="mt-3 flex flex-wrap items-center gap-2 text-sm text-neutral-700">
-              Active project
-              <select
-                value={activeProject?.id ?? ""}
-                disabled={isPending}
-                onChange={(e) => chooseActiveProject(e.target.value)}
-                className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm"
-              >
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : activeProject ? (
-            <p className="mt-2 text-sm text-neutral-700">
-              Active project: <span className="font-medium">{activeProject.name}</span>
-            </p>
+      {!isPaid && (lockedReports > 0 || pausedIds.length > 0 || usage?.media_grace_until) ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {lockedReports > 0 ? (
+            <StatusCard icon={<LockIcon className="h-4 w-4" />} tone="red" title={`${lockedReports} ${lockedReports === 1 ? "report is" : "reports are"} waiting`}>
+              Locked because this month&apos;s {FREE_LIMITS.reportsPerMonth} Free reports are used. Upgrade to Indie and{" "}
+              {lockedReports === 1 ? "it unlocks" : "they unlock"} right away.
+            </StatusCard>
+          ) : null}
+          {pausedIds.length > 0 ? (
+            <StatusCard
+              icon={<LayersIcon className="h-4 w-4" />}
+              tone="neutral"
+              title={`${pausedIds.length} of ${projects.length} projects paused`}
+            >
+              The Free plan includes {FREE_LIMITS.projects} active project. Paused projects keep their history, and their
+              apps keep sending, but new reports arrive locked until you upgrade.
+              {isOwner && projects.length > 1 ? (
+                <label className="mt-3 flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+                  Active project
+                  <select
+                    value={activeProject?.id ?? ""}
+                    disabled={isPending}
+                    onChange={(e) => chooseActiveProject(e.target.value)}
+                    className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm"
+                  >
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : activeProject ? (
+                <span className="mt-2 block text-neutral-700">
+                  Active project: <span className="font-medium">{activeProject.name}</span>
+                </span>
+              ) : null}
+            </StatusCard>
+          ) : null}
+          {usage?.media_grace_until ? (
+            <StatusCard icon={<ImageOffIcon className="h-4 w-4" />} tone="amber" title="Older screenshots have a deadline">
+              On Free, screenshots and attachments are kept {FREE_LIMITS.retentionDays} days. Older ones will be removed on{" "}
+              {new Date(usage.media_grace_until).toLocaleDateString()} unless you upgrade before then; report text is always
+              kept.
+            </StatusCard>
           ) : null}
         </div>
       ) : null}
-      {!isPaid && usage?.media_grace_until ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          On Free, screenshots and attachments are kept {FREE_LIMITS.retentionDays} days. Ones older than that will be
-          removed on {new Date(usage.media_grace_until).toLocaleDateString()} unless you upgrade before then; report
-          text is always kept.
-        </div>
-      ) : null}
 
-      <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-2">
-          <CreditCardIcon className="h-4 w-4 text-neutral-400" />
+      <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-100 text-neutral-500">
+            <CreditCardIcon className="h-4 w-4" />
+          </span>
           <h2 className="text-sm font-medium text-neutral-900">Current plan</h2>
         </div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-lg font-semibold text-neutral-900">
+            <p className="flex flex-wrap items-center gap-2 text-2xl font-semibold tracking-tight text-neutral-900">
               {trialDays !== null ? "Indie trial" : limitsWaived ? "Free · limits waived" : PLAN_NAME[billing.plan]}
+              {isPaid || trialDays !== null ? (
+                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                  {trialDays !== null ? "Trial" : "Active"}
+                </span>
+              ) : null}
             </p>
-            <p className="text-sm text-neutral-500">
+            <p className="mt-1 text-sm text-neutral-500">
               {trialDays !== null
                 ? `${trialDays} ${trialDays === 1 ? "day" : "days"} left, then Free unless you upgrade`
                 : limitsWaived
@@ -341,11 +371,11 @@ export function BillingPage() {
               >
                 Close
               </button>
-            ) : (
+            ) : showHero ? null : (
               <IntervalToggle value={billingInterval} onChange={setBillingInterval} />
             )}
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid items-stretch gap-6 md:grid-cols-2">
             <PlanCard
               title="Free"
               price="$0"
@@ -368,6 +398,7 @@ export function BillingPage() {
             />
             <PlanCard
               title="Indie"
+              badge={!isPaid ? "Recommended" : undefined}
               price={formatUsd(isPaid ? INDIE_PRICE_MONTHLY_USD : indiePrice)}
               priceNote={isPaid || billingInterval === "month" ? "/ month, flat" : `/ year, flat (${annualMonthsFree()} months free)`}
               features={INDIE_FEATURES}
@@ -382,7 +413,7 @@ export function BillingPage() {
                   ) : undefined
                 ) : (
                   <div className="space-y-2">
-                    <Button size="sm" disabled={isPending || !isOwner} onClick={upgrade} className="w-full">
+                    <Button disabled={isPending || !isOwner} onClick={upgrade} className="w-full">
                       {isPending ? "Opening…" : `Upgrade to Indie · ${indiePriceLabel}`}
                     </Button>
                     <p className="text-center text-xs text-neutral-500">
@@ -434,6 +465,7 @@ function IntervalToggle({ value, onChange }: { value: BillingInterval; onChange:
 
 function PlanCard({
   title,
+  badge,
   price,
   priceNote,
   features,
@@ -442,6 +474,7 @@ function PlanCard({
   action,
 }: {
   title: string;
+  badge?: string;
   price: string;
   priceNote?: string;
   features: string[];
@@ -451,32 +484,166 @@ function PlanCard({
 }) {
   return (
     <div
-      className={`flex flex-col rounded-xl border bg-white p-5 shadow-sm ${
-        highlight ? "border-neutral-900 ring-1 ring-neutral-900" : "border-neutral-200"
+      className={`flex flex-col rounded-2xl bg-white p-6 transition-shadow duration-300 sm:p-8 ${
+        highlight ? "border-2 border-neutral-900 shadow-md hover:shadow-lg" : "border border-neutral-200 shadow-sm hover:shadow-md"
       }`}
     >
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-neutral-900">{title}</h3>
-        {current ? (
-          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500">
-            Current
-          </span>
-        ) : null}
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-base font-semibold text-neutral-900">{title}</h3>
+        <div className="flex items-center gap-1.5">
+          {badge ? (
+            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">{badge}</span>
+          ) : null}
+          {current ? (
+            <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-600">Current</span>
+          ) : null}
+        </div>
       </div>
-      <p className="mt-2 text-2xl font-semibold text-neutral-900">
-        {price}
-        {priceNote ? <span className="ml-1 text-sm font-normal text-neutral-500">{priceNote}</span> : null}
+      <p className="mt-4 flex flex-wrap items-baseline gap-x-1.5">
+        <span className="text-4xl font-semibold tracking-tight text-neutral-900">{price}</span>
+        {priceNote ? <span className="text-sm text-neutral-500">{priceNote}</span> : null}
       </p>
-      <ul className="mt-4 flex-1 space-y-2 text-sm text-neutral-600">
+      <ul className="mt-6 flex-1 space-y-3 text-sm text-neutral-600">
         {features.map((feature) => (
-          <li key={feature} className="flex items-start gap-2">
+          <li key={feature} className="flex items-start gap-2.5">
             <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
             {feature}
           </li>
         ))}
       </ul>
-      {action ? <div className="mt-5">{action}</div> : null}
+      {action ? <div className="mt-8">{action}</div> : null}
     </div>
+  );
+}
+
+function StatusCard({
+  icon,
+  tone,
+  title,
+  children,
+}: {
+  icon: ReactNode;
+  tone: "red" | "amber" | "neutral";
+  title: string;
+  children: ReactNode;
+}) {
+  const bubble = {
+    red: "bg-red-50 text-red-600",
+    amber: "bg-amber-50 text-amber-600",
+    neutral: "bg-neutral-100 text-neutral-600",
+  }[tone];
+  return (
+    <div className="flex gap-3 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${bubble}`}>{icon}</span>
+      <div className="min-w-0 text-sm text-neutral-600">
+        <h2 className="font-medium text-neutral-900">{title}</h2>
+        <div className="mt-1">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The upgrade pitch for an organization that isn't paying: what Indie
+ * unlocks, the price for the chosen interval and the checkout button, on the
+ * same dark surface as the landing page's closing call to action.
+ */
+function UpgradeHero({
+  headline,
+  interval,
+  onIntervalChange,
+  price,
+  isOwner,
+  isPending,
+  onUpgrade,
+  ownerNote,
+}: {
+  headline: string;
+  interval: BillingInterval;
+  onIntervalChange: (value: BillingInterval) => void;
+  price: number;
+  isOwner: boolean;
+  isPending: boolean;
+  onUpgrade: () => void;
+  ownerNote: string;
+}) {
+  const perks = [
+    "Unlimited apps and reports",
+    `Up to ${INDIE_LIMITS.members} teammates`,
+    "Screenshots kept while you're subscribed",
+    "The full fix loop, on every app",
+  ];
+  const perMonth = interval === "year" ? INDIE_PRICE_ANNUAL_USD / 12 : null;
+  return (
+    <section className="relative overflow-hidden rounded-2xl bg-neutral-900 px-6 py-8 text-white shadow-lg sm:px-10 sm:py-10">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-violet-500/30 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-emerald-400/20 blur-3xl"
+      />
+      <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
+        <div>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80 ring-1 ring-white/15">
+            <SparkleIcon className="h-3.5 w-3.5 text-emerald-300" />
+            Indie plan
+          </span>
+          <h2 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">{headline}</h2>
+          <p className="mt-2 max-w-xl text-sm text-neutral-300 sm:text-base">
+            Every report from every app lands in one inbox, goes to your coding agent, and comes back to the reporter
+            fixed. One flat price, no seat math.
+          </p>
+          <ul className="mt-6 grid gap-2.5 text-sm text-neutral-200 sm:grid-cols-2">
+            {perks.map((perk) => (
+              <li key={perk} className="flex items-center gap-2">
+                <CheckIcon className="h-4 w-4 shrink-0 text-emerald-400" />
+                {perk}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="w-full rounded-xl bg-white/5 p-5 ring-1 ring-white/10 lg:w-80">
+          <div className="inline-flex w-full rounded-lg bg-white/10 p-0.5">
+            {(["month", "year"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={interval === value}
+                onClick={() => onIntervalChange(value)}
+                className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium cursor-pointer transition-colors ${
+                  interval === value ? "bg-white text-neutral-900 shadow-sm" : "text-white/70 hover:text-white"
+                }`}
+              >
+                {value === "month" ? "Monthly" : "Yearly"}
+              </button>
+            ))}
+          </div>
+          <p className="mt-5 flex items-baseline gap-1.5">
+            <span className="text-4xl font-semibold tracking-tight">{formatUsd(price)}</span>
+            <span className="text-sm text-neutral-400">/ {interval === "year" ? "year" : "month"}</span>
+          </p>
+          <p className="mt-1 h-4 text-xs text-emerald-300">
+            {perMonth
+              ? `That's ${formatUsd(Math.round(perMonth * 100) / 100)} a month · ${annualMonthsFree()} months free`
+              : `Save ${annualMonthsFree()} months with yearly`}
+          </p>
+          <button
+            type="button"
+            disabled={isPending || !isOwner}
+            onClick={onUpgrade}
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-md bg-white py-2.5 text-sm font-semibold text-neutral-900 transition-all duration-150 hover:-translate-y-0.5 hover:bg-neutral-100 active:translate-y-0 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+          >
+            {isPending ? "Opening checkout…" : "Upgrade to Indie"}
+            {isPending ? null : <ArrowRightIcon className="h-4 w-4" />}
+          </button>
+          <p className="mt-3 text-center text-xs text-neutral-400">
+            {isOwner ? "Cancel anytime. Have a promo code? Enter it at checkout." : ownerNote}
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
 
