@@ -86,6 +86,18 @@ export function ProjectPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<"single" | "merged">("single");
   const [isArchivedExpanded, setIsArchivedExpanded] = useState(false);
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(() => {
+    const s = searchParams.get("status");
+    const prod = searchParams.get("product");
+    const plat = searchParams.get("platform");
+    const sort = searchParams.get("sort");
+    return Boolean(
+      (s && s !== "all") ||
+      (prod && prod !== "all") ||
+      (plat && plat !== "all") ||
+      (sort && sort !== "newest")
+    );
+  });
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<
     | { type: "single"; item: FeedbackItem }
@@ -178,6 +190,12 @@ export function ProjectPage() {
     searchQuery.trim().length > 0 ||
     productFilter !== "all" ||
     platformFilter !== "all";
+
+  const hasActiveFilterOptions =
+    statusFilter !== "all" ||
+    productFilter !== "all" ||
+    platformFilter !== "all" ||
+    sortBy !== "newest";
 
   const totalActiveFeedbackItems = feedbackItems.filter((item) => !item.is_archived);
   const totalArchivedFeedbackItems = feedbackItems.filter((item) => !!item.is_archived);
@@ -1083,129 +1101,157 @@ export function ProjectPage() {
       <>
         {/* Filter & Sort Controls */}
         <div className="space-y-2 pb-1">
-          {/* Search Input */}
-          <div className="relative">
-            <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSearchQuery(val);
-                updateFilterParams({ q: val });
-              }}
-              placeholder="Search reports…"
-              className="w-full rounded-lg border border-neutral-200 bg-white py-1.5 pl-8 pr-7 text-xs text-neutral-800 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900 shadow-2xs"
-            />
-            {searchQuery ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery("");
-                  updateFilterParams({ q: "" });
-                }}
-                aria-label="Clear search"
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 cursor-pointer"
-              >
-                <XIcon className="h-3 w-3" />
-              </button>
-            ) : null}
-          </div>
-
-          {/* Primary Filter & Sort Row */}
-          <div className="grid grid-cols-2 gap-1.5">
-            {/* Status Filter */}
-            <div className="relative">
-              <select
-                value={statusFilter}
+          {/* Search Input & Filter Toggle */}
+          <div className="flex items-center gap-1.5">
+            <div className="relative min-w-0 flex-1">
+              <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
+              <input
+                type="text"
+                value={searchQuery}
                 onChange={(e) => {
                   const val = e.target.value;
-                  setStatusFilter(val);
-                  updateFilterParams({ status: val });
+                  setSearchQuery(val);
+                  updateFilterParams({ q: val });
                 }}
-                aria-label="Filter by status"
-                className="w-full appearance-none rounded-lg border border-neutral-200 bg-white py-1.5 pl-2.5 pr-6 text-xs font-medium text-neutral-700 outline-none hover:border-neutral-300 focus:border-neutral-900 cursor-pointer shadow-2xs truncate"
-              >
-                <option value="all">All statuses ({statusCounts.all})</option>
-                <option value="new">New ({statusCounts.new})</option>
-                <option value="in_progress">In progress ({statusCounts.in_progress})</option>
-                <option value="backlog">Backlog ({statusCounts.backlog})</option>
-                <option value="resolved">Resolved ({statusCounts.resolved})</option>
-                <option value="wont_fix">Won't fix ({statusCounts.wont_fix})</option>
-              </select>
-              <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
-            </div>
-
-            {/* Sort By */}
-            <div className="relative">
-              <select
-                value={sortBy}
-                onChange={(e) => {
-                  const val = e.target.value as SortOption;
-                  setSortBy(val);
-                  updateFilterParams({ sort: val });
-                }}
-                aria-label="Sort feedback list"
-                className="w-full appearance-none rounded-lg border border-neutral-200 bg-white py-1.5 pl-2.5 pr-6 text-xs font-medium text-neutral-700 outline-none hover:border-neutral-300 focus:border-neutral-900 cursor-pointer shadow-2xs truncate"
-              >
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-                <option value="status">By status</option>
-                <option value="screen">By screen (A–Z)</option>
-              </select>
-              <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
-            </div>
-          </div>
-
-          {/* Secondary row for Product and/or Platform if applicable */}
-          {(products.length > 1 || availablePlatforms.length > 1) && (
-            <div className="grid grid-cols-2 gap-1.5">
-              {products.length > 1 ? (
-                <div className="relative">
-                  <select
-                    value={productFilter}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setProductFilter(val);
-                      updateFilterParams({ product: val });
-                    }}
-                    aria-label="Filter by product"
-                    className="w-full appearance-none rounded-lg border border-neutral-200 bg-white py-1.5 pl-2.5 pr-6 text-xs font-medium text-neutral-700 outline-none hover:border-neutral-300 focus:border-neutral-900 cursor-pointer shadow-2xs truncate"
-                  >
-                    <option value="all">All products</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.key}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
-                </div>
-              ) : <div />}
-
-              {availablePlatforms.length > 1 ? (
-                <div className="relative">
-                  <select
-                    value={platformFilter}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setPlatformFilter(val);
-                      updateFilterParams({ platform: val });
-                    }}
-                    aria-label="Filter by platform"
-                    className="w-full appearance-none rounded-lg border border-neutral-200 bg-white py-1.5 pl-2.5 pr-6 text-xs font-medium text-neutral-700 outline-none hover:border-neutral-300 focus:border-neutral-900 cursor-pointer shadow-2xs truncate"
-                  >
-                    <option value="all">All platforms</option>
-                    {availablePlatforms.map((plat) => (
-                      <option key={plat} value={plat}>
-                        {plat === "web" ? "Web" : plat === "ios" ? "iOS" : plat === "macos" ? "macOS" : plat === "watchos" ? "watchOS" : plat}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
-                </div>
+                placeholder="Search reports…"
+                className="w-full rounded-lg border border-neutral-200 bg-white py-1.5 pl-8 pr-7 text-xs text-neutral-800 placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none focus:ring-1 focus:ring-neutral-900 shadow-2xs"
+              />
+              {searchQuery ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    updateFilterParams({ q: "" });
+                  }}
+                  aria-label="Clear search"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 cursor-pointer"
+                >
+                  <XIcon className="h-3 w-3" />
+                </button>
               ) : null}
             </div>
+
+            <button
+              type="button"
+              onClick={() => setIsFiltersExpanded((prev) => !prev)}
+              aria-label={isFiltersExpanded ? "Collapse filters" : "Expand filters"}
+              aria-expanded={isFiltersExpanded}
+              title={isFiltersExpanded ? "Collapse filters" : "Expand filters"}
+              className={`relative inline-flex h-[31px] w-[31px] items-center justify-center rounded-lg border shadow-2xs transition-colors cursor-pointer shrink-0 ${
+                isFiltersExpanded
+                  ? "border-neutral-300 bg-neutral-100 text-neutral-900 hover:bg-neutral-200"
+                  : hasActiveFilterOptions
+                  ? "border-neutral-300 bg-neutral-100 text-neutral-900 hover:bg-neutral-200"
+                  : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300 hover:bg-neutral-50 hover:text-neutral-800"
+              }`}
+            >
+              <FilterIcon className="h-3.5 w-3.5" />
+              {hasActiveFilterOptions && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                  <span className="h-2 w-2 rounded-full bg-neutral-900 ring-2 ring-white" />
+                </span>
+              )}
+            </button>
+          </div>
+
+          {isFiltersExpanded && (
+            <>
+              {/* Primary Filter & Sort Row */}
+              <div className="grid grid-cols-2 gap-1.5">
+                {/* Status Filter */}
+                <div className="relative">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setStatusFilter(val);
+                      updateFilterParams({ status: val });
+                    }}
+                    aria-label="Filter by status"
+                    className="w-full appearance-none rounded-lg border border-neutral-200 bg-white py-1.5 pl-2.5 pr-6 text-xs font-medium text-neutral-700 outline-none hover:border-neutral-300 focus:border-neutral-900 cursor-pointer shadow-2xs truncate"
+                  >
+                    <option value="all">All statuses ({statusCounts.all})</option>
+                    <option value="new">New ({statusCounts.new})</option>
+                    <option value="in_progress">In progress ({statusCounts.in_progress})</option>
+                    <option value="backlog">Backlog ({statusCounts.backlog})</option>
+                    <option value="resolved">Resolved ({statusCounts.resolved})</option>
+                    <option value="wont_fix">Won't fix ({statusCounts.wont_fix})</option>
+                  </select>
+                  <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
+                </div>
+
+                {/* Sort By */}
+                <div className="relative">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => {
+                      const val = e.target.value as SortOption;
+                      setSortBy(val);
+                      updateFilterParams({ sort: val });
+                    }}
+                    aria-label="Sort feedback list"
+                    className="w-full appearance-none rounded-lg border border-neutral-200 bg-white py-1.5 pl-2.5 pr-6 text-xs font-medium text-neutral-700 outline-none hover:border-neutral-300 focus:border-neutral-900 cursor-pointer shadow-2xs truncate"
+                  >
+                    <option value="newest">Newest first</option>
+                    <option value="oldest">Oldest first</option>
+                    <option value="status">By status</option>
+                    <option value="screen">By screen (A–Z)</option>
+                  </select>
+                  <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
+                </div>
+              </div>
+
+              {/* Secondary row for Product and/or Platform if applicable */}
+              {(products.length > 1 || availablePlatforms.length > 1) && (
+                <div className="grid grid-cols-2 gap-1.5">
+                  {products.length > 1 ? (
+                    <div className="relative">
+                      <select
+                        value={productFilter}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setProductFilter(val);
+                          updateFilterParams({ product: val });
+                        }}
+                        aria-label="Filter by product"
+                        className="w-full appearance-none rounded-lg border border-neutral-200 bg-white py-1.5 pl-2.5 pr-6 text-xs font-medium text-neutral-700 outline-none hover:border-neutral-300 focus:border-neutral-900 cursor-pointer shadow-2xs truncate"
+                      >
+                        <option value="all">All products</option>
+                        {products.map((p) => (
+                          <option key={p.id} value={p.key}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
+                    </div>
+                  ) : <div />}
+
+                  {availablePlatforms.length > 1 ? (
+                    <div className="relative">
+                      <select
+                        value={platformFilter}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setPlatformFilter(val);
+                          updateFilterParams({ platform: val });
+                        }}
+                        aria-label="Filter by platform"
+                        className="w-full appearance-none rounded-lg border border-neutral-200 bg-white py-1.5 pl-2.5 pr-6 text-xs font-medium text-neutral-700 outline-none hover:border-neutral-300 focus:border-neutral-900 cursor-pointer shadow-2xs truncate"
+                      >
+                        <option value="all">All platforms</option>
+                        {availablePlatforms.map((plat) => (
+                          <option key={plat} value={plat}>
+                            {plat === "web" ? "Web" : plat === "ios" ? "iOS" : plat === "macos" ? "macOS" : plat === "watchos" ? "watchOS" : plat}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" />
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </>
           )}
 
           {/* Active Filter Indicator */}
