@@ -269,6 +269,22 @@ jobs:
           git add -A
           git -c user.name="Antigravity (FeedbackKit)" -c user.email="feedbackkit-agent@users.noreply.github.com" \
             commit "${MESSAGE[@]}"
+          # A new branch must carry the default branch's current workflow files:
+          # if one changed while the agent worked, GitHub refuses the push as
+          # this run's token editing a workflow (it can't have `workflows`
+          # permission). Replay the agent's commit on the latest default branch
+          # first. A follow-up keeps its PR's branch as it is.
+          if [ -z "$PR_NUMBER" ]; then
+            DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+            git fetch --quiet "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+              "+refs/heads/${DEFAULT_BRANCH}:refs/remotes/origin/${DEFAULT_BRANCH}"
+            if ! git -c user.name="Antigravity (FeedbackKit)" -c user.email="feedbackkit-agent@users.noreply.github.com" \
+                rebase --quiet "origin/${DEFAULT_BRANCH}"; then
+              git rebase --abort
+              echo "::error::The fix conflicts with changes made to ${DEFAULT_BRANCH} while the agent worked. Re-dispatch the report."
+              exit 1
+            fi
+          fi
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${BRANCH}"
           # A follow-up lands on the existing PR: say what changed there. A
           # push with the run's own token starts no workflows, so dispatch CI.
