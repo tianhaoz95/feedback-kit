@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { FREE_LIMITS } from "@/lib/pricing";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { getErrorMessage } from "@/lib/errors";
@@ -1719,6 +1720,14 @@ export function ProjectPage() {
                     ) : selectedFeedback.screenshot_annotated_path ? (
                       <div className="flex h-64 animate-pulse items-center justify-center rounded-xl border border-neutral-200 bg-neutral-100">
                         <span className="text-xs text-neutral-400">Loading screenshot…</span>
+                      </div>
+                    ) : selectedFeedback.media_expired_at ? (
+                      <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50 px-4 py-3 text-xs text-neutral-500">
+                        The screenshot was removed after {FREE_LIMITS.retentionDays} days on the Free plan.{" "}
+                        <Link to="/billing" className="underline hover:text-neutral-900">
+                          Indie keeps them
+                        </Link>
+                        .
                       </div>
                     ) : null}
 

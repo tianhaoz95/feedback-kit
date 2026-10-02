@@ -136,17 +136,6 @@ extension SupabasePortalClient {
     public func removeMember(organizationId: String, userId: String) async throws {
         if isDemoMode { try PortalDemoTeamStore.shared.remove(userId: userId); return }
         try await rpc("remove_member", ["p_org_id": organizationId, "p_user_id": userId])
-        syncBillingSeats(organizationId: organizationId)
-    }
-
-    /// Keeps a Team subscription's seat count in step. Best effort: a no-op
-    /// (501) until Stripe is set up — see supabase/functions/sync-billing-seats.
-    public func syncBillingSeats(organizationId: String) {
-        guard !isDemoMode,
-              let body = try? JSONSerialization.data(withJSONObject: ["organization_id": organizationId]),
-              let request = try? makeRequest(path: "/functions/v1/sync-billing-seats", method: "POST", body: body)
-        else { return }
-        Task { _ = try? await executeRequest(request) }
     }
 
     // MARK: - Invitations

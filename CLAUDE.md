@@ -360,7 +360,9 @@ Rules for skills:
   `feedbackkit_team_monthly`), webhook `we_1UKjKkJrt9vpMc7KQAOOFjfo` → the
   hosted `stripe-webhook`, and a customer-portal configuration.
   `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID_TEAM` and `STRIPE_WEBHOOK_SECRET` are
-  Supabase secrets on the hosted project, so checkout accepts test cards
+  Supabase secrets on the hosted project (that per-seat price predates the
+  flat Indie plan; checkout now reads `STRIPE_PRICE_ID_INDIE_MONTHLY` /
+  `STRIPE_PRICE_ID_INDIE_ANNUAL` and answers 501 until they're set), so checkout accepts test cards
   only. Going live means recreating the price, webhook and portal
   configuration in the live account and replacing those three secrets; do
   that only when the owner asks. Live keys are deliberately not stored in
@@ -387,7 +389,7 @@ Rules for skills:
   instead of failing weirdly, which `web/src/pages/BillingPage.tsx` renders
   as a plain "billing isn't set up yet" notice. This means turning on real
   billing later — `supabase secrets set STRIPE_SECRET_KEY=... STRIPE_WEBHOOK_SECRET=...
-  STRIPE_PRICE_ID_TEAM=...` on the hosted project, then registering the
+  STRIPE_PRICE_ID_INDIE_MONTHLY=... STRIPE_PRICE_ID_INDIE_ANNUAL=...` on the hosted project, then registering the
   webhook URL in the Stripe Dashboard — needs zero schema or app-code
   changes. The checkout/portal functions authenticate the caller with their
   own Supabase JWT (`verify_jwt` left at its default `true`) and use an
@@ -664,14 +666,21 @@ Rules for skills:
   "Turning on push notifications"), and the trigger must keep swallowing
   errors so push can never fail a report insert. The Mac Portal has no push
   and polls instead.
-- **Free plan limits (`0019_plan_limits.sql`) are enforced where the write
-  happens**: triggers on `projects`, `memberships` and
-  `organization_invitations`, and `ingest-feedback` asks
-  `project_accepts_report()` (402 `plan_limit_reached`, failing open if the
-  function is missing). Any plan other than `free` is unlimited, and
-  `organization_billing.limits_exempt` exempts an org (the team's dogfood org
-  is set by project key). The numbers live in `plan_limit()` and are mirrored
-  by hand in `web/src/lib/pricing.ts` `FREE_LIMITS` and the terms page.
+- **Plan limits (`0019_plan_limits.sql`, reworked by `0028_indie_pricing.sql`,
+  DESIGN.md §11) are enforced where the write happens**: triggers on
+  `projects`, `memberships` and `organization_invitations`, and
+  `ingest-feedback` asks `report_admission()` (failing open if it's
+  missing). Plans: `free` (1 project, 1 member, 50 readable reports a month,
+  media deleted after 90 days), `indie` (flat $9/$79, 3 members, 25 GB
+  fair use, also every new org's 14-day trial via `trial_ends_at`), and
+  `team`/`pro`/`limits_exempt` (unlimited, case by case);
+  `organization_plan()` resolves which applies. Past the Free report limit a
+  report is stored with `locked = true` instead of refused: a restrictive
+  RLS policy hides it until an upgrade unlocks it, so anything new that
+  reads `feedback_items` with the service role must skip locked rows itself.
+  The numbers live in `plan_limit(plan, name)` and are mirrored by hand in
+  `web/src/lib/pricing.ts` (`FREE_LIMITS`/`INDIE_LIMITS`), the terms page,
+  `cli/src/docs.ts` and the Portal's `TeamView`.
 - **Product analytics are first-party (`0020_analytics.sql`).** The dashboard
   writes `analytics_events` via `web/src/lib/analytics.ts` (`track()`; off in
   dev and under DNT/GPC). Nobody but the service role can read them, and
@@ -719,11 +728,12 @@ Rules for skills:
   every event 0017 doesn't already send to the whole org. The fan-out is
   `notify_watchers()`, called from `notify_feedback_event()`, and a new kind
   must be mirrored in the same places as the other notification kinds.
-- **Billing is per seat.** Team plan = member count × the price in
-  `web/src/lib/pricing.ts` (mirrored as `TeamView.teamPricePerSeat` in the
-  Portal). Checkout is owner-only and sends quantity = members;
-  `sync-billing-seats` is called best-effort after membership changes and
-  answers 501 until Stripe is configured.
+- **Billing is flat, not per seat.** Indie is one quantity-1 subscription
+  (`interval` month/year in create-checkout-session, promotion codes
+  allowed); stripe-webhook maps an Indie price to `plan = 'indie'` and any
+  other price to `team`. `sync-billing-seats` is a deliberate no-op kept for
+  shipped Portal builds that still call it — don't delete it, or the old
+  hosted version keeps changing quantities.
 - **RLS helper functions that query the same table their policy protects
   must be PL/pgSQL, not `language sql`, and every policy on that table needs
   the same treatment.** This bit us for real: `auth_organization_ids()` (used

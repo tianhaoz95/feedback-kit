@@ -158,12 +158,13 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Free plan: 50 reports per organization per month (0019_plan_limits.sql).
+  // Plan limits (0028_indie_pricing.sql): past the Free plan's monthly
+  // reports the report is still stored, but locked until the organization
+  // upgrades; past the storage cap it keeps its text but not its media.
   // Fails open if the function isn't there yet, like the checks above.
-  const { data: accepts, error: limitError } = await supabase.rpc("project_accepts_report", { p_project_id: project.id });
-  if (!limitError && accepts === false) {
-    return json({ error: "plan_limit_reached", message: "This project has reached its plan's monthly report limit." }, 402);
-  }
+  const { data: admission, error: admissionError } = await supabase.rpc("report_admission", { p_project_id: project.id });
+  const locked = !admissionError && admission?.locked === true;
+  const storeMedia = !!admissionError || admission?.store_media !== false;
 
   // Resolve products for this feedback report
   let resolvedProducts: IngestProduct[] = [];
@@ -197,7 +198,7 @@ Deno.serve(async (req) => {
   // submitting, e.g. for a pure-description report.
   let rawPath: string | null = null;
   let annotatedPath: string | null = null;
-  if (payload.screenshot_raw_png_base64 && payload.screenshot_annotated_png_base64) {
+  if (storeMedia && payload.screenshot_raw_png_base64 && payload.screenshot_annotated_png_base64) {
     rawPath = `${project.id}/${payload.id}/raw.png`;
     annotatedPath = `${project.id}/${payload.id}/annotated.png`;
 
@@ -225,7 +226,7 @@ Deno.serve(async (req) => {
   }
 
   let attachmentPath: string | null = null;
-  if (payload.attachment_data_base64 && payload.attachment_filename) {
+  if (storeMedia && payload.attachment_data_base64 && payload.attachment_filename) {
     attachmentPath = `${project.id}/${payload.id}/attachment/${sanitizeFilename(payload.attachment_filename)}`;
     const { error: attachmentError } = await supabase.storage
       .from("feedback-screenshots")
@@ -261,13 +262,14 @@ Deno.serve(async (req) => {
     ...(reporterId ? { reporter_id: reporterId } : {}),
     ...(reporter ? { reporter } : {}),
     ...(typeof payload.notify_reporter === "boolean" ? { notify_reporter: payload.notify_reporter } : {}),
+    ...(locked ? { locked: true } : {}),
   };
   let { error: insertError } = await supabase.from("feedback_items").insert(row);
   // Function deployed before its migration: store the report without the
-  // new column rather than dropping it.
-  if (insertError && /notify_reporter/.test(insertError.message)) {
-    const { notify_reporter: _unused, ...withoutOptIn } = row as Record<string, unknown>;
-    ({ error: insertError } = await supabase.from("feedback_items").insert(withoutOptIn));
+  // new columns rather than dropping it.
+  if (insertError && /notify_reporter|locked/.test(insertError.message)) {
+    const { notify_reporter: _unused, locked: _locked, ...withoutNewColumns } = row as Record<string, unknown>;
+    ({ error: insertError } = await supabase.from("feedback_items").insert(withoutNewColumns));
   }
 
   if (insertError) {

@@ -218,6 +218,9 @@ export interface CaptureOptions {
    * unsupported or declined. `"off"`: do not capture a screenshot.
    */
   mode?: CaptureMode;
-  /** Upper bound on the capture's pixel ratio, to keep uploads small on dense displays. Default 2. */
+  /**
+   * Upper bound on the capture's pixel ratio, to keep uploads small on dense displays. Default 2. The
+   * ratio is lowered further (never below 1) until the image's longest edge is at most 1600 px.
+   */
   maxPixelRatio?: number;
 }

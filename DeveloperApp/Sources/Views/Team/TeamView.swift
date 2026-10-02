@@ -27,8 +27,9 @@ public struct TeamView: View {
     @State private var memberPendingRemoval: PortalMember?
     @State private var isConfirmingLeave = false
 
-    /// Mirrors web/src/lib/pricing.ts; placeholder until Stripe is live.
-    static let teamPricePerSeat = 15
+    /// Mirrors web/src/lib/pricing.ts (INDIE_PRICE_MONTHLY_USD / INDIE_LIMITS).
+    static let indiePricePerMonth = 9
+    static let indieMemberLimit = 3
 
     public init() {}
 
@@ -160,7 +161,7 @@ public struct TeamView: View {
             Text("Members (\(members.count))")
         } footer: {
             if !members.isEmpty {
-                Text("On the Team plan: \(members.count) × $\(Self.teamPricePerSeat) = $\(members.count * Self.teamPricePerSeat)/month. Billing is managed in the web dashboard.")
+                Text("Free is for one person. Indie is $\(Self.indiePricePerMonth)/month flat for up to \(Self.indieMemberLimit) members; for a larger team, email us. Billing is managed in the web dashboard.")
             }
         }
     }

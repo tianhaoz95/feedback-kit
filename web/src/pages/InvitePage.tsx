@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import { rememberCurrentOrganization, syncBillingSeats } from "@/lib/organization";
+import { rememberCurrentOrganization } from "@/lib/organization";
 import { stashPendingInvite } from "@/lib/pendingInvite";
 import { getErrorMessage } from "@/lib/errors";
 import type { InvitationPreview } from "@/lib/types";
@@ -54,7 +54,6 @@ export function InvitePage() {
       const { data, error } = await supabase.rpc("accept_invitation", { p_token: token });
       if (error) throw error;
       const orgId = data as string;
-      syncBillingSeats(orgId);
       openOrganization(orgId);
     } catch (err) {
       setError(getErrorMessage(err, "Couldn't accept the invitation."));

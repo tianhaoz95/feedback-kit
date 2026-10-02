@@ -182,9 +182,10 @@ async function runSuite(name, browser) {
   const raw = Buffer.from(p.screenshot_raw_png_base64, "base64");
   const annotated = Buffer.from(p.screenshot_annotated_png_base64, "base64");
   assert.equal(raw.subarray(1, 4).toString(), "PNG");
-  assert.equal(raw.readUInt32BE(16), 2560, "raw width = viewport × dpr");
-  assert.equal(raw.readUInt32BE(20), 1600, "raw height = viewport × dpr");
-  assert.equal(annotated.readUInt32BE(16), 2560);
+  // 1280×800 at dpr 2, capped so the longest edge is 1600 px (ratio 1.25).
+  assert.equal(raw.readUInt32BE(16), 1600, "raw width = viewport × capped ratio");
+  assert.equal(raw.readUInt32BE(20), 1000, "raw height = viewport × capped ratio");
+  assert.equal(annotated.readUInt32BE(16), 1600);
   assert.ok(!raw.equals(annotated), "annotated differs from raw");
   fs.writeFileSync(path.join(outDir, `${name}-raw.png`), raw);
   fs.writeFileSync(path.join(outDir, `${name}-annotated.png`), annotated);

@@ -10,7 +10,16 @@ import { Reveal } from "@/components/landing/Reveal";
 import { LifecycleLoop, LifecyclePlayer } from "@/components/docs/Lifecycle";
 import { HeroLoop } from "@/components/landing/HeroLoop";
 import { ClaudeIcon, CodexIcon, CursorIcon, CopilotIcon, AntigravityIcon, CheckIcon } from "@/components/icons";
-import { FREE_LIMITS, formatUsd, TEAM_PRICE_PER_SEAT_USD } from "@/lib/pricing";
+import {
+  annualMonthsFree,
+  FREE_LIMITS,
+  formatUsd,
+  INDIE_LIMITS,
+  INDIE_PRICE_ANNUAL_USD,
+  INDIE_PRICE_MONTHLY_USD,
+  TRIAL_DAYS,
+} from "@/lib/pricing";
+import { SUPPORT_EMAIL } from "@/lib/company";
 import { CodeHighlight } from "@/components/CodeHighlight";
 
 // Capture, framed as the input to the loop rather than the product itself.
@@ -667,10 +676,10 @@ export function LandingPage() {
                   Pricing
                 </span>
                 <h2 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">
-                  Free for your first project. Predictable as you grow.
+                  Free for one app. $9 a month when you ship more.
                 </h2>
                 <p className="mt-3 text-sm text-neutral-600 sm:text-base">
-                  Every plan includes the complete closed loop: in-app capture, AI coding agent prompts over MCP and CLI, release tracking, and reporter verification.
+                  Both plans include the complete closed loop: in-app capture, AI coding agent prompts over MCP and CLI, release tracking, and reporter verification. No seat math.
                 </p>
               </div>
             </Reveal>
@@ -682,7 +691,7 @@ export function LandingPage() {
                     <div className="flex items-center justify-between">
                       <h3 className="text-base font-semibold text-neutral-900">Free</h3>
                       <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-600">
-                        Solo / Starter
+                        Solo
                       </span>
                     </div>
                     <div className="mt-4 flex items-baseline">
@@ -690,20 +699,16 @@ export function LandingPage() {
                       <span className="ml-1.5 text-sm text-neutral-500">free forever</span>
                     </div>
                     <p className="mt-3 text-sm text-neutral-600">
-                      Everything you need to try FeedbackKit and close your first fix loops.
+                      For one developer with one app, closing their first fix loops.
                     </p>
                     <ul className="mt-6 space-y-3 text-sm text-neutral-600">
                       <li className="flex items-start gap-2.5">
                         <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                        <span>{FREE_LIMITS.projects} project</span>
+                        <span>{FREE_LIMITS.projects} app, just you</span>
                       </li>
                       <li className="flex items-start gap-2.5">
                         <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                        <span>{FREE_LIMITS.reportsPerMonth} feedback reports / month</span>
-                      </li>
-                      <li className="flex items-start gap-2.5">
-                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                        <span>Up to {FREE_LIMITS.members} team members</span>
+                        <span>{FREE_LIMITS.reportsPerMonth} readable reports / month (extras are kept, not dropped)</span>
                       </li>
                       <li className="flex items-start gap-2.5">
                         <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
@@ -719,7 +724,7 @@ export function LandingPage() {
                       </li>
                       <li className="flex items-start gap-2.5">
                         <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                        <span>Email support</span>
+                        <span>Screenshots kept {FREE_LIMITS.retentionDays} days</span>
                       </li>
                     </ul>
                   </div>
@@ -736,28 +741,31 @@ export function LandingPage() {
                 <div className="flex w-full flex-col justify-between rounded-2xl border-2 border-neutral-900 bg-white p-6 shadow-md transition-all duration-300 hover:shadow-lg sm:p-8">
                   <div>
                     <div className="flex items-center justify-between">
-                      <h3 className="text-base font-semibold text-neutral-900">Team</h3>
+                      <h3 className="text-base font-semibold text-neutral-900">Indie</h3>
                       <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                        Recommended
+                        {TRIAL_DAYS} days free on signup
                       </span>
                     </div>
                     <div className="mt-4 flex items-baseline">
                       <span className="text-4xl font-semibold tracking-tight text-neutral-900">
-                        {formatUsd(TEAM_PRICE_PER_SEAT_USD)}
+                        {formatUsd(INDIE_PRICE_MONTHLY_USD)}
                       </span>
-                      <span className="ml-1.5 text-sm text-neutral-500">per member / month</span>
+                      <span className="ml-1.5 text-sm text-neutral-500">/ month</span>
                     </div>
+                    <p className="mt-1 text-xs text-neutral-500">
+                      or {formatUsd(INDIE_PRICE_ANNUAL_USD)} / year ({annualMonthsFree()} months free). Flat, not per seat.
+                    </p>
                     <p className="mt-3 text-sm text-neutral-600">
-                      For teams shipping continuous updates and automating bug resolution together.
+                      For indie developers and small teams shipping more than one app.
                     </p>
                     <ul className="mt-6 space-y-3 text-sm text-neutral-600">
                       <li className="flex items-start gap-2.5 font-medium text-neutral-800">
                         <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                        <span>Unlimited projects and reports</span>
+                        <span>Unlimited apps and reports</span>
                       </li>
                       <li className="flex items-start gap-2.5 font-medium text-neutral-800">
                         <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                        <span>Invite your whole team</span>
+                        <span>Up to {INDIE_LIMITS.members} members</span>
                       </li>
                       <li className="flex items-start gap-2.5">
                         <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
@@ -765,19 +773,15 @@ export function LandingPage() {
                       </li>
                       <li className="flex items-start gap-2.5">
                         <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                        <span>Screenshots kept as long as you&apos;re subscribed</span>
+                      </li>
+                      <li className="flex items-start gap-2.5">
+                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
                         <span>Developer Portal companion app (macOS &amp; iOS)</span>
                       </li>
                       <li className="flex items-start gap-2.5">
                         <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                        <span>Live notifications on web and mobile</span>
-                      </li>
-                      <li className="flex items-start gap-2.5">
-                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                        <span>Custom prompt templates per project</span>
-                      </li>
-                      <li className="flex items-start gap-2.5">
-                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                        <span>Priority email support</span>
+                        <span>Email support from the person who builds it</span>
                       </li>
                     </ul>
                   </div>
@@ -785,11 +789,24 @@ export function LandingPage() {
                     to={user ? "/billing" : "/login"}
                     className="mt-8 block w-full rounded-md bg-neutral-900 py-2.5 text-center text-sm font-medium text-white transition-all duration-150 hover:-translate-y-0.5 hover:bg-neutral-800 hover:shadow-lg hover:shadow-neutral-900/10 active:translate-y-0 active:scale-95"
                   >
-                    {user ? "Manage billing" : "Start with Team"}
+                    {user ? "Upgrade to Indie" : `Start your ${TRIAL_DAYS}-day trial`}
                   </Link>
                 </div>
               </Reveal>
             </div>
+
+            <Reveal delayMs={250}>
+              <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-neutral-600">
+                Larger team?{" "}
+                <a
+                  href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("FeedbackKit for a larger team")}`}
+                  className="font-medium text-neutral-900 underline hover:text-neutral-600"
+                >
+                  Email me
+                </a>{" "}
+                and we&apos;ll work out a price that fits.
+              </p>
+            </Reveal>
 
             <Reveal delayMs={300} className="mx-auto mt-16 max-w-3xl">
               <div className="grid gap-6 border-t border-neutral-200/60 pt-10 text-left sm:grid-cols-2">

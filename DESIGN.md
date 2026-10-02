@@ -594,7 +594,7 @@ pushing to main need to rebase and retry. External TestFlight groups can
 still wait on Beta App Review; the internal group gets every build at once.
 Demo apps ship on releases only, not betas.
 
-## 9. Teams, notifications, and per-seat billing
+## 9. Teams and notifications
 
 **Teams (`0016_teams.sql`).** Membership was always many-to-many; this made
 it usable. An owner creates an **invitation link** (`/invite/<token>`),
@@ -630,12 +630,7 @@ Delivery:
   swallows every error, so push can never block a report from being stored.
 - **Mac Portal**: polls once a minute and badges the Dock. No push.
 
-**Per-seat billing.** The Team plan is priced per member
-(`web/src/lib/pricing.ts`, placeholder $15/member/month until a Stripe Price
-exists). Checkout sends quantity = member count, and `sync-billing-seats` (called
-best-effort after joins/leaves) keeps a live subscription's quantity in
-step. Only owners can start checkout. Still dummy until
-`STRIPE_SECRET_KEY`/`STRIPE_PRICE_ID_TEAM` are set.
+**Billing.** Per-seat billing was retired by `0028_indie_pricing.sql`; see §11.
 
 ## 10. Access tokens and after-fix previews
 
@@ -693,6 +688,50 @@ and marks their events `expired_at`, so the dashboard and Portal say
 "Preview expired" instead of showing a broken image. The viewers state the
 policy next to every preview. A preview is a capture by the agent, not a
 verification, and the UI says so.
+
+## 11. Pricing: Free and a flat Indie plan
+
+`0028_indie_pricing.sql`, `web/src/lib/pricing.ts`, the Stripe Edge Functions.
+
+The product's customers are solo developers and very small app teams, and
+its owner's goal is practising sales and distribution, so the pricing aims
+at the most paying customers and sales conversations, not the most revenue
+per account. Two self-serve plans, both with the whole fix loop:
+
+- **Free** is for one person: 1 project, 1 member, 50 readable reports a
+  month. A second person or a second app is the natural moment to upgrade.
+- **Indie** is $9/month or $79/year, *flat*: unlimited projects and
+  reports, up to 3 members. Per-seat pricing made adding a cofounder a cost
+  decision; a flat price below most people's "think about it" threshold is
+  easier to say yes to.
+- **Larger teams** are priced case by case ("email us"): every one of
+  those is a sales conversation, and their questions decide what a future
+  self-serve team plan contains. In the database that's `plan = 'team'`
+  (any non-Indie Stripe price) or `limits_exempt`, both unlimited.
+
+**Locked, not refused.** Past the Free monthly limit, `ingest-feedback`
+stores the report with `locked = true` instead of answering 402. A
+restrictive RLS policy hides locked rows from members and tokens alike,
+their notification says a report arrived but not what it says, and
+upgrading (a trigger on `organization_billing`) unlocks them. Refusing lost
+the reporter's feedback and showed the developer nothing to upgrade for;
+"7 reports are waiting" is the strongest upgrade prompt we have.
+
+**A reverse trial.** New organizations start with 14 days of Indie
+(`organization_billing.trial_ends_at`) and drop to Free afterwards; rows
+created during the trial (members, projects) are kept, as with every limit
+here: only new writes are refused.
+
+**Cost bounds.** Hosting is roughly fixed (Supabase Pro once anyone pays;
+Cloudflare static assets are free), and a customer's marginal cost is
+storage and egress for screenshots, so the limits that protect the margin
+are about media, not seats: screenshots are encoded at most 1600 px on the
+longest edge on every SDK (`AnnotationRenderer.encodingScale`, ported to
+`web-sdk/src/renderer.ts`), photos at 2048 px; Free media is deleted 90
+days after a report arrives (`free_media_to_expire()`, run by
+`cleanup-previews`, which leaves the text and sets `media_expired_at`); and
+Indie has a 25 GB fair-use cap, past which `report_admission()` tells
+ingestion to keep a report's text but not its media.
 
 ## Repo layout
 

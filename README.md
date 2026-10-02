@@ -255,19 +255,22 @@ billing Edge Functions are already built and deployed; they just detect the
 missing Stripe credentials and say so (`{"error": "billing_not_configured"}`)
 instead of doing anything. To make it real:
 
-1. Create the Stripe product with a **recurring per-unit price** for the
-   Team plan (billed per member: checkout sends quantity = member count,
-   and `sync-billing-seats` keeps it current as people join and leave —
-   match the amount to `web/src/lib/pricing.ts`), and a webhook
-   endpoint pointed at
+1. Create the Stripe product with two **flat recurring prices** for the
+   Indie plan — monthly and yearly, matching `web/src/lib/pricing.ts`
+   ($9/month, $79/year; checkout sends quantity 1 and accepts promotion
+   codes, so a founding-member coupon is just a Stripe coupon + code) — and
+   a webhook endpoint pointed at
    `https://<project-ref>.supabase.co/functions/v1/stripe-webhook`
    subscribed to at least `checkout.session.completed`,
    `customer.subscription.updated`, and `customer.subscription.deleted`.
 2. Set the secrets the functions read (`supabase/functions/_shared/stripe.ts`):
    ```bash
-   supabase secrets set STRIPE_SECRET_KEY=sk_live_... STRIPE_WEBHOOK_SECRET=whsec_... STRIPE_PRICE_ID_TEAM=price_...
+   supabase secrets set STRIPE_SECRET_KEY=sk_live_... STRIPE_WEBHOOK_SECRET=whsec_... \
+     STRIPE_PRICE_ID_INDIE_MONTHLY=price_... STRIPE_PRICE_ID_INDIE_ANNUAL=price_...
    ```
-   (`STRIPE_PRICE_ID_PRO` is still read as a fallback.)
+   A subscription on any other price (a larger team's custom deal, created
+   by hand in Stripe with `organization_id` in the subscription metadata)
+   puts the organization on the unlimited `team` plan.
 3. Nothing else — no schema change, no dashboard code change. The next
    request to any billing function picks up the new secrets immediately.
 

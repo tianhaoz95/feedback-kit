@@ -19,24 +19,23 @@ export function getStripe(): Stripe | null {
   return cached;
 }
 
+export type BillingInterval = "month" | "year";
+
 /**
- * The Stripe Price id for the Team plan: a recurring per-seat price, billed
- * with quantity = the organization's member count. STRIPE_PRICE_ID_PRO is
- * still read as a fallback for projects configured before Team existed.
+ * The Stripe Price ids for the Indie plan: flat recurring prices ($9/month,
+ * $79/year — see web/src/lib/pricing.ts), billed with quantity 1 whatever
+ * the member count.
  */
-export function getTeamPriceId(): string | null {
-  return Deno.env.get("STRIPE_PRICE_ID_TEAM") ?? Deno.env.get("STRIPE_PRICE_ID_PRO") ?? null;
+export function getIndiePriceId(interval: BillingInterval): string | null {
+  return Deno.env.get(interval === "year" ? "STRIPE_PRICE_ID_INDIE_ANNUAL" : "STRIPE_PRICE_ID_INDIE_MONTHLY") ?? null;
 }
 
-// deno-lint-ignore no-explicit-any
-type AdminClient = { from: (table: string) => any };
-
-/** Seats billed for an organization: one per member. */
-export async function countSeats(admin: AdminClient, organizationId: string): Promise<number> {
-  const { count, error } = await admin
-    .from("memberships")
-    .select("id", { count: "exact", head: true })
-    .eq("organization_id", organizationId);
-  if (error) throw new Error(`failed to count members: ${error.message}`);
-  return Math.max(1, count ?? 1);
+/**
+ * The plan a subscription's price puts an organization on: the Indie prices
+ * mean 'indie'; anything else is a larger team's custom price, set up by
+ * hand in Stripe, so 'team' (unlimited — see 0028_indie_pricing.sql).
+ */
+export function planForPrice(priceId: string | undefined): "indie" | "team" {
+  const indie = [Deno.env.get("STRIPE_PRICE_ID_INDIE_MONTHLY"), Deno.env.get("STRIPE_PRICE_ID_INDIE_ANNUAL")];
+  return priceId && indie.includes(priceId) ? "indie" : "team";
 }

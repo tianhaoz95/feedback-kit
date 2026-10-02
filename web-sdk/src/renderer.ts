@@ -30,6 +30,26 @@ export interface TextMeasurer {
 
 export const STROKE_WIDTH = 4;
 export const HIT_TEST_TOLERANCE = 16;
+/** Longest edge, in pixels, of a report's screenshot — AnnotationRenderer.maxScreenshotPixelDimension. */
+export const MAX_SCREENSHOT_PIXEL_DIMENSION = 1600;
+
+/**
+ * The pixel ratio to capture a `width`×`height` (CSS px) viewport at: the
+ * display's own ratio at most, shrunk until the longest edge fits
+ * `maxPixelDimension`, but never below `minimumScale`. Port of
+ * AnnotationRenderer.encodingScale — change both together.
+ */
+export function encodingScale(
+  width: number,
+  height: number,
+  displayScale: number,
+  maxPixelDimension = MAX_SCREENSHOT_PIXEL_DIMENSION,
+  minimumScale = 1,
+): number {
+  const longest = Math.max(width, height);
+  if (longest <= 0 || displayScale <= 0) return Math.max(displayScale, minimumScale);
+  return Math.max(minimumScale, Math.min(displayScale, maxPixelDimension / longest));
+}
 const HEAD_LENGTH = 18;
 const HEAD_ANGLE = Math.PI / 7;
 const BASE_FONT_SIZE = 16;

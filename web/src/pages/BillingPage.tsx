@@ -1,39 +1,38 @@
 import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { track } from "@/lib/analytics";
-import { Link } from "react-router-dom";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { useOrganization } from "@/lib/organization";
 import { getErrorMessage } from "@/lib/errors";
 import { SUPPORT_EMAIL } from "@/lib/company";
 import {
-  billableSeats,
+  annualMonthsFree,
   FREE_LIMITS,
   formatUsd,
-  TEAM_PRICE_PER_SEAT_USD,
-  teamMonthlyTotal,
+  INDIE_LIMITS,
+  INDIE_PRICE_ANNUAL_USD,
+  INDIE_PRICE_MONTHLY_USD,
+  trialDaysLeft,
+  type BillingInterval,
   type OrganizationUsage,
 } from "@/lib/pricing";
 import type { OrganizationBilling } from "@/lib/types";
 import { Button } from "@/components/Button";
-import { CheckIcon, CreditCardIcon, UsersIcon } from "@/components/icons";
+import { CheckIcon, CreditCardIcon } from "@/components/icons";
 
-// Placeholder feature copy — there's no real Stripe product yet (see
-// supabase/functions/create-checkout-session and
-// supabase/migrations/0009_billing.sql / 0016_teams.sql). The price lives in
-// lib/pricing.ts.
+// The prices live in lib/pricing.ts and the limits in
+// supabase/migrations/0028_indie_pricing.sql.
 const FREE_FEATURES = [
-  `${FREE_LIMITS.projects} project`,
-  `${FREE_LIMITS.reportsPerMonth} feedback reports / month`,
-  `Up to ${FREE_LIMITS.members} members`,
+  `${FREE_LIMITS.projects} project, ${FREE_LIMITS.members} member`,
+  `${FREE_LIMITS.reportsPerMonth} readable reports / month; extras are kept, locked`,
+  `Screenshots and attachments kept ${FREE_LIMITS.retentionDays} days`,
   "The full fix loop: agents, releases, reporter verification",
-  "Email support",
 ];
-const TEAM_FEATURES = [
+const INDIE_FEATURES = [
   "Unlimited projects and reports",
-  "Invite your whole team",
-  "Notifications on web and the Portal app",
-  "Priority email support",
+  `Up to ${INDIE_LIMITS.members} members`,
+  `Screenshots kept while you're subscribed (${INDIE_LIMITS.storageGb} GB fair use)`,
+  "Everything in Free",
 ];
 
 const STATUS_LABEL: Record<OrganizationBilling["status"], string> = {
@@ -47,17 +46,24 @@ const STATUS_LABEL: Record<OrganizationBilling["status"], string> = {
   incomplete_expired: "Incomplete (expired)",
 };
 
+const PLAN_NAME: Record<OrganizationBilling["plan"], string> = {
+  free: "Free",
+  indie: "Indie",
+  team: "Team",
+  pro: "Team",
+};
+
 export function BillingPage() {
   const { current } = useOrganization();
   const organizationId = current?.id ?? null;
   const isOwner = current?.role === "owner";
   const [billing, setBilling] = useState<OrganizationBilling | null | undefined>(undefined);
-  const [memberCount, setMemberCount] = useState<number | null>(null);
   const [usage, setUsage] = useState<OrganizationUsage | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [billingNotConfigured, setBillingNotConfigured] = useState(false);
   const [showAllPlans, setShowAllPlans] = useState(false);
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>("year");
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -65,14 +71,11 @@ export function BillingPage() {
     let cancelled = false;
     (async () => {
       try {
-        const [billingRes, membersRes] = await Promise.all([
-          supabase
-            .from("organization_billing")
-            .select("*")
-            .eq("organization_id", organizationId)
-            .single<OrganizationBilling>(),
-          supabase.from("memberships").select("id", { count: "exact", head: true }).eq("organization_id", organizationId),
-        ]);
+        const billingRes = await supabase
+          .from("organization_billing")
+          .select("*")
+          .eq("organization_id", organizationId)
+          .single<OrganizationBilling>();
         // Best effort: the plan card still renders if usage can't load.
         supabase.rpc("organization_usage", { p_org_id: organizationId }).then(({ data }) => {
           if (!cancelled) setUsage((data as OrganizationUsage | null) ?? null);
@@ -81,7 +84,6 @@ export function BillingPage() {
         if (billingRes.error) throw billingRes.error;
         setLoadError(null);
         setBilling(billingRes.data);
-        setMemberCount(membersRes.count ?? 1);
       } catch (err) {
         if (!cancelled) {
           setLoadError(getErrorMessage(err, "Couldn't load billing information."));
@@ -112,11 +114,12 @@ export function BillingPage() {
     setActionError(null);
     setBillingNotConfigured(false);
     startTransition(async () => {
-      track("checkout_started", {}, organizationId);
+      track("checkout_started", { interval: billingInterval }, organizationId);
       const base = `${window.location.origin}${import.meta.env.BASE_URL}billing`;
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: {
           organization_id: organizationId,
+          interval: billingInterval,
           success_url: `${base}?checkout=success`,
           cancel_url: `${base}?checkout=cancel`,
         },
@@ -169,8 +172,10 @@ export function BillingPage() {
   }
 
   const isPaid = billing.plan !== "free";
-  const seats = billableSeats(billing.seats ?? memberCount ?? 1);
-  const total = teamMonthlyTotal(seats);
+  const trialDays = trialDaysLeft(usage, billing.plan);
+  const lockedReports = usage?.locked_reports ?? 0;
+  const indiePrice = billingInterval === "year" ? INDIE_PRICE_ANNUAL_USD : INDIE_PRICE_MONTHLY_USD;
+  const indiePriceLabel = `${formatUsd(indiePrice)}/${billingInterval === "year" ? "year" : "month"}`;
 
   return (
     <div className="space-y-8">
@@ -195,6 +200,13 @@ export function BillingPage() {
       {actionError ? (
         <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{actionError}</div>
       ) : null}
+      {!isPaid && lockedReports > 0 ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {lockedReports} {lockedReports === 1 ? "report is" : "reports are"} waiting, locked because this month&apos;s{" "}
+          {FREE_LIMITS.reportsPerMonth} Free reports are used. Upgrade to Indie and {lockedReports === 1 ? "it unlocks" : "they unlock"}{" "}
+          right away.
+        </div>
+      ) : null}
 
       <div className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
         <div className="flex items-center gap-2">
@@ -203,10 +215,13 @@ export function BillingPage() {
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-lg font-semibold text-neutral-900">{isPaid ? "Team" : "Free"}</p>
+            <p className="text-lg font-semibold text-neutral-900">
+              {trialDays !== null ? "Indie trial" : PLAN_NAME[billing.plan]}
+            </p>
             <p className="text-sm text-neutral-500">
-              {STATUS_LABEL[billing.status]}
-              {isPaid ? ` · ${seats} ${seats === 1 ? "seat" : "seats"} · ${formatUsd(total)}/month` : ""}
+              {trialDays !== null
+                ? `${trialDays} ${trialDays === 1 ? "day" : "days"} left, then Free unless you upgrade`
+                : STATUS_LABEL[billing.status]}
               {billing.current_period_end
                 ? ` · Renews ${new Date(billing.current_period_end).toLocaleDateString()}`
                 : ""}
@@ -215,15 +230,11 @@ export function BillingPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {isPaid ? (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowAllPlans((prev) => !prev)}
-              >
+              <Button variant="secondary" size="sm" onClick={() => setShowAllPlans((prev) => !prev)}>
                 {showAllPlans ? "Hide available plans" : "View all plans"}
               </Button>
             ) : null}
-            {isPaid && isOwner ? (
+            {isPaid && isOwner && billing.stripe_customer_id ? (
               <Button variant="secondary" size="sm" disabled={isPending} onClick={manage}>
                 {isPending ? "Opening…" : "Manage billing"}
               </Button>
@@ -236,14 +247,23 @@ export function BillingPage() {
             <UsageMeter label="Projects" used={usage.projects} limit={usage.limits.projects} />
             <UsageMeter label="Members" used={usage.members} limit={usage.limits.members} />
           </div>
+        ) : usage?.plan === "indie" ? (
+          <div className="mt-4 grid gap-3 border-t border-neutral-100 pt-4 sm:grid-cols-2">
+            <UsageMeter label="Members" used={usage.members} limit={usage.limits.members} />
+            <UsageMeter
+              label="Storage (GB)"
+              used={Math.round(((usage.storage_bytes ?? 0) / 1024 ** 3) * 100) / 100}
+              limit={usage.limits.storage_mb ? usage.limits.storage_mb / 1024 : null}
+            />
+          </div>
         ) : null}
       </div>
 
       {!isPaid || showAllPlans ? (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-base font-semibold text-neutral-900">Available plans</h2>
-            {isPaid && (
+            {isPaid ? (
               <button
                 type="button"
                 onClick={() => setShowAllPlans(false)}
@@ -251,6 +271,8 @@ export function BillingPage() {
               >
                 Close
               </button>
+            ) : (
+              <IntervalToggle value={billingInterval} onChange={setBillingInterval} />
             )}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -258,69 +280,84 @@ export function BillingPage() {
               title="Free"
               price="$0"
               features={FREE_FEATURES}
-              current={!isPaid}
+              current={!isPaid && trialDays === null}
               action={
                 isPaid ? (
                   <div className="space-y-2">
                     <p className="text-xs text-neutral-500">
-                      To downgrade to the Free plan, cancel your Team subscription in the Stripe billing portal.
+                      To move back to Free, cancel your subscription in the Stripe billing portal.
                     </p>
-                    {isOwner && (
+                    {isOwner && billing.stripe_customer_id ? (
                       <Button variant="secondary" size="sm" disabled={isPending} onClick={manage} className="w-full">
                         Manage via billing portal
                       </Button>
-                    )}
+                    ) : null}
                   </div>
                 ) : undefined
               }
             />
             <PlanCard
-              title="Team"
-              price={formatUsd(TEAM_PRICE_PER_SEAT_USD)}
-              priceNote="per member / month"
-              features={TEAM_FEATURES}
-              current={isPaid}
+              title="Indie"
+              price={formatUsd(isPaid ? INDIE_PRICE_MONTHLY_USD : indiePrice)}
+              priceNote={isPaid || billingInterval === "month" ? "/ month, flat" : `/ year, flat (${annualMonthsFree()} months free)`}
+              features={INDIE_FEATURES}
+              current={billing.plan === "indie" || trialDays !== null}
               highlight={!isPaid}
               action={
                 isPaid ? (
-                  <div className="space-y-2">
-                    <div className="rounded-lg bg-neutral-50 p-3 text-xs text-neutral-600">
-                      <span className="font-medium text-neutral-900">Your active plan</span> · {seats} {seats === 1 ? "seat" : "seats"} ({formatUsd(total)}/mo)
-                    </div>
-                    {isOwner && (
-                      <Button variant="secondary" size="sm" disabled={isPending} onClick={manage} className="w-full">
-                        {isPending ? "Opening…" : "Manage subscription in Stripe"}
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="rounded-lg bg-neutral-50 p-3 text-sm">
-                      <div className="flex items-center justify-between text-neutral-600">
-                        <span className="flex items-center gap-1.5">
-                          <UsersIcon className="h-4 w-4 text-neutral-400" />
-                          {seats} {seats === 1 ? "member" : "members"} × {formatUsd(TEAM_PRICE_PER_SEAT_USD)}
-                        </span>
-                        <span className="font-semibold text-neutral-900">{formatUsd(total)}/mo</span>
-                      </div>
-                      <p className="mt-1 text-xs text-neutral-500">
-                        Seats follow your <Link to="/team" className="underline">team</Link>: adding or removing someone
-                        changes the next invoice, prorated.
-                      </p>
-                    </div>
-                    <Button size="sm" disabled={isPending || !isOwner} onClick={upgrade} className="w-full">
-                      {isPending ? "Opening…" : `Upgrade to Team · ${formatUsd(total)}/mo`}
+                  billing.plan === "indie" && isOwner && billing.stripe_customer_id ? (
+                    <Button variant="secondary" size="sm" disabled={isPending} onClick={manage} className="w-full">
+                      {isPending ? "Opening…" : "Manage subscription in Stripe"}
                     </Button>
-                    {!isOwner ? (
-                      <p className="text-center text-xs text-neutral-500">Only an owner of {current.name} can change the plan.</p>
-                    ) : null}
+                  ) : undefined
+                ) : (
+                  <div className="space-y-2">
+                    <Button size="sm" disabled={isPending || !isOwner} onClick={upgrade} className="w-full">
+                      {isPending ? "Opening…" : `Upgrade to Indie · ${indiePriceLabel}`}
+                    </Button>
+                    <p className="text-center text-xs text-neutral-500">
+                      {isOwner
+                        ? "Have a promo code? Enter it at checkout."
+                        : `Only an owner of ${current.name} can change the plan.`}
+                    </p>
                   </div>
                 )
               }
             />
           </div>
+          <p className="text-sm text-neutral-600">
+            More than {INDIE_LIMITS.members} people?{" "}
+            <a
+              href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`FeedbackKit for ${current.name}`)}`}
+              className="font-medium text-neutral-900 underline"
+            >
+              Email {SUPPORT_EMAIL}
+            </a>{" "}
+            and we&apos;ll set up a plan for your team.
+          </p>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function IntervalToggle({ value, onChange }: { value: BillingInterval; onChange: (value: BillingInterval) => void }) {
+  const option = (interval: BillingInterval, label: string) => (
+    <button
+      type="button"
+      aria-pressed={value === interval}
+      onClick={() => onChange(interval)}
+      className={`rounded-md px-3 py-1 text-xs font-medium cursor-pointer ${
+        value === interval ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-900"
+      }`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div className="inline-flex rounded-lg bg-neutral-100 p-0.5">
+      {option("month", "Monthly")}
+      {option("year", `Yearly · ${annualMonthsFree()} months free`)}
     </div>
   );
 }
@@ -373,15 +410,15 @@ function PlanCard({
   );
 }
 
-function UsageMeter({ label, used, limit }: { label: string; used: number; limit: number }) {
-  const share = Math.min(1, used / limit);
+function UsageMeter({ label, used, limit }: { label: string; used: number; limit: number | null }) {
+  const share = limit ? Math.min(1, used / limit) : 0;
   const tone = share >= 1 ? "bg-red-500" : share >= 0.8 ? "bg-amber-500" : "bg-neutral-900";
   return (
     <div>
       <div className="flex items-baseline justify-between text-xs">
         <span className="text-neutral-500">{label}</span>
         <span className="font-medium text-neutral-900">
-          {used} / {limit}
+          {used} / {limit ?? "∞"}
         </span>
       </div>
       <div className="mt-1.5 h-1.5 rounded-full bg-neutral-100">

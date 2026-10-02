@@ -428,7 +428,7 @@ The header bell shows new reports, reporter replies, reports reopened as still b
 
 ## Billing
 
-Per organization. Free: 1 project, 3 members, 50 reports a month, the whole fix loop included; at the report limit new reports are refused until next month (projects warn from 40). Team: unlimited, priced per member per month; only owners change it.
+Per organization; every plan includes the whole fix loop. Free is for one person: 1 project, 1 member, 50 readable reports a month. Reports past that are kept but locked until next month or an upgrade (projects warn from 40), and Free screenshots/attachments are deleted after 90 days. Indie: $9/month or $79/year flat, unlimited projects and reports, up to 3 members, 25 GB fair-use storage; upgrading unlocks locked reports. New organizations get a 14-day Indie trial. Larger teams: priced case by case by email. Only owners change the plan.
 
 ## Your account
 

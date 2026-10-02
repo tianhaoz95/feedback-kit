@@ -1,4 +1,5 @@
 import type { CaptureMode } from "./types";
+import { encodingScale } from "./renderer";
 
 /**
  * Viewport screenshot capture.
@@ -35,7 +36,11 @@ export interface CaptureInternalOptions {
 }
 
 export async function captureViewport(options: CaptureInternalOptions = {}): Promise<CapturedScreenshot> {
-  const pixelRatio = Math.min(window.devicePixelRatio || 1, options.maxPixelRatio ?? 2);
+  const pixelRatio = encodingScale(
+    window.innerWidth,
+    window.innerHeight,
+    Math.min(window.devicePixelRatio || 1, options.maxPixelRatio ?? 2),
+  );
   if (options.mode === "display") {
     try {
       const display = await captureDisplay(pixelRatio);

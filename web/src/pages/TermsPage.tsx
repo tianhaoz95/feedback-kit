@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
 import { LegalPageLayout, LegalSection } from "@/components/LegalPageLayout";
 import { COMPANY_NAME, SUPPORT_EMAIL } from "@/lib/company";
-import { FREE_LIMITS } from "@/lib/pricing";
+import { FREE_LIMITS, INDIE_LIMITS, TRIAL_DAYS } from "@/lib/pricing";
 
-const LAST_UPDATED = "September 26, 2026";
+const LAST_UPDATED = "October 2, 2026";
 
 export function TermsPage() {
   return (
@@ -75,10 +75,15 @@ export function TermsPage() {
 
       <LegalSection title="Plans, fees and limits">
         <p>
-          The Free plan includes {FREE_LIMITS.projects} project, {FREE_LIMITS.members} members and{" "}
-          {FREE_LIMITS.reportsPerMonth} reports per month; when a limit is reached, new projects, members or reports
-          are refused until the next month or an upgrade. Paid plans are billed in advance, monthly, per member, through
-          Stripe, and renew until cancelled. You can cancel at any time; the plan stays active until the end of the paid
+          The Free plan includes {FREE_LIMITS.projects} project, {FREE_LIMITS.members} member and{" "}
+          {FREE_LIMITS.reportsPerMonth} readable reports per month. Reports past that limit are still stored but stay
+          locked until the next month&apos;s limit or an upgrade, and on the Free plan screenshots and attachments are
+          deleted {FREE_LIMITS.retentionDays} days after a report arrives (the report&apos;s text is kept). New
+          organizations start with a {TRIAL_DAYS}-day Indie trial and move to Free when it ends unless they subscribe.
+          The Indie plan is billed in advance, monthly or yearly, at a flat price through Stripe, and renews until
+          cancelled. It includes up to {INDIE_LIMITS.members} members and {INDIE_LIMITS.storageGb} GB of stored
+          screenshots and attachments as fair use; past that, new reports keep their text but not their media. Larger
+          teams are priced by agreement. You can cancel at any time; the plan stays active until the end of the paid
           period. Fees are non-refundable except where the law requires otherwise. Prices exclude taxes. We will give
           at least 30 days&apos; notice of a price increase for an existing subscription.
         </p>

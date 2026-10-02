@@ -17,7 +17,7 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@17";
 import { json, notConfigured } from "../_shared/http.ts";
-import { getStripe } from "../_shared/stripe.ts";
+import { getStripe, planForPrice } from "../_shared/stripe.ts";
 
 function admin() {
   return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -33,9 +33,9 @@ async function upsertFromSubscription(subscription: Stripe.Subscription, organiz
   const { error } = await admin()
     .from("organization_billing")
     .update({
-      plan: "team",
+      plan: planForPrice(item?.price.id),
       status: toBillingStatus(subscription.status),
-      seats: item?.quantity ?? null,
+      seats: null,
       stripe_subscription_id: subscription.id,
       current_period_end: item ? new Date(item.current_period_end * 1000).toISOString() : null,
       cancel_at_period_end: subscription.cancel_at_period_end,

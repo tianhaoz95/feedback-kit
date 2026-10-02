@@ -657,7 +657,8 @@ final class FeedbackViewController: UIViewController {
 
         if includesScreenshot {
             let flattened = canvasView.flattenedImage(baseImage: rawScreenshot)
-            guard let raw = rawScreenshot.pngData(), let annotated = flattened.pngData() else {
+            let scale = AnnotationRenderer.encodingScale(for: rawScreenshot.size, displayScale: rawScreenshot.scale)
+            guard let raw = rawScreenshot.pngData(scale: scale), let annotated = flattened.pngData(scale: scale) else {
                 dismiss(animated: true) { [weak self] in self?.onComplete(nil) }
                 return
             }
@@ -722,7 +723,7 @@ extension FeedbackViewController: UIDocumentPickerDelegate {
 extension FeedbackViewController: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
         picker.dismiss(animated: true)
-        guard let image = info[.originalImage] as? UIImage, let data = image.jpegData(compressionQuality: 0.85) else { return }
+        guard let image = info[.originalImage] as? UIImage, let data = image.attachmentJPEGData() else { return }
         setAttachment(filename: "Photo.jpg", mimeType: "image/jpeg", data: data)
     }
 
@@ -738,7 +739,7 @@ extension FeedbackViewController: PHPickerViewControllerDelegate {
         if provider.canLoadObject(ofClass: UIImage.self) {
             provider.loadObject(ofClass: UIImage.self) { [weak self] object, _ in
                 guard let image = object as? UIImage,
-                      let data = image.jpegData(compressionQuality: 0.85) else { return }
+                      let data = image.attachmentJPEGData() else { return }
                 let suggested = provider.suggestedName?.trimmingCharacters(in: .whitespacesAndNewlines)
                 let filename: String
                 if let suggested = suggested, !suggested.isEmpty {
@@ -784,6 +785,37 @@ extension FeedbackViewController: UIGestureRecognizerDelegate {
     /// FeedbackViewControllerKeyboardTests exercises this decision directly.
     func shouldDismissKeyboard(forTouchedView touchedView: UIView?) -> Bool {
         !(touchedView?.isDescendant(of: composerContainer) ?? false)
+    }
+}
+private extension UIImage {
+    /// PNG at `scale` pixels per point (see `AnnotationRenderer.encodingScale`).
+    /// Opaque: a screenshot has no transparency, and dropping the alpha
+    /// channel makes the file smaller.
+    func pngData(scale: CGFloat) -> Data? {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = scale
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: size, format: format).pngData { _ in
+            draw(at: .zero)
+        }
+    }
+
+    /// A picked or taken photo as JPEG, its longest edge capped at
+    /// `AnnotationRenderer.maxPhotoPixelDimension`.
+    func attachmentJPEGData() -> Data? {
+        let scale = AnnotationRenderer.encodingScale(
+            for: size,
+            displayScale: self.scale,
+            maxPixelDimension: AnnotationRenderer.maxPhotoPixelDimension,
+            minimumScale: 0
+        )
+        guard scale < self.scale else { return jpegData(compressionQuality: 0.85) }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = scale
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: size, format: format).jpegData(withCompressionQuality: 0.85) { _ in
+            draw(at: .zero)
+        }
     }
 }
 #endif

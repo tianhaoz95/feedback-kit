@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { track } from "@/lib/analytics";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import { syncBillingSeats, useOrganization } from "@/lib/organization";
+import { useOrganization } from "@/lib/organization";
 import { getErrorMessage } from "@/lib/errors";
-import { formatUsd, teamMonthlyTotal } from "@/lib/pricing";
+import { INDIE_LIMITS } from "@/lib/pricing";
 import type { MembershipRole, OrganizationInvitation, OrganizationMember } from "@/lib/types";
 import { Button } from "@/components/Button";
 import { CopyButton } from "@/components/CopyButton";
@@ -143,7 +143,10 @@ export function TeamPage() {
           </div>
           {members ? (
             <p className="text-xs text-neutral-500">
-              Team plan: {members.length} {members.length === 1 ? "seat" : "seats"} · {formatUsd(teamMonthlyTotal(members.length))}/month
+              Free is for one person; Indie includes {INDIE_LIMITS.members} members, flat.{" "}
+              <Link to="/billing" className="underline hover:text-neutral-900">
+                Plans
+              </Link>
             </p>
           ) : null}
         </div>
@@ -219,7 +222,6 @@ export function TeamPage() {
                           async () => {
                             const { error } = await supabase.rpc("remove_member", { p_org_id: current.id, p_user_id: m.user_id });
                             if (error) throw error;
-                            syncBillingSeats(current.id);
                             await load();
                           },
                           "Couldn't remove that member.",
@@ -365,7 +367,6 @@ export function TeamPage() {
                 async () => {
                   const { error } = await supabase.rpc("remove_member", { p_org_id: current.id, p_user_id: user.id });
                   if (error) throw error;
-                  syncBillingSeats(current.id);
                   const remaining = await refresh();
                   if (remaining[0]) switchOrganization(remaining[0].id);
                   navigate("/projects");

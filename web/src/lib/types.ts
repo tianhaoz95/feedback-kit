@@ -191,9 +191,11 @@ export interface FeedbackItem {
   id: string;
   project_id: string;
   text: string;
-  /** Null if the user toggled the screenshot off before submitting. */
+  /** Null if the user toggled the screenshot off before submitting, or once the Free plan's retention removed it. */
   screenshot_raw_path: string | null;
   screenshot_annotated_path: string | null;
+  /** When the Free plan's retention deleted this report's screenshots and attachment (0028). */
+  media_expired_at?: string | null;
   annotations: FeedbackAnnotation[];
   environment: FeedbackEnvironment;
   status: FeedbackStatus;
@@ -243,8 +245,11 @@ export interface CliSession {
   revoked_at: string | null;
 }
 
-/** `pro` predates the per-seat Team plan; see supabase/migrations/0016_teams.sql. */
-export type BillingPlan = "free" | "pro" | "team";
+/**
+ * `indie` is the self-serve paid plan (0028_indie_pricing.sql); `team` is a
+ * larger team's custom deal, and `pro` predates both (0016_teams.sql).
+ */
+export type BillingPlan = "free" | "indie" | "pro" | "team";
 
 /** Mirrors Stripe's own subscription statuses, plus "none" — see supabase/migrations/0009_billing.sql. */
 export type BillingStatus =
@@ -267,8 +272,10 @@ export interface OrganizationBilling {
   stripe_subscription_id: string | null;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
-  /** Subscription quantity reported by Stripe (Team plan); null before any subscription. */
+  /** Legacy per-seat quantity (0016); plans are flat now, so new subscriptions leave it null. */
   seats: number | null;
+  /** End of the Indie trial every new organization starts with (0028); null for older ones. */
+  trial_ends_at: string | null;
   updated_at: string;
 }
 

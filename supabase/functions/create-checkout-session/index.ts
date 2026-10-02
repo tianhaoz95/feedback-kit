@@ -1,23 +1,26 @@
 // Starts a Stripe Checkout session for an organization to subscribe to the
-// Team plan, billed per member (quantity = current member count; kept in
-// step afterwards by sync-billing-seats). Called by the dashboard's Billing page
+// Indie plan: a flat price, monthly or annual (`interval`), quantity 1.
+// Promotion codes are accepted, for founding-member and other coupons
+// created in the Stripe Dashboard. Called by the dashboard's Billing page
 // (web/src/pages/BillingPage.tsx) with the signed-in user's own Supabase
 // session — `verify_jwt` is left at its default (true, see
 // supabase/config.toml), so the platform has already rejected the request
 // by the time this code runs if the JWT isn't valid.
 //
 // Returns `{ error: "billing_not_configured" }` (501) rather than failing
-// weirdly when STRIPE_SECRET_KEY/STRIPE_PRICE_ID_TEAM aren't set yet — the
+// weirdly when STRIPE_SECRET_KEY/STRIPE_PRICE_ID_INDIE_MONTHLY/_ANNUAL aren't set yet — the
 // expected state until a real Stripe account exists. See
 // supabase/functions/_shared/stripe.ts.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { corsHeaders, json, notConfigured } from "../_shared/http.ts";
-import { countSeats, getStripe, getTeamPriceId } from "../_shared/stripe.ts";
+import { type BillingInterval, getIndiePriceId, getStripe } from "../_shared/stripe.ts";
 
 interface RequestBody {
   organization_id: string;
   success_url: string;
   cancel_url: string;
+  /** Defaults to monthly. */
+  interval?: BillingInterval;
 }
 
 Deno.serve(async (req) => {
@@ -63,7 +66,7 @@ Deno.serve(async (req) => {
   }
 
   const stripe = getStripe();
-  const priceId = getTeamPriceId();
+  const priceId = getIndiePriceId(body.interval === "year" ? "year" : "month");
   if (!stripe || !priceId) {
     return notConfigured("Billing isn't set up yet — check back soon.");
   }
@@ -97,15 +100,15 @@ Deno.serve(async (req) => {
     }
   }
 
-  const seats = await countSeats(admin, body.organization_id);
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
-    line_items: [{ price: priceId, quantity: seats }],
+    line_items: [{ price: priceId, quantity: 1 }],
+    allow_promotion_codes: true,
     success_url: body.success_url,
     cancel_url: body.cancel_url,
     metadata: { organization_id: body.organization_id },
-    subscription_data: { metadata: { organization_id: body.organization_id } },
+    subscription_data: { metadata: { organization_id: body.organization_id, plan: "indie" } },
   });
 
   return json({ url: session.url }, 200);

@@ -112,9 +112,3 @@ export function useOrganization(): OrganizationContextValue {
   if (!ctx) throw new Error("useOrganization must be used within an OrganizationProvider");
   return ctx;
 }
-
-/** Keeps a Team subscription's seat count in step after membership changes. Best effort: a no-op (501) until Stripe is set up. */
-// eslint-disable-next-line react-refresh/only-export-components -- shared by TeamPage and InvitePage
-export function syncBillingSeats(organizationId: string) {
-  void supabase.functions.invoke("sync-billing-seats", { body: { organization_id: organizationId } }).catch(() => {});
-}

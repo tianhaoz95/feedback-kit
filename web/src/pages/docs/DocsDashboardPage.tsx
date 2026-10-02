@@ -177,11 +177,13 @@ export function DocsDashboardPage() {
 
       <DocsSection title="Billing">
         <p>
-          Billing is per organization. The Free plan includes 1 project, 3 members and 50 reports a month, with the
-          whole fix loop. At the report limit, new reports are refused until the next month (the SDK tells the
-          reporter feedback is paused); projects show a warning from 40 reports on, and Billing shows the usage. The
-          Team plan is unlimited and priced per member per month, so adding or removing someone changes the next
-          invoice. Only owners can change the plan.
+          Billing is per organization, and every plan includes the whole fix loop. The Free plan is for one person:
+          1 project, 1 member and 50 readable reports a month. Reports past that are kept but locked (the reporter
+          never notices) until next month or an upgrade, and Free screenshots and attachments are deleted after 90
+          days. Projects show a warning from 40 reports on, and Billing shows the usage. Indie is a flat $9 a month or
+          $79 a year with unlimited projects and reports and up to 3 members; upgrading unlocks every locked report.
+          New organizations start with a 14-day Indie trial. Larger teams are priced case by case: email us. Only
+          owners can change the plan.
         </p>
       </DocsSection>
 

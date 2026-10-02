@@ -14,6 +14,29 @@ import Foundation
 public enum AnnotationRenderer {
     public static let strokeWidth: CGFloat = 4
 
+    /// Longest edge, in pixels, of the screenshots a report carries. A
+    /// full-resolution 3x iPhone capture is ~1290×2796 and several MB of PNG
+    /// per image (the report carries two); this keeps text readable while
+    /// cutting storage and transfer several times over.
+    public static let maxScreenshotPixelDimension: CGFloat = 1600
+    /// Longest edge, in pixels, of a photo the reporter attaches.
+    public static let maxPhotoPixelDimension: CGFloat = 2048
+
+    /// The pixel scale to encode an image of `pointSize` at: its own
+    /// `displayScale` at most, shrunk until the longest edge fits
+    /// `maxPixelDimension`, but never below `minimumScale` (1 for
+    /// screenshots, so a large window isn't shrunk below its point size).
+    public static func encodingScale(
+        for pointSize: CGSize,
+        displayScale: CGFloat,
+        maxPixelDimension: CGFloat = maxScreenshotPixelDimension,
+        minimumScale: CGFloat = 1
+    ) -> CGFloat {
+        let longest = max(pointSize.width, pointSize.height)
+        guard longest > 0, displayScale > 0 else { return max(displayScale, minimumScale) }
+        return max(minimumScale, min(displayScale, maxPixelDimension / longest))
+    }
+
     public static func draw(_ annotation: FeedbackAnnotation, in ctx: CGContext, targetSize: CGSize) {
         // `.red` rather than `.systemRed`: a plain literal color, not one of
         // the "dynamic system palette" colors, which watchOS's UIKit subset

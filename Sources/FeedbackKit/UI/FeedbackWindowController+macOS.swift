@@ -521,7 +521,8 @@ final class FeedbackWindowController: NSWindowController {
 
         if includesScreenshot {
             let flattened = screenshotBoundsView.canvasView.flattenedImage(baseImage: rawScreenshot)
-            guard let raw = rawScreenshot.pngData(), let annotated = flattened.pngData() else {
+            let scale = AnnotationRenderer.encodingScale(for: rawScreenshot.size, displayScale: rawScreenshot.pixelScale)
+            guard let raw = rawScreenshot.pngData(scale: scale), let annotated = flattened.pngData(scale: scale) else {
                 dismiss()
                 onComplete(nil)
                 return
@@ -597,8 +598,38 @@ private final class ScreenshotBoundsView: NSView {
 }
 
 private extension NSImage {
-    func pngData() -> Data? {
-        guard let tiff = tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff) else { return nil }
+    /// Pixels per point of the image's largest bitmap (the window's backing
+    /// scale for a capture), or 2 when it has no bitmap to go by.
+    var pixelScale: CGFloat {
+        guard size.width > 0 else { return 2 }
+        let widest = representations.map(\.pixelsWide).max() ?? 0
+        return widest > 0 ? CGFloat(widest) / size.width : 2
+    }
+
+    /// PNG at `scale` pixels per point (see `AnnotationRenderer.encodingScale`).
+    func pngData(scale: CGFloat) -> Data? {
+        let pixelsWide = max(1, Int((size.width * scale).rounded()))
+        let pixelsHigh = max(1, Int((size.height * scale).rounded()))
+        guard let bitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: pixelsWide,
+            pixelsHigh: pixelsHigh,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else { return nil }
+        bitmap.size = size
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        guard let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return nil }
+        NSGraphicsContext.current = context
+        context.imageInterpolation = .high
+        draw(in: NSRect(origin: .zero, size: size))
+        context.flushGraphics()
         return bitmap.representation(using: .png, properties: [:])
     }
 }

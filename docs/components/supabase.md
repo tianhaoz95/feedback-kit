@@ -62,8 +62,8 @@ Edge Functions run on Deno and TypeScript:
 - `create-checkout-session`: Generates Stripe Checkout session.
 - `create-portal-session`: Generates Stripe Customer Portal session.
 - `stripe-webhook`: Verifies `Stripe-Signature` and synchronizes customer plan status and seat count.
-- `create-checkout-session`: owner-only, per-seat Team plan (quantity = member count).
-- `sync-billing-seats`: Called best-effort after membership changes to keep a subscription's quantity equal to the member count. `501` until Stripe is configured.
+- `create-checkout-session`: owner-only, flat Indie plan (`interval`: `month` or `year`, quantity 1, promotion codes allowed).
+- `sync-billing-seats`: Retired no-op (plans are flat). Kept because shipped Portal builds still call it.
 
 ### 4. `send-push`
 - **Authentication**: `verify_jwt = false`; the caller is the database (`pg_net` trigger in `0017_notifications.sql`), authenticated by the `x-push-secret` header matching `PUSH_WEBHOOK_SECRET`.
