@@ -322,6 +322,20 @@ Rules for skills:
 
 ## Architecture notes worth knowing before editing
 
+- **Every SDK change ships with matching updates in every app that consumes
+  it, in the same change, so it can be tested anywhere.** The apps already
+  build the SDKs from this repo (`DemoApp/project.yml` and
+  `DeveloperApp/project.yml` point the `FeedbackKit` package at `..`; `web/`
+  aliases `feedbackkit-web` to `../web-sdk/src`). What has to be updated by
+  hand is their integration code: new or changed configuration, API, or
+  behavior. For a Swift SDK change (`Sources/FeedbackKit`), update the iOS
+  demo app (`DemoApp/DemoApp`), the macOS demo app (`DemoApp/DemoMacApp`),
+  and the iOS and macOS Portals (`DeveloperApp/Sources/App/PortalDogfood.swift`
+  and anything else in `DeveloperApp/` that calls the SDK). For a web SDK
+  change (`web-sdk/`), update the web dashboard (`web/src/lib/feedbackkit.ts`).
+  Then build each one. If the change doesn't apply on a platform (e.g. it's
+  iOS-only), say so in the commit message instead of skipping the app
+  silently.
 - **The wire format is intentionally decoupled from the SDK's public Swift
   API.** `FeedbackReport` (public, camelCase) and `IngestPayload` (private
   mirror struct in `FeedbackSubmitter.swift`, snake_case JSON) are two
