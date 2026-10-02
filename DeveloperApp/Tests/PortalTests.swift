@@ -572,6 +572,15 @@ final class PortalTests: XCTestCase {
         XCTAssertEqual(error.localizedDescription, "an organization needs at least one owner")
     }
 
+    func testPlanLimitErrorsCarryNoUpgradeWording() {
+        let error = PortalAPIError.from(
+            data: Data(#"{"code":"P0001","message":"The Free plan is for one person. Upgrade to Indie to work with up to 3 members.","hint":"plan_limit_members"}"#.utf8),
+            status: 400
+        )
+        XCTAssertEqual(error.localizedDescription, "Your organization's plan doesn't include more members.")
+        XCTAssertFalse(error.localizedDescription.contains("Upgrade"))
+    }
+
     @MainActor
     func testDemoTeamKeepsAnOwner() async throws {
         let client = SupabasePortalClient.shared

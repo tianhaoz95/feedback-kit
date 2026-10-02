@@ -251,6 +251,17 @@ public struct PortalAPIError: LocalizedError, Sendable {
 
     static func from(data: Data, status: Int) -> PortalAPIError {
         let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        // Plan-limit refusals (0028_indie_pricing.sql) carry upgrade wording
+        // meant for the web dashboard. Billing lives only there (CLAUDE.md),
+        // so the Portal states the limit without pricing or a call to action.
+        switch json?["hint"] as? String {
+        case "plan_limit_projects":
+            return PortalAPIError(status: status, message: "Your organization's plan doesn't include more projects.")
+        case "plan_limit_members":
+            return PortalAPIError(status: status, message: "Your organization's plan doesn't include more members.")
+        default:
+            break
+        }
         let message = (json?["message"] as? String) ?? (json?["error"] as? String) ?? "Request failed (\(status))."
         return PortalAPIError(status: status, message: message)
     }

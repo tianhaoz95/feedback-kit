@@ -27,10 +27,6 @@ public struct TeamView: View {
     @State private var memberPendingRemoval: PortalMember?
     @State private var isConfirmingLeave = false
 
-    /// Mirrors web/src/lib/pricing.ts (INDIE_PRICE_MONTHLY_USD / INDIE_LIMITS).
-    static let indiePricePerMonth = 9
-    static let indieMemberLimit = 3
-
     public init() {}
 
     private var organization: PortalOrganization? { appState.currentOrganization }
@@ -160,9 +156,8 @@ public struct TeamView: View {
         } header: {
             Text("Members (\(members.count))")
         } footer: {
-            if !members.isEmpty {
-                Text("Free is for one person. Indie is $\(Self.indiePricePerMonth)/month flat for up to \(Self.indieMemberLimit) members; for a larger team, email us. Billing is managed in the web dashboard.")
-            }
+            // No plan or pricing copy here: billing lives only in the web dashboard (CLAUDE.md).
+            EmptyView()
         }
     }
 

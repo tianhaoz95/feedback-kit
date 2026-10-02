@@ -747,6 +747,16 @@ Rules for skills:
   every event 0017 doesn't already send to the whole org. The fan-out is
   `notify_watchers()`, called from `notify_feedback_event()`, and a new kind
   must be mirrored in the same places as the other notification kinds.
+- **Billing lives only in the web dashboard.** Plans, prices, checkout,
+  upgrade prompts and the billing portal are web-only (`BillingPage.tsx`,
+  the landing page). The iOS and macOS Portals, and any future Android
+  Portal, show no prices, plan names or upgrade calls to action, and never
+  link out to buy, and there's no in-app purchase or App Store / Play
+  billing to build. Plan limits still apply there, since the database
+  enforces them; `PortalAPIError` turns `plan_limit_*` refusals into neutral
+  wording instead of the server's "Upgrade to Indie" text. Keep it that way
+  when adding a limit or a screen, so store review never sees a purchase
+  path outside the store.
 - **Billing is flat, not per seat.** Indie is one quantity-1 subscription
   (`interval` month/year in create-checkout-session, promotion codes
   allowed); stripe-webhook maps an Indie price to `plan = 'indie'` and any
