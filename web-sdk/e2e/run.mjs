@@ -220,6 +220,39 @@ async function runSuite(name, browser) {
   assert.equal(await cancelled, null);
   assert.equal(posted.length, 2);
 
+  // ---- 3b. capture overlay shows animation while capture is in progress
+  await page.route(`${ENDPOINT}-delay**`, async (route) => {
+    if (route.request().method() === "GET") {
+      await new Promise((r) => setTimeout(r, 400));
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({ products: [] }),
+      });
+    }
+    return route.fulfill({ status: 200, headers: { "access-control-allow-origin": "*" }, body: "{}" });
+  });
+  await page.evaluate((endpoint) => {
+    window.FeedbackKit.configure({ projectKey: "pk_delay", endpoint: endpoint + "-delay" });
+  }, ENDPOINT);
+
+  const presentPending = page.evaluate(() => window.FeedbackKit.present());
+  const captureOverlay = page.locator(".fk-capture-overlay");
+  await captureOverlay.waitFor({ state: "visible" });
+  assert.ok(await captureOverlay.locator(".fk-capture-card").isVisible());
+  assert.ok(await captureOverlay.locator(".fk-capture-spinner").isVisible());
+  assert.match(await captureOverlay.locator(".fk-capture-label").textContent(), /Capturing feedback/);
+  await page.locator(".fk-ink").waitFor();
+  assert.equal(await page.locator(".fk-capture-overlay").count(), 0);
+  await page.keyboard.press("Escape");
+  await presentPending;
+
+  // Restore configuration
+  await page.evaluate((endpoint) => {
+    window.FeedbackKit.configure({ projectKey: "pk_e2e", endpoint });
+  }, ENDPOINT);
+
   // ---- 4. present() hands back the report without sending
   const local = page.evaluate(async () => {
     const r = await window.FeedbackKit.present();

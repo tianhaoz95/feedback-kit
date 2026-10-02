@@ -336,6 +336,71 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .fk-fixcard-actions .fk-textarea { min-height: 64px; }
 @keyframes fk-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
+/* ---------- capture overlay ---------- */
+.fk-capture-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--fk-backdrop);
+  animation: fk-fade 0.16s ease-out;
+  cursor: wait;
+}
+.fk-capture-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-radius: 14px;
+  background: var(--fk-bg);
+  border: 1px solid var(--fk-border);
+  box-shadow: var(--fk-shadow);
+  color: var(--fk-text);
+  animation: fk-rise 0.2s ease-out;
+  user-select: none;
+}
+.fk-capture-anim {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.fk-capture-ring {
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 2px solid var(--fk-primary);
+  opacity: 0;
+  animation: fk-pulse-ring 1.6s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+.fk-capture-ring:nth-child(2) {
+  animation-delay: 0.5s;
+}
+@keyframes fk-pulse-ring {
+  0% { transform: scale(0.65); opacity: 0.8; }
+  50% { opacity: 0.35; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+.fk-capture-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid color-mix(in srgb, var(--fk-primary) 25%, transparent);
+  border-top-color: var(--fk-primary);
+  border-radius: 50%;
+  animation: fk-spin 0.7s linear infinite;
+}
+.fk-capture-label {
+  font-size: 14px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+}
+
 /* ---------- narrow screens: stack stage over composer ---------- */
 @media (max-width: 760px) {
   .fk-overlay { padding: 0; }
@@ -348,6 +413,6 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   .fk-fixcard, .fk-fixcard[data-position] { right: 16px; left: 16px; width: auto; bottom: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .fk-overlay, .fk-dialog, .fk-fixcard { animation: none; }
+  .fk-overlay, .fk-dialog, .fk-fixcard, .fk-capture-overlay, .fk-capture-card, .fk-capture-ring, .fk-capture-spinner { animation: none; }
 }
 `;

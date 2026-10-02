@@ -235,6 +235,30 @@ export class Widget {
     return true;
   }
 
+  private showCaptureOverlay(capturingScreenshot: boolean): HTMLElement {
+    const shadow = this.mount();
+    const overlay = el("div", "fk-capture-overlay");
+    overlay.setAttribute("role", "status");
+    overlay.setAttribute("aria-live", "polite");
+
+    const card = el("div", "fk-capture-card");
+
+    const anim = el("div", "fk-capture-anim");
+    const ring1 = el("span", "fk-capture-ring");
+    const ring2 = el("span", "fk-capture-ring");
+    const spinner = el("span", "fk-capture-spinner");
+    spinner.setAttribute("aria-hidden", "true");
+    anim.append(ring1, ring2, spinner);
+
+    const label = el("span", "fk-capture-label");
+    label.textContent = capturingScreenshot ? "Capturing feedback…" : "Preparing feedback…";
+
+    card.append(anim, label);
+    overlay.append(card);
+    shadow.append(overlay);
+    return overlay;
+  }
+
   private async run(options: OpenOptions): Promise<FeedbackReport | null> {
     const shadow = this.mount();
     this.applyTheme();
@@ -245,39 +269,64 @@ export class Widget {
       this.trigger?.setAttribute("aria-busy", "true");
     }
 
-    // Everything describing "the moment of the problem" is taken *before*
-    // the dialog covers the page.
-    const [shot, environment] = await Promise.all([
-      shouldCapture
-        ? captureViewport({ ...captureOptions, exclude: this.isOwnNode }).catch((error: unknown) => {
-            console.warn("[FeedbackKit] Screenshot capture failed; continuing without one.", error);
-            return null;
-          })
-        : Promise.resolve(null),
-      collectEnvironment({
-        screenName: this.deps.currentScreen(),
-        appVersion: this.deps.configuration()?.appVersion,
-        appBuild: this.deps.configuration()?.appBuild,
-      }),
-    ]);
-    const logs = this.deps.logs();
-    this.trigger?.removeAttribute("aria-busy");
+    let captureOverlay: HTMLElement | null = null;
+    let cancelled = false;
+    const onEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        cancelled = true;
+      }
+    };
+    document.addEventListener("keydown", onEscape, true);
 
-    return new Promise<FeedbackReport | null>((resolve) => {
-      const dialog = new Dialog(
-        shadow,
-        shot,
-        environment,
-        logs,
-        this.deps,
-        options,
-        !shouldCapture,
-        (result) => {
-          resolve(result);
-        },
-      );
-      dialog.show();
-    });
+    try {
+      captureOverlay = this.showCaptureOverlay(shouldCapture);
+
+      // Everything describing "the moment of the problem" is taken *before*
+      // the dialog covers the page, concurrently with environment and product catalog fetching.
+      const [shot, environment, products] = await Promise.all([
+        shouldCapture
+          ? captureViewport({ ...captureOptions, exclude: this.isOwnNode }).catch((error: unknown) => {
+              console.warn("[FeedbackKit] Screenshot capture failed; continuing without one.", error);
+              return null;
+            })
+          : Promise.resolve(null),
+        collectEnvironment({
+          screenName: this.deps.currentScreen(),
+          appVersion: this.deps.configuration()?.appVersion,
+          appBuild: this.deps.configuration()?.appBuild,
+        }),
+        this.deps.products().catch(() => [] as FeedbackProduct[]),
+      ]);
+      const logs = this.deps.logs();
+
+      captureOverlay.remove();
+      captureOverlay = null;
+
+      if (cancelled) {
+        return null;
+      }
+
+      return await new Promise<FeedbackReport | null>((resolve) => {
+        const dialog = new Dialog(
+          shadow,
+          shot,
+          environment,
+          logs,
+          this.deps,
+          options,
+          !shouldCapture,
+          (result) => {
+            resolve(result);
+          },
+          products,
+        );
+        dialog.show();
+      });
+    } finally {
+      document.removeEventListener("keydown", onEscape, true);
+      captureOverlay?.remove();
+      this.trigger?.removeAttribute("aria-busy");
+    }
   }
 }
 
@@ -322,6 +371,7 @@ class Dialog {
     private readonly options: OpenOptions,
     private readonly screenshotDisabled: boolean,
     private readonly done: (report: FeedbackReport | null) => void,
+    private readonly preloadedProducts: FeedbackProduct[] = [],
   ) {
     if (this.screenshotDisabled || !shot) {
       this.includeScreenshot = false;
@@ -356,7 +406,11 @@ class Dialog {
 
     this.layoutEditor();
     requestAnimationFrame(() => this.textarea.focus());
-    void this.loadProducts();
+    if (this.preloadedProducts.length > 0) {
+      this.renderProducts(this.preloadedProducts);
+    } else {
+      void this.loadProducts();
+    }
   }
 
   // ---------------------------------------------------------------- stage
@@ -651,13 +705,7 @@ class Dialog {
     return box;
   }
 
-  private async loadProducts(): Promise<void> {
-    let products: FeedbackProduct[] = [];
-    try {
-      products = await this.deps.products();
-    } catch {
-      return; // Products are optional; the composer works without them.
-    }
+  private renderProducts(products: FeedbackProduct[]): void {
     if (this.finished || products.length === 0) return;
     this.products = products;
     const preferred = this.deps.defaultProductKey();
@@ -688,6 +736,16 @@ class Dialog {
     }
     group.replaceChildren(label, chips);
     group.hidden = false;
+  }
+
+  private async loadProducts(): Promise<void> {
+    let products: FeedbackProduct[] = [];
+    try {
+      products = await this.deps.products();
+    } catch {
+      return; // Products are optional; the composer works without them.
+    }
+    this.renderProducts(products);
   }
 
   private refreshState(): void {
