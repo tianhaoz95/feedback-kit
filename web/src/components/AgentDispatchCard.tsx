@@ -245,7 +245,8 @@ export function AgentDispatchCard({
                   <Step title="Ask your coding agent to set up the Claude Code runner">
                     On the Mac that will run it: it registers that Mac as a self-hosted runner and adds a workflow that runs
                     on the <code className="font-mono">claude</code> label, so the agent can build the app and run the
-                    Simulator. Use a private repository: anyone who can open a PR on a public one could run code on the Mac.
+                    Simulator. Prefer a private repository: on a public one, anyone who can open a PR could try to run code
+                    on the Mac (the skill locks the runner to the agent workflows).
                   </Step>
                 </>
               )}
@@ -259,6 +260,11 @@ export function AgentDispatchCard({
                     a <code className="font-mono">claude</code> login on that Mac.
                   </>
                 ) : null}
+              </Step>
+              <Step title={<>Install the <a href="https://github.com/apps/claude" target="_blank" rel="noreferrer" className="underline">Claude GitHub App</a> on the repo</>}>
+                Claude&apos;s GitHub Action uses it to comment on the issue, push the fix branch and open the PR, as{" "}
+                <code className="font-mono">claude[bot]</code>. It&apos;s separate from FeedbackKit&apos;s GitHub App, which only
+                creates the issue, adds the label and follows the PR.
               </Step>
             </>
           ) : guide === "antigravity" ? (

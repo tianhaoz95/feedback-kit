@@ -168,6 +168,17 @@ export function DocsAgentsPage() {
           label, and Claude&apos;s action refuses runs started by a bot that isn&apos;t listed. Linux runners can&apos;t build
           iOS or macOS apps, so for those the agent edits code without running it.
         </DocsCallout>
+        <p>
+          <b>Two GitHub Apps, two jobs.</b> FeedbackKit&apos;s app starts the work: it creates the issue, adds the label
+          and follows the PR. The{" "}
+          <a href="https://github.com/apps/claude" className={docLink} target="_blank" rel="noreferrer">Claude GitHub App</a>{" "}
+          is how Claude&apos;s action writes back: it trades the job&apos;s <InlineCode>id-token: write</InlineCode> for a
+          short-lived token from that app, then comments, pushes the fix branch and opens the PR as{" "}
+          <InlineCode>claude[bot]</InlineCode>. Install it on the repo, on either kind of runner. To skip it, pass{" "}
+          <InlineCode>github_token:</InlineCode> to the action: <InlineCode>GITHUB_TOKEN</InlineCode> works but GitHub
+          won&apos;t start CI from its pushes, or use a token from a GitHub App your team owns. Don&apos;t give the action
+          FeedbackKit&apos;s app key: the agent reads untrusted report text in that job.
+        </p>
         <h3 className="mt-8 text-base font-semibold text-neutral-900">Google Antigravity on GitHub&apos;s runners</h3>
         <p>
           The <Link to="/docs/skills" className={docLink}><InlineCode>setup-agent-runner</InlineCode> skill</Link> has a
@@ -211,7 +222,7 @@ export function DocsAgentsPage() {
           rows={[
             ["Signs in with", <>A <InlineCode>CLAUDE_CODE_OAUTH_TOKEN</InlineCode> or API key secret</>, <>A one-time interactive <InlineCode>agy</InlineCode> login as the runner&apos;s user</>],
             ["What it may do", <><InlineCode>--allowedTools</InlineCode> in the workflow</>, <>Allow rules in the runner user&apos;s Antigravity settings; a command that isn&apos;t allowed ends the run</>],
-            ["Git", "The action commits and pushes its branch", "The agent only edits files; the workflow commits, pushes and opens the PR"],
+            ["Git", <>The action commits, pushes its branch and opens the PR through the Claude GitHub App</>, "The agent only edits files; the workflow commits, pushes and opens the PR"],
             ["FeedbackKit MCP tools", "Yes, with a feedbackkit login on the runner", <>Yes, with a login plus <InlineCode>mcp(feedbackkit/&lt;tool&gt;)</InlineCode> allow rules</>],
           ]}
         />

@@ -1,19 +1,18 @@
 name: FeedbackKit agent
 
 # Runs Claude Code on a self-hosted Mac whenever FeedbackKit hands it a
-# report: FeedbackKit creates a GitHub issue and adds the `__DISPATCH_LABEL__`
+# report: FeedbackKit creates a GitHub issue and adds the `claude`
 # label (project Settings → Coding agent loop). Because the job runs on your
 # own Mac, the agent can build the app, run it in the Simulator and attach a
 # screenshot or short video of the fix, shown in the report's After view.
 # Its PR carries `FeedbackKit: <id>`, so the report
 # moves to "PR open" → "merged" → shipped → verified by the reporter.
 #
-# Adapt: __DISPATCH_LABEL__, the allowed tools for your build (xcodebuild,
+# Adapt: claude, the allowed tools for your build (xcodebuild,
 # npm, …). Secrets: CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token`) or
 # ANTHROPIC_API_KEY, and FEEDBACKKIT_AGENT_TOKEN (an "Agent runner" access
 # token) for the FeedbackKit MCP tools. The Claude GitHub App must be
-# installed on the repo: the action posts its comments, pushes the branch and
-# opens the PR as `claude[bot]` (or pass `github_token:` to use another token).
+# installed on the repo.
 
 on:
   issues:
@@ -35,9 +34,9 @@ concurrency:
 jobs:
   agent:
     # Label from FeedbackKit (or a person), or an @claude comment from someone with write access.
-    # Checked here, not only by the action, so an outsider's comment never reaches the runner.
+    # Public repo: anyone can comment, so outsiders' comments never reach the runner.
     if: >-
-      (github.event_name == 'issues' && github.event.label.name == '__DISPATCH_LABEL__') ||
+      (github.event_name == 'issues' && github.event.label.name == 'claude') ||
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') &&
        (contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) ||
         github.event.comment.user.login == 'feedbackkit-app[bot]'))
@@ -74,7 +73,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          label_trigger: __DISPATCH_LABEL__
+          label_trigger: claude
           # FeedbackKit's GitHub App adds the label; the action rejects bot
           # actors unless they're listed here.
           allowed_bots: feedbackkit-app
@@ -87,5 +86,5 @@ jobs:
           # issue_comment trigger above picks up on the PR's branch.
           claude_args: >-
             --mcp-config '{"mcpServers":{"feedbackkit":{"command":"npx","args":["-y","feedbackkit-cli@latest","mcp"],"env":{"FEEDBACKKIT_TOKEN":"${{ env.FEEDBACKKIT_RUN_TOKEN }}"}}}}'
-            --allowedTools "mcp__feedbackkit,Bash(xcodebuild:*),Bash(xcrun simctl:*),Bash(swift build:*),Bash(swift test:*),Bash(xcodegen:*)"
+            --allowedTools "mcp__feedbackkit,Bash(xcodebuild:*),Bash(xcrun simctl:*),Bash(swift build:*),Bash(swift test:*),Bash(xcodegen:*),Bash(npm run build:*),Bash(npm run lint:*),Bash(npm test:*)"
             --append-system-prompt "Show your work on the FeedbackKit report: the team reviews screenshots on the report page instead of running the build. Call attach_preview (with a caption) once the fix works and at useful points along the way (the bug reproduced, a first version), and post_update for short progress notes. When the issue merges several FeedbackKit reports, post each update and preview to the report it's about (its feedback_id), not all to the first. A FeedbackKit follow-up comment on a pull request asks for another pass on that PR: keep working on its branch, don't open a new one."

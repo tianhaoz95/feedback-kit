@@ -101,7 +101,11 @@ gh secret set CLAUDE_CODE_OAUTH_TOKEN   # paste it when prompted
 # or, with an API key instead: gh secret set ANTHROPIC_API_KEY
 ```
 
-Install the Claude GitHub App on the repo (https://github.com/apps/claude) — the action uses it to push branches and open PRs.
+Install the Claude GitHub App on the repo (https://github.com/apps/claude). claude-code-action trades the job's `id-token: write` for a short-lived token from that app's installation, and uses it for everything it does on GitHub: the progress comment on the issue, pushing the fix branch, opening the PR (all as `claude[bot]`). It's the same kind of thing as the FeedbackKit GitHub App, with a different job: FeedbackKit's app starts the work (creates the issue, adds the label, receives the webhooks that move the report), Claude's app is how the agent writes its results back. The `claude` login on the runner Mac doesn't replace either the app or the `CLAUDE_CODE_OAUTH_TOKEN` secret: the action installs its own Claude Code and only signs in from its inputs.
+
+Rather not install it? Pass `github_token:` to the action instead:
+- `${{ secrets.GITHUB_TOKEN }}`: no setup, but GitHub doesn't start other workflows from its pushes or PRs, so CI won't run on the agent's PR by itself, and comments show as `github-actions[bot]`.
+- A token from a GitHub App the team owns (an `actions/create-github-app-token` step): CI runs normally. Never use the FeedbackKit app's private key for this: it would sit in a job where the agent reads untrusted report text, and the agent's pushes would look like FeedbackKit's own.
 
 Optional but recommended: the FeedbackKit MCP tools (claim the report, ask the reporter, attach a preview of the fix). See **The agent-runner token** below.
 
