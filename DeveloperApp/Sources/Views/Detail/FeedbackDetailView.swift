@@ -15,13 +15,14 @@ public struct FeedbackDetailView: View {
     @State private var isWatching: Bool?
     @State private var attachmentFullScreenContext: FullScreenImageContext?
     @State private var navigateToChat = false
+    @State private var reloadedItem: PortalFeedbackItem?
 
     public init(item: PortalFeedbackItem) {
         self.item = item
     }
 
     private var currentItem: PortalFeedbackItem {
-        appState.feedbackItems.first(where: { $0.id == item.id }) ?? item
+        appState.feedbackItems.first(where: { $0.id == item.id }) ?? reloadedItem ?? item
     }
 
     public var body: some View {
@@ -64,6 +65,9 @@ public struct FeedbackDetailView: View {
                 }
                 .padding(16)
             }
+            .refreshable {
+                await refresh()
+            }
             .navigationTitle(currentItem.environment.screenName.map { "\($0)" } ?? "Feedback Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -91,6 +95,7 @@ public struct FeedbackDetailView: View {
 
                         Button {
                             Task {
+                                reloadedItem?.isArchived.toggle()
                                 await appState.toggleArchive(item: currentItem)
                             }
                         } label: {
@@ -152,6 +157,17 @@ public struct FeedbackDetailView: View {
         }
     }
 
+    private func refresh() async {
+        async let minDelay: Void = Task.sleep(nanoseconds: 300_000_000)
+        if let refreshed = await appState.refreshFeedbackItem(id: item.id) {
+            reloadedItem = refreshed
+        }
+        if let watching = try? await SupabasePortalClient.shared.isWatching(feedbackId: item.id) {
+            isWatching = watching
+        }
+        _ = try? await minDelay
+    }
+
     private func toggleWatching() {
         guard let current = isWatching else { return }
         isWatching = nil
@@ -180,6 +196,7 @@ public struct FeedbackDetailView: View {
                     ForEach(PortalFeedbackStatus.allCases) { status in
                         Button {
                             Task {
+                                reloadedItem?.status = status
                                 await appState.updateStatus(item: currentItem, to: status)
                             }
                         } label: {
@@ -554,6 +571,14 @@ public struct FeedbackDetailView: View {
                     if dispatch != false {
                         appState.feedbackItems[idx].status = .inProgress
                         appState.feedbackItems[idx].fixStage = PortalFixStage.agentWorking.rawValue
+                    }
+                }
+                if reloadedItem != nil {
+                    reloadedItem?.githubIssueUrl = url
+                    reloadedItem?.githubIssueNumber = num
+                    if dispatch != false {
+                        reloadedItem?.status = .inProgress
+                        reloadedItem?.fixStage = PortalFixStage.agentWorking.rawValue
                     }
                 }
                 UINotificationFeedbackGenerator().notificationOccurred(.success)

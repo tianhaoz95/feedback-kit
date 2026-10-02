@@ -348,6 +348,17 @@ public final class AppState: ObservableObject {
         inFlightFeedbackTask = nil
     }
 
+    @discardableResult
+    public func refreshFeedbackItem(id: String) async -> PortalFeedbackItem? {
+        guard let refreshed = try? await client.fetchFeedbackItem(id: id) else { return nil }
+        if let idx = feedbackItems.firstIndex(where: { $0.id == id }) {
+            feedbackItems[idx] = refreshed
+        } else if selectedProject == nil || refreshed.projectId == selectedProject?.id {
+            feedbackItems.append(refreshed)
+        }
+        return refreshed
+    }
+
     public func loadMoreFeedback() async {
         guard !isLoading && !isLoadingMore && hasMoreFeedback else { return }
         guard let proj = selectedProject else { return }
