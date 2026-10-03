@@ -346,19 +346,19 @@ export function BillingPage() {
             ) : null}
           </div>
         </div>
-        {usage?.limited ? (
-          <div className="mt-4 grid gap-3 border-t border-neutral-100 pt-4 sm:grid-cols-3">
-            <UsageMeter label="Reports this month" used={usage.reports_this_month} limit={usage.limits.reports_per_month} />
-            <UsageMeter label="Projects" used={usage.projects} limit={usage.limits.projects} />
-            <UsageMeter label="Members" used={usage.members} limit={usage.limits.members} />
-          </div>
-        ) : usage?.plan === "indie" ? (
-          <div className="mt-4 grid gap-3 border-t border-neutral-100 pt-4 sm:grid-cols-2">
+        {usage ? (
+          <div className="mt-4 grid gap-3 border-t border-neutral-100 pt-4">
             <UsageMeter label="Members" used={usage.members} limit={usage.limits.members} />
             <UsageMeter
               label="Storage (GB)"
               used={Math.round(((usage.storage_bytes ?? 0) / 1024 ** 3) * 100) / 100}
               limit={usage.limits.storage_mb ? usage.limits.storage_mb / 1024 : null}
+            />
+            <UsageMeter label="Projects" used={usage.projects} limit={usage.limits.projects} />
+            <UsageMeter
+              label="Reports this month"
+              used={usage.reports_this_month}
+              limit={usage.limits.reports_per_month}
             />
           </div>
         ) : null}

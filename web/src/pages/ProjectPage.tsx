@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { getErrorMessage } from "@/lib/errors";
 import type { FeedbackItem, FeedbackStatus, Product, Project, PromptTemplate } from "@/lib/types";
 import { closingTheLoopSection, renderPromptTemplate } from "@/lib/prompt-template";
+import { computeRangeSelection } from "@/lib/rangeSelection";
 import { TemplateEditorForm } from "@/components/TemplateEditorForm";
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatusSelect } from "@/components/StatusSelect";
@@ -84,6 +85,7 @@ export function ProjectPage() {
     Record<string, { screenshot: string | null; attachment: string | null; raw?: string | null }>
   >({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"single" | "merged">("single");
   const [isArchivedExpanded, setIsArchivedExpanded] = useState(false);
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(() => {
@@ -587,6 +589,28 @@ export function ProjectPage() {
     });
   }
 
+  function handleCheckboxClick(id: string, shiftKey: boolean) {
+    const visibleItems = isArchivedExpanded
+      ? [...activeFeedbackItems, ...archivedFeedbackItems]
+      : activeFeedbackItems;
+    const visibleIds = visibleItems.map((item) => item.id);
+
+    setSelectedIds((prev) => {
+      const { nextSelectedIds, nextLastSelectedId } = computeRangeSelection(
+        visibleIds,
+        lastSelectedId,
+        id,
+        prev,
+        shiftKey
+      );
+      setLastSelectedId(nextLastSelectedId);
+      if (nextSelectedIds.size === 0) {
+        setViewMode("single");
+      }
+      return nextSelectedIds;
+    });
+  }
+
   function handleToggleSelectAll() {
     const candidateItems = isArchivedExpanded ? sortedFeedbackItems : activeFeedbackItems;
     const allSelected =
@@ -597,11 +621,13 @@ export function ProjectPage() {
     } else {
       setSelectedIds(new Set(candidateItems.map((item) => item.id)));
     }
+    setLastSelectedId(null);
   }
 
   function handleClearSelection() {
     setSelectedIds(new Set());
     setViewMode("single");
+    setLastSelectedId(null);
   }
 
   async function handleBatchUpdateStatus(status: FeedbackStatus) {
@@ -974,9 +1000,10 @@ export function ProjectPage() {
           <input
             type="checkbox"
             checked={isChecked}
-            onChange={(e) => {
+            onChange={() => {}}
+            onClick={(e) => {
               e.stopPropagation();
-              toggleSelectItem(item.id);
+              handleCheckboxClick(item.id, e.shiftKey);
             }}
             aria-label={`Select report ${item.environment?.screenName ?? item.id}`}
             className="h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900 cursor-pointer accent-neutral-900"
@@ -985,7 +1012,12 @@ export function ProjectPage() {
 
         <button
           type="button"
-          onClick={() => {
+          onClick={(e) => {
+            if (e.shiftKey) {
+              e.preventDefault();
+              handleCheckboxClick(item.id, true);
+              return;
+            }
             handleSelectFeedback(item.id);
             if (viewMode === "merged") {
               setViewMode("single");
