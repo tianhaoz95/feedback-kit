@@ -170,12 +170,18 @@ object FeedbackKit {
 
     internal fun presentFlow(activity: Activity?, composerPlaceholder: String, completion: ((FeedbackReport?) -> Unit)?) {
         val host = activity ?: ActivityTracker.currentActivity
+        // Completion still fires (with null) when nothing is presented, so a
+        // bridge awaiting it (Flutter, React Native) never hangs.
         if (host == null || host is FeedbackActivity) {
             if (host == null) Log.w(TAG, "present(): no foreground activity to capture.")
+            completion?.invoke(null)
             return
         }
         // A second trigger while one is capturing or open does nothing.
-        if (isCapturing || FeedbackSession.pending != null) return
+        if (isCapturing || FeedbackSession.pending != null) {
+            completion?.invoke(null)
+            return
+        }
         isCapturing = true
 
         // Glow + "Capturing screenshot…" until the editor is up. The trigger
