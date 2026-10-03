@@ -333,15 +333,9 @@ export function ProjectsPage() {
                             </a>
                           ) : null}
                         </div>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs sm:text-sm text-neutral-500">
-                          <code className="rounded bg-neutral-100 px-1.5 py-0.5 font-mono text-xs text-neutral-600">
-                            {project.project_key}
-                          </code>
-                          <span className="hidden text-neutral-300 sm:inline">·</span>
-                          <span className="hidden text-neutral-400 sm:inline">
-                            Created {formatCreatedDate(project.created_at)}
-                          </span>
-                        </div>
+                        <p className="mt-1 hidden text-xs text-neutral-400 sm:block">
+                          Created {formatCreatedDate(project.created_at)}
+                        </p>
                       </div>
                     </div>
 
