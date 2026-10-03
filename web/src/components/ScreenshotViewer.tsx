@@ -209,7 +209,7 @@ export function ScreenshotViewer({
         ) : (
           <div className="flex items-center justify-center p-6" style={STAGE_STYLE}>
             <div
-              className="relative cursor-pointer"
+              className="relative max-w-full cursor-pointer"
               onClick={() => setIsExpanded(true)}
               title="Click to expand"
             >
