@@ -7,14 +7,31 @@ public struct ProjectsListView: View {
     @State private var isShowingTeam = false
     @State private var searchText = ""
 
-    private var filteredProjects: [PortalProject] {
+    public static func sortAndFilterProjects(
+        _ projects: [PortalProject],
+        pinnedIds: Set<String>,
+        searchText: String = ""
+    ) -> [PortalProject] {
+        let base: [PortalProject]
         if searchText.isEmpty {
-            return appState.projects
+            base = projects
+        } else {
+            base = projects.filter {
+                $0.name.localizedCaseInsensitiveContains(searchText) ||
+                ($0.githubRepo?.localizedCaseInsensitiveContains(searchText) ?? false)
+            }
         }
-        return appState.projects.filter {
-            $0.name.localizedCaseInsensitiveContains(searchText) ||
-            ($0.githubRepo?.localizedCaseInsensitiveContains(searchText) ?? false)
-        }
+        let pinned = base.filter { pinnedIds.contains($0.id) }
+        let unpinned = base.filter { !pinnedIds.contains($0.id) }
+        return pinned + unpinned
+    }
+
+    private var filteredProjects: [PortalProject] {
+        Self.sortAndFilterProjects(
+            appState.projects,
+            pinnedIds: appState.pinnedProjectIds,
+            searchText: searchText
+        )
     }
 
     public var body: some View {
@@ -81,6 +98,19 @@ public struct ProjectsListView: View {
                             projectRow(project: project)
                         }
                         .swipeActions(edge: .leading) {
+                            Button {
+                                withAnimation {
+                                    appState.togglePin(for: project)
+                                }
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            } label: {
+                                Label(
+                                    appState.isProjectPinned(project) ? "Unpin" : "Pin",
+                                    systemImage: appState.isProjectPinned(project) ? "pin.slash.fill" : "pin.fill"
+                                )
+                            }
+                            .tint(.orange)
+
                             if project.id != appState.selectedProject?.id {
                                 Button {
                                     appState.selectedProject = project
@@ -91,7 +121,32 @@ public struct ProjectsListView: View {
                                 .tint(.accentColor)
                             }
                         }
+                        .swipeActions(edge: .trailing) {
+                            Button {
+                                withAnimation {
+                                    appState.togglePin(for: project)
+                                }
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            } label: {
+                                Label(
+                                    appState.isProjectPinned(project) ? "Unpin" : "Pin",
+                                    systemImage: appState.isProjectPinned(project) ? "pin.slash.fill" : "pin.fill"
+                                )
+                            }
+                            .tint(.orange)
+                        }
                         .contextMenu {
+                            Button {
+                                withAnimation {
+                                    appState.togglePin(for: project)
+                                }
+                            } label: {
+                                Label(
+                                    appState.isProjectPinned(project) ? "Unpin Project" : "Pin Project to Top",
+                                    systemImage: appState.isProjectPinned(project) ? "pin.slash" : "pin"
+                                )
+                            }
+
                             if project.id != appState.selectedProject?.id {
                                 Button {
                                     appState.selectedProject = project
@@ -176,6 +231,20 @@ public struct ProjectsListView: View {
                 HStack(spacing: 8) {
                     Text(project.name)
                         .font(.headline)
+
+                    if appState.isProjectPinned(project) {
+                        HStack(spacing: 3) {
+                            Image(systemName: "pin.fill")
+                                .font(.system(size: 8))
+                            Text("Pinned")
+                                .font(.system(size: 9, weight: .bold))
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.orange.opacity(0.15))
+                        .foregroundColor(.orange)
+                        .clipShape(Capsule())
+                    }
 
                     if project.id == appState.selectedProject?.id {
                         Text("Active")

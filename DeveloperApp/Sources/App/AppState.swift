@@ -9,6 +9,7 @@ public final class AppState: ObservableObject {
     public static let lastSelectedProjectIdKey = "portal_last_selected_project_id"
     public static let lastSelectedProjectDataKey = "portal_last_selected_project_data"
     public static let currentOrganizationIdKey = "portal_current_organization_id"
+    public static let pinnedProjectIdsKey = "portal_pinned_project_ids"
 
     /// The iOS tab bar's tabs (the Mac sidebar has its own sections).
     public enum Tab: Hashable {
@@ -29,6 +30,11 @@ public final class AppState: ObservableObject {
     // MARK: - Published Properties
 
     @Published public var projects: [PortalProject] = []
+    @Published public var pinnedProjectIds: Set<String> = [] {
+        didSet {
+            UserDefaults.standard.set(Array(pinnedProjectIds), forKey: Self.pinnedProjectIdsKey)
+        }
+    }
     @Published public var selectedProject: PortalProject? {
         didSet {
             if let project = selectedProject {
@@ -63,6 +69,9 @@ public final class AppState: ObservableObject {
         case "projects": selectedTab = .projects
         case "settings": selectedTab = .settings
         default: break
+        }
+        if let savedPinned = UserDefaults.standard.stringArray(forKey: Self.pinnedProjectIdsKey) {
+            self._pinnedProjectIds = Published(initialValue: Set(savedPinned))
         }
         if let data = UserDefaults.standard.data(forKey: Self.lastSelectedProjectDataKey),
            let cached = try? JSONDecoder().decode(PortalProject.self, from: data) {
@@ -561,5 +570,27 @@ public final class AppState: ObservableObject {
 
     public func deselectAll() {
         selectedFeedbackIds.removeAll()
+    }
+
+    // MARK: - Pinned Projects
+
+    public func isProjectPinned(_ project: PortalProject) -> Bool {
+        isProjectPinned(id: project.id)
+    }
+
+    public func isProjectPinned(id: String) -> Bool {
+        pinnedProjectIds.contains(id)
+    }
+
+    public func togglePin(for project: PortalProject) {
+        togglePin(id: project.id)
+    }
+
+    public func togglePin(id: String) {
+        if pinnedProjectIds.contains(id) {
+            pinnedProjectIds.remove(id)
+        } else {
+            pinnedProjectIds.insert(id)
+        }
     }
 }
