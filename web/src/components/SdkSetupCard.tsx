@@ -12,8 +12,48 @@ const PLATFORMS: { id: TargetPlatform; label: string }[] = [
   { id: "macos", label: "macOS" },
   { id: "multiplatform", label: "Multiplatform" },
   { id: "watchos", label: "watchOS" },
+  { id: "android", label: "Android" },
+  { id: "flutter", label: "Flutter" },
+  { id: "react-native", label: "React Native" },
   { id: "web", label: "Web" },
 ];
+
+type ManualKind = "swift" | "android" | "flutter" | "react-native" | "web";
+
+const MANUAL_KINDS: { id: ManualKind; label: string }[] = [
+  { id: "swift", label: "Swift (iOS · macOS · watchOS)" },
+  { id: "android", label: "Android" },
+  { id: "flutter", label: "Flutter" },
+  { id: "react-native", label: "React Native" },
+  { id: "web", label: "Web" },
+];
+
+/** The manual snippet tab that matches the agent tab's platform. */
+function manualKindFor(platform: TargetPlatform): ManualKind {
+  switch (platform) {
+    case "android":
+    case "flutter":
+    case "react-native":
+    case "web":
+      return platform;
+    default:
+      return "swift";
+  }
+}
+
+/** Where each platform's full guide lives. */
+function docsPathFor(platform: TargetPlatform): string {
+  switch (manualKindFor(platform)) {
+    case "web":
+      return "/docs/web-sdk";
+    case "android":
+    case "flutter":
+    case "react-native":
+      return "/docs/mobile-sdks";
+    default:
+      return "/docs/ios-sdk";
+  }
+}
 
 export function SdkSetupCard({
   projectKey,
@@ -36,7 +76,14 @@ export function SdkSetupCard({
 
   const swiftSnippet = `FeedbackKit.configure(.init(\n    endpointURL: URL(string: "${endpointUrl}")!,\n    projectKey: "${projectKey}"\n))`;
   const packageUrl = "https://github.com/tianhaoz95/feedback-kit";
-  const isWeb = platform === "web";
+  const manualKind = manualKindFor(platform);
+  const isWeb = manualKind === "web";
+  const androidRepo = `// settings.gradle.kts, in dependencyResolutionManagement.repositories:\nmaven { url = uri("https://jitpack.io") }\n\n// app/build.gradle.kts (use the latest vX.Y.Z release tag):\nimplementation("com.github.tianhaoz95.feedback-kit:feedbackkit:v<latest release>")`;
+  const androidSnippet = `// Application.onCreate()\nFeedbackKit.configure(FeedbackKitConfiguration(\n    endpointUrl = "${endpointUrl}",\n    projectKey = "${projectKey}",\n))\nFeedbackKit.showFloatingTriggerButton()\nFeedbackKit.enableShakeToReport()`;
+  const flutterDependency = `dependencies:\n  feedbackkit_flutter:\n    git:\n      url: https://github.com/tianhaoz95/feedback-kit\n      path: flutter/feedbackkit_flutter`;
+  const flutterSnippet = `// main(), before runApp:\nWidgetsFlutterBinding.ensureInitialized();\nawait FeedbackKit.configure(const FeedbackKitConfiguration(\n  endpointUrl: '${endpointUrl}',\n  projectKey: '${projectKey}',\n));\nawait FeedbackKit.showFloatingTriggerButton();`;
+  const rnInstall = `npm install feedbackkit-react-native\n\n# ios/Podfile, inside the app target (same version as the npm package):\npod 'FeedbackKit', :git => 'https://github.com/tianhaoz95/feedback-kit.git', :tag => 'v<version>'`;
+  const rnSnippet = `import { FeedbackKit } from 'feedbackkit-react-native';\n\nFeedbackKit.configure({\n  endpointUrl: '${endpointUrl}',\n  projectKey: '${projectKey}',\n});\nFeedbackKit.showFloatingTriggerButton();`;
   const webInstall = "npm install feedbackkit-web";
   const webSnippet = `import { FeedbackKit } from "feedbackkit-web";\n\nFeedbackKit.configure({\n  projectKey: "${projectKey}",\n  endpoint: "${endpointUrl}",\n});\nFeedbackKit.showFloatingTriggerButton();`;
   const scriptSnippet = `<script src="https://cdn.jsdelivr.net/npm/feedbackkit-web/dist/feedbackkit.iife.js"></script>\n<script>\n  FeedbackKit.configure({ projectKey: "${projectKey}", endpoint: "${endpointUrl}" });\n  FeedbackKit.showFloatingTriggerButton();\n</script>`;
@@ -112,13 +159,6 @@ export function SdkSetupCard({
                   {p.label}
                 </button>
               ))}
-              <span
-                title="A native Android SDK is on the roadmap"
-                className="inline-flex cursor-default items-center gap-1 rounded-md border border-dashed border-neutral-300 px-2.5 py-1 text-xs font-medium text-neutral-400"
-              >
-                Android
-                <span className="rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-800">Soon</span>
-              </span>
             </div>
           </div>
 
@@ -145,7 +185,7 @@ export function SdkSetupCard({
                 Or install Agent Skills →
               </Link>
               <Link
-                to={isWeb ? "/docs/web-sdk" : "/docs/ios-sdk"}
+                to={docsPathFor(platform)}
                 className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-900 hover:underline"
               >
                 View SDK documentation →
@@ -155,22 +195,41 @@ export function SdkSetupCard({
         </div>
       ) : (
         <div className="mt-4 space-y-4">
-          <div className="inline-flex rounded-md border border-neutral-200 bg-neutral-50 p-0.5 text-xs font-medium">
-            {(["swift", "web"] as const).map((kind) => (
+          <div className="inline-flex flex-wrap rounded-md border border-neutral-200 bg-neutral-50 p-0.5 text-xs font-medium">
+            {MANUAL_KINDS.map((kind) => (
               <button
-                key={kind}
+                key={kind.id}
                 type="button"
-                onClick={() => setPlatform(kind === "web" ? "web" : "ios")}
+                onClick={() => setPlatform(kind.id === "swift" ? "ios" : kind.id)}
                 className={`rounded px-2.5 py-1 transition-colors ${
-                  (kind === "web") === isWeb ? "bg-white text-neutral-900 shadow-xs" : "text-neutral-500 hover:text-neutral-900"
+                  kind.id === manualKind ? "bg-white text-neutral-900 shadow-xs" : "text-neutral-500 hover:text-neutral-900"
                 }`}
               >
-                {kind === "web" ? "Web (npm / script tag)" : "Swift (iOS · macOS · watchOS)"}
+                {kind.label}
               </button>
             ))}
           </div>
 
-          {isWeb ? (
+          {manualKind === "android" || manualKind === "flutter" || manualKind === "react-native" ? (
+            <>
+              <SnippetStep
+                title={manualKind === "android" ? "1. Add the dependency (JitPack)" : manualKind === "flutter" ? "1. Add the plugin to pubspec.yaml" : "1. Install the package and the iOS pod"}
+                code={manualKind === "android" ? androidRepo : manualKind === "flutter" ? flutterDependency : rnInstall}
+              />
+              <SnippetStep
+                title="2. Configure FeedbackKit at app launch and add a trigger"
+                code={manualKind === "android" ? androidSnippet : manualKind === "flutter" ? flutterSnippet : rnSnippet}
+              />
+              <div className="border-t border-neutral-100 pt-3">
+                <Link
+                  to="/docs/mobile-sdks"
+                  className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-900 hover:underline"
+                >
+                  View the Android, Flutter & React Native guide →
+                </Link>
+              </div>
+            </>
+          ) : isWeb ? (
             <>
               <div>
                 <span className="text-xs font-medium text-neutral-700">1. Install the package</span>
@@ -243,5 +302,17 @@ export function SdkSetupCard({
         </div>
       )}
     </section>
+  );
+}
+
+function SnippetStep({ title, code }: { title: string; code: string }) {
+  return (
+    <div>
+      <span className="text-xs font-medium text-neutral-700">{title}</span>
+      <pre className="mt-1 overflow-x-auto rounded-lg bg-neutral-900 p-3.5 text-xs leading-relaxed text-neutral-100">{code}</pre>
+      <div className="mt-2.5">
+        <CopyButton text={code} label="Copy snippet" />
+      </div>
+    </div>
   );
 }

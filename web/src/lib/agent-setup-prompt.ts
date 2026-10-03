@@ -1,4 +1,12 @@
-export type TargetPlatform = "ios" | "macos" | "multiplatform" | "watchos" | "web";
+export type TargetPlatform =
+  | "ios"
+  | "macos"
+  | "multiplatform"
+  | "watchos"
+  | "android"
+  | "flutter"
+  | "react-native"
+  | "web";
 
 export interface AgentSetupPromptOptions {
   platform: TargetPlatform;
@@ -200,6 +208,116 @@ Please inspect the project structure, locate the entry points for each platform,
 5. Close the loop (recommended): add \`.feedbackFixVerification()\` to the root view so the watch asks reporters to confirm a fix once it ships; run \`npx feedbackkit-cli release --build <CFBundleVersion>\` after each release build.
 
 Please inspect the existing codebase, add the package dependency, configure FeedbackKit in the app entry point, wire up the quick note sheet, and verify that the watchOS app builds cleanly.`;
+
+    case "android":
+      return `Please integrate the FeedbackKit Android SDK ${projectContext}into this Android app project.
+
+1. Add the dependency (served by JitPack from the GitHub release tag):
+   - In settings.gradle(.kts), add the JitPack repository to dependencyResolutionManagement.repositories:
+     \`\`\`kotlin
+     maven { url = uri("https://jitpack.io") }
+     \`\`\`
+   - In the app module's build.gradle(.kts):
+     \`\`\`kotlin
+     implementation("com.github.tianhaoz95.feedback-kit:feedbackkit:v<latest release>")
+     \`\`\`
+     Use the newest vX.Y.Z tag from https://github.com/tianhaoz95/feedback-kit/releases. minSdk must be 24 or higher.
+
+2. Configure FeedbackKit in Application.onCreate() (create an Application subclass and register it in AndroidManifest.xml if the app has none):
+   \`\`\`kotlin
+   import com.feedbackkit.FeedbackKit
+   import com.feedbackkit.FeedbackKitConfiguration
+
+   FeedbackKit.configure(FeedbackKitConfiguration(
+       endpointUrl = "${endpointUrl}",
+       projectKey = "${projectKey}",
+   ))
+   \`\`\`
+   No other setup is needed: the SDK registers its editor activity through manifest merging and tracks the foreground activity itself.
+
+3. Install a feedback trigger:
+   - Option A: shake to report — \`FeedbackKit.enableShakeToReport()\`
+   - Option B: draggable floating button on every activity — \`FeedbackKit.showFloatingTriggerButton()\`
+   - Option C: from an existing button or menu item — \`FeedbackKit.presentAndSubmitIfConfigured()\`
+
+4. Screen tracking: set \`FeedbackKit.currentScreen = "Checkout"\` as the user navigates (from a NavController destination listener, a Compose route change, or each screen). Without it, reports only name the activity class.
+
+5. Optional branding: \`FeedbackKit.theme = FeedbackTheme(primaryColorHex = "#RRGGBB", secondaryColorHex = "#RRGGBB")\`.
+
+6. Close the loop (recommended): call \`FeedbackKit.enableFixVerification()\` after configure so reporters are asked "is it fixed?" once a fix ships in the build they're running (it compares versionCode), and run \`npx feedbackkit-cli release --build <versionCode>\` after each release build.
+
+Please inspect the project, find the Application class (or add one), add the dependency and configuration, wire up a trigger, set currentScreen from the app's navigation, and verify that the app builds.`;
+
+    case "flutter":
+      return `Please integrate FeedbackKit ${projectContext}into this Flutter app. The feedbackkit_flutter plugin runs the native FeedbackKit iOS and Android SDKs.
+
+1. Add the plugin to pubspec.yaml (from GitHub until it's on pub.dev):
+   \`\`\`yaml
+   dependencies:
+     feedbackkit_flutter:
+       git:
+         url: https://github.com/tianhaoz95/feedback-kit
+         path: flutter/feedbackkit_flutter
+   \`\`\`
+   Then run \`flutter pub get\`. Requirements: Android minSdk 24 (android/app/build.gradle(.kts)), iOS 15.0+.
+
+2. Configure FeedbackKit in main() before runApp:
+   \`\`\`dart
+   import 'package:feedbackkit_flutter/feedbackkit_flutter.dart';
+
+   Future<void> main() async {
+     WidgetsFlutterBinding.ensureInitialized();
+     await FeedbackKit.configure(const FeedbackKitConfiguration(
+       endpointUrl: '${endpointUrl}',
+       projectKey: '${projectKey}',
+     ));
+     await FeedbackKit.showFloatingTriggerButton();
+     await FeedbackKit.enableShakeToReport();
+     runApp(const MyApp());
+   }
+   \`\`\`
+
+3. Screen tracking: add \`FeedbackKitNavigatorObserver()\` to MaterialApp's navigatorObservers (it uses route names), or call \`FeedbackKit.setCurrentScreen('Checkout')\` where the app changes screens without named routes (tabs, go_router redirects).
+
+4. Optional: \`FeedbackKit.presentAndSubmitIfConfigured()\` from an existing "Report a problem" button, \`FeedbackKit.setTheme(const FeedbackTheme(primaryColorHex: '#RRGGBB', secondaryColorHex: '#RRGGBB'))\` for branding, and \`FeedbackKit.onSubmissionResult = (result) { ... }\` to show a confirmation.
+
+5. Close the loop (recommended): call \`FeedbackKit.enableFixVerification()\` after configure, and run \`npx feedbackkit-cli release --build <build number>\` after each release build (the build number in pubspec's version, after the +).
+
+Please inspect the project, add the dependency, configure FeedbackKit in main(), wire up triggers and screen tracking, and verify that the app builds for both Android and iOS.`;
+
+    case "react-native":
+      return `Please integrate FeedbackKit ${projectContext}into this React Native app. The feedbackkit-react-native module runs the native FeedbackKit iOS and Android SDKs. It needs the New Architecture (React Native 0.76+).
+
+1. Install the package:
+   \`\`\`bash
+   npm install feedbackkit-react-native
+   \`\`\`
+   - iOS: add the native SDK to ios/Podfile inside the app target, then run \`pod install\`:
+     \`\`\`ruby
+     pod 'FeedbackKit', :git => 'https://github.com/tianhaoz95/feedback-kit.git', :tag => 'v<same version as the npm package>'
+     \`\`\`
+   - Android: nothing else (minSdk 24+).
+   - Expo: use a development build (prebuild); Expo Go can't load native modules.
+
+2. Configure FeedbackKit once at startup (e.g. in index.js or the root component's module scope):
+   \`\`\`ts
+   import { FeedbackKit } from 'feedbackkit-react-native';
+
+   FeedbackKit.configure({
+     endpointUrl: '${endpointUrl}',
+     projectKey: '${projectKey}',
+   });
+   FeedbackKit.showFloatingTriggerButton();
+   FeedbackKit.enableShakeToReport();
+   \`\`\`
+
+3. Screen tracking: call \`FeedbackKit.setCurrentScreen(name)\` on navigation changes, e.g. from React Navigation's NavigationContainer onStateChange with navigationRef.getCurrentRoute()?.name.
+
+4. Optional: \`FeedbackKit.presentAndSubmitIfConfigured()\` from an existing "Report a problem" button, \`FeedbackKit.setTheme({ primaryColorHex: '#RRGGBB', secondaryColorHex: '#RRGGBB' })\`, and \`FeedbackKit.onSubmissionResult(listener)\` (returns an unsubscribe function) for a confirmation toast.
+
+5. Close the loop (recommended): call \`FeedbackKit.enableFixVerification()\` after configure, and run \`npx feedbackkit-cli release --build <build number>\` after each release build.
+
+Please inspect the project, install the package and the iOS pod, configure FeedbackKit at startup, wire up triggers and screen tracking, and verify that the app builds on iOS and Android.`;
 
     case "web":
       return `Please integrate the FeedbackKit web SDK ${projectContext}into this web app.

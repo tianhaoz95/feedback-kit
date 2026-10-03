@@ -19,16 +19,25 @@ That means:
 
 ## Install
 
+Until it's on pub.dev, depend on it from GitHub:
+
 ```yaml
 dependencies:
-  feedbackkit_flutter: ^1.0.62
+  feedbackkit_flutter:
+    git:
+      url: https://github.com/tianhaoz95/feedback-kit
+      path: flutter/feedbackkit_flutter
+      # ref: v1.0.63   # pin a release tag
 ```
+
+The git checkout contains the native SDKs too, so the plugin builds against
+the matching Swift and Android SDK sources with nothing else to resolve.
 
 - **Android:** `minSdk 24` or higher. Nothing else to set up. The SDK registers its
   editor activity through manifest merging.
 - **iOS:** iOS 15+. With Swift Package Manager (Flutter's default) the native
-  SDK resolves automatically. If your app uses CocoaPods for plugins, add the
-  SDK to `ios/Podfile`:
+  SDK resolves automatically. If your app uses CocoaPods for plugins, also add
+  the SDK to `ios/Podfile`:
 
   ```ruby
   pod 'FeedbackKit', :git => 'https://github.com/tianhaoz95/feedback-kit.git', :tag => 'v1.0.62'

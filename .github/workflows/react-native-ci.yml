@@ -1,0 +1,82 @@
+name: React Native Module CI
+
+# The React Native module (react-native/) compiles the Android SDK from this
+# repo and links the Swift SDK as the FeedbackKit pod, so changes to either
+# SDK can break it too.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "react-native/**"
+      - "android/feedbackkit/**"
+      - "Sources/**"
+      - "FeedbackKit.podspec"
+      - ".github/workflows/react-native-ci.yml"
+  pull_request:
+    paths:
+      - "react-native/**"
+      - "android/feedbackkit/**"
+      - "Sources/**"
+      - "FeedbackKit.podspec"
+      - ".github/workflows/react-native-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: react-native-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  js-and-android:
+    name: Typecheck, test, Android demo build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: react-native
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: corepack enable
+      - run: yarn install --immutable
+      - run: yarn typecheck
+      - run: yarn test
+      - run: yarn prepare
+      - name: Build the demo app (Android)
+        working-directory: react-native/example/android
+        run: ./gradlew assembleDebug -PreactNativeArchitectures=x86_64 --no-daemon
+
+  ios:
+    name: iOS demo build
+    runs-on: macos-15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: react-native
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: yarn install --immutable
+      - name: Install pods
+        working-directory: react-native/example/ios
+        run: pod install
+      - name: Build the demo app for the iOS Simulator
+        working-directory: react-native/example/ios
+        run: |
+          xcodebuild build \
+            -workspace FeedbackkitReactNativeExample.xcworkspace \
+            -scheme FeedbackkitReactNativeExample \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO

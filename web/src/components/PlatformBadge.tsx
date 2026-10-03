@@ -1,16 +1,17 @@
 import type { FeedbackEnvironment } from "@/lib/types";
 import { platformOf } from "@/lib/platform";
-import { DeviceIcon, GlobeIcon, MonitorIcon, WatchIcon } from "@/components/icons";
+import { AndroidIcon, DeviceIcon, GlobeIcon, MonitorIcon, WatchIcon } from "@/components/icons";
 
 const ICONS = {
   web: GlobeIcon,
   ios: DeviceIcon,
   macos: MonitorIcon,
   watchos: WatchIcon,
+  android: AndroidIcon,
   unknown: DeviceIcon,
 };
 
-/** Which SDK a report came from — Web, iOS, macOS or watchOS. */
+/** Which SDK a report came from — Web, iOS, macOS, watchOS or Android. */
 export function PlatformBadge({
   environment,
   className = "",

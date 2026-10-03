@@ -17,7 +17,11 @@ FeedbackKit is three things sharing one JSON contract / one Postgres schema:
    + context only, no screenshot, no annotation tools) rather than a third
    full UI port — see `FeedbackQuickNoteView`. **A web SDK** (`web-sdk/`,
    npm `feedbackkit-web`) brings the same flow to websites and produces the
-   same report shape — see the web SDK notes below.
+   same report shape — see the web SDK notes below. **A native Android SDK**
+   (`android/feedbackkit`, Kotlin) brings the iOS flow to Android, and **a
+   Flutter plugin** (`flutter/feedbackkit_flutter`) and **a React Native
+   module** (`react-native/`) are thin bridges over the native iOS and
+   Android SDKs — see the Android/Flutter/React Native notes below.
 2. **An optional hosted dashboard** (`web/` + `supabase/`) — one way to consume
    that report: receive it, organize it by project, and turn it into a prompt
    for a coding agent.
@@ -39,6 +43,9 @@ file is about how to build/test/run things day to day.
 |---|---|
 | `Sources/FeedbackKit/` | The iOS + macOS + watchOS SDK (Swift Package) |
 | `Tests/FeedbackKitTests/` | SDK unit tests |
+| `android/` | Native Android SDK (`feedbackkit`, Kotlin, no dependencies beyond the stdlib) and its demo app (`demo`: Compose Home, classic-View Cart, Settings) — one Gradle project. Published through JitPack (`jitpack.yml`) |
+| `flutter/feedbackkit_flutter/` | Flutter plugin over the native iOS/Android SDKs (method channel `feedbackkit`); demo app in `example/` |
+| `react-native/` | React Native TurboModule (npm `feedbackkit-react-native`) over the native SDKs; demo app in `example/` (yarn workspace) |
 | `web-sdk/` | Web SDK (npm `feedbackkit-web`, TypeScript, no framework): capture/annotate/submit for websites, plus console/network log capture. Unit tests (vitest) + Playwright e2e |
 | `DemoApp/` | Sample apps exercising the SDK on iOS, macOS, and watchOS (one XcodeGen project, three targets; the `.xcodeproj` is generated — not committed) |
 | `DeveloperApp/` | Native Developer Portal companion apps for iOS and macOS (one XcodeGen project `FeedbackPortal.xcodeproj`, SwiftUI; the Mac app shares the iOS views — see `DeveloperApp/README.md`). Triages feedback, renders annotations, follows fix loops, dispatches AI coding prompts, and dogfoods FeedbackKit on itself |
@@ -47,8 +54,8 @@ file is about how to build/test/run things day to day.
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function, billing (Stripe) Edge Functions |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) — reads feedback/prompts as a logged-in user |
 | `skills/` | Agent Skills catalog (`vercel-labs/skills`) for automated setup via AI coding agents |
-| `.github/workflows/` | Release/deploy pipelines, plus one CI workflow per product, each on PRs and pushes filtered to its paths: `sdk-ci.yml` (Swift SDK on macOS, iOS Simulator, watchOS build), `portal-ci.yml` (Portal tests), `cli-ci.yml`, `backend-ci.yml` (Edge Function type-check, migrations applied from scratch, skills validation) and `web-sdk-ci.yml` (web SDK unit + 3-browser e2e, dashboard clean build). `beta.yml` calls the SDK and Portal workflows as its gate, and `publish-cli.yml` runs the CLI tests before publishing |
-| `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `run-portal-ios.sh`, `run-portal-macos.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `generate_social_preview.py`, `release_testflight.sh`, `release_portal_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh`, `release_portal_macos.sh`, `landing-captures/capture.sh` (re-captures the landing page's iOS and web device images from the real SDKs) |
+| `.github/workflows/` | Release/deploy pipelines, plus one CI workflow per product, each on PRs and pushes filtered to its paths: `sdk-ci.yml` (Swift SDK on macOS, iOS Simulator, watchOS build), `portal-ci.yml` (Portal tests), `android-ci.yml`, `flutter-ci.yml` and `react-native-ci.yml` (the latter two also run on Swift/Android SDK changes, since both wrappers compile them), `cli-ci.yml`, `backend-ci.yml` (Edge Function type-check, migrations applied from scratch, skills validation) and `web-sdk-ci.yml` (web SDK unit + 3-browser e2e, dashboard clean build). `beta.yml` calls the SDK and Portal workflows as its gate, and `publish-cli.yml` runs the CLI tests before publishing |
+| `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `run-android.sh`, `run-portal-ios.sh`, `run-portal-macos.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `generate_social_preview.py`, `release_testflight.sh`, `release_portal_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh`, `release_portal_macos.sh`, `landing-captures/capture.sh` (re-captures the landing page's iOS and web device images from the real SDKs) |
 | `branding/` | FeedbackKit logo assets (SVG source + PNG exports) — reused for the iOS app icon and the GitHub OAuth App's logo |
 
 ## Commands
@@ -112,6 +119,43 @@ the exact JSON posted; screenshots land in `e2e/output/` (gitignored).
 Published on releases by `publish-web-sdk.yml` (unified `vX.Y.Z` tags, or
 `./scripts/cut_release.sh X.Y.Z --web-sdk` for `web-sdk-vX.Y.Z` alone); the
 version comes from the tag, not `package.json`.
+
+### Android SDK (`android/`)
+
+Needs a JDK 17+ (Android Studio's bundled one works) and the Android SDK.
+
+```bash
+cd android
+./gradlew :feedbackkit:testDebugUnitTest        # wire format, base64, build ordering, renderer geometry
+./gradlew :feedbackkit:assembleRelease :demo:assembleDebug
+../scripts/run-android.sh                         # install + launch the demo on a device/emulator
+```
+
+### Flutter plugin (`flutter/feedbackkit_flutter`)
+
+```bash
+cd flutter/feedbackkit_flutter
+flutter analyze && flutter test                   # Dart API + channel contract
+cd example && flutter run                         # or: flutter build apk --debug / flutter build ios --simulator
+```
+
+`--dart-define=FEEDBACKKIT_DEMO_AUTOPRESENT=true` opens the flow a few
+seconds after launch, for screenshot automation (simulators can't be tapped
+from the command line).
+
+### React Native module (`react-native/`)
+
+```bash
+cd react-native
+corepack yarn                                     # yarn 4 workspace; installs example/ too
+corepack yarn typecheck && corepack yarn test
+corepack yarn example ios                         # or android; Metro: corepack yarn example start
+cd example/ios && pod install                     # after changing the spec or the podspec
+```
+
+In dev builds the example sets `globalThis.FeedbackKit`, so a script can call
+`FeedbackKit.present()` over Metro's Hermes debugger (`/json/list`, CDP
+`Runtime.evaluate`, `Origin: http://localhost:8081`).
 
 ### Demo apps (`DemoApp/`)
 
@@ -331,16 +375,56 @@ Rules for skills:
   behavior. For a Swift SDK change (`Sources/FeedbackKit`), update the iOS
   demo app (`DemoApp/DemoApp`), the macOS demo app (`DemoApp/DemoMacApp`),
   and the iOS and macOS Portals (`DeveloperApp/Sources/App/PortalDogfood.swift`
-  and anything else in `DeveloperApp/` that calls the SDK). For a web SDK
+  and anything else in `DeveloperApp/` that calls the SDK). A Swift change
+  that the Android SDK should match (behavior, API, wire format) goes into
+  `android/feedbackkit` and `android/demo` in the same change, and anything
+  bridged into Flutter/RN into both wrappers and their example apps. For a web SDK
   change (`web-sdk/`), update the web dashboard (`web/src/lib/feedbackkit.ts`).
   Then build each one. If the change doesn't apply on a platform (e.g. it's
   iOS-only), say so in the commit message instead of skipping the app
   silently.
+- **The Android SDK mirrors the Swift SDK, not a lookalike.** Same flow,
+  same `FeedbackReport` JSON (`osName = "Android"`, display size in dp as
+  "points", `versionCode` as `appBuild`), so the dashboard, Portal, prompts
+  and CLI need no Android branch (`web/src/lib/platform.ts` only adds the
+  badge). Hand-kept copies to change together: `internal/WireFormat.kt`
+  (`IngestPayload`), `AnnotationRenderer.kt` (`AnnotationRenderer.swift`,
+  with every length multiplied by `unit` = pixels per point),
+  `FixUpdate.kt`'s `FeedbackBuild` (`compare_builds`, see the closed-loop
+  note) and `FixUpdatesClient.kt`. The UI is plain framework views (no
+  AppCompat/Compose) so the AAR drops into Flutter/RN hosts without version
+  clashes; a manifest-merged `FeedbackKitInitializer` provider tracks the
+  foreground activity, which is why nothing takes an `Activity` argument.
+  Capture is `PixelCopy` of the window **plus every visible SurfaceView
+  composited underneath** (`ScreenshotCapture.kt`) — the window copy alone
+  leaves Flutter's renderer blank. The floating button hides for the shot;
+  the capture indicator is its own panel window.
+- **Flutter and React Native are bridges, not ports.** Both call the native
+  `FeedbackKit` 1:1 and convert with `FeedbackKitBridge` (Swift:
+  `Sources/FeedbackKit/Bridge/`, Kotlin: `FeedbackKitBridge.kt`) — keep the
+  two bridges' map keys in step with `flutter/.../lib/src/models.dart` and
+  `react-native/src/types.ts`. Bytes go as raw typed data to Dart, base64 to
+  JS. Inside this repo both compile the SDK sources directly: Android via
+  Gradle `sourceSets` pointing at `android/feedbackkit/src/main` (so the
+  wrappers' Gradle namespace is `com.feedbackkit`, and RN autolinking needs
+  the explicit `react-native.config.js`), iOS via the plugin's
+  `Package.swift` path dependency (Flutter, resolving the `.symlinks` path
+  first) or the root `FeedbackKit.podspec` (`pod 'FeedbackKit', :path` in
+  the RN example's Podfile). Outside the repo the Android SDK is vendored at
+  pack/publish time (`scripts/vendor-native-sdks.sh`,
+  `tool/vendor_native_sdks.sh`). Flutter's plugin directory must stay named
+  `feedbackkit_flutter` — Flutter's SwiftPM integration names its symlink
+  after the directory and fails when that differs from the package name.
+  `presentFlow` calls back with nil/null whenever it presents nothing, on
+  both platforms, so an awaiting Dart/JS caller never hangs; the wrappers'
+  `presentAndSubmit` re-implements the SDK's because the SDK's never calls
+  back on cancel.
 - **The wire format is intentionally decoupled from the SDK's public Swift
   API.** `FeedbackReport` (public, camelCase) and `IngestPayload` (private
   mirror struct in `FeedbackSubmitter.swift`, snake_case JSON) are two
   different shapes on purpose. If you add a field to `FeedbackReport`, you
-  must also update `IngestPayload`'s `CodingKeys`/`encode(to:)`, the
+  must also update `IngestPayload`'s `CodingKeys`/`encode(to:)`, the Android
+  SDK's `WireFormat.kt` (and its `FeedbackReport`), the
   `ingest-feedback` Edge Function's `IngestPayload` interface, and
   `web/src/lib/types.ts` — nothing enforces this consistency automatically.
 - **Annotation points are normalized to 0...1**, not pixel coordinates, in
@@ -554,10 +638,11 @@ Rules for skills:
   `cli/src/loop.ts`), so keep that pairing if you add a transition.
   `compare_builds` (build ordering) is duplicated in SQL,
   `supabase/functions/_shared/builds.ts`, `cli/src/loop.ts`,
-  `Sources/FeedbackKit/Model/FixUpdate.swift` and `web-sdk/src/fixes.ts`,
+  `Sources/FeedbackKit/Model/FixUpdate.swift`, `web-sdk/src/fixes.ts` and
+  `android/feedbackkit/.../FixUpdate.kt`,
   and nothing enforces consistency, same as the wire format. The
   reporter-updates response and action payload are mirrored by hand in
-  `FixUpdatesClient.swift` and `web-sdk/src/fixes.ts`. `feedback_events` is
+  `FixUpdatesClient.swift`, `web-sdk/src/fixes.ts` and `FixUpdatesClient.kt`. `feedback_events` is
   append-only for members, and its insert policy pins `actor_user_id =
   auth.uid()` so no one can forge reporter/GitHub events. Only Edge
   Functions (service role) write those. `github-webhook` rejects every

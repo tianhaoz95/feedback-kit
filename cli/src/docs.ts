@@ -22,7 +22,7 @@ export const DOCS_TOPICS: DocTopic[] = [
     summary: "What FeedbackKit is and how its four pieces fit together. For the end-to-end walkthrough, see `lifecycle`.",
     content: `# FeedbackKit overview
 
-FeedbackKit is an iOS/macOS/watchOS SDK — plus a web SDK for websites (see the \`web-sdk\` topic) — for capturing in-app feedback, plus three optional ways to consume it: a hosted dashboard for your team, a CLI, and an MCP server for coding agents. Each piece works without the others. An Android SDK is coming soon; it isn't available yet.
+FeedbackKit is an iOS/macOS/watchOS SDK — plus a web SDK for websites (see the \`web-sdk\` topic) — for capturing in-app feedback, plus three optional ways to consume it: a hosted dashboard for your team, a CLI, and an MCP server for coding agents. Each piece works without the others. There's also a native Android SDK, and Flutter and React Native wrappers over the native iOS and Android SDKs (see the \`mobile-sdks\` topic).
 
 ## The four pieces
 
@@ -359,6 +359,88 @@ DOM rendering can't read cross-origin iframes, images without CORS headers, or W
 ## Allowed origins
 
 The project key is visible in page source. In the dashboard, Settings → Allowed web origins restricts which sites (\`https://app.example.com\`, \`https://*.example.com\`) may submit; empty = any. Native apps (no \`Origin\` header) are never affected. Submissions are also rate-limited per project.`,
+  },
+  {
+    slug: "mobile-sdks",
+    title: "Android, Flutter & React Native",
+    summary: "The native Android SDK, and the Flutter and React Native wrappers over the native iOS/Android SDKs.",
+    content: `# Android, Flutter & React Native
+
+A native Android SDK (\`android/feedbackkit\`, Kotlin, no dependencies beyond the Kotlin stdlib) with the same flow as the iOS SDK: capture the screen, mark it up (pen, rectangle, arrow, text, move with pinch/twist), describe the problem, get a structured \`FeedbackReport\`. The Flutter plugin (\`flutter/feedbackkit_flutter\`) and React Native module (\`react-native/\`) are thin bridges over the native iOS and Android SDKs, so the editor, capture and report are exactly what a native app gets. Reports use the same JSON contract as iOS — \`osName\` is \`Android\` or \`iOS\` — so the dashboard, prompts, CLI and Portal handle them unchanged.
+
+| App | Package | Requirements |
+|---|---|---|
+| Native Android | \`com.github.tianhaoz95.feedback-kit:feedbackkit:<tag>\` (JitPack) | minSdk 24 |
+| Flutter | \`feedbackkit_flutter\` (pubspec git dependency, \`path: flutter/feedbackkit_flutter\`) | minSdk 24, iOS 15 |
+| React Native | \`feedbackkit-react-native\` (npm) + the \`FeedbackKit\` pod | RN 0.76+ New Architecture, minSdk 24, iOS 15.1 |
+
+## Android
+
+\`\`\`kotlin
+// settings.gradle.kts: maven { url = uri("https://jitpack.io") }
+// app/build.gradle.kts:
+implementation("com.github.tianhaoz95.feedback-kit:feedbackkit:v<latest release>")
+
+// Application.onCreate():
+FeedbackKit.configure(FeedbackKitConfiguration(
+    endpointUrl = "https://<project>.supabase.co/functions/v1/ingest-feedback",
+    projectKey = "pk_live_...",
+))
+FeedbackKit.showFloatingTriggerButton()
+FeedbackKit.enableShakeToReport()
+FeedbackKit.enableFixVerification()
+FeedbackKit.currentScreen = "Checkout"           // as the user navigates
+FeedbackKit.present { report -> /* deliver it yourself */ }
+FeedbackKit.presentAndSubmitIfConfigured()       // or send it to the dashboard
+\`\`\`
+
+No manifest changes: the SDK merges in its editor activity and an initializer that tracks the foreground activity, so nothing takes an \`Activity\` argument. Capture is \`PixelCopy\` of the app's window plus every visible SurfaceView composited underneath (Flutter, video, maps), with no MediaProjection prompt. Fix verification compares the app's \`versionCode\`, so announce with \`feedbackkit release --build <versionCode>\`.
+
+## Flutter
+
+\`\`\`yaml
+dependencies:
+  feedbackkit_flutter:
+    git:
+      url: https://github.com/tianhaoz95/feedback-kit
+      path: flutter/feedbackkit_flutter
+\`\`\`
+
+\`\`\`dart
+await FeedbackKit.configure(const FeedbackKitConfiguration(endpointUrl: '...', projectKey: 'pk_live_...'));
+await FeedbackKit.showFloatingTriggerButton();
+await FeedbackKit.enableShakeToReport();
+MaterialApp(navigatorObservers: [FeedbackKitNavigatorObserver()]);  // currentScreen from route names
+final report = await FeedbackKit.present();            // FeedbackReport? (PNGs as Uint8List)
+final result = await FeedbackKit.presentAndSubmit();   // FeedbackSubmissionSuccess / Failure, null if cancelled
+\`\`\`
+
+iOS resolves the Swift SDK through Swift Package Manager automatically; apps that build plugins with CocoaPods add \`pod 'FeedbackKit', :git => 'https://github.com/tianhaoz95/feedback-kit.git'\` to ios/Podfile.
+
+## React Native
+
+\`\`\`bash
+npm install feedbackkit-react-native
+# ios/Podfile, in the app target (same version as the npm package):
+pod 'FeedbackKit', :git => 'https://github.com/tianhaoz95/feedback-kit.git', :tag => 'v<version>'
+\`\`\`
+
+\`\`\`ts
+import { FeedbackKit } from 'feedbackkit-react-native';
+FeedbackKit.configure({ endpointUrl: '...', projectKey: 'pk_live_...' });
+FeedbackKit.showFloatingTriggerButton();
+FeedbackKit.enableShakeToReport();
+FeedbackKit.setCurrentScreen(routeName);                     // e.g. from NavigationContainer onStateChange
+const report = await FeedbackKit.present();                  // PNGs base64
+const result = await FeedbackKit.presentAndSubmit();         // { status: 'success', report } | { status: 'failure', error }
+const unsubscribe = FeedbackKit.onSubmissionResult(listener);
+\`\`\`
+
+Expo works with a development build, not Expo Go.
+
+## Demo apps
+
+Each has the iOS demo's Home / Cart / Settings sample: \`./scripts/run-android.sh\` (android/demo), \`flutter run\` in flutter/feedbackkit_flutter/example, and \`corepack yarn example ios|android\` in react-native/.`,
   },
   {
     slug: "dashboard",

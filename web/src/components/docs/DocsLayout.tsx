@@ -62,6 +62,20 @@ const RAW_NAV: RawNavItem[] = [
     ],
   },
   {
+    to: "/docs/mobile-sdks",
+    label: "Android, Flutter & React Native",
+    sections: [
+      "Which package",
+      "Requirements",
+      "Android",
+      "Flutter",
+      "React Native",
+      "Tracking the current screen",
+      "Closing the loop",
+      "Try it",
+    ],
+  },
+  {
     to: "/docs/web-sdk",
     label: "Web SDK",
     sections: [

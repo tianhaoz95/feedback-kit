@@ -1,0 +1,66 @@
+name: Flutter Plugin CI
+
+# The Flutter plugin (flutter/feedbackkit_flutter) compiles the native SDKs
+# from this repo, so Swift or Android SDK changes can break it too.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "flutter/**"
+      - "android/feedbackkit/**"
+      - "Sources/**"
+      - "Package.swift"
+      - ".github/workflows/flutter-ci.yml"
+  pull_request:
+    paths:
+      - "flutter/**"
+      - "android/feedbackkit/**"
+      - "Sources/**"
+      - "Package.swift"
+      - ".github/workflows/flutter-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: flutter-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dart-and-android:
+    name: Analyze, test, Android demo build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: flutter/feedbackkit_flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - name: Build the demo app (Android)
+        working-directory: flutter/feedbackkit_flutter/example
+        run: flutter build apk --debug
+
+  ios:
+    name: iOS demo build (Swift Package Manager)
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Build the demo app for the iOS Simulator
+        working-directory: flutter/feedbackkit_flutter/example
+        run: flutter build ios --simulator --debug

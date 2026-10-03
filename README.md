@@ -3,6 +3,9 @@
 | Product | Tests | Release / deploy |
 | --- | --- | --- |
 | Swift SDK (iOS, macOS, watchOS) | [![SDK CI](https://github.com/tianhaoz95/feedback-kit/actions/workflows/sdk-ci.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/sdk-ci.yml) | — |
+| Android SDK | [![Android SDK CI](https://github.com/tianhaoz95/feedback-kit/actions/workflows/android-ci.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/android-ci.yml) | JitPack (built from release tags) |
+| Flutter plugin | [![Flutter Plugin CI](https://github.com/tianhaoz95/feedback-kit/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/flutter-ci.yml) | — |
+| React Native module | [![React Native Module CI](https://github.com/tianhaoz95/feedback-kit/actions/workflows/react-native-ci.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/react-native-ci.yml) | [![Publish React Native Module](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-react-native.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-react-native.yml) |
 | Developer Portal (iOS, macOS) | [![Portal CI](https://github.com/tianhaoz95/feedback-kit/actions/workflows/portal-ci.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/portal-ci.yml) | [![Beta](https://github.com/tianhaoz95/feedback-kit/actions/workflows/beta.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/beta.yml) [![Release Portal to TestFlight](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight-portal.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight-portal.yml) [![Release macOS Portal](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-portal-macos.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-portal-macos.yml) |
 | Demo apps | — | [![Release to TestFlight](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight.yml) [![Release macOS Demo](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-macos-demo.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-macos-demo.yml) |
 | Web SDK and dashboard | [![Web SDK CI](https://github.com/tianhaoz95/feedback-kit/actions/workflows/web-sdk-ci.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/web-sdk-ci.yml) | [![Publish Web SDK Package](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-web-sdk.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-web-sdk.yml) [![Announce web deploy](https://github.com/tianhaoz95/feedback-kit/actions/workflows/announce-web.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/announce-web.yml) |
@@ -15,7 +18,9 @@ annotations + description + device/app/screen info on iOS/macOS; text +
 context only on watchOS), a web SDK that does the same for websites (plus
 the page URL and recent console errors / failed requests), and an optional
 Supabase-backed dashboard for collecting it with your team and turning it
-into prompts for a coding agent. An Android SDK is coming soon.
+into prompts for a coding agent. A native Android SDK brings the same flow to
+Android, and Flutter and React Native wrappers run the native iOS and Android
+SDKs under the hood.
 
 > 📖 **Developer Documentation & Contributor Guide**: [https://tianhaoz95.github.io/feedback-kit/](https://tianhaoz95.github.io/feedback-kit/)  
 > 🚀 **Live Web Dashboard**: [https://feedback-kit.hejitech.workers.dev](https://feedback-kit.hejitech.workers.dev)
@@ -107,6 +112,39 @@ npm install
 npm test           # unit tests
 npm run test:e2e   # the full flow in real Chromium, Firefox and WebKit
 ```
+
+### Android, Flutter and React Native
+
+- **Android** (`android/`): a native Kotlin SDK (`android/feedbackkit`) with the
+  same flow and report as the iOS SDK, plus a demo app (`android/demo`) with a
+  Jetpack Compose Home screen, a classic-View Cart screen and Settings.
+
+  ```bash
+  ./scripts/run-android.sh                          # builds, installs, launches on a device/emulator
+  cd android && ./gradlew :feedbackkit:testDebugUnitTest
+  ```
+
+- **Flutter** (`flutter/feedbackkit_flutter`): a plugin over the native SDKs,
+  with the demo app in `example/`.
+
+  ```bash
+  cd flutter/feedbackkit_flutter && flutter test
+  cd example && flutter run
+  ```
+
+- **React Native** (`react-native/`, npm `feedbackkit-react-native`): a New
+  Architecture TurboModule over the native SDKs, with the demo app in
+  `example/`.
+
+  ```bash
+  cd react-native && corepack yarn && corepack yarn test
+  corepack yarn example ios        # or: corepack yarn example android
+  ```
+
+Inside this repo all three build against the SDK sources here, so a Swift or
+Android SDK change can be tried in every app at once. See
+[`/docs/mobile-sdks`](https://feedback-kit.hejitech.workers.dev/docs/mobile-sdks)
+for the install snippets apps use.
 
 ### Run the web dashboard
 
@@ -401,6 +439,9 @@ This publishes the GitHub release (tag `v1.0.0`) and triggers all release pipeli
 5. **`.github/workflows/publish-cli.yml`**: Builds, tests, and publishes `feedbackkit-cli` to both the public npm registry (`feedbackkit-cli`) and GitHub Packages (`@tianhaoz95/feedbackkit-cli`).
 6. **`.github/workflows/publish-skills.yml`**: Validates and publishes `feedback-kit-skills` to both the public npm registry (`feedback-kit-skills`) and GitHub Packages (`@tianhaoz95/feedback-kit-skills`).
 7. **`.github/workflows/publish-web-sdk.yml`**: Publishes `feedbackkit-web` to npm and GitHub Packages.
+8. **`.github/workflows/publish-react-native.yml`**: Publishes `feedbackkit-react-native` to npm. Its prepack step bundles the Android SDK.
+
+The Android SDK has no pipeline: JitPack builds `android/feedbackkit` from the tag the first time someone requests it (`jitpack.yml`). The Flutter plugin isn't on pub.dev yet; apps depend on it from GitHub with a `git:` dependency. See `flutter/feedbackkit_flutter/README.md`.
 
 To release just one component, add its flag — it gets its own prefixed tag, and only that component's pipeline runs:
 
@@ -411,6 +452,7 @@ To release just one component, add its flag — it gets its own prefixed tag, an
 | `--cli` | `cli-v1.0.0` | `publish-cli.yml` |
 | `--skills` | `skills-v1.0.0` | `publish-skills.yml` |
 | `--web-sdk` | `web-sdk-v1.0.0` | `publish-web-sdk.yml` |
+| `--react-native` | `react-native-v1.0.0` | `publish-react-native.yml` |
 
 Every release workflow follows this rule (a unified `vX.Y.Z` runs them all; a prefixed tag runs only its owner), so a new pipeline should skip every *other* prefix in its job's `if:` and be added to `scripts/cut_release.sh`.
 
@@ -446,13 +488,16 @@ API key with access to the team, the same one works for both.
 |---|---|
 | `Sources/FeedbackKit/` | The iOS + macOS + watchOS SDK (Swift Package) |
 | `Tests/FeedbackKitTests/` | SDK unit tests |
+| `android/` | Native Android SDK (`feedbackkit`) and its demo app (`demo`), one Gradle project |
+| `flutter/feedbackkit_flutter/` | Flutter plugin over the native iOS/Android SDKs, demo app in `example/` |
+| `react-native/` | React Native module (npm `feedbackkit-react-native`) over the native SDKs, demo app in `example/` |
 | `DemoApp/` | Sample apps exercising the SDK on iOS, macOS, and watchOS (one XcodeGen project, three targets) |
 | `web/` | Static SPA dashboard (Vite + React), deployed to Cloudflare Workers Static Assets |
 | `docs/` | Contributor developer documentation (VitePress), deployed to GitHub Pages |
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function, billing (Stripe) Edge Functions |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) |
 | `skills/` | Agent Skills catalog (`vercel-labs/skills`) for automated setup via AI coding agents |
-| `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `release_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh`, `release_portal_macos.sh` |
+| `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `run-android.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `release_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh`, `release_portal_macos.sh` |
 
 ## Contributing
 

@@ -44,12 +44,18 @@ dependencies {
     testImplementation("org.json:json:20240303")
 }
 
+// JitPack (jitpack.yml) builds tags on demand and serves a multi-module repo
+// as com.github.<user>.<repo>:<module>:<tag>, so it gets those coordinates;
+// everywhere else (mavenLocal, a future Maven Central release) it's
+// com.feedbackkit:feedbackkit-android.
+val onJitPack = System.getenv("JITPACK") == "true"
+
 publishing {
     publications {
         register<MavenPublication>("release") {
-            groupId = "com.feedbackkit"
-            artifactId = "feedbackkit-android"
-            version = providers.gradleProperty("VERSION_NAME").get()
+            groupId = if (onJitPack) "com.github.tianhaoz95.feedback-kit" else "com.feedbackkit"
+            artifactId = if (onJitPack) "feedbackkit" else "feedbackkit-android"
+            version = System.getenv("VERSION") ?: providers.gradleProperty("VERSION_NAME").get()
             afterEvaluate { from(components["release"]) }
             pom {
                 name.set("FeedbackKit for Android")
