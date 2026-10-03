@@ -8,6 +8,8 @@ name: FeedbackKit agent (Antigravity)
 # workflow commits (with the `FeedbackKit: <id>` trailer), pushes a branch and
 # opens the PR, so the report moves to "PR open" → merged → shipped →
 # verified by the reporter.
+# With the project's delivery mode set to Batch (Settings → Delivery), the
+# fix is pushed straight to the default branch instead, unless it's protected.
 #
 # Adapt: antigravity (use a different label than any other agent
 # workflow, or both run), and the build instructions in the prompt.
@@ -155,8 +157,8 @@ jobs:
             fi
             echo "How this run works:"
             echo "- Reproduce the bug first if you can, then fix it by editing files. This repo: the Swift SDK builds with \`swift build\` / \`swift test\`; the dashboard (web/), CLI (cli/) and web SDK (web-sdk/) each build and test with \`npm run build\` / \`npm test\` in their folder. Read CLAUDE.md first."
-            echo "- Read-only git (log, show, diff, status, blame, grep, ls-files) is fine; don't commit, branch or push: this workflow commits, pushes and opens the pull request after you finish."
-            echo "- End with one short paragraph, in plain language, describing what you changed and why; it becomes the pull request description."
+            echo "- Read-only git (log, show, diff, status, blame, grep, ls-files) is fine; don't commit, branch or push: this workflow commits and pushes after you finish (straight to the default branch or as a pull request, per the project's delivery mode)."
+            echo "- End with one short paragraph, in plain language, describing what you changed and why; it becomes the pull request description (or, committed straight to the default branch, a comment on the issue)."
             echo "- If you can't fix it, change nothing and explain why."
             echo "- Only open files inside this repository or ${RUNNER_TEMP}/agent-scratch (the temp dir): reading anything else needs a permission this unattended run can't ask for, so it ends the run. Put screenshots in .agent-preview/ (gitignored; the capture scripts' default)."
             # Headless Antigravity ends the whole run at the first tool call
@@ -213,7 +215,7 @@ jobs:
             fi
           fi
 
-      - name: Commit and open a pull request
+      - name: Commit, then push or open a pull request
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -247,6 +249,36 @@ jobs:
               echo "::error::The fix conflicts with changes made to ${DEFAULT_BRANCH} while the agent worked. Re-dispatch the report."
               exit 1
             fi
+          fi
+          # Delivery mode (project Settings → Delivery): Batch lands the fix
+          # straight on the default branch, to ship with the next build. Branch
+          # previews (FeedbackKit's issue then says "don't push to the default
+          # branch"), an issue FeedbackKit didn't write and a follow-up go
+          # through a pull request, as does a fix the default branch refuses
+          # (branch protection, or a push that landed while the agent worked).
+          if [ -z "$PR_NUMBER" ] && [ -n "$FEEDBACK_IDS" ] \
+              && ! printf '%s' "$ISSUE_BODY" | grep -qF "don't push to the default branch"; then
+            if git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${DEFAULT_BRANCH}"; then
+              echo "BRANCH=$DEFAULT_BRANCH" >> "$GITHUB_ENV"
+              { echo "$SUMMARY"; echo; echo "Committed to \`${DEFAULT_BRANCH}\` as $(git rev-parse HEAD) (batch delivery); it ships with the next build."; } > "$RUNNER_TEMP/comment.md"
+              gh issue comment "$ISSUE_NUMBER" --body-file "$RUNNER_TEMP/comment.md"
+              # A push with the run's own token starts no workflows, so dispatch
+              # what a push to the default branch would have run.
+              WF=""
+              for f in $(git diff --name-only "origin/${DEFAULT_BRANCH}...HEAD"); do
+                case "$f" in
+                  web/*|web-sdk/*) WF="$WF web-sdk-ci.yml announce-web.yml" ;;
+                  cli/*) WF="$WF cli-ci.yml" ;;
+                  supabase/functions/*) WF="$WF backend-ci.yml deploy-functions.yml" ;;
+                  supabase/*|skills/*) WF="$WF backend-ci.yml" ;;
+                  docs/*) WF="$WF deploy-docs.yml" ;;
+                  Sources/*|Tests/*|Package.swift|DeveloperApp/*) WF="$WF beta.yml" ;;
+                esac
+              done
+              for wf in $(printf '%s\n' $WF | sort -u); do gh workflow run "$wf" --ref "$DEFAULT_BRANCH"; done
+              exit 0
+            fi
+            echo "::warning::${DEFAULT_BRANCH} refused the fix; opening a pull request instead."
           fi
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${BRANCH}"
           # A follow-up lands on the existing PR: say what changed there. A

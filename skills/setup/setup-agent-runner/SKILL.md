@@ -140,7 +140,7 @@ As the user the runner service runs as:
    ```
 
    MCP calls need allow rules like commands do, one per tool as `mcp(<server>/<tool>)` (`mcp(feedbackkit/*)` allows them all; a bare `mcp(feedbackkit)` matches nothing). Leave out `update_feedback_status` and `link_fix`: the workflow links the fix itself.
-4. Copy `templates/feedbackkit-agent-antigravity.yml.template` to `.github/workflows/feedbackkit-agent-antigravity.yml` and replace `__DISPATCH_LABEL__` (e.g. `antigravity`) and `__CI_WORKFLOWS__` with the repository's CI workflow files (e.g. `ci.yml`; add `workflow_dispatch:` to each if missing, since a PR opened by the run's own token doesn't start workflows by itself — or leave it empty). The checkout keeps no credentials (`persist-credentials: false`), so only the workflow's own step can push.
+4. Copy `templates/feedbackkit-agent-antigravity.yml.template` to `.github/workflows/feedbackkit-agent-antigravity.yml` and replace `__DISPATCH_LABEL__` (e.g. `antigravity`) and `__CI_WORKFLOWS__` with the repository's CI workflow files (e.g. `ci.yml`; add `workflow_dispatch:` to each if missing, since a PR opened by the run's own token doesn't start workflows by itself — or leave it empty), and `__MAIN_WORKFLOWS__` with the workflows a push to the default branch runs (CI and the beta/release workflow, each with `workflow_dispatch:`; or leave it empty). With the project's delivery mode set to **Batch** (Settings → Delivery), the workflow pushes the fix straight to the default branch, and a push with the run's own token starts no workflows either, so it dispatches those. Under **Branch previews**, or when branch protection refuses the push, it opens a PR instead. The checkout keeps no credentials (`persist-credentials: false`), so only the workflow's own step can push.
 5. The workflow opens the pull request with the run's own token, which GitHub blocks unless the repository allows it: **Settings → Actions → General → Workflow permissions → "Allow GitHub Actions to create and approve pull requests"**. Ask the user before turning it on (it also lets any workflow approve PRs). If they say no, the run still pushes its branch and fails at the last step; they open the PR from that branch by hand.
 
 Then continue at Step 5.
@@ -154,7 +154,7 @@ No runner to register (skip Step 2). Each run installs `agy` with the official i
 3. Copy `templates/feedbackkit-agent-antigravity-hosted.yml.template` to `.github/workflows/feedbackkit-agent-antigravity-hosted.yml` and replace:
    - `__DISPATCH_LABEL__` (e.g. `antigravity`),
    - `__RUNNER__`: `macos-15` to build an iOS/macOS app, `ubuntu-latest` for a web app (cheaper and faster; GitHub-hosted runners are free on public repos),
-   - `__CI_WORKFLOWS__` as in Step 3b.
+   - `__CI_WORKFLOWS__` and `__MAIN_WORKFLOWS__` as in Step 3b.
 4. Edit the allow list in the workflow's **Configure Antigravity** step: it starts with read-only commands, read-only git and the Apple build tools; swap the last line for the project's tools (e.g. `command(npm)`, `command(node)` for a web app). Same rules as Step 3b: never plain `command(git)`, never `--dangerously-skip-permissions`. The settings need `"modelProvider": "gemini"`; the key alone does nothing.
 5. The same repository setting as Step 3b's item 5 (Actions may create pull requests), asked the same way.
 
@@ -188,7 +188,7 @@ Dashboard → project **Settings → Coding agent loop** → dispatch labels = t
 
 - Only people with write access, or FeedbackKit's app, can add the label.
 - The runner only runs the agent workflows from the default branch (Step 2b's hook), so a pull request's own workflow files can't reach the Mac.
-- Report text is written by app users. It reaches the agent as issue text, so a malicious report could try to steer it. The allowed-tools list is the fence: no credentials on the runner beyond what the build needs, and the agent opens a PR — it never merges. Say plainly that allowing an interpreter or package manager (`node`, `npm`, `python`, `swift` running scripts) lets the agent run any code and reach the network through it (Antigravity has been seen running `node -e "fetch(...)"` to download assets), so on a Mac that holds personal credentials the real boundary is the runner's user account.
+- Report text is written by app users. It reaches the agent as issue text, so a malicious report could try to steer it. The allowed-tools list is the fence: no credentials on the runner beyond what the build needs, and under Branch previews the agent opens a PR — it never merges. Under Batch delivery the Antigravity workflows push the fix straight to the default branch, so a report's fix ships without review: tell the user, and suggest branch protection on the default branch (the workflow then opens a PR instead) or Branch previews if they want a person to review every fix. Say plainly that allowing an interpreter or package manager (`node`, `npm`, `python`, `swift` running scripts) lets the agent run any code and reach the network through it (Antigravity has been seen running `node -e "fetch(...)"` to download assets), so on a Mac that holds personal credentials the real boundary is the runner's user account.
 - Every run is visible in the repo's Actions tab.
 
 ### Step 7 -- Alternative: `feedbackkit watch` (no CI)
