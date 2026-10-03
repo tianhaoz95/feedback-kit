@@ -1,0 +1,40 @@
+{
+  "name": "feedbackkit-electron",
+  "version": "1.0.62",
+  "description": "In-app feedback for Electron apps: FeedbackKit's web SDK in the renderer, plus native page capture, real OS/device/app details, a Help-menu item and a global shortcut from the main process.",
+  "license": "MIT",
+  "homepage": "https://github.com/tianhaoz95/feedback-kit/tree/main/desktop/electron#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tianhaoz95/feedback-kit.git",
+    "directory": "desktop/electron"
+  },
+  "keywords": ["electron", "feedback", "bug-report", "screenshot", "annotation", "feedbackkit"],
+  "files": ["dist", "README.md"],
+  "exports": {
+    "./main": {
+      "types": "./dist/main.d.ts",
+      "default": "./dist/main.js"
+    },
+    "./renderer": {
+      "types": "./dist/renderer/renderer.d.ts",
+      "default": "./dist/renderer/renderer.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json",
+    "lint": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
+    "test": "node --test test/*.test.mjs",
+    "prepack": "npm run build"
+  },
+  "peerDependencies": {
+    "electron": ">=35",
+    "feedbackkit-web": ">=1.0.63"
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "feedbackkit-web": "file:../../web-sdk",
+    "typescript": "^5.9.3"
+  }
+}

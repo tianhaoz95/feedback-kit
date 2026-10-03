@@ -69,7 +69,43 @@ export interface FeedbackEnvironment {
   browserName?: string;
   /** Full browser version, e.g. "141.0.7390.54". */
   browserVersion?: string;
+  /**
+   * The desktop shell the page runs in, when it isn't a browser tab:
+   * `"tauri"` (set by `feedbackkit-tauri`) or `"electron"` (set by
+   * `feedbackkit-electron`). Unset in a browser.
+   */
+  runtime?: string;
+  /** That shell's version, e.g. Tauri "2.8.5" or Electron "38.2.0". */
+  runtimeVersion?: string;
 }
+
+/**
+ * Device/app fields a host can supply when it knows better than the browser
+ * — the desktop packages (`feedbackkit-tauri`, `feedbackkit-electron`) fill
+ * these from the OS and the app bundle. Merged over what the SDK detects;
+ * an explicit `appVersion`/`appBuild` in the configuration still wins.
+ */
+export type EnvironmentOverrides = Partial<
+  Pick<
+    FeedbackEnvironment,
+    "osName" | "osVersion" | "deviceModel" | "appVersion" | "appBuild" | "bundleIdentifier" | "runtime" | "runtimeVersion"
+  >
+>;
+
+/**
+ * Supplies the screenshot instead of the built-in DOM capture, e.g. a desktop
+ * shell's native page capture (`feedbackkit-electron` uses Electron's
+ * `webContents.capturePage`). FeedbackKit hides its own UI first. Return a
+ * canvas, a PNG `Blob` or a data URL of the viewport, or `null` to fall back
+ * to the built-in capture.
+ */
+export type CaptureProvider = (request: {
+  /** Viewport size in CSS pixels. */
+  width: number;
+  height: number;
+  /** The pixel ratio the image will be scaled to. */
+  pixelRatio: number;
+}) => Promise<HTMLCanvasElement | Blob | string | null>;
 
 export type LogLevel = "log" | "info" | "warn" | "error" | "debug" | "network";
 
@@ -169,6 +205,8 @@ export interface FeedbackKitConfiguration {
    * `reporter-updates` function). Defaults to the sibling of `endpoint`.
    */
   reporterUpdatesEndpoint?: string;
+  /** Device/app fields that override what the SDK detects — see `EnvironmentOverrides`. */
+  environment?: EnvironmentOverrides;
 }
 
 /** Optional identity of the person using your site, attached to their reports. Mirrors Swift's `FeedbackUser`. */
@@ -223,4 +261,6 @@ export interface CaptureOptions {
    * ratio is lowered further (never below 1) until the image's longest edge is at most 1600 px.
    */
   maxPixelRatio?: number;
+  /** Replaces the built-in capture — see `CaptureProvider`. Falls back to `"dom"` when it returns `null` or throws. */
+  provider?: CaptureProvider;
 }

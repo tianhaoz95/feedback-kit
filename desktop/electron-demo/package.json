@@ -1,0 +1,22 @@
+{
+  "name": "feedbackkit-electron-demo",
+  "private": true,
+  "version": "1.0.62",
+  "description": "FeedbackKit's Electron demo app — the same Home / Cart / Settings sample as the other demos.",
+  "main": "main.cjs",
+  "scripts": {
+    "build": "npm --prefix ../electron run build && vite build",
+    "start": "npm run build && electron .",
+    "test:e2e": "npm run build && node e2e/run.mjs"
+  },
+  "dependencies": {
+    "feedbackkit-electron": "file:../electron"
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "modern-screenshot": "^4.7.0",
+    "playwright": "^1.63.0",
+    "typescript": "^5.9.3",
+    "vite": "^7"
+  }
+}

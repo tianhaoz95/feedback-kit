@@ -4,6 +4,7 @@ import { DEFAULT_ENDPOINT, fetchProducts, submitReport } from "./submit";
 import { fetchFixUpdates, getUser, reporterId, sendFixAction, setUser, type FixAction } from "./fixes";
 import type {
   CaptureOptions,
+  EnvironmentOverrides,
   FeedbackKitConfiguration,
   FeedbackProduct,
   FeedbackReport,
@@ -76,6 +77,7 @@ const widget = new Widget({
   captureOptions: () => FeedbackKit.captureOptions,
   includeScreenshot: () => FeedbackKit.includeScreenshot,
   currentScreen: () => FeedbackKit.currentScreen,
+  environmentOverrides: () => ({ ...FeedbackKit.environment, ...configuration?.environment }),
   identity: () => ({ reporterId: reporterId(), user: getUser() }),
 });
 
@@ -190,6 +192,14 @@ export const FeedbackKit = {
 
   /** Screenshot capture settings. See `CaptureOptions`. */
   captureOptions: {} as CaptureOptions,
+
+  /**
+   * Device/app fields that override what the SDK detects, for hosts that
+   * know better (the desktop packages set this from the OS and app bundle).
+   * Applies with or without `configure`; the configuration's `environment`
+   * wins where both set a field. See `EnvironmentOverrides`.
+   */
+  environment: {} as EnvironmentOverrides,
 
   /** Whether screenshots should be captured and included in reports by default. Default `true`. */
   includeScreenshot: true,
@@ -328,7 +338,12 @@ export const FeedbackKit = {
 
   /** Captures the current viewport as a PNG, without opening any UI. */
   async captureScreenshot(options: CaptureOptions = {}): Promise<Blob> {
-    const shot = await captureViewport({ ...FeedbackKit.captureOptions, ...options, exclude: widget.isOwnNode });
+    const shot = await captureViewport({
+      ...FeedbackKit.captureOptions,
+      ...options,
+      exclude: widget.isOwnNode,
+      hideOwnUi: widget.hideForCapture,
+    });
     return canvasToPngBlob(shot.canvas);
   },
 

@@ -1,6 +1,6 @@
 import type { FeedbackEnvironment } from "@/lib/types";
 
-export type PlatformId = "web" | "ios" | "macos" | "watchos" | "android" | "unknown";
+export type PlatformId = "web" | "tauri" | "electron" | "ios" | "macos" | "watchos" | "android" | "unknown";
 
 export interface PlatformInfo {
   id: PlatformId;
@@ -15,7 +15,14 @@ export interface PlatformInfo {
  * Native wrappers, reports "Android").
  */
 export function platformOf(env: Partial<FeedbackEnvironment> | null | undefined): PlatformInfo {
-  if (env?.platform === "web") return { id: "web", label: "Web" };
+  if (env?.platform === "web") {
+    // The web SDK inside a desktop shell (feedbackkit-tauri / -electron).
+    if (env.runtime === "tauri" || env.runtime === "electron") {
+      const name = env.runtime === "tauri" ? "Tauri" : "Electron";
+      return { id: env.runtime, label: env.osName ? `${name} · ${env.osName}` : name };
+    }
+    return { id: "web", label: "Web" };
+  }
   const os = (env?.osName ?? "").toLowerCase();
   if (os === "ios" || os === "ipados") return { id: "ios", label: env?.osName ?? "iOS" };
   if (os === "macos") return { id: "macos", label: "macOS" };

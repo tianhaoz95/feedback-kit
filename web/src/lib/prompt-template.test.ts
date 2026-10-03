@@ -206,6 +206,13 @@ test("renderPromptTemplate fills web placeholders and doesn't duplicate the sect
   assert.ok(!result.includes("## Web context"));
 });
 
+test("renderPromptTemplate names the desktop shell for Tauri and Electron reports", () => {
+  const tauri = createMockFeedback({ environment: { ...webEnv, osName: "Windows", runtime: "tauri", runtimeVersion: "2.8.5" } });
+  assert.ok(renderPromptTemplate("{{platform}}", tauri, null, null).startsWith("Tauri app on Windows\n"));
+  const electron = createMockFeedback({ environment: { ...webEnv, osName: "Linux", runtime: "electron" } });
+  assert.ok(renderPromptTemplate("{{platform}}", electron, null, null).startsWith("Electron app on Linux\n"));
+});
+
 test("renderPromptTemplate leaves native reports without a web section", () => {
   const result = renderPromptTemplate("{{feedback_text}} {{platform}}", createMockFeedback(), null, null);
   assert.equal(result, "Button overlaps with text on iPhone 16 iOS");

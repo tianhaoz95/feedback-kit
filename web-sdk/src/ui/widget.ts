@@ -3,6 +3,7 @@ import { collectEnvironment } from "../environment";
 import { submitReport } from "../submit";
 import type {
   CaptureOptions,
+  EnvironmentOverrides,
   FeedbackAttachment,
   FeedbackEnvironment,
   FeedbackKitConfiguration,
@@ -27,6 +28,8 @@ export interface WidgetDeps {
   captureOptions(): CaptureOptions;
   includeScreenshot?(): boolean;
   currentScreen(): string | null;
+  /** Host-supplied environment fields (FeedbackKit.environment + the configuration's). */
+  environmentOverrides?(): EnvironmentOverrides;
   /** Reporter identity attached to submitted reports (fixes.ts). */
   identity(): { reporterId: string; user: FeedbackUser | null };
 }
@@ -137,6 +140,17 @@ export class Widget {
 
   /** True for the widget's own host element — used to keep it out of screenshots. */
   isOwnNode = (node: Node): boolean => node === this.host;
+
+  /** Hides the widget (trigger button, capture overlay) for a native capture; returns a restore function. */
+  hideForCapture = (): (() => void) => {
+    const host = this.host;
+    if (!host) return () => {};
+    const previous = host.style.visibility;
+    host.style.visibility = "hidden";
+    return () => {
+      host.style.visibility = previous;
+    };
+  };
 
   get isOpen(): boolean {
     return this.pending !== null;
@@ -292,7 +306,7 @@ export class Widget {
       // the dialog covers the page, concurrently with environment and product catalog fetching.
       const [shot, environment, products] = await Promise.all([
         shouldCapture
-          ? captureViewport({ ...captureOptions, exclude: this.isOwnNode }).catch((error: unknown) => {
+          ? captureViewport({ ...captureOptions, exclude: this.isOwnNode, hideOwnUi: this.hideForCapture }).catch((error: unknown) => {
               console.warn("[FeedbackKit] Screenshot capture failed; continuing without one.", error);
               return null;
             })
@@ -301,6 +315,7 @@ export class Widget {
           screenName: this.deps.currentScreen(),
           appVersion: this.deps.configuration()?.appVersion,
           appBuild: this.deps.configuration()?.appBuild,
+          overrides: this.deps.environmentOverrides?.() ?? this.deps.configuration()?.environment,
         }),
         this.deps.products().catch(() => [] as FeedbackProduct[]),
       ]);

@@ -34,6 +34,14 @@ public enum PromptGenerator {
         return "```\n" + lines.joined(separator: "\n") + "\n```"
     }
 
+    /// "Tauri app on Windows" for a web report from a desktop shell, "Web"
+    /// for a browser tab — same rule as the dashboard, CLI and Edge Function.
+    static func webPlatformLabel(_ env: FeedbackEnvironment) -> String {
+        guard let runtime = env.runtime, !runtime.isEmpty else { return "Web" }
+        let name = runtime == "tauri" ? "Tauri" : runtime == "electron" ? "Electron" : runtime
+        return env.osName.isEmpty ? "\(name) app" : "\(name) app on \(env.osName)"
+    }
+
     static func browserLabel(_ env: FeedbackEnvironment) -> String {
         if let name = env.browserName {
             return "\(name) \(env.browserVersion ?? "")".trimmingCharacters(in: .whitespaces)
@@ -120,7 +128,7 @@ public enum PromptGenerator {
             "screenshot_url": screenshotUrl ?? "",
             "attachment_url": attachmentUrl ?? "(no attachment)",
             "products": formatProductsList(feedback.products),
-            "platform": env.isWeb ? "Web" : env.osName,
+            "platform": env.isWeb ? webPlatformLabel(env) : env.osName,
             "page_url": env.pageUrl ?? "(not a web report)",
             "browser": env.isWeb ? browserLabel(env) : "(not a web report)",
             "console_logs": formatConsoleLogs(feedback.logs),

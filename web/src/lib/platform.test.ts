@@ -12,6 +12,9 @@ test("platformOf recognizes every SDK", () => {
   // The Android SDK, and Flutter/React Native apps running on Android.
   assert.deepEqual(platformOf({ osName: "Android" }), { id: "android", label: "Android" });
   assert.equal(platformOf({ osName: "Tizen" }).id, "unknown");
+  // The web SDK inside desktop shells.
+  assert.deepEqual(platformOf({ platform: "web", runtime: "tauri", osName: "Windows" }), { id: "tauri", label: "Tauri · Windows" });
+  assert.deepEqual(platformOf({ platform: "web", runtime: "electron", osName: "Linux" }), { id: "electron", label: "Electron · Linux" });
   assert.equal(platformOf(null).id, "unknown");
 });
 

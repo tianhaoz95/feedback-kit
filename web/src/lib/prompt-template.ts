@@ -129,7 +129,7 @@ export function renderPromptTemplate(
     screenshot_url: screenshotUrl ?? "",
     attachment_url: attachmentUrl ?? "(no attachment)",
     products: formatProductsList(feedback.products),
-    platform: env.platform === "web" ? "Web" : env.osName ?? "",
+    platform: env.platform === "web" ? webPlatformLabel(env) : env.osName ?? "",
     page_url: env.pageUrl ?? "(not a web report)",
     browser: env.platform === "web" ? browserLabel(env) : "(not a web report)",
     console_logs: formatConsoleLogs(feedback.logs),
@@ -293,3 +293,9 @@ ${instructions}
 `;
 }
 
+/** "Tauri app on Windows" for a desktop shell, "Web" for a browser tab. */
+function webPlatformLabel(env: { runtime?: string; osName?: string }): string {
+  if (!env.runtime) return "Web";
+  const runtime = env.runtime === "tauri" ? "Tauri" : env.runtime === "electron" ? "Electron" : env.runtime;
+  return env.osName ? `${runtime} app on ${env.osName}` : `${runtime} app`;
+}
