@@ -22,7 +22,7 @@ export const DOCS_TOPICS: DocTopic[] = [
     summary: "What FeedbackKit is and how its four pieces fit together. For the end-to-end walkthrough, see `lifecycle`.",
     content: `# FeedbackKit overview
 
-FeedbackKit is an iOS/macOS/watchOS SDK — plus a web SDK for websites (see the \`web-sdk\` topic) — for capturing in-app feedback, plus three optional ways to consume it: a hosted dashboard for your team, a CLI, and an MCP server for coding agents. Each piece works without the others. There's also a native Android SDK, and Flutter and React Native wrappers over the native iOS and Android SDKs (see the \`mobile-sdks\` topic).
+FeedbackKit is an iOS/macOS/watchOS SDK — plus a web SDK for websites (see the \`web-sdk\` topic) — for capturing in-app feedback, plus three optional ways to consume it: a hosted dashboard for your team, a CLI, and an MCP server for coding agents. Each piece works without the others. There's also a native Android SDK, Flutter and React Native wrappers over the native iOS and Android SDKs (see the \`mobile-sdks\` topic), and packages for Tauri and Electron desktop apps (see the \`desktop\` topic).
 
 ## The four pieces
 
@@ -441,6 +441,63 @@ Expo works with a development build, not Expo Go.
 ## Demo apps
 
 Each has the iOS demo's Home / Cart / Settings sample: \`./scripts/run-android.sh\` (android/demo), \`flutter run\` in flutter/feedbackkit_flutter/example, and \`corepack yarn example ios|android\` in react-native/.`,
+  },
+  {
+    slug: "desktop",
+    title: "Tauri & Electron",
+    summary: "Desktop apps on Windows, Linux and macOS: the web SDK plus real device details and native triggers.",
+    content: `# Tauri & Electron
+
+Desktop apps built with Tauri 2 or Electron (35+) use FeedbackKit's web SDK in their webview, plus a small package per shell for what a webview can't do: the real OS version (Windows 11 vs 10, the Linux distribution), machine model and app id/version/build, and native triggers. Reports are web-SDK reports with \`environment.runtime\` = \`tauri\` or \`electron\` (plus \`runtimeVersion\`). The dashboard labels them "Tauri · Windows", and \`{{platform}}\` in prompts reads "Tauri app on Windows".
+
+## Tauri
+
+\`\`\`bash
+cargo add tauri-plugin-feedbackkit --manifest-path src-tauri/Cargo.toml   # or a git dependency on github.com/tianhaoz95/feedback-kit
+npm install feedbackkit-tauri feedbackkit-web
+\`\`\`
+
+\`\`\`rust
+tauri::Builder::default()
+    .plugin(tauri_plugin_feedbackkit::init())
+    .setup(|app| {
+        let menu = tauri::menu::Menu::default(app.handle())?;
+        let report = tauri_plugin_feedbackkit::menu_item(app)?;            // "Report a Problem…", ⌘⇧F / Ctrl+Shift+F
+        menu.append(&tauri::menu::Submenu::with_items(app, "Help", true, &[&report])?)?;
+        app.set_menu(menu)?;
+        Ok(())
+    })
+// tauri_plugin_feedbackkit::present(app.handle()) from a tray item or global shortcut
+\`\`\`
+
+Add \`"feedbackkit:default"\` to the window's capability permissions. Frontend:
+
+\`\`\`ts
+import { configure, FeedbackKit } from "feedbackkit-tauri";
+await configure({ projectKey: "pk_live_..." });        // or configure(null) for local-only
+FeedbackKit.showFloatingTriggerButton();
+\`\`\`
+
+Screenshots are the web SDK's DOM re-rendering (no permission prompt). \`appBuild\` defaults to tauri.conf.json's version; override with \`configure(config, { appBuild })\`.
+
+## Electron
+
+\`\`\`js
+// main process, before creating windows
+const { setupFeedbackKit, feedbackMenuItem, presentFeedback } = require("feedbackkit-electron/main");
+setupFeedbackKit({ bundleIdentifier: "com.example.app", appBuild: "421", globalShortcut: "CommandOrControl+Alt+F" });
+// Help menu: { role: "help", submenu: [feedbackMenuItem()] }
+\`\`\`
+
+\`\`\`ts
+// renderer
+import { configure, FeedbackKit } from "feedbackkit-electron/renderer";
+await configure({ projectKey: "pk_live_..." });
+\`\`\`
+
+\`setupFeedbackKit\` registers its own sandbox-safe preload next to the app's. Screenshots use Electron's native \`webContents.capturePage()\`. A renderer CSP must allow \`connect-src\` to the endpoint.
+
+Fix verification: announce releases with the same build the reports carry (\`feedbackkit release --build <appBuild>\`). Demo apps: desktop/tauri-demo (\`npm run dev\`), desktop/electron-demo (\`npm start\`).`,
   },
   {
     slug: "dashboard",
@@ -1058,6 +1115,8 @@ FeedbackKit packages Agent Skills compliant with the vercel-labs/skills open sta
 - \`setup-android-sdk\` — Integrates the native Android SDK (JitPack) into an Android app.
 - \`setup-flutter-sdk\` — Integrates \`feedbackkit_flutter\` into a Flutter app.
 - \`setup-react-native-sdk\` — Integrates \`feedbackkit-react-native\` into a React Native app.
+- \`setup-tauri-sdk\` — Integrates \`tauri-plugin-feedbackkit\` + \`feedbackkit-tauri\` into a Tauri app.
+- \`setup-electron-sdk\` — Integrates \`feedbackkit-electron\` into an Electron app.
 - \`setup-mcp-server\` — Configures the FeedbackKit CLI and MCP server for Claude Code, Cursor, Antigravity, or Codex.
 - \`setup-release-loop\` — Wires a repo's releases into the closed loop: GitHub fix linking and agent hand-off, a CI release token, build announcements so reporters get asked "is it fixed?", correct build numbers, and an optional beta on every push to main.
 - \`fix-feedback\` — An agent fixes a report end to end: claim, reproduce, fix, after-screenshot, and a \`FeedbackKit:\` commit trailer.

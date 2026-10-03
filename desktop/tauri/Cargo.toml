@@ -11,7 +11,7 @@ keywords = ["tauri", "tauri-plugin", "feedback", "bug-report"]
 categories = ["gui"]
 rust-version = "1.77.2"
 links = "tauri-plugin-feedbackkit"
-exclude = ["/guest-js/node_modules", "/guest-js/dist"]
+exclude = ["/guest-js"]
 
 [dependencies]
 tauri = { version = "2" }

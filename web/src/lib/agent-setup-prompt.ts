@@ -6,6 +6,8 @@ export type TargetPlatform =
   | "android"
   | "flutter"
   | "react-native"
+  | "tauri"
+  | "electron"
   | "web";
 
 export interface AgentSetupPromptOptions {
@@ -318,6 +320,87 @@ Please inspect the project, add the dependency, configure FeedbackKit in main(),
 5. Close the loop (recommended): call \`FeedbackKit.enableFixVerification()\` after configure, and run \`npx feedbackkit-cli release --build <build number>\` after each release build.
 
 Please inspect the project, install the package and the iOS pod, configure FeedbackKit at startup, wire up triggers and screen tracking, and verify that the app builds on iOS and Android.`;
+
+    case "tauri":
+      return `Please integrate FeedbackKit ${projectContext}into this Tauri 2 app. FeedbackKit's web SDK runs in the webview; the tauri-plugin-feedbackkit Rust plugin adds the real OS/device/app details and a native menu trigger.
+
+1. Add the Rust plugin and the frontend packages:
+   \`\`\`bash
+   cargo add tauri-plugin-feedbackkit --manifest-path src-tauri/Cargo.toml
+   npm install feedbackkit-tauri feedbackkit-web
+   \`\`\`
+   (If the crate isn't on crates.io yet, use \`tauri-plugin-feedbackkit = { git = "https://github.com/tianhaoz95/feedback-kit" }\` in src-tauri/Cargo.toml.)
+
+2. Register the plugin and add the menu item in src-tauri/src/lib.rs (or main.rs):
+   \`\`\`rust
+   tauri::Builder::default()
+       .plugin(tauri_plugin_feedbackkit::init())
+       .setup(|app| {
+           let menu = tauri::menu::Menu::default(app.handle())?;
+           let report = tauri_plugin_feedbackkit::menu_item(app)?;
+           menu.append(&tauri::menu::Submenu::with_items(app, "Help", true, &[&report])?)?;
+           app.set_menu(menu)?;
+           Ok(())
+       })
+   \`\`\`
+   If the app already builds its own menu, append \`menu_item(app)?\` to its existing Help menu instead.
+
+3. Add \`"feedbackkit:default"\` to the permissions of the capability for the main window (src-tauri/capabilities/*.json).
+
+4. Configure FeedbackKit once in the frontend entry point:
+   \`\`\`ts
+   import { configure, FeedbackKit } from "feedbackkit-tauri";
+
+   await configure({
+     projectKey: "${projectKey}",
+     endpoint: "${endpointUrl}",
+   });
+   FeedbackKit.showFloatingTriggerButton();
+   \`\`\`
+
+5. Screen tracking: set \`FeedbackKit.currentScreen = "Checkout"\` on route changes (from the router's navigation hook).
+
+6. Close the loop (recommended): call \`FeedbackKit.enableFixVerification()\` after configure. Reports carry the version from tauri.conf.json as the build; pass \`configure(config, { appBuild })\` if your build number differs, and run \`npx feedbackkit-cli release --build <that value>\` after each release.
+
+Please inspect the project, add the dependencies, register the plugin, the menu item and the capability permission, configure FeedbackKit in the frontend, and verify that \`npm run tauri build\` (or \`tauri dev\`) works and the feedback dialog opens.`;
+
+    case "electron":
+      return `Please integrate FeedbackKit ${projectContext}into this Electron app. FeedbackKit's web SDK runs in the renderer; feedbackkit-electron adds native screenshots (capturePage), real OS/device/app details and a Help-menu item from the main process.
+
+1. Install:
+   \`\`\`bash
+   npm install feedbackkit-electron feedbackkit-web
+   \`\`\`
+   Electron 35 or newer is required.
+
+2. In the main process, before creating windows:
+   \`\`\`js
+   const { setupFeedbackKit, feedbackMenuItem } = require("feedbackkit-electron/main");
+
+   setupFeedbackKit({
+     bundleIdentifier: "<the app id, e.g. electron-builder's appId>",
+     // globalShortcut: "CommandOrControl+Alt+F", // optional
+   });
+   \`\`\`
+   Add \`feedbackMenuItem()\` to the application's Help menu (create the Help menu if the app has none). setupFeedbackKit registers its own preload next to the app's, so no preload changes are needed.
+
+3. In the renderer entry point:
+   \`\`\`ts
+   import { configure, FeedbackKit } from "feedbackkit-electron/renderer";
+
+   await configure({
+     projectKey: "${projectKey}",
+     endpoint: "${endpointUrl}",
+   });
+   FeedbackKit.showFloatingTriggerButton();
+   \`\`\`
+   If the renderer has a Content-Security-Policy, allow \`connect-src\` to ${endpointUrl.replace(/\/functions\/v1\/.*$/, "")}.
+
+4. Screen tracking: set \`FeedbackKit.currentScreen = "Checkout"\` on route changes.
+
+5. Close the loop (recommended): call \`FeedbackKit.enableFixVerification()\` after configure. Reports carry \`app.getVersion()\` as the build unless you pass \`appBuild\` to setupFeedbackKit; run \`npx feedbackkit-cli release --build <that value>\` after each release.
+
+Please inspect the project, find the main-process and renderer entry points, add the setup, menu item and configure calls, and verify that the app starts and the feedback dialog opens from the Help menu.`;
 
     case "web":
       return `Please integrate the FeedbackKit web SDK ${projectContext}into this web app.

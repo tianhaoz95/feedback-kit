@@ -22,6 +22,9 @@ FeedbackKit is three things sharing one JSON contract / one Postgres schema:
    Flutter plugin** (`flutter/feedbackkit_flutter`) and **a React Native
    module** (`react-native/`) are thin bridges over the native iOS and
    Android SDKs — see the Android/Flutter/React Native notes below.
+   **Desktop apps** built with Tauri or Electron (`desktop/`) use the web SDK
+   in their webview plus a package per shell for real OS/device/app details
+   and native triggers — see the Tauri/Electron note below.
 2. **An optional hosted dashboard** (`web/` + `supabase/`) — one way to consume
    that report: receive it, organize it by project, and turn it into a prompt
    for a coding agent.
@@ -46,6 +49,7 @@ file is about how to build/test/run things day to day.
 | `android/` | Native Android SDK (`feedbackkit`, Kotlin, no dependencies beyond the stdlib) and its demo app (`demo`: Compose Home, classic-View Cart, Settings) — one Gradle project. Published through JitPack (`jitpack.yml`) |
 | `flutter/feedbackkit_flutter/` | Flutter plugin over the native iOS/Android SDKs (method channel `feedbackkit`); demo app in `example/` |
 | `react-native/` | React Native TurboModule (npm `feedbackkit-react-native`) over the native SDKs; demo app in `example/` (yarn workspace) |
+| `desktop/` | Tauri (`tauri/`: Rust crate `tauri-plugin-feedbackkit` + npm `feedbackkit-tauri` in `guest-js/`) and Electron (`electron/`: npm `feedbackkit-electron`) packages over the web SDK; `tauri-demo/` and `electron-demo/` share `demo-ui/` (the Home/Cart/Settings sample) |
 | `web-sdk/` | Web SDK (npm `feedbackkit-web`, TypeScript, no framework): capture/annotate/submit for websites, plus console/network log capture. Unit tests (vitest) + Playwright e2e |
 | `DemoApp/` | Sample apps exercising the SDK on iOS, macOS, and watchOS (one XcodeGen project, three targets; the `.xcodeproj` is generated — not committed) |
 | `DeveloperApp/` | Native Developer Portal companion apps for iOS and macOS (one XcodeGen project `FeedbackPortal.xcodeproj`, SwiftUI; the Mac app shares the iOS views — see `DeveloperApp/README.md`). Triages feedback, renders annotations, follows fix loops, dispatches AI coding prompts, and dogfoods FeedbackKit on itself |
@@ -54,7 +58,7 @@ file is about how to build/test/run things day to day.
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function, billing (Stripe) Edge Functions |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) — reads feedback/prompts as a logged-in user |
 | `skills/` | Agent Skills catalog (`vercel-labs/skills`) for automated setup via AI coding agents |
-| `.github/workflows/` | Release/deploy pipelines, plus one CI workflow per product, each on PRs and pushes filtered to its paths: `sdk-ci.yml` (Swift SDK on macOS, iOS Simulator, watchOS build), `portal-ci.yml` (Portal tests), `android-ci.yml`, `flutter-ci.yml` and `react-native-ci.yml` (the latter two also run on Swift/Android SDK changes, since both wrappers compile them), `cli-ci.yml`, `backend-ci.yml` (Edge Function type-check, migrations applied from scratch, skills validation) and `web-sdk-ci.yml` (web SDK unit + 3-browser e2e, dashboard clean build). `beta.yml` calls the SDK and Portal workflows as its gate, and `publish-cli.yml` runs the CLI tests before publishing |
+| `.github/workflows/` | Release/deploy pipelines, plus one CI workflow per product, each on PRs and pushes filtered to its paths: `sdk-ci.yml` (Swift SDK on macOS, iOS Simulator, watchOS build), `portal-ci.yml` (Portal tests), `android-ci.yml`, `flutter-ci.yml` and `react-native-ci.yml` (the latter two also run on Swift/Android SDK changes, since both wrappers compile them), `desktop-ci.yml` (Electron and Tauri packages plus both demos' end-to-end tests on Ubuntu/Windows/macOS; also on web-sdk changes), `cli-ci.yml`, `backend-ci.yml` (Edge Function type-check, migrations applied from scratch, skills validation) and `web-sdk-ci.yml` (web SDK unit + 3-browser e2e, dashboard clean build). `beta.yml` calls the SDK and Portal workflows as its gate, and `publish-cli.yml` runs the CLI tests before publishing |
 | `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `run-android.sh`, `run-portal-ios.sh`, `run-portal-macos.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `generate_social_preview.py`, `release_testflight.sh`, `release_portal_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh`, `release_portal_macos.sh`, `landing-captures/capture.sh` (re-captures the landing page's iOS and web device images from the real SDKs) |
 | `branding/` | FeedbackKit logo assets (SVG source + PNG exports) — reused for the iOS app icon and the GitHub OAuth App's logo |
 
@@ -156,6 +160,25 @@ cd example/ios && pod install                     # after changing the spec or t
 In dev builds the example sets `globalThis.FeedbackKit`, so a script can call
 `FeedbackKit.present()` over Metro's Hermes debugger (`/json/list`, CDP
 `Runtime.evaluate`, `Origin: http://localhost:8081`).
+
+### Tauri + Electron (`desktop/`)
+
+```bash
+cd desktop/electron && npm install && npm run build && npm test     # package + OS-detail parser tests
+cd desktop/electron-demo && npm install && npm run test:e2e          # Playwright drives the real app vs a mock endpoint
+cd desktop/tauri && cargo test                                      # plugin unit tests
+cd desktop/tauri-demo && npm install && npx tauri build --debug --no-bundle && node e2e/selftest.mjs
+desktop/tauri-demo/e2e/run-linux.sh                                 # same self-test on Linux in Docker; --clean removes its image/volumes
+```
+
+This npm blocks install scripts by default, so after `npm install` in
+`electron-demo`, run `node node_modules/electron/install.js` if
+`node_modules/electron/dist` is missing. Tauri has no WebDriver on macOS, so
+the demo's self-test (`FEEDBACKKIT_DEMO_SELFTEST=<endpoint>`,
+`src/selftest.ts`) drives the dialog from inside the page. It needs a visible
+window: with the display asleep or locked, WebKit suspends timers and it
+stalls. Keep the Linux Docker run's footprint in mind (about 7 GB with
+volumes). `run-linux.sh --clean` gives it back.
 
 ### Demo apps (`DemoApp/`)
 
@@ -419,6 +442,26 @@ Rules for skills:
   both platforms, so an awaiting Dart/JS caller never hangs; the wrappers'
   `presentAndSubmit` re-implements the SDK's because the SDK's never calls
   back on cancel.
+- **Tauri and Electron are the web SDK plus a host package, not new SDKs.**
+  Reports are web-SDK reports (`platform: "web"`, page URL, logs) with
+  `environment.runtime` = `"tauri" | "electron"` and `runtimeVersion`
+  (optional fields, mirrored in the Swift `FeedbackEnvironment`,
+  `web/src/lib/types.ts` and `cli/src/types.ts`); the dashboard badge reads
+  "Tauri · Windows" (`platform.ts`), and `{{platform}}` reads "Tauri app on
+  Windows" in all four prompt renderers (`webPlatformLabel`). The host
+  packages use two web SDK extension points: `FeedbackKit.environment` /
+  `configure({ environment })` to override detected fields with the OS
+  version, machine model and app id/version/build (read in Rust in
+  `desktop/tauri/src/environment.rs` and in Node in
+  `desktop/electron/src/environment.ts`; keep the two in step), and
+  `captureOptions.provider` for a native screenshot (Electron's
+  `capturePage`; the widget hides itself via `hideOwnUi` first). Tauri keeps
+  the DOM capture. Electron's preload is registered by `setupFeedbackKit()`
+  as a session preload script and must stay self-contained: sandboxed
+  preloads can only `require("electron")`, so its channel names repeat
+  `shared.ts`'s, and a unit test checks that. Both packages' `configure()`
+  configure the web SDK synchronously before awaiting the native details,
+  so a report opened right after launch never fails as unconfigured.
 - **The wire format is intentionally decoupled from the SDK's public Swift
   API.** `FeedbackReport` (public, camelCase) and `IngestPayload` (private
   mirror struct in `FeedbackSubmitter.swift`, snake_case JSON) are two

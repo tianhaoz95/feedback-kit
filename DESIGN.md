@@ -335,6 +335,39 @@ and `presentFlow` now calls back with nil/null when it presents nothing
 (already open, or nothing to present from). Before, a Dart or JS caller
 awaiting the result could hang forever.
 
+## 1d. Tauri and Electron (`desktop/`)
+
+**Desktop web shells get the web SDK plus a host package, not a new SDK.** A
+Tauri or Electron app's UI is web content, so the web SDK's flow already
+works there: capture, annotation, upload, fix verification, console logs. A
+native SDK per OS would have meant three new UI implementations for apps that
+already render HTML. What a webview can't know or do, a small package per
+shell adds:
+
+- **Real details.** A user agent can't tell Windows 11 from 10 or name the
+  Linux distribution or the machine, and in Tauri `location.host` is the same
+  `tauri.localhost` for every app. The Rust plugin and Electron's main process
+  read these from the OS and the app bundle, and the web SDK merges them over
+  what it detected (`FeedbackKit.environment`).
+- **Native triggers.** A Help-menu item in both, plus `present()` (Tauri) or a
+  global shortcut (Electron).
+- **A better screenshot where one exists.** Electron's
+  `webContents.capturePage()` is pixel-exact with no permission prompt, so it
+  replaces the DOM re-render through a capture provider. Tauri has no
+  equivalent, so it keeps the DOM capture, which also never prompts.
+
+Reports stay `platform: "web"`, since they are web content with URLs and console
+logs, and gain `runtime` / `runtimeVersion`. That keeps every existing web
+code path (logs, page URL, the prompt's web context) and only changes how the
+report is named: "Tauri · Windows" in the dashboard, "Tauri app on Windows"
+in prompts, so a coding agent knows it's looking at a desktop app.
+
+Testing: Electron uses Playwright's Electron driver against the real demo
+app. Tauri has no WebDriver on macOS, so its demo carries a self-test that
+drives the dialog from inside the page and reports to Rust. It runs on
+macOS directly, on Linux in Docker (`run-linux.sh`), and on all three OSes in
+CI.
+
 ## 2. Data model / multi-tenancy (`supabase/migrations`)
 
 ```
@@ -822,6 +855,7 @@ Tests/FeedbackKitTests/
 android/               the Android SDK (feedbackkit/) and its demo app (demo/), one Gradle project
 flutter/               the Flutter plugin (feedbackkit_flutter/, demo app in example/)
 react-native/          the React Native module (npm feedbackkit-react-native, demo app in example/)
+desktop/               Tauri (Rust plugin + npm feedbackkit-tauri) and Electron (npm feedbackkit-electron) packages and demos
 web-sdk/               the web SDK (npm feedbackkit-web): src/, unit tests, Playwright e2e
 DemoApp/               project.yml (XcodeGen) + sample apps exercising the SDK
                        on iOS, macOS, and watchOS (one project, three targets)

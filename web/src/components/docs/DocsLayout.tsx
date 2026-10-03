@@ -76,6 +76,11 @@ const RAW_NAV: RawNavItem[] = [
     ],
   },
   {
+    to: "/docs/desktop",
+    label: "Tauri & Electron",
+    sections: ["What the desktop packages add", "Tauri", "Electron", "Everything else is the web SDK", "Try it"],
+  },
+  {
     to: "/docs/web-sdk",
     label: "Web SDK",
     sections: [

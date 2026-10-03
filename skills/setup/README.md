@@ -1,6 +1,6 @@
 # FeedbackKit Setup Skills
 
-This category contains [Agent Skills](https://github.com/vercel-labs/skills) that guide AI coding agents (Claude Code, Cursor, Antigravity, Codex, etc.) to set up and configure FeedbackKit across Apple platforms (iOS, macOS, watchOS), Android, Flutter, React Native and the web, configure the MCP server, and wire a repository's releases into the closed loop. The SDK skills include enabling "is it fixed?" verification in the app.
+This category contains [Agent Skills](https://github.com/vercel-labs/skills) that guide AI coding agents (Claude Code, Cursor, Antigravity, Codex, etc.) to set up and configure FeedbackKit across Apple platforms (iOS, macOS, watchOS), Android, Flutter, React Native, Tauri, Electron and the web, configure the MCP server, and wire a repository's releases into the closed loop. The SDK skills include enabling "is it fixed?" verification in the app.
 
 ## Skills in this Category
 
@@ -13,6 +13,8 @@ This category contains [Agent Skills](https://github.com/vercel-labs/skills) tha
 | [`setup-android-sdk`](setup-android-sdk/SKILL.md) | Integrate the native FeedbackKit Android SDK into an Android app (Compose or Views) with JitPack setup, triggers, and screen tracking. |
 | [`setup-flutter-sdk`](setup-flutter-sdk/SKILL.md) | Integrate FeedbackKit into a Flutter app with `feedbackkit_flutter`, which runs the native iOS and Android SDKs. |
 | [`setup-react-native-sdk`](setup-react-native-sdk/SKILL.md) | Integrate FeedbackKit into a React Native app with `feedbackkit-react-native`, which runs the native iOS and Android SDKs. |
+| [`setup-tauri-sdk`](setup-tauri-sdk/SKILL.md) | Integrate FeedbackKit into a Tauri 2 desktop app with `tauri-plugin-feedbackkit` and `feedbackkit-tauri`. |
+| [`setup-electron-sdk`](setup-electron-sdk/SKILL.md) | Integrate FeedbackKit into an Electron desktop app with `feedbackkit-electron`. |
 | [`setup-mcp-server`](setup-mcp-server/SKILL.md) | Configure the FeedbackKit CLI and MCP server for Claude Code, Cursor, Antigravity, and Codex. |
 | [`setup-release-loop`](setup-release-loop/SKILL.md) | Asks how the team delivers fixes (batch betas, or branch previews verified before merge) and explains both, then closes the loop on the repo side: GitHub fix linking and agent hand-off, a CI release token, build announcements (so reporters get asked "is it fixed?"), including sites deployed by Cloudflare/Netlify/Vercel's own Git integration, correct build numbers, and an optional beta on every push to main. |
 | [`setup-agent-runner`](setup-agent-runner/SKILL.md) | Run a coding agent automatically on reports: a self-hosted Mac runner that starts Claude Code or Google Antigravity when FeedbackKit labels an issue (it can build the app and run the Simulator), Antigravity on GitHub-hosted runners with a Gemini API key, or `feedbackkit watch` for solo developers. |

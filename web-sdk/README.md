@@ -132,6 +132,19 @@ The project key only allows *creating* feedback. Since it's visible in your
 page source, restrict it to your own sites in the dashboard under
 **Settings → Allowed web origins**.
 
+## Desktop apps and other hosts
+
+Two hooks let a host improve what the SDK can see on its own. The Tauri and
+Electron packages (`feedbackkit-tauri`, `feedbackkit-electron`) use them:
+
+```ts
+// Override detected device/app fields (and mark the shell).
+FeedbackKit.environment = { osVersion: "11 (26100)", deviceModel: "Surface Laptop 7", runtime: "electron" };
+
+// Supply the screenshot yourself (the widget hides itself first); return null to fall back.
+FeedbackKit.captureOptions = { provider: async () => nativePngDataUrl() };
+```
+
 ## Development
 
 This package lives in the FeedbackKit monorepo at `web-sdk/`; the dashboard

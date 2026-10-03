@@ -15,16 +15,20 @@ const PLATFORMS: { id: TargetPlatform; label: string }[] = [
   { id: "android", label: "Android" },
   { id: "flutter", label: "Flutter" },
   { id: "react-native", label: "React Native" },
+  { id: "tauri", label: "Tauri" },
+  { id: "electron", label: "Electron" },
   { id: "web", label: "Web" },
 ];
 
-type ManualKind = "swift" | "android" | "flutter" | "react-native" | "web";
+type ManualKind = "swift" | "android" | "flutter" | "react-native" | "tauri" | "electron" | "web";
 
 const MANUAL_KINDS: { id: ManualKind; label: string }[] = [
   { id: "swift", label: "Swift (iOS · macOS · watchOS)" },
   { id: "android", label: "Android" },
   { id: "flutter", label: "Flutter" },
   { id: "react-native", label: "React Native" },
+  { id: "tauri", label: "Tauri" },
+  { id: "electron", label: "Electron" },
   { id: "web", label: "Web" },
 ];
 
@@ -34,6 +38,8 @@ function manualKindFor(platform: TargetPlatform): ManualKind {
     case "android":
     case "flutter":
     case "react-native":
+    case "tauri":
+    case "electron":
     case "web":
       return platform;
     default:
@@ -46,6 +52,9 @@ function docsPathFor(platform: TargetPlatform): string {
   switch (manualKindFor(platform)) {
     case "web":
       return "/docs/web-sdk";
+    case "tauri":
+    case "electron":
+      return "/docs/desktop";
     case "android":
     case "flutter":
     case "react-native":
@@ -83,6 +92,10 @@ export function SdkSetupCard({
   const flutterDependency = `dependencies:\n  feedbackkit_flutter:\n    git:\n      url: https://github.com/tianhaoz95/feedback-kit\n      path: flutter/feedbackkit_flutter`;
   const flutterSnippet = `// main(), before runApp:\nWidgetsFlutterBinding.ensureInitialized();\nawait FeedbackKit.configure(const FeedbackKitConfiguration(\n  endpointUrl: '${endpointUrl}',\n  projectKey: '${projectKey}',\n));\nawait FeedbackKit.showFloatingTriggerButton();`;
   const rnInstall = `npm install feedbackkit-react-native\n\n# ios/Podfile, inside the app target (same version as the npm package):\npod 'FeedbackKit', :git => 'https://github.com/tianhaoz95/feedback-kit.git', :tag => 'v<version>'`;
+  const tauriInstall = `cargo add tauri-plugin-feedbackkit --manifest-path src-tauri/Cargo.toml\nnpm install feedbackkit-tauri feedbackkit-web\n\n// src-tauri: .plugin(tauri_plugin_feedbackkit::init())\n// capability permissions: "feedbackkit:default"`;
+  const tauriSnippet = `import { configure, FeedbackKit } from "feedbackkit-tauri";\n\nawait configure({\n  projectKey: "${projectKey}",\n  endpoint: "${endpointUrl}",\n});\nFeedbackKit.showFloatingTriggerButton();`;
+  const electronInstall = `npm install feedbackkit-electron feedbackkit-web\n\n// main process, before creating windows:\nconst { setupFeedbackKit, feedbackMenuItem } = require("feedbackkit-electron/main");\nsetupFeedbackKit();\n// …and add feedbackMenuItem() to your Help menu`;
+  const electronSnippet = `// renderer\nimport { configure, FeedbackKit } from "feedbackkit-electron/renderer";\n\nawait configure({\n  projectKey: "${projectKey}",\n  endpoint: "${endpointUrl}",\n});\nFeedbackKit.showFloatingTriggerButton();`;
   const rnSnippet = `import { FeedbackKit } from 'feedbackkit-react-native';\n\nFeedbackKit.configure({\n  endpointUrl: '${endpointUrl}',\n  projectKey: '${projectKey}',\n});\nFeedbackKit.showFloatingTriggerButton();`;
   const webInstall = "npm install feedbackkit-web";
   const webSnippet = `import { FeedbackKit } from "feedbackkit-web";\n\nFeedbackKit.configure({\n  projectKey: "${projectKey}",\n  endpoint: "${endpointUrl}",\n});\nFeedbackKit.showFloatingTriggerButton();`;
@@ -226,6 +239,25 @@ export function SdkSetupCard({
                   className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-900 hover:underline"
                 >
                   View the Android, Flutter & React Native guide →
+                </Link>
+              </div>
+            </>
+          ) : manualKind === "tauri" || manualKind === "electron" ? (
+            <>
+              <SnippetStep
+                title={manualKind === "tauri" ? "1. Add the plugin and packages" : "1. Install and set up the main process"}
+                code={manualKind === "tauri" ? tauriInstall : electronInstall}
+              />
+              <SnippetStep
+                title="2. Configure FeedbackKit in the frontend and add a trigger"
+                code={manualKind === "tauri" ? tauriSnippet : electronSnippet}
+              />
+              <div className="border-t border-neutral-100 pt-3">
+                <Link
+                  to="/docs/desktop"
+                  className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-900 hover:underline"
+                >
+                  View the Tauri & Electron guide →
                 </Link>
               </div>
             </>

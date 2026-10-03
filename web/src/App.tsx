@@ -26,6 +26,7 @@ import { DocsHowItWorksPage } from "@/pages/docs/DocsHowItWorksPage";
 import { DocsIosSdkPage } from "@/pages/docs/DocsIosSdkPage";
 import { DocsWebSdkPage } from "@/pages/docs/DocsWebSdkPage";
 import { DocsMobileSdksPage } from "@/pages/docs/DocsMobileSdksPage";
+import { DocsDesktopPage } from "@/pages/docs/DocsDesktopPage";
 import { DocsDashboardPage } from "@/pages/docs/DocsDashboardPage";
 import { DocsCliPage } from "@/pages/docs/DocsCliPage";
 import { DocsMcpPage } from "@/pages/docs/DocsMcpPage";
@@ -56,6 +57,7 @@ export default function App() {
           <Route path="ios-sdk" element={<DocsIosSdkPage />} />
           <Route path="web-sdk" element={<DocsWebSdkPage />} />
           <Route path="mobile-sdks" element={<DocsMobileSdksPage />} />
+          <Route path="desktop" element={<DocsDesktopPage />} />
           <Route path="dashboard" element={<DocsDashboardPage />} />
           <Route path="cli" element={<DocsCliPage />} />
           <Route path="mcp" element={<DocsMcpPage />} />

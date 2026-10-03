@@ -78,7 +78,7 @@ const features = [
   {
     title: "One report, every platform",
     description:
-      "iOS, iPadOS, macOS, watchOS, Android and the web all produce the same report, and so do Flutter and React Native apps. Your dashboard, CLI and coding agent handle them all the same way.",
+      "iOS, iPadOS, macOS, watchOS, Android and the web all produce the same report, and so do Flutter, React Native, Tauri and Electron apps. Your dashboard, CLI and coding agent handle them all the same way.",
   },
   {
     title: "No permission prompts",
@@ -116,6 +116,8 @@ const platforms: { name: string; soon?: boolean }[] = [
   { name: "Android" },
   { name: "Flutter" },
   { name: "React Native" },
+  { name: "Tauri" },
+  { name: "Electron" },
   { name: "Web" },
 ];
 
@@ -717,7 +719,7 @@ export function LandingPage() {
                       </li>
                       <li className="flex items-start gap-2.5">
                         <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                        <span>All SDKs: iOS, macOS, watchOS, Android, Flutter, React Native &amp; Web</span>
+                        <span>All SDKs: iOS, macOS, watchOS, Android, Flutter, React Native, Tauri, Electron &amp; Web</span>
                       </li>
                       <li className="flex items-start gap-2.5">
                         <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />

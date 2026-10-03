@@ -19,7 +19,7 @@ Agent Skills provide AI coding assistants (such as Antigravity, Claude Code, Cur
 2. **`setup-macos-sdk`**: Configures FeedbackKit in macOS AppKit/SwiftUI desktop apps with floating triggers.
 3. **`setup-watchos-sdk`**: Integrates `FeedbackQuickNoteView` into watchOS apps.
 4. **`setup-web-sdk`**: Integrates the web SDK (`feedbackkit-web`) into websites and SPAs.
-5. **`setup-android-sdk`**, **`setup-flutter-sdk`**, **`setup-react-native-sdk`**: Integrate the native Android SDK, the Flutter plugin and the React Native module.
+5. **`setup-android-sdk`**, **`setup-flutter-sdk`**, **`setup-react-native-sdk`**, **`setup-tauri-sdk`**, **`setup-electron-sdk`**: Integrate the native Android SDK, the Flutter plugin, the React Native module, and the Tauri and Electron packages.
 6. **`setup-mcp-server`**: Automates MCP server setup in agent configuration files (`claude.json`, `.cursor/mcp.json`).
 7. **`setup-release-loop`**: Wires a repository's releases into the closed loop — GitHub linking, agent hand-off, CI release token, build announcements, build-number fixes, beta-on-push (with templates).
 8. **`fix-feedback`** (workflow): An agent fixes a report end to end and links it with a `FeedbackKit:` commit trailer.

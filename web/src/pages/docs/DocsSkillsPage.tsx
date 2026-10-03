@@ -109,6 +109,16 @@ export function DocsSkillsPage() {
               "Installs feedbackkit-react-native and the iOS pod, configures it at startup, adds triggers, and wires React Navigation screen names.",
             ],
             [
+              "setup-tauri-sdk",
+              "Tauri",
+              "Adds tauri-plugin-feedbackkit and feedbackkit-tauri, registers the plugin, its Help-menu item and capability permission, and configures the frontend.",
+            ],
+            [
+              "setup-electron-sdk",
+              "Electron",
+              "Installs feedbackkit-electron, adds setupFeedbackKit and the Help-menu item in the main process, and configures the renderer.",
+            ],
+            [
               "setup-mcp-server",
               "Agent / MCP",
               "Installs feedbackkit-cli, completes browser-based authentication, and registers the MCP server in Claude Code, Cursor, Antigravity, or Codex.",

@@ -19,7 +19,7 @@ test("platformOf recognizes every SDK", () => {
 });
 
 test("agent setup prompts carry the project's key and endpoint on the new platforms", () => {
-  for (const platform of ["android", "flutter", "react-native"] as const) {
+  for (const platform of ["android", "flutter", "react-native", "tauri", "electron"] as const) {
     const prompt = generateAgentSetupPrompt({
       platform,
       projectKey: "pk_test_123",
@@ -34,4 +34,11 @@ test("agent setup prompts carry the project's key and endpoint on the new platfo
   assert.ok(
     generateAgentSetupPrompt({ platform: "flutter", projectKey: "k", endpointUrl: "e" }).includes("path: flutter/feedbackkit_flutter"),
   );
+  assert.ok(generateAgentSetupPrompt({ platform: "tauri", projectKey: "k", endpointUrl: "e" }).includes('"feedbackkit:default"'));
+  const electron = generateAgentSetupPrompt({
+    platform: "electron",
+    projectKey: "k",
+    endpointUrl: "https://x.supabase.co/functions/v1/ingest-feedback",
+  });
+  assert.ok(electron.includes("connect-src` to https://x.supabase.co."));
 });
