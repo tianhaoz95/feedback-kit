@@ -19,12 +19,13 @@ Agent Skills provide AI coding assistants (such as Antigravity, Claude Code, Cur
 2. **`setup-macos-sdk`**: Configures FeedbackKit in macOS AppKit/SwiftUI desktop apps with floating triggers.
 3. **`setup-watchos-sdk`**: Integrates `FeedbackQuickNoteView` into watchOS apps.
 4. **`setup-web-sdk`**: Integrates the web SDK (`feedbackkit-web`) into websites and SPAs.
-5. **`setup-mcp-server`**: Automates MCP server setup in agent configuration files (`claude.json`, `.cursor/mcp.json`).
-6. **`setup-release-loop`**: Wires a repository's releases into the closed loop — GitHub linking, agent hand-off, CI release token, build announcements, build-number fixes, beta-on-push (with templates).
-7. **`fix-feedback`** (workflow): An agent fixes a report end to end and links it with a `FeedbackKit:` commit trailer.
-8. **`promote-release`** (workflow): Reads release readiness (`feedbackkit releases` / MCP `list_releases`) and records promotions.
+5. **`setup-android-sdk`**, **`setup-flutter-sdk`**, **`setup-react-native-sdk`**: Integrate the native Android SDK, the Flutter plugin and the React Native module.
+6. **`setup-mcp-server`**: Automates MCP server setup in agent configuration files (`claude.json`, `.cursor/mcp.json`).
+7. **`setup-release-loop`**: Wires a repository's releases into the closed loop — GitHub linking, agent hand-off, CI release token, build announcements, build-number fixes, beta-on-push (with templates).
+8. **`fix-feedback`** (workflow): An agent fixes a report end to end and links it with a `FeedbackKit:` commit trailer.
+9. **`promote-release`** (workflow): Reads release readiness (`feedbackkit releases` / MCP `list_releases`) and records promotions.
 
-The SDK setup skills (1–4) each include a "close the loop" step enabling `enableFixVerification`.
+The SDK setup skills (1–5) each include a "close the loop" step enabling `enableFixVerification`.
 
 ---
 

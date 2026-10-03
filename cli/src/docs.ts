@@ -1055,6 +1055,9 @@ FeedbackKit packages Agent Skills compliant with the vercel-labs/skills open sta
 - \`setup-macos-sdk\` — Integrates FeedbackKit into a macOS desktop app (SwiftUI or AppKit). Configures credentials, sets up floating button or menu item triggers, and configures screen tracking.
 - \`setup-watchos-sdk\` — Integrates FeedbackKit into a watchOS app using \`FeedbackQuickNoteView\` embedded in a SwiftUI sheet for text and context feedback.
 - \`setup-web-sdk\` — Integrates the web SDK (\`feedbackkit-web\`) into a website or web app.
+- \`setup-android-sdk\` — Integrates the native Android SDK (JitPack) into an Android app.
+- \`setup-flutter-sdk\` — Integrates \`feedbackkit_flutter\` into a Flutter app.
+- \`setup-react-native-sdk\` — Integrates \`feedbackkit-react-native\` into a React Native app.
 - \`setup-mcp-server\` — Configures the FeedbackKit CLI and MCP server for Claude Code, Cursor, Antigravity, or Codex.
 - \`setup-release-loop\` — Wires a repo's releases into the closed loop: GitHub fix linking and agent hand-off, a CI release token, build announcements so reporters get asked "is it fixed?", correct build numbers, and an optional beta on every push to main.
 - \`fix-feedback\` — An agent fixes a report end to end: claim, reproduce, fix, after-screenshot, and a \`FeedbackKit:\` commit trailer.
