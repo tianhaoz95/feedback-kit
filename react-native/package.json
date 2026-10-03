@@ -1,0 +1,138 @@
+{
+  "name": "feedbackkit-react-native",
+  "version": "1.0.62",
+  "description": "In-app feedback for React Native, running the native FeedbackKit iOS and Android SDKs",
+  "main": "./lib/module/index.js",
+  "types": "./lib/typescript/src/index.d.ts",
+  "exports": {
+    ".": {
+      "feedbackkit-react-native-source": "./src/index.tsx",
+      "types": "./lib/typescript/src/index.d.ts",
+      "default": "./lib/module/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "lib",
+    "android",
+    "ios",
+    "*.podspec",
+    "react-native.config.js",
+    "!ios/build",
+    "!android/build",
+    "!android/gradle",
+    "!android/gradlew",
+    "!android/gradlew.bat",
+    "!android/local.properties",
+    "!**/__tests__",
+    "!**/__fixtures__",
+    "!**/__mocks__",
+    "!**/.*"
+  ],
+  "scripts": {
+    "example": "yarn workspace feedbackkit-react-native-example",
+    "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
+    "prepare": "bob build",
+    "typecheck": "tsc",
+    "test": "jest",
+    "prepack": "./scripts/vendor-native-sdks.sh"
+  },
+  "keywords": [
+    "react-native",
+    "ios",
+    "android",
+    "feedback",
+    "bug-report",
+    "screenshot",
+    "annotation"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tianhaoz95/feedback-kit.git",
+    "directory": "react-native"
+  },
+  "author": "FeedbackKit (https://github.com/tianhaoz95/feedback-kit)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tianhaoz95/feedback-kit/issues"
+  },
+  "homepage": "https://github.com/tianhaoz95/feedback-kit/tree/main/react-native#readme",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "devDependencies": {
+    "@jest/globals": "^29.7.0",
+    "@react-native/babel-preset": "0.86.2",
+    "@react-native/jest-preset": "0.86.2",
+    "@types/react": "^19.2.0",
+    "del-cli": "^7.0.0",
+    "jest": "^29.7.0",
+    "react": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-builder-bob": "^0.43.1",
+    "turbo": "^2.10.8",
+    "typescript": "^6.0.3"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  },
+  "workspaces": [
+    "example"
+  ],
+  "packageManager": "yarn@4.11.0",
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib",
+    "targets": [
+      [
+        "module",
+        {
+          "esm": true
+        }
+      ],
+      [
+        "typescript",
+        {
+          "project": "tsconfig.build.json"
+        }
+      ]
+    ]
+  },
+  "codegenConfig": {
+    "name": "FeedbackKitReactNativeSpec",
+    "type": "modules",
+    "jsSrcsDir": "src",
+    "android": {
+      "javaPackageName": "com.feedbackkit.reactnative"
+    },
+    "ios": {
+      "modulesProvider": {
+        "FeedbackKit": "FeedbackKitModule"
+      }
+    }
+  },
+  "jest": {
+    "preset": "@react-native/jest-preset",
+    "testEnvironmentOptions": {
+      "customExportConditions": [
+        "require",
+        "react-native",
+        "feedbackkit-react-native-source"
+      ]
+    },
+    "modulePathIgnorePatterns": [
+      "<rootDir>/example/node_modules",
+      "<rootDir>/lib/"
+    ]
+  },
+  "create-react-native-library": {
+    "type": "turbo-module",
+    "languages": "kotlin-objc",
+    "tools": [
+      "jest"
+    ],
+    "version": "0.63.1"
+  }
+}
