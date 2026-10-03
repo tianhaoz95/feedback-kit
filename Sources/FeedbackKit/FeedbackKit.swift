@@ -180,6 +180,7 @@ public enum FeedbackKit {
     #if os(iOS)
     private static var triggerButton: FeedbackTriggerButton?
     private static var shakeObserver: NSObjectProtocol?
+    private static var isCapturing = false
 
     /// Presents the capture → annotate → describe → submit flow modally.
     /// `completion` receives the finished report, or `nil` if the user cancelled.
@@ -219,18 +220,33 @@ public enum FeedbackKit {
             return
         }
 
-        guard let screenshot = ScreenshotCapture.captureKeyWindow() else {
-            completion?(nil)
-            return
+        // A second trigger while this one is still capturing does nothing.
+        guard !isCapturing else { return }
+        isCapturing = true
+
+        // Glow + "Capturing screenshot…" until the editor is up. Capture runs
+        // on the next turn of the run loop so the indicator is on screen
+        // first; its animations keep running while capture blocks the main
+        // thread.
+        let indicator = CaptureIndicator.show(over: viewController, theme: theme)
+        DispatchQueue.main.async {
+            isCapturing = false
+            guard let screenshot = ScreenshotCapture.captureKeyWindow() else {
+                indicator?.dismiss()
+                completion?(nil)
+                return
+            }
+            let feedbackViewController = FeedbackViewController(
+                rawScreenshot: screenshot,
+                screenNameOverride: currentScreen,
+                theme: theme,
+                composerPlaceholder: composerPlaceholder,
+                onComplete: { report in completion?(report) }
+            )
+            viewController.present(feedbackViewController, animated: true) {
+                indicator?.dismiss()
+            }
         }
-        let feedbackViewController = FeedbackViewController(
-            rawScreenshot: screenshot,
-            screenNameOverride: currentScreen,
-            theme: theme,
-            composerPlaceholder: composerPlaceholder,
-            onComplete: { report in completion?(report) }
-        )
-        viewController.present(feedbackViewController, animated: true)
     }
 
     /// Convenience that presents the flow and, if `configure(_:)` was called,
@@ -347,6 +363,7 @@ public enum FeedbackKit {
     #elseif os(macOS)
     private static var triggerButton: FeedbackTriggerButton?
     private static var activeWindowController: FeedbackWindowController?
+    private static var isCapturing = false
 
     /// Presents the capture → annotate → describe → submit flow as a sheet
     /// on `window` (or, if nil, as a standalone window — e.g. for a
@@ -366,22 +383,39 @@ public enum FeedbackKit {
         composerPlaceholder: String,
         completion: ((FeedbackReport?) -> Void)?
     ) {
-        guard let screenshot = ScreenshotCapture.captureKeyWindow() else {
-            completion?(nil)
-            return
-        }
-        let windowController = FeedbackWindowController(
-            rawScreenshot: screenshot,
-            screenNameOverride: currentScreen,
-            theme: theme,
-            composerPlaceholder: composerPlaceholder,
-            onComplete: { [self] report in
-                activeWindowController = nil
-                completion?(report)
+        // A second trigger while this one is still capturing does nothing.
+        guard !isCapturing else { return }
+        isCapturing = true
+
+        // Glow + "Capturing screenshot…" over the window until the sheet is
+        // up. Capture runs on the next turn of the run loop so the indicator
+        // is on screen first; its animations keep running while capture
+        // blocks the main thread.
+        let indicator = CaptureIndicator.show(over: window, theme: theme)
+        DispatchQueue.main.async {
+            isCapturing = false
+            guard let screenshot = ScreenshotCapture.captureKeyWindow() else {
+                indicator?.dismiss()
+                completion?(nil)
+                return
             }
-        )
-        activeWindowController = windowController
-        windowController.show(on: window)
+            let windowController = FeedbackWindowController(
+                rawScreenshot: screenshot,
+                screenNameOverride: currentScreen,
+                theme: theme,
+                composerPlaceholder: composerPlaceholder,
+                onComplete: { report in
+                    activeWindowController = nil
+                    completion?(report)
+                }
+            )
+            activeWindowController = windowController
+            windowController.show(on: window)
+            // The sheet animates down over the glow; fade it as it lands.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                indicator?.dismiss()
+            }
+        }
     }
 
     /// Convenience that presents the flow and, if `configure(_:)` was called,

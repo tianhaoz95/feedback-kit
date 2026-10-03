@@ -235,25 +235,32 @@ export class Widget {
     return true;
   }
 
+  /**
+   * Shown between the trigger and the dialog: a glow flowing around the
+   * viewport's edges while a screenshot is taken (none when there's no
+   * screenshot), and a card with a progress track saying what's happening.
+   */
   private showCaptureOverlay(capturingScreenshot: boolean): HTMLElement {
     const shadow = this.mount();
     const overlay = el("div", "fk-capture-overlay");
     overlay.setAttribute("role", "status");
     overlay.setAttribute("aria-live", "polite");
 
+    if (capturingScreenshot) {
+      const glow = el("div", "fk-capture-glow");
+      glow.setAttribute("aria-hidden", "true");
+      glow.append(el("span", "fk-capture-glow-flow"));
+      overlay.append(glow);
+    }
+
     const card = el("div", "fk-capture-card");
-
-    const anim = el("div", "fk-capture-anim");
-    const ring1 = el("span", "fk-capture-ring");
-    const ring2 = el("span", "fk-capture-ring");
-    const spinner = el("span", "fk-capture-spinner");
-    spinner.setAttribute("aria-hidden", "true");
-    anim.append(ring1, ring2, spinner);
-
     const label = el("span", "fk-capture-label");
-    label.textContent = capturingScreenshot ? "Capturing feedback…" : "Preparing feedback…";
+    label.textContent = capturingScreenshot ? "Capturing screenshot…" : "Preparing feedback…";
+    const progress = el("span", "fk-capture-progress");
+    progress.setAttribute("aria-hidden", "true");
+    progress.append(el("span", "fk-capture-progress-bar"));
+    card.append(label, progress);
 
-    card.append(anim, label);
     overlay.append(card);
     shadow.append(overlay);
     return overlay;

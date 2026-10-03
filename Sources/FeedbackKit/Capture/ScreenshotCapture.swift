@@ -12,7 +12,8 @@ enum ScreenshotCapture {
         let activeScenes = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .filter { $0.activationState == .foregroundActive || $0.activationState == .foregroundInactive }
-        let allWindows: [UIWindow] = activeScenes.flatMap { $0.windows }
+        // Never the capture indicator's own window, which sits above the app's.
+        let allWindows: [UIWindow] = activeScenes.flatMap { $0.windows }.filter { !($0 is CaptureIndicatorWindow) }
 
         // 1. Key window with valid bounds and a root view controller
         if let keyWindow = allWindows.first(where: { $0.isKeyWindow && $0.bounds.width > 0 && $0.bounds.height > 0 && $0.rootViewController != nil }) {

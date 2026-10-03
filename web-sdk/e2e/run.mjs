@@ -241,8 +241,9 @@ async function runSuite(name, browser) {
   const captureOverlay = page.locator(".fk-capture-overlay");
   await captureOverlay.waitFor({ state: "visible" });
   assert.ok(await captureOverlay.locator(".fk-capture-card").isVisible());
-  assert.ok(await captureOverlay.locator(".fk-capture-spinner").isVisible());
-  assert.match(await captureOverlay.locator(".fk-capture-label").textContent(), /Capturing feedback/);
+  assert.ok(await captureOverlay.locator(".fk-capture-progress").isVisible());
+  assert.equal(await captureOverlay.locator(".fk-capture-glow").count(), 1);
+  assert.match(await captureOverlay.locator(".fk-capture-label").textContent(), /Capturing screenshot/);
   await page.locator(".fk-ink").waitFor();
   assert.equal(await page.locator(".fk-capture-overlay").count(), 0);
   await page.keyboard.press("Escape");

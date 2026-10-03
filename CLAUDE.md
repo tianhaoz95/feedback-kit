@@ -435,7 +435,12 @@ Rules for skills:
   renders the window's content view hierarchy directly (like
   `drawHierarchy(in:afterScreenUpdates:)` does on iOS) rather than compositing
   the real screen buffer, so neither platform needs Screen Recording/screen-
-  capture permission for this.
+  capture permission for this. While capturing, `CaptureIndicator` (edge glow
+  + "Capturing screenshot…" card; layers shared in
+  `CaptureIndicatorLayers.swift`, web twin in `web-sdk`'s `.fk-capture-*`)
+  sits in its *own* window — a `CaptureIndicatorWindow` that
+  `ScreenshotCapture` skips on iOS, a child panel on macOS — so it never
+  lands in the screenshot; capture runs one run-loop turn after it's shown.
 - **Every existing iOS file is wrapped in `#if os(iOS)` around its entire
   contents; every macOS file is a same-named-concept `+macOS.swift` sibling
   wrapped in `#if os(macOS)`.** SPM compiles every file in the target

@@ -337,6 +337,11 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 @keyframes fk-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
 /* ---------- capture overlay ---------- */
+/* Shown between the trigger and the dialog. Excluded from the capture (it's
+   inside the SDK's own host), so it can sit right on the page: a gradient
+   glow flowing around the viewport's edges while a screenshot is taken, and
+   a small card with a progress track saying what's happening. Mirrors the
+   native SDKs' CaptureIndicator. */
 .fk-capture-overlay {
   position: fixed;
   inset: 0;
@@ -345,61 +350,80 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: var(--fk-backdrop);
-  animation: fk-fade 0.16s ease-out;
-  cursor: wait;
+  animation: fk-fade 0.18s ease-out;
+  cursor: progress;
 }
+.fk-capture-glow {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* A band along each edge, brightest at the edge and fading inward. */
+  -webkit-mask:
+    linear-gradient(to bottom, #000, rgba(0, 0, 0, 0.45) 5px, transparent 26px),
+    linear-gradient(to top, #000, rgba(0, 0, 0, 0.45) 5px, transparent 26px),
+    linear-gradient(to right, #000, rgba(0, 0, 0, 0.45) 5px, transparent 26px),
+    linear-gradient(to left, #000, rgba(0, 0, 0, 0.45) 5px, transparent 26px);
+  mask:
+    linear-gradient(to bottom, #000, rgba(0, 0, 0, 0.45) 5px, transparent 26px),
+    linear-gradient(to top, #000, rgba(0, 0, 0, 0.45) 5px, transparent 26px),
+    linear-gradient(to right, #000, rgba(0, 0, 0, 0.45) 5px, transparent 26px),
+    linear-gradient(to left, #000, rgba(0, 0, 0, 0.45) 5px, transparent 26px);
+}
+.fk-capture-glow-flow {
+  /* A rotating conic gradient big enough to cover the viewport's diagonal. */
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 150vmax;
+  height: 150vmax;
+  margin: -75vmax 0 0 -75vmax;
+  background: conic-gradient(var(--fk-primary), #8b5cf6, #ec4899, #f97316, #22d3ee, var(--fk-primary));
+  animation: fk-spin 2.4s linear infinite, fk-breathe 0.9s ease-in-out infinite alternate;
+}
+@keyframes fk-breathe { from { opacity: 1; } to { opacity: 0.7; } }
 .fk-capture-card {
+  position: relative;
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 12px 20px;
-  border-radius: 14px;
-  background: var(--fk-bg);
+  gap: 10px;
+  padding: 14px 22px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--fk-bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  backdrop-filter: blur(20px) saturate(1.6);
   border: 1px solid var(--fk-border);
   box-shadow: var(--fk-shadow);
   color: var(--fk-text);
   animation: fk-rise 0.2s ease-out;
   user-select: none;
 }
-.fk-capture-anim {
-  position: relative;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.fk-capture-ring {
-  position: absolute;
-  inset: -2px;
-  border-radius: 50%;
-  border: 2px solid var(--fk-primary);
-  opacity: 0;
-  animation: fk-pulse-ring 1.6s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
-}
-.fk-capture-ring:nth-child(2) {
-  animation-delay: 0.5s;
-}
-@keyframes fk-pulse-ring {
-  0% { transform: scale(0.65); opacity: 0.8; }
-  50% { opacity: 0.35; }
-  100% { transform: scale(1.35); opacity: 0; }
-}
-.fk-capture-spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid color-mix(in srgb, var(--fk-primary) 25%, transparent);
-  border-top-color: var(--fk-primary);
-  border-radius: 50%;
-  animation: fk-spin 0.7s linear infinite;
-}
 .fk-capture-label {
   font-size: 14px;
-  font-weight: 550;
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
+.fk-capture-progress {
+  position: relative;
+  width: 120px;
+  height: 3px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--fk-primary) 20%, transparent);
+}
+.fk-capture-progress-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 35%;
+  border-radius: inherit;
+  background: var(--fk-primary);
+  animation: fk-progress 1.1s ease-in-out infinite;
+}
+@keyframes fk-progress { from { left: -35%; } to { left: 100%; } }
+@keyframes fk-pulse { from { opacity: 1; } to { opacity: 0.35; } }
 
 /* ---------- narrow screens: stack stage over composer ---------- */
 @media (max-width: 760px) {
@@ -413,6 +437,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
   .fk-fixcard, .fk-fixcard[data-position] { right: 16px; left: 16px; width: auto; bottom: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .fk-overlay, .fk-dialog, .fk-fixcard, .fk-capture-overlay, .fk-capture-card, .fk-capture-ring, .fk-capture-spinner { animation: none; }
+  .fk-overlay, .fk-dialog, .fk-fixcard, .fk-capture-overlay, .fk-capture-card, .fk-capture-glow-flow { animation: none; }
+  .fk-capture-progress-bar { left: 32.5%; animation: fk-pulse 0.8s ease-in-out infinite alternate; }
 }
 `;
