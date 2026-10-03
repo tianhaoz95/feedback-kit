@@ -1,0 +1,18 @@
+[package]
+name = "feedbackkit-tauri-demo"
+version = "1.0.62"
+description = "FeedbackKit's Tauri demo app"
+edition = "2021"
+publish = false
+
+[lib]
+name = "feedbackkit_tauri_demo_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+# The plugin from this repo, like the other demos build their SDK from source.
+tauri-plugin-feedbackkit = { path = "../../tauri" }

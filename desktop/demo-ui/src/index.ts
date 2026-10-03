@@ -87,10 +87,14 @@ export function mountDemo(root: HTMLElement, host: DemoHost): void {
   root.replaceChildren(content, tabBar);
 
   const isConfigured = () => apiKey.trim() !== "";
+  // The latest settings change, awaited before opening the flow so the
+  // report carries the shell's OS/device details.
+  let applied: Promise<void> = Promise.resolve();
 
-  async function apply(): Promise<void> {
+  function apply(): Promise<void> {
     FeedbackKit.theme = BRANDINGS.find((b) => b.id === branding)?.theme ?? null;
-    await host.applySettings({ apiKey: apiKey.trim(), endpointUrl: endpointUrl.trim() || DEFAULT_ENDPOINT });
+    applied = host.applySettings({ apiKey: apiKey.trim(), endpointUrl: endpointUrl.trim() || DEFAULT_ENDPOINT });
+    return applied;
   }
 
   function toast(message: string): void {
@@ -100,6 +104,7 @@ export function mountDemo(root: HTMLElement, host: DemoHost): void {
   }
 
   async function reportProblem(): Promise<void> {
+    await applied.catch(() => {});
     if (isConfigured()) {
       await FeedbackKit.presentAndSubmit({
         onSubmitted: (report) => toast(`Feedback submitted (ID: ${report.id.slice(0, 8)}).`),

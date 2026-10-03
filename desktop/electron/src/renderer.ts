@@ -43,12 +43,14 @@ export async function configure(
     return;
   }
 
-  // Applies to local-only reports too (no project key); the configuration's own `environment` still wins.
-  FeedbackKit.environment = await electron.environment();
+  // Configure first, synchronously, so a report opened while the details
+  // are still loading works (it just lacks them) instead of failing.
   if (configuration) FeedbackKit.configure(configuration);
   if (options.nativeCapture !== false) {
     FeedbackKit.captureOptions = { ...FeedbackKit.captureOptions, provider: () => electron.capture() };
   }
+  // Applies to local-only reports too (no project key); the configuration's own `environment` still wins.
+  FeedbackKit.environment = await electron.environment();
 
   unsubscribe?.();
   unsubscribe = electron.onPresent(

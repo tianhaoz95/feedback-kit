@@ -1,0 +1,37 @@
+{
+  "name": "feedbackkit-tauri",
+  "version": "1.0.62",
+  "description": "In-app feedback for Tauri apps: FeedbackKit's web SDK plus real OS/device/app details and a native menu trigger from tauri-plugin-feedbackkit.",
+  "license": "MIT",
+  "homepage": "https://github.com/tianhaoz95/feedback-kit/tree/main/desktop/tauri#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tianhaoz95/feedback-kit.git",
+    "directory": "desktop/tauri/guest-js"
+  },
+  "keywords": ["tauri", "feedback", "bug-report", "screenshot", "annotation", "feedbackkit"],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "prepack": "npm run build"
+  },
+  "peerDependencies": {
+    "@tauri-apps/api": "^2",
+    "feedbackkit-web": ">=1.0.63"
+  },
+  "devDependencies": {
+    "@tauri-apps/api": "^2.12.1",
+    "feedbackkit-web": "file:../../../web-sdk",
+    "typescript": "^5.9.3"
+  }
+}

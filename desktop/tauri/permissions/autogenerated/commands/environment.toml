@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-environment"
+description = "Enables the environment command without any pre-configured scope."
+commands.allow = ["environment"]
+
+[[permission]]
+identifier = "deny-environment"
+description = "Denies the environment command without any pre-configured scope."
+commands.deny = ["environment"]

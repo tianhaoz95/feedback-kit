@@ -1,0 +1,25 @@
+[package]
+name = "tauri-plugin-feedbackkit"
+version = "1.0.62"
+edition = "2021"
+description = "FeedbackKit for Tauri: real OS/device/app details and a native menu trigger for FeedbackKit's in-app feedback flow."
+license = "MIT"
+repository = "https://github.com/tianhaoz95/feedback-kit"
+homepage = "https://github.com/tianhaoz95/feedback-kit/tree/main/desktop/tauri"
+readme = "README.md"
+keywords = ["tauri", "tauri-plugin", "feedback", "bug-report"]
+categories = ["gui"]
+rust-version = "1.77.2"
+links = "tauri-plugin-feedbackkit"
+exclude = ["/guest-js/node_modules", "/guest-js/dist"]
+
+[dependencies]
+tauri = { version = "2" }
+serde = { version = "1", features = ["derive"] }
+os_info = { version = "3", default-features = false }
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.55"
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }
