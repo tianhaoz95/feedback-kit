@@ -205,7 +205,16 @@ object FeedbackKit {
                     composerPlaceholder = composerPlaceholder,
                     onComplete = { report -> completion?.invoke(report) },
                 )
-                host.startActivity(Intent(host, FeedbackActivity::class.java))
+                try {
+                    host.startActivity(Intent(host, FeedbackActivity::class.java))
+                } catch (e: RuntimeException) {
+                    // A stale pending session would block every later presentation.
+                    Log.w(TAG, "Couldn't open the feedback editor", e)
+                    FeedbackSession.pending = null
+                    indicator?.dismiss()
+                    completion?.invoke(null)
+                    return@capture
+                }
                 @Suppress("DEPRECATION")
                 host.overridePendingTransition(android.R.anim.fade_in, 0)
                 handler.postDelayed({ indicator?.dismiss() }, 350)

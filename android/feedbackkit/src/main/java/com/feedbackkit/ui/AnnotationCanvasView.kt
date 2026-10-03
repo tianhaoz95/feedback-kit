@@ -71,7 +71,13 @@ internal class AnnotationCanvasView(
     private var transformOriginalRotation = 0.0
 
     private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
-    private val bezelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; style = Paint.Style.STROKE }
+    // A black phone body vanishes against the editor's black dark-mode background.
+    private val isDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+        android.content.res.Configuration.UI_MODE_NIGHT_YES
+    private val bezelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = if (isDark) Color.rgb(58, 58, 60) else Color.BLACK
+        style = Paint.Style.STROKE
+    }
     private val cameraPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK }
     private val clipPath = Path()
 

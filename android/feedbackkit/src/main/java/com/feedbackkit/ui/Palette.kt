@@ -3,7 +3,6 @@ package com.feedbackkit.ui
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Color
-import android.util.TypedValue
 import com.feedbackkit.FeedbackTheme
 
 /**
@@ -35,8 +34,6 @@ internal class Palette(context: Context, theme: FeedbackTheme?) {
     private val density = context.resources.displayMetrics.density
     fun dp(value: Float): Float = value * density
     fun dp(value: Int): Int = (value * density + 0.5f).toInt()
-    fun sp(value: Float, context: Context): Float =
-        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, value, context.resources.displayMetrics)
 }
 
 /** `#RRGGBB` / `RRGGBB` → opaque ARGB int, or null. Same accepted forms as the Swift SDK's `PlatformColor(hex:)`. */

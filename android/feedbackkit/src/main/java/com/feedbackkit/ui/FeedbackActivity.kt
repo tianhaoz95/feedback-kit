@@ -178,7 +178,10 @@ class FeedbackActivity : Activity() {
             insets
         }
         // Tapping anywhere outside the composer dismisses the keyboard, like Messages/Mail.
-        canvasView.setOnTouchListener { _, _ -> hideKeyboard(); false }
+        canvasView.setOnTouchListener { _, event ->
+            if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) hideKeyboard()
+            false
+        }
         return root
     }
 
