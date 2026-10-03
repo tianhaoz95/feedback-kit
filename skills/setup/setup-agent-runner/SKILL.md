@@ -176,7 +176,9 @@ npx feedbackkit-cli token create agent-runner --preset agent --project <project-
 
 ### Step 4 -- Add the Claude Code workflow
 
-Copy `templates/feedbackkit-agent.yml.template` to `.github/workflows/feedbackkit-agent.yml`, replace `__DISPATCH_LABEL__` (e.g. `claude`), and widen `--allowedTools` only as far as the build needs (e.g. `Bash(npm test:*)` for a web app). Keep `allowed_bots: feedbackkit-app`: the label is added by FeedbackKit's GitHub App, and claude-code-action refuses bot-triggered runs otherwise.
+Copy `templates/feedbackkit-agent.yml.template` to `.github/workflows/feedbackkit-agent.yml`, replace `__DISPATCH_LABEL__` (e.g. `claude`) and `__CI_WORKFLOWS__` (as in Step 3b), and widen `--allowedTools` only as far as the build needs (e.g. `Bash(npm ci:*),Bash(npm test:*)` for a web app). A rule matches the start of the command, so allow the exact form the agent will type (`npm --prefix web …` doesn't match `Bash(npm test:*)`); the workflow's system prompt already tells it to use relative paths from the repository root. Keep `allowed_bots: feedbackkit-app`: the label is added by FeedbackKit's GitHub App, and claude-code-action refuses bot-triggered runs otherwise.
+
+claude-code-action only pushes a branch and links "Create PR", so the workflow's last step opens the PR (with `Fixes #N` and the `FeedbackKit:` lines) using the run's own token. That needs the same repository setting as Step 3b's item 5, asked the same way.
 
 ### Step 5 -- Point FeedbackKit at it
 

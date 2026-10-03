@@ -25,6 +25,8 @@ permissions:
   issues: write
   pull-requests: write
   id-token: write
+  # Starts CI on the agent's PR (see "Open a pull request").
+  actions: write
 
 jobs:
   agent:
@@ -64,6 +66,8 @@ jobs:
           # A merged issue lists one `FeedbackKit: <id>` per report; the token covers
           # all of them, so each update and preview can go to its own report.
           FEEDBACK_IDS="$(printf '%s' "$ISSUE_BODY" | grep -oE 'FeedbackKit: [0-9a-fA-F-]{36}' | cut -d' ' -f2 | awk '!seen[$0]++' | xargs || true)"
+          echo "FEEDBACK_IDS=$FEEDBACK_IDS" >> "$GITHUB_ENV"
+          echo "RUN_STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
           if [ -n "$FEEDBACKKIT_TOKEN" ] && [ -n "$FEEDBACK_IDS" ]; then
             # A CLI or backend from before batch run tokens takes one report only.
             RUN_TOKEN="$(npx -y feedbackkit-cli@latest token issue --feedback $FEEDBACK_IDS --ttl 90 --name "run ${GITHUB_RUN_ID}" \
@@ -73,6 +77,12 @@ jobs:
           fi
 
       - uses: anthropics/claude-code-action@v1
+        id: claude
+        env:
+          # For scripts/agent-preview/*.mjs, which read the report and attach
+          # previews as this run's report-limited token.
+          FEEDBACKKIT_TOKEN: ${{ env.FEEDBACKKIT_RUN_TOKEN }}
+          FEEDBACKKIT_ACTOR_LABEL: Claude (FeedbackKit)
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -89,5 +99,77 @@ jobs:
           # issue_comment trigger above picks up on the PR's branch.
           claude_args: >-
             --mcp-config '{"mcpServers":{"feedbackkit":{"command":"npx","args":["-y","feedbackkit-cli@latest","mcp"],"env":{"FEEDBACKKIT_TOKEN":"${{ env.FEEDBACKKIT_RUN_TOKEN }}"}}}}'
-            --allowedTools "mcp__feedbackkit,Bash(xcodebuild:*),Bash(xcrun simctl:*),Bash(swift build:*),Bash(swift test:*),Bash(xcodegen:*),Bash(npm run build:*),Bash(npm run lint:*),Bash(npm test:*)"
-            --append-system-prompt "Show your work on the FeedbackKit report: the team reviews screenshots on the report page instead of running the build. Call attach_preview (with a caption) once the fix works and at useful points along the way (the bug reproduced, a first version), and post_update for short progress notes. When the issue merges several FeedbackKit reports, post each update and preview to the report it's about (its feedback_id), not all to the first. A FeedbackKit follow-up comment on a pull request asks for another pass on that PR: keep working on its branch, don't open a new one."
+            --allowedTools "mcp__feedbackkit,Bash(xcodebuild:*),Bash(xcrun simctl:*),Bash(swift build:*),Bash(swift test:*),Bash(xcodegen:*),Bash(npm ci:*),Bash(npm run build:*),Bash(npm run lint:*),Bash(npm test:*),Bash(node scripts/agent-preview/capture-web.mjs:*),Bash(node scripts/agent-preview/capture-portal.mjs:*),Bash(node scripts/agent-preview/attach.mjs:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*)"
+            --append-system-prompt "Show your work on the FeedbackKit report: the team reviews screenshots on the report page instead of running the build. Call attach_preview (with a caption) once the fix works and at useful points along the way (the bug reproduced, a first version), and post_update for short progress notes. When the issue merges several FeedbackKit reports, post each update and preview to the report it's about (its feedback_id), not all to the first. A FeedbackKit follow-up comment on a pull request asks for another pass on that PR: keep working on its branch, don't open a new one. Look at the report's screenshot with the get_feedback tool (it returns the images); curl and WebFetch aren't available. Only the allowed commands run, and an allow rule matches the start of the command: run them from the repository root with relative paths, one command per call (no pipes, no shell variables, no absolute paths, no npm --prefix). web/ has no node_modules on a fresh checkout: run cd web && npm ci before cd web && npm run build. To preview a web fix, run node scripts/agent-preview/capture-web.mjs --feedback <id> --attach --caption 'what it shows' (add --width 390 --height 844 for a phone); for the iOS Portal, node scripts/agent-preview/capture-portal.mjs --feedback <id> --attach. The workflow opens the pull request after you push, so don't stop at a Create PR link."
+
+      - name: Open a pull request for the agent's branch
+        # The action only pushes a branch and links "Create PR"; the
+        # FeedbackKit loop needs the PR (its `FeedbackKit: <id>` lines move the
+        # report to "PR open"). Skipped when nothing was pushed or the branch
+        # already has a PR (a follow-up on the agent's own PR).
+        if: steps.claude.outputs.branch_name != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.claude.outputs.branch_name }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        run: |
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          if ! git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
+            echo "Nothing pushed to ${BRANCH}."; exit 0
+          fi
+          if [ -n "$(gh pr list --head "$BRANCH" --state all --json number --jq '.[].number')" ]; then
+            echo "${BRANCH} already has a pull request."; exit 0
+          fi
+          git fetch --quiet origin "$BRANCH" "$DEFAULT_BRANCH"
+          {
+            git log --format='%B' "origin/${DEFAULT_BRANCH}..origin/${BRANCH}" | grep -v -E '^(FeedbackKit|Co-Authored-By|Co-authored-by):' || true
+            echo
+            echo "Fixes #${ISSUE_NUMBER}"
+            if [ -n "$FEEDBACK_IDS" ]; then echo; printf 'FeedbackKit: %s\n' $FEEDBACK_IDS; fi
+          } > "$RUNNER_TEMP/pr.md"
+          gh pr create --title "Fix: ${ISSUE_TITLE}" --body-file "$RUNNER_TEMP/pr.md" --head "$BRANCH" --base "$DEFAULT_BRANCH"
+          # A PR opened with the run's own token starts no workflows, so
+          # dispatch the CI for what changed.
+          CI=""
+          for f in $(git diff --name-only "origin/${DEFAULT_BRANCH}...origin/${BRANCH}"); do
+            case "$f" in
+              web/*|web-sdk/*) CI="$CI web-sdk-ci.yml" ;;
+              cli/*) CI="$CI cli-ci.yml" ;;
+              supabase/*|skills/*) CI="$CI backend-ci.yml" ;;
+              DeveloperApp/*) CI="$CI portal-ci.yml" ;;
+              Sources/*|Tests/*|Package.swift) CI="$CI sdk-ci.yml portal-ci.yml" ;;
+            esac
+          done
+          for wf in $(printf '%s\n' $CI | sort -u); do gh workflow run "$wf" --ref "$BRANCH"; done
+
+      - name: Attach a preview if the agent didn't
+        # Same fallback as the Antigravity workflow: a web or iOS Portal fix
+        # with no preview from the agent gets one captured from its branch.
+        # Best effort: a failed capture never fails the run.
+        if: steps.claude.outputs.branch_name != '' && env.FEEDBACK_IDS != ''
+        continue-on-error: true
+        env:
+          FEEDBACKKIT_TOKEN: ${{ env.FEEDBACKKIT_RUN_TOKEN }}
+          FEEDBACKKIT_ACTOR_LABEL: Claude (FeedbackKit)
+          BRANCH: ${{ steps.claude.outputs.branch_name }}
+        run: |
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          git fetch --quiet origin "$BRANCH" "$DEFAULT_BRANCH" || exit 0
+          git checkout --quiet "origin/${BRANCH}"
+          CHANGED="$(git diff --name-only "origin/${DEFAULT_BRANCH}...HEAD")"
+          CAPTION="After the fix (captured by the agent workflow from branch ${BRANCH})"
+          if [ -z "$FEEDBACKKIT_TOKEN" ]; then
+            echo "No FeedbackKit token for this run."
+          elif printf '%s\n' "$CHANGED" | grep -q '^web/'; then
+            for id in $FEEDBACK_IDS; do
+              node scripts/agent-preview/capture-web.mjs --feedback "$id" --attach --since "$RUN_STARTED" --caption "$CAPTION" || [ $? -eq 3 ]
+            done
+          elif printf '%s\n' "$CHANGED" | grep -q '^DeveloperApp/'; then
+            for id in $FEEDBACK_IDS; do
+              node scripts/agent-preview/capture-portal.mjs --feedback "$id" --attach --since "$RUN_STARTED" \
+                --caption "$CAPTION — the Portal's demo data, on the report's tab" || [ $? -eq 3 ]
+            done
+          else
+            echo "No web or Portal change to preview."
+          fi

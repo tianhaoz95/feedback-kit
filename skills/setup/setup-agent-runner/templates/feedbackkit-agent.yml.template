@@ -9,11 +9,14 @@ name: FeedbackKit agent
 # moves to "PR open" → "merged" → shipped → verified by the reporter.
 #
 # Adapt: __DISPATCH_LABEL__, the allowed tools for your build (xcodebuild,
-# npm, …). Secrets: CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token`) or
-# ANTHROPIC_API_KEY, and FEEDBACKKIT_AGENT_TOKEN (an "Agent runner" access
-# token) for the FeedbackKit MCP tools. The Claude GitHub App must be
-# installed on the repo: the action posts its comments, pushes the branch and
-# opens the PR as `claude[bot]` (or pass `github_token:` to use another token).
+# npm, …), and __CI_WORKFLOWS__. Secrets: CLAUDE_CODE_OAUTH_TOKEN
+# (`claude setup-token`) or ANTHROPIC_API_KEY, and FEEDBACKKIT_AGENT_TOKEN (an
+# "Agent runner" access token) for the FeedbackKit MCP tools. The Claude
+# GitHub App must be installed on the repo: the action posts its comments and
+# pushes the branch as `claude[bot]`. The action itself only links "Create
+# PR", so the last step opens the PR with the run's own token, which needs
+# Settings → Actions → General → "Allow GitHub Actions to create and approve
+# pull requests".
 
 on:
   issues:
@@ -26,6 +29,8 @@ permissions:
   issues: write
   pull-requests: write
   id-token: write
+  # Starts CI on the agent's PR (see the last step).
+  actions: write
 
 jobs:
   agent:
@@ -65,6 +70,7 @@ jobs:
           # A merged issue lists one `FeedbackKit: <id>` per report; the token covers
           # all of them, so each update and preview can go to its own report.
           FEEDBACK_IDS="$(printf '%s' "$ISSUE_BODY" | grep -oE 'FeedbackKit: [0-9a-fA-F-]{36}' | cut -d' ' -f2 | awk '!seen[$0]++' | xargs || true)"
+          echo "FEEDBACK_IDS=$FEEDBACK_IDS" >> "$GITHUB_ENV"
           if [ -n "$FEEDBACKKIT_TOKEN" ] && [ -n "$FEEDBACK_IDS" ]; then
             # A CLI or backend from before batch run tokens takes one report only.
             RUN_TOKEN="$(npx -y feedbackkit-cli@latest token issue --feedback $FEEDBACK_IDS --ttl 90 --name "run ${GITHUB_RUN_ID}" \
@@ -74,6 +80,7 @@ jobs:
           fi
 
       - uses: anthropics/claude-code-action@v1
+        id: claude
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -91,4 +98,37 @@ jobs:
           claude_args: >-
             --mcp-config '{"mcpServers":{"feedbackkit":{"command":"npx","args":["-y","feedbackkit-cli@latest","mcp"],"env":{"FEEDBACKKIT_TOKEN":"${{ env.FEEDBACKKIT_RUN_TOKEN }}"}}}}'
             --allowedTools "mcp__feedbackkit,Bash(xcodebuild:*),Bash(xcrun simctl:*),Bash(swift build:*),Bash(swift test:*),Bash(xcodegen:*)"
-            --append-system-prompt "Show your work on the FeedbackKit report: the team reviews screenshots on the report page instead of running the build. Call attach_preview (with a caption) once the fix works and at useful points along the way (the bug reproduced, a first version), and post_update for short progress notes. When the issue merges several FeedbackKit reports, post each update and preview to the report it's about (its feedback_id), not all to the first. A FeedbackKit follow-up comment on a pull request asks for another pass on that PR: keep working on its branch, don't open a new one."
+            --append-system-prompt "Show your work on the FeedbackKit report: the team reviews screenshots on the report page instead of running the build. Call attach_preview (with a caption) once the fix works and at useful points along the way (the bug reproduced, a first version), and post_update for short progress notes. When the issue merges several FeedbackKit reports, post each update and preview to the report it's about (its feedback_id), not all to the first. A FeedbackKit follow-up comment on a pull request asks for another pass on that PR: keep working on its branch, don't open a new one. Look at the report's screenshot with the get_feedback tool (it returns the images); curl and WebFetch aren't available. Only the allowed commands run, and an allow rule matches the start of the command: run them from the repository root with relative paths, one command per call (no pipes, no shell variables, no absolute paths). The workflow opens the pull request after you push, so don't stop at a Create PR link."
+
+      - name: Open a pull request for the agent's branch
+        # The action only pushes a branch and links "Create PR"; the
+        # FeedbackKit loop needs the PR (its `FeedbackKit: <id>` lines move the
+        # report to "PR open"). Skipped when nothing was pushed or the branch
+        # already has a PR (a follow-up on the agent's own PR).
+        if: steps.claude.outputs.branch_name != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.claude.outputs.branch_name }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          # The repository's CI workflow files (each needs `workflow_dispatch:`),
+          # space-separated; a PR opened with the run's own token doesn't start
+          # workflows by itself. Leave empty to skip.
+          CI_WORKFLOWS: "__CI_WORKFLOWS__"
+        run: |
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          if ! git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
+            echo "Nothing pushed to ${BRANCH}."; exit 0
+          fi
+          if [ -n "$(gh pr list --head "$BRANCH" --state all --json number --jq '.[].number')" ]; then
+            echo "${BRANCH} already has a pull request."; exit 0
+          fi
+          git fetch --quiet origin "$BRANCH" "$DEFAULT_BRANCH"
+          {
+            git log --format='%B' "origin/${DEFAULT_BRANCH}..origin/${BRANCH}" | grep -v -E '^(FeedbackKit|Co-Authored-By|Co-authored-by):' || true
+            echo
+            echo "Fixes #${ISSUE_NUMBER}"
+            if [ -n "$FEEDBACK_IDS" ]; then echo; printf 'FeedbackKit: %s\n' $FEEDBACK_IDS; fi
+          } > "$RUNNER_TEMP/pr.md"
+          gh pr create --title "Fix: ${ISSUE_TITLE}" --body-file "$RUNNER_TEMP/pr.md" --head "$BRANCH" --base "$DEFAULT_BRANCH"
+          for wf in $CI_WORKFLOWS; do gh workflow run "$wf" --ref "$BRANCH"; done
