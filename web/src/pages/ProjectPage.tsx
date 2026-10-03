@@ -1555,7 +1555,7 @@ export function ProjectPage() {
               </div>
 
               {/* Floating button on narrow screens */}
-              <div className="lg:hidden fixed bottom-6 right-6 z-40">
+              <div className="lg:hidden fixed bottom-6 left-6 z-40">
                 <button
                   type="button"
                   onClick={() => setMobileSidebarOpen(true)}
