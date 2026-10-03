@@ -392,6 +392,64 @@ final class PortalTests: XCTestCase {
     }
 
     @MainActor
+    func testAppStatePinnedProjectsToggleAndPersistence() {
+        let appState = AppState.shared
+        UserDefaults.standard.removeObject(forKey: AppState.pinnedProjectIdsKey)
+        appState.pinnedProjectIds = []
+
+        XCTAssertFalse(appState.isProjectPinned(id: "proj-test"))
+
+        // Pin the project
+        appState.togglePin(id: "proj-test")
+        XCTAssertTrue(appState.isProjectPinned(id: "proj-test"))
+        let stored = UserDefaults.standard.stringArray(forKey: AppState.pinnedProjectIdsKey) ?? []
+        XCTAssertTrue(stored.contains("proj-test"))
+
+        // Unpin the project
+        appState.togglePin(id: "proj-test")
+        XCTAssertFalse(appState.isProjectPinned(id: "proj-test"))
+        let storedAfterUnpin = UserDefaults.standard.stringArray(forKey: AppState.pinnedProjectIdsKey) ?? []
+        XCTAssertFalse(storedAfterUnpin.contains("proj-test"))
+    }
+
+    @MainActor
+    func testProjectsListViewSortAndFilterWithPinnedProjects() {
+        let p1 = PortalProject(id: "p1", organizationId: "org-1", name: "Alpha", projectKey: "k1", createdAt: Date().addingTimeInterval(-100))
+        let p2 = PortalProject(id: "p2", organizationId: "org-1", name: "Beta", projectKey: "k2", createdAt: Date().addingTimeInterval(-50))
+        let p3 = PortalProject(id: "p3", organizationId: "org-1", name: "Gamma", projectKey: "k3", createdAt: Date())
+        let projects = [p1, p2, p3]
+
+        // No pinned projects: original order preserved
+        let unpinnedResult = ProjectsListView.sortAndFilterProjects(projects, pinnedIds: [])
+        XCTAssertEqual(unpinnedResult.map(\.id), ["p1", "p2", "p3"])
+
+        // Pin p2: p2 comes first, followed by p1, p3
+        let p2PinnedResult = ProjectsListView.sortAndFilterProjects(projects, pinnedIds: ["p2"])
+        XCTAssertEqual(p2PinnedResult.map(\.id), ["p2", "p1", "p3"])
+
+        // Pin p2 and p3: p2 and p3 come first (in their original relative order), then p1
+        let p2p3PinnedResult = ProjectsListView.sortAndFilterProjects(projects, pinnedIds: ["p2", "p3"])
+        XCTAssertEqual(p2p3PinnedResult.map(\.id), ["p2", "p3", "p1"])
+
+        // Search filtering with pinned
+        let searchResult = ProjectsListView.sortAndFilterProjects(projects, pinnedIds: ["p2", "p3"], searchText: "a")
+        // "Alpha", "Beta", "Gamma" all contain 'a'
+        XCTAssertEqual(searchResult.map(\.id), ["p2", "p3", "p1"])
+
+        let filteredResult = ProjectsListView.sortAndFilterProjects(projects, pinnedIds: ["p2", "p3"], searchText: "Beta")
+        XCTAssertEqual(filteredResult.map(\.id), ["p2"])
+    }
+
+    @MainActor
+    func testProjectsListViewRendersWithPinnedProjects() {
+        let appState = AppState.shared
+        appState.pinnedProjectIds = ["proj-1"]
+        let view = ProjectsListView().environmentObject(appState)
+        let host = UIHostingController(rootView: view)
+        XCTAssertNotNil(host.view)
+    }
+
+    @MainActor
     func testBackendConfigViewInitialization() {
         let view = BackendConfigView()
         let host = UIHostingController(rootView: view)
