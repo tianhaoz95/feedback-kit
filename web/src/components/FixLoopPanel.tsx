@@ -320,7 +320,7 @@ export function FixLoopPanel({
           </div>
         ) : null}
         {feedback.fix_summary ? (
-          <div className="col-span-2 text-neutral-700">
+          <div className="col-span-2 break-words text-neutral-700">
             <span className="text-neutral-400">Fix: </span>
             {feedback.fix_summary}
           </div>
@@ -431,11 +431,11 @@ export function FixLoopPanel({
                   ) : null}
                   <span className="text-[10px] text-neutral-400">{new Date(e.created_at).toLocaleString()}</span>
                 </div>
-                {e.body ? <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-neutral-700">{e.body}</p> : null}
+                {e.body ? <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-neutral-700">{e.body}</p> : null}
                 {prUrl ? (
-                  <a href={prUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-[11px] text-blue-700 hover:underline">
-                    {prUrl.replace(/^https:\/\/github\.com\//, "")}
-                    <ExternalLinkIcon className="h-3 w-3" />
+                  <a href={prUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex max-w-full items-center gap-1 text-[11px] text-blue-700 hover:underline">
+                    <span className="min-w-0 break-all">{prUrl.replace(/^https:\/\/github\.com\//, "")}</span>
+                    <ExternalLinkIcon className="h-3 w-3 shrink-0" />
                   </a>
                 ) : null}
                 {e.kind === "after_screenshot" && e.data?.expired_at ? (

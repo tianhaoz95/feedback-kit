@@ -1781,9 +1781,10 @@ export function ProjectPage() {
 
                 {issueErrorBanner}
 
-                {/* Subgrid: Left = Screenshot/Desc/Env, Right = Prompt */}
-                <div className="grid gap-5 xl:grid-cols-2 items-stretch">
-                  <div className="space-y-4">
+                {/* Subgrid: Left = Screenshot/Desc/Env, Right = Prompt. grid-cols-1 (minmax(0, 1fr)) on narrow
+                    screens, so a long URL or wide screenshot can't stretch it wider than the header above. */}
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-2 items-stretch">
+                  <div className="min-w-0 space-y-4">
                     {/* Screenshot */}
                     {selectedScreenshotUrl || selectedPreviews.length > 0 ? (
                       <ScreenshotViewer
@@ -1932,7 +1933,7 @@ export function ProjectPage() {
                   </div>
 
                   {/* Right Column: Prompt for coding agent */}
-                  <div className="flex flex-col h-full">
+                  <div className="flex min-w-0 flex-col h-full">
                     <div className="flex flex-1 flex-col rounded-xl border border-neutral-200 bg-white p-5 shadow-xs">
                       <div className="flex items-center gap-2">
                         <SparkleIcon className="h-4 w-4 text-neutral-500" />
