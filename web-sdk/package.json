@@ -23,7 +23,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "vite build && FEEDBACKKIT_IIFE=1 vite build && tsc -p tsconfig.build.json",
+    "build": "vite build && vite build --mode iife && tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build",
     "dev": "vite build --watch",
     "lint": "tsc --noEmit",
