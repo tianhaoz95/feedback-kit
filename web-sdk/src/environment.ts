@@ -1,4 +1,4 @@
-import type { FeedbackEnvironment } from "./types";
+import type { EnvironmentOverrides, FeedbackEnvironment } from "./types";
 
 export interface ParsedUserAgent {
   osName: string;
@@ -142,6 +142,8 @@ export interface EnvironmentInputs {
   screenName?: string | null;
   appVersion?: string;
   appBuild?: string;
+  /** Host-supplied fields (desktop shells) merged over the detected ones. */
+  overrides?: EnvironmentOverrides;
 }
 
 export async function collectEnvironment(inputs: EnvironmentInputs = {}): Promise<FeedbackEnvironment> {
@@ -152,7 +154,7 @@ export async function collectEnvironment(inputs: EnvironmentInputs = {}): Promis
   const browser = (hints && browserFromHints(hints)) || { name: parsed.browserName, version: parsed.browserVersion };
   const major = browser.version.split(".")[0];
 
-  return {
+  const detected: FeedbackEnvironment = {
     osName: os.osName,
     osVersion: os.osVersion,
     deviceModel: major ? `${browser.name} ${major}` : browser.name,
@@ -170,4 +172,12 @@ export async function collectEnvironment(inputs: EnvironmentInputs = {}): Promis
     browserName: browser.name,
     browserVersion: browser.version,
   };
+  const merged: FeedbackEnvironment = { ...detected };
+  for (const [key, value] of Object.entries(inputs.overrides ?? {})) {
+    if (typeof value === "string" && value !== "") (merged as unknown as Record<string, string>)[key] = value;
+  }
+  // An explicit appVersion/appBuild in configure() beats a host-supplied one.
+  if (inputs.appVersion) merged.appVersion = inputs.appVersion;
+  if (inputs.appBuild) merged.appBuild = inputs.appBuild;
+  return merged;
 }

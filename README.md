@@ -3,6 +3,10 @@
 | Product | Tests | Release / deploy |
 | --- | --- | --- |
 | Swift SDK (iOS, macOS, watchOS) | [![SDK CI](https://github.com/tianhaoz95/feedback-kit/actions/workflows/sdk-ci.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/sdk-ci.yml) | — |
+| Android SDK | [![Android SDK CI](https://github.com/tianhaoz95/feedback-kit/actions/workflows/android-ci.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/android-ci.yml) | JitPack (built from release tags) |
+| Flutter plugin | [![Flutter Plugin CI](https://github.com/tianhaoz95/feedback-kit/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/flutter-ci.yml) | — |
+| React Native module | [![React Native Module CI](https://github.com/tianhaoz95/feedback-kit/actions/workflows/react-native-ci.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/react-native-ci.yml) | [![Publish React Native Module](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-react-native.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-react-native.yml) |
+| Tauri + Electron packages | [![Desktop CI](https://github.com/tianhaoz95/feedback-kit/actions/workflows/desktop-ci.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/desktop-ci.yml) | [![Publish Desktop Packages](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-desktop.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-desktop.yml) |
 | Developer Portal (iOS, macOS) | [![Portal CI](https://github.com/tianhaoz95/feedback-kit/actions/workflows/portal-ci.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/portal-ci.yml) | [![Beta](https://github.com/tianhaoz95/feedback-kit/actions/workflows/beta.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/beta.yml) [![Release Portal to TestFlight](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight-portal.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight-portal.yml) [![Release macOS Portal](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-portal-macos.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-portal-macos.yml) |
 | Demo apps | — | [![Release to TestFlight](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/testflight.yml) [![Release macOS Demo](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-macos-demo.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/release-macos-demo.yml) |
 | Web SDK and dashboard | [![Web SDK CI](https://github.com/tianhaoz95/feedback-kit/actions/workflows/web-sdk-ci.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/web-sdk-ci.yml) | [![Publish Web SDK Package](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-web-sdk.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/publish-web-sdk.yml) [![Announce web deploy](https://github.com/tianhaoz95/feedback-kit/actions/workflows/announce-web.yml/badge.svg)](https://github.com/tianhaoz95/feedback-kit/actions/workflows/announce-web.yml) |
@@ -15,7 +19,10 @@ annotations + description + device/app/screen info on iOS/macOS; text +
 context only on watchOS), a web SDK that does the same for websites (plus
 the page URL and recent console errors / failed requests), and an optional
 Supabase-backed dashboard for collecting it with your team and turning it
-into prompts for a coding agent. An Android SDK is coming soon.
+into prompts for a coding agent. A native Android SDK brings the same flow to
+Android, Flutter and React Native wrappers run the native iOS and Android
+SDKs under the hood, and packages for Tauri and Electron cover desktop apps on
+Windows, Linux and macOS.
 
 > 📖 **Developer Documentation & Contributor Guide**: [https://tianhaoz95.github.io/feedback-kit/](https://tianhaoz95.github.io/feedback-kit/)  
 > 🚀 **Live Web Dashboard**: [https://feedback-kit.hejitech.workers.dev](https://feedback-kit.hejitech.workers.dev)
@@ -108,7 +115,59 @@ npm test           # unit tests
 npm run test:e2e   # the full flow in real Chromium, Firefox and WebKit
 ```
 
-### Run the web dashboard
+### Android, Flutter and React Native
+
+- **Android** (`android/`): a native Kotlin SDK (`android/feedbackkit`) with the
+  same flow and report as the iOS SDK, plus a demo app (`android/demo`) with a
+  Jetpack Compose Home screen, a classic-View Cart screen and Settings.
+
+  ```bash
+  ./scripts/run-android.sh                          # builds, installs, launches on a device/emulator
+  cd android && ./gradlew :feedbackkit:testDebugUnitTest
+  ```
+
+- **Flutter** (`flutter/feedbackkit_flutter`): a plugin over the native SDKs,
+  with the demo app in `example/`.
+
+  ```bash
+  cd flutter/feedbackkit_flutter && flutter test
+  cd example && flutter run
+  ```
+
+- **React Native** (`react-native/`, npm `feedbackkit-react-native`): a New
+  Architecture TurboModule over the native SDKs, with the demo app in
+  `example/`.
+
+  ```bash
+  cd react-native && corepack yarn && corepack yarn test
+  corepack yarn example ios        # or: corepack yarn example android
+  ```
+
+Inside this repo all three build against the SDK sources here, so a Swift or
+Android SDK change can be tried in every app at once. See
+[`/docs/mobile-sdks`](https://feedback-kit.hejitech.workers.dev/docs/mobile-sdks)
+for the install snippets apps use.
+
+### Tauri and Electron (desktop apps)
+
+`desktop/` adds Windows, Linux and macOS desktop apps built with Tauri 2 or
+Electron. Both use the web SDK in their webview, plus a package that adds the
+real OS, machine and app details and native triggers:
+
+- `desktop/tauri`: the Rust plugin `tauri-plugin-feedbackkit` and the npm
+  package `feedbackkit-tauri` (in `guest-js/`).
+- `desktop/electron`: the npm package `feedbackkit-electron`, which adds
+  native `capturePage` screenshots, a Help-menu item and a global shortcut.
+- `desktop/tauri-demo` and `desktop/electron-demo`: the Home / Cart / Settings
+  sample, sharing `desktop/demo-ui`.
+
+```bash
+cd desktop/electron-demo && npm install && npm start          # or: npm run test:e2e
+cd desktop/tauri-demo && npm install && npm run dev
+npx tauri build --debug --no-bundle && node e2e/selftest.mjs   # end-to-end on this OS
+e2e/run-linux.sh                                               # …and on Linux, in Docker
+```
+
 
 Needs Docker Desktop running first (see above).
 
@@ -161,6 +220,11 @@ Claude Code, Cursor, Antigravity, Gemini CLI, and other AI coding assistants to 
 | [`setup/`](skills/setup/README.md) | [`setup-macos-sdk`](skills/setup/setup-macos-sdk/SKILL.md) | Integrate FeedbackKit SDK into a macOS desktop app (SwiftUI or AppKit). |
 | [`setup/`](skills/setup/README.md) | [`setup-watchos-sdk`](skills/setup/setup-watchos-sdk/SKILL.md) | Integrate FeedbackKit SDK into a watchOS app using FeedbackQuickNoteView. |
 | [`setup/`](skills/setup/README.md) | [`setup-web-sdk`](skills/setup/setup-web-sdk/SKILL.md) | Integrate the FeedbackKit web SDK into a website or web app. |
+| [`setup/`](skills/setup/README.md) | [`setup-android-sdk`](skills/setup/setup-android-sdk/SKILL.md) | Integrate the native FeedbackKit Android SDK into an Android app (Compose or Views) with JitPack setup, triggers, and screen tracking. |
+| [`setup/`](skills/setup/README.md) | [`setup-flutter-sdk`](skills/setup/setup-flutter-sdk/SKILL.md) | Integrate FeedbackKit into a Flutter app with `feedbackkit_flutter`, which runs the native iOS and Android SDKs. |
+| [`setup/`](skills/setup/README.md) | [`setup-react-native-sdk`](skills/setup/setup-react-native-sdk/SKILL.md) | Integrate FeedbackKit into a React Native app with `feedbackkit-react-native`, which runs the native iOS and Android SDKs. |
+| [`setup/`](skills/setup/README.md) | [`setup-tauri-sdk`](skills/setup/setup-tauri-sdk/SKILL.md) | Integrate FeedbackKit into a Tauri 2 desktop app with `tauri-plugin-feedbackkit` and `feedbackkit-tauri`. |
+| [`setup/`](skills/setup/README.md) | [`setup-electron-sdk`](skills/setup/setup-electron-sdk/SKILL.md) | Integrate FeedbackKit into an Electron desktop app with `feedbackkit-electron`. |
 | [`setup/`](skills/setup/README.md) | [`setup-mcp-server`](skills/setup/setup-mcp-server/SKILL.md) | Configure FeedbackKit CLI and MCP server for AI coding agents. |
 | [`workflow/`](skills/workflow/README.md) | [`fix-feedback`](skills/workflow/fix-feedback/SKILL.md) | Fix a reported bug end to end and ship the fix back to the reporter's device for verification. |
 | [`setup/`](skills/setup/README.md) | [`setup-release-loop`](skills/setup/setup-release-loop/SKILL.md) | Asks batch or branch previews, then wires the repo's releases into the loop: GitHub linking, agent hand-off, release token, build announcements (including host-deployed sites like Cloudflare/Netlify/Vercel), and a beta or per-PR preview workflow. |
@@ -401,6 +465,10 @@ This publishes the GitHub release (tag `v1.0.0`) and triggers all release pipeli
 5. **`.github/workflows/publish-cli.yml`**: Builds, tests, and publishes `feedbackkit-cli` to both the public npm registry (`feedbackkit-cli`) and GitHub Packages (`@tianhaoz95/feedbackkit-cli`).
 6. **`.github/workflows/publish-skills.yml`**: Validates and publishes `feedback-kit-skills` to both the public npm registry (`feedback-kit-skills`) and GitHub Packages (`@tianhaoz95/feedback-kit-skills`).
 7. **`.github/workflows/publish-web-sdk.yml`**: Publishes `feedbackkit-web` to npm and GitHub Packages.
+8. **`.github/workflows/publish-react-native.yml`**: Publishes `feedbackkit-react-native` to npm. Its prepack step bundles the Android SDK.
+9. **`.github/workflows/publish-desktop.yml`**: Publishes `feedbackkit-electron` and `feedbackkit-tauri` to npm, and `tauri-plugin-feedbackkit` to crates.io once a `CARGO_REGISTRY_TOKEN` secret exists. Until then it only verifies the crate packages.
+
+The Android SDK has no pipeline: JitPack builds `android/feedbackkit` from the tag the first time someone requests it (`jitpack.yml`). The Flutter plugin isn't on pub.dev yet; apps depend on it from GitHub with a `git:` dependency. See `flutter/feedbackkit_flutter/README.md`.
 
 To release just one component, add its flag — it gets its own prefixed tag, and only that component's pipeline runs:
 
@@ -411,6 +479,8 @@ To release just one component, add its flag — it gets its own prefixed tag, an
 | `--cli` | `cli-v1.0.0` | `publish-cli.yml` |
 | `--skills` | `skills-v1.0.0` | `publish-skills.yml` |
 | `--web-sdk` | `web-sdk-v1.0.0` | `publish-web-sdk.yml` |
+| `--react-native` | `react-native-v1.0.0` | `publish-react-native.yml` |
+| `--desktop` | `desktop-v1.0.0` | `publish-desktop.yml` |
 
 Every release workflow follows this rule (a unified `vX.Y.Z` runs them all; a prefixed tag runs only its owner), so a new pipeline should skip every *other* prefix in its job's `if:` and be added to `scripts/cut_release.sh`.
 
@@ -446,13 +516,17 @@ API key with access to the team, the same one works for both.
 |---|---|
 | `Sources/FeedbackKit/` | The iOS + macOS + watchOS SDK (Swift Package) |
 | `Tests/FeedbackKitTests/` | SDK unit tests |
+| `android/` | Native Android SDK (`feedbackkit`) and its demo app (`demo`), one Gradle project |
+| `flutter/feedbackkit_flutter/` | Flutter plugin over the native iOS/Android SDKs, demo app in `example/` |
+| `react-native/` | React Native module (npm `feedbackkit-react-native`) over the native SDKs, demo app in `example/` |
+| `desktop/` | Tauri (`tauri/`: Rust plugin + npm `feedbackkit-tauri`) and Electron (`electron/`: npm `feedbackkit-electron`) packages over the web SDK, their demo apps, and the shared demo UI |
 | `DemoApp/` | Sample apps exercising the SDK on iOS, macOS, and watchOS (one XcodeGen project, three targets) |
 | `web/` | Static SPA dashboard (Vite + React), deployed to Cloudflare Workers Static Assets |
 | `docs/` | Contributor developer documentation (VitePress), deployed to GitHub Pages |
 | `supabase/` | Postgres migrations, storage policies, the ingestion Edge Function, billing (Stripe) Edge Functions |
 | `cli/` | `feedbackkit` CLI + MCP server (Node/TypeScript) |
 | `skills/` | Agent Skills catalog (`vercel-labs/skills`) for automated setup via AI coding agents |
-| `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `release_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh`, `release_portal_macos.sh` |
+| `scripts/` | `setup.sh`, `run-ios.sh`, `run-macos.sh`, `run-watchos.sh`, `run-android.sh`, `start-web.sh`, `deploy-functions.sh`, `cut_release.sh`, `generate_mac_icon.py`, `release_testflight.sh`, `release-mac.sh`, `release_macos_demo.sh`, `release_portal_macos.sh` |
 
 ## Contributing
 

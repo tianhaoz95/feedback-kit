@@ -198,8 +198,11 @@ public enum FeedbackKit {
         composerPlaceholder: String,
         completion: ((FeedbackReport?) -> Void)?
     ) {
-        // Prevent presenting multiple feedback flows if one is already visible
+        // Prevent presenting multiple feedback flows if one is already visible.
+        // Completion still fires (with nil) whenever nothing is presented, so a
+        // bridge awaiting it (Flutter, React Native) never hangs.
         if viewController is FeedbackViewController || viewController.presentedViewController is FeedbackViewController {
+            completion?(nil)
             return
         }
 
@@ -221,7 +224,10 @@ public enum FeedbackKit {
         }
 
         // A second trigger while this one is still capturing does nothing.
-        guard !isCapturing else { return }
+        guard !isCapturing else {
+            completion?(nil)
+            return
+        }
         isCapturing = true
 
         // Glow + "Capturing screenshot…" until the editor is up. Capture runs

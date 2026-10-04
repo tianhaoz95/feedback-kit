@@ -1,0 +1,72 @@
+buildscript {
+  ext.FeedbackKitReactNative = [
+    kotlinVersion: "2.0.21",
+    minSdkVersion: 24,
+    compileSdkVersion: 36
+  ]
+
+  ext.getExtOrDefault = { prop ->
+    if (rootProject.ext.has(prop)) {
+      return rootProject.ext.get(prop)
+    }
+
+    return FeedbackKitReactNative[prop]
+  }
+
+  repositories {
+    google()
+    mavenCentral()
+  }
+
+  dependencies {
+    classpath "com.android.tools.build:gradle:8.7.2"
+    // noinspection DifferentKotlinGradleVersion
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${getExtOrDefault('kotlinVersion')}"
+  }
+}
+
+
+apply plugin: "com.android.library"
+
+if (project.extensions.findByName("kotlin") == null) {
+  apply plugin: "kotlin-android"
+}
+
+
+apply plugin: "com.facebook.react"
+
+// The module runs the real native Android SDK, compiled straight into it:
+// from android/feedbackkit in this repo when building inside it (the example
+// app, CI), or from the copy scripts/vendor-native-sdks.sh places under
+// src/vendor when the package is packed for npm.
+def repoSdk = file("../../android/feedbackkit/src/main")
+def nativeSdk = repoSdk.exists() ? repoSdk : file("src/vendor/feedbackkit")
+
+android {
+  // The SDK's own namespace, since its sources (and their R references) compile here.
+  namespace "com.feedbackkit"
+
+  compileSdkVersion getExtOrDefault("compileSdkVersion")
+
+  defaultConfig {
+    minSdkVersion getExtOrDefault("minSdkVersion")
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+
+  sourceSets {
+    main {
+      java.srcDirs += ["${nativeSdk}/java"]
+      res.srcDirs += ["${nativeSdk}/res"]
+      // The SDK's manifest declares its editor activity and providers.
+      manifest.srcFile "${nativeSdk}/AndroidManifest.xml"
+    }
+  }
+}
+
+dependencies {
+  implementation "com.facebook.react:react-android"
+}

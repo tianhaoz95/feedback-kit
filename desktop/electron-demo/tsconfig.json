@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "paths": {
+      "feedbackkit-web": ["../../web-sdk/src/index.ts"],
+      "feedbackkit-desktop-demo-ui": ["../demo-ui/src/index.ts"]
+    }
+  },
+  "include": ["src", "../demo-ui/src"]
+}

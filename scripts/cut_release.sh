@@ -7,6 +7,9 @@
 #   - CLI package publish to npm & GitHub Packages (.github/workflows/publish-cli.yml)
 #   - Skills package publish to npm & GitHub Packages (.github/workflows/publish-skills.yml)
 #   - Web SDK package publish to npm & GitHub Packages (.github/workflows/publish-web-sdk.yml)
+#   - React Native module publish to npm (.github/workflows/publish-react-native.yml)
+#   - Desktop packages: feedbackkit-electron/-tauri to npm, tauri-plugin-feedbackkit to crates.io (.github/workflows/publish-desktop.yml)
+#   - Android SDK: nothing to run — JitPack builds a tag on first request (jitpack.yml)
 #
 # Usage:
 #   ./scripts/cut_release.sh 1.0.0
@@ -42,12 +45,14 @@ Tag / boost examples:
   --patch              Boost patch version (${NEXT_PATCH})
   --minor              Boost minor version (${NEXT_MINOR})
   --major              Boost major version (${NEXT_MAJOR})
-  ${NEXT_PATCH} (or v${NEXT_PATCH})  Unified release (triggers TestFlight + macOS DMGs + npm CLI/Skills/Web SDK)
+  ${NEXT_PATCH} (or v${NEXT_PATCH})  Unified release (triggers TestFlight + macOS DMGs + npm CLI/Skills/Web SDK/React Native/Desktop)
   ${NEXT_PATCH} --mac-demo     macOS demo app only (tag mac-demo-v${NEXT_PATCH})
   ${NEXT_PATCH} --mac-portal   macOS Developer Portal only (tag portal-mac-v${NEXT_PATCH})
   ${NEXT_PATCH} --cli          CLI only (tag cli-v${NEXT_PATCH})
   ${NEXT_PATCH} --skills       Skills only (tag skills-v${NEXT_PATCH})
   ${NEXT_PATCH} --web-sdk      Web SDK only (tag web-sdk-v${NEXT_PATCH})
+  ${NEXT_PATCH} --react-native React Native module only (tag react-native-v${NEXT_PATCH})
+  ${NEXT_PATCH} --desktop      Tauri + Electron packages only (tag desktop-v${NEXT_PATCH})
 
 Options:
   --notes "..."        Custom release notes (defaults to GitHub auto-generated notes)
@@ -98,6 +103,14 @@ while [[ $# -gt 0 ]]; do
       PREFIX_TYPE="web-sdk"
       shift
       ;;
+    --react-native)
+      PREFIX_TYPE="react-native"
+      shift
+      ;;
+    --desktop)
+      PREFIX_TYPE="desktop"
+      shift
+      ;;
     --notes)
       NOTES="${2:-}"
       [[ -z "$NOTES" ]] && usage 1
@@ -114,7 +127,7 @@ while [[ $# -gt 0 ]]; do
     -h|--help)
       usage 0
       ;;
-    mac-demo-v*|portal-mac-v*|cli-v*|skills-v*|web-sdk-v*|v*)
+    mac-demo-v*|portal-mac-v*|cli-v*|skills-v*|web-sdk-v*|react-native-v*|desktop-v*|v*)
       [[ -n "$VERSION" ]] && usage
       VERSION="$1"
       shift
@@ -133,7 +146,7 @@ done
 [[ -z "$VERSION" ]] && usage
 
 # Normalize version according to prefix type if not already prefixed
-if [[ "$VERSION" =~ ^(mac-demo-v|portal-mac-v|cli-v|skills-v|web-sdk-v|v)[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+if [[ "$VERSION" =~ ^(mac-demo-v|portal-mac-v|cli-v|skills-v|web-sdk-v|react-native-v|desktop-v|v)[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   TAG="$VERSION"
 elif [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   case "$PREFIX_TYPE" in
@@ -142,11 +155,13 @@ elif [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     cli)      TAG="cli-v$VERSION" ;;
     skills)   TAG="skills-v$VERSION" ;;
     web-sdk)  TAG="web-sdk-v$VERSION" ;;
+    react-native) TAG="react-native-v$VERSION" ;;
+    desktop)  TAG="desktop-v$VERSION" ;;
     *)        TAG="v$VERSION" ;;
   esac
 else
   echo "error: invalid version format: $VERSION" >&2
-  echo "expected X.Y.Z, vX.Y.Z, mac-demo-vX.Y.Z, portal-mac-vX.Y.Z, cli-vX.Y.Z, skills-vX.Y.Z, or web-sdk-vX.Y.Z" >&2
+  echo "expected X.Y.Z, vX.Y.Z, mac-demo-vX.Y.Z, portal-mac-vX.Y.Z, cli-vX.Y.Z, skills-vX.Y.Z, web-sdk-vX.Y.Z, react-native-vX.Y.Z, or desktop-vX.Y.Z" >&2
   exit 1
 fi
 
@@ -202,6 +217,12 @@ elif [[ "$TAG" =~ ^skills-v(.*)$ ]]; then
 elif [[ "$TAG" =~ ^web-sdk-v(.*)$ ]]; then
   TITLE="Web SDK v${BASH_REMATCH[1]}"
   WORKFLOW="publish-web-sdk.yml"
+elif [[ "$TAG" =~ ^react-native-v(.*)$ ]]; then
+  TITLE="React Native v${BASH_REMATCH[1]}"
+  WORKFLOW="publish-react-native.yml"
+elif [[ "$TAG" =~ ^desktop-v(.*)$ ]]; then
+  TITLE="Desktop v${BASH_REMATCH[1]}"
+  WORKFLOW="publish-desktop.yml"
 else
   TITLE="$TAG"
   WORKFLOW="unified"
@@ -240,6 +261,9 @@ else
     echo "   5. FeedbackKit CLI publish to npm & GitHub Packages (.github/workflows/publish-cli.yml)"
     echo "   6. FeedbackKit Skills publish to npm & GitHub Packages (.github/workflows/publish-skills.yml)"
     echo "   7. FeedbackKit Web SDK publish to npm & GitHub Packages (.github/workflows/publish-web-sdk.yml)"
+    echo "   8. FeedbackKit React Native module publish to npm (.github/workflows/publish-react-native.yml)"
+    echo "   9. FeedbackKit desktop packages: npm feedbackkit-electron/-tauri, crates.io tauri-plugin-feedbackkit (.github/workflows/publish-desktop.yml)"
+    echo "   (The Android SDK needs no workflow: JitPack builds $TAG on first request.)"
     echo
     echo "Check active runs with:"
     echo "   gh run list --repo $REPO_SLUG"

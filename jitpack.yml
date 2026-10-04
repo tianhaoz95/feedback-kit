@@ -1,0 +1,8 @@
+# Builds the Android SDK (android/feedbackkit) when someone first requests a
+# tag from JitPack, e.g.
+#   implementation("com.github.tianhaoz95.feedback-kit:feedbackkit:v1.0.63")
+# The library's build.gradle.kts switches to these coordinates when JITPACK=true.
+jdk:
+  - openjdk17
+install:
+  - cd android && ./gradlew :feedbackkit:publishReleasePublicationToMavenLocal

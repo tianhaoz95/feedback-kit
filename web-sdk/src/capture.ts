@@ -1,4 +1,4 @@
-import type { CaptureMode } from "./types";
+import type { CaptureMode, CaptureProvider } from "./types";
 import { encodingScale } from "./renderer";
 
 /**
@@ -33,6 +33,13 @@ export interface CaptureInternalOptions {
   maxPixelRatio?: number;
   /** Elements to leave out of the image (the widget itself). */
   exclude?: (node: Node) => boolean;
+  /** Replaces the built-in capture (desktop shells' native page capture). */
+  provider?: CaptureProvider;
+  /**
+   * Hides FeedbackKit's own UI for a provider's capture (it can't filter
+   * nodes like the DOM capture does) and returns a function restoring it.
+   */
+  hideOwnUi?: () => () => void;
 }
 
 export async function captureViewport(options: CaptureInternalOptions = {}): Promise<CapturedScreenshot> {
@@ -41,6 +48,10 @@ export async function captureViewport(options: CaptureInternalOptions = {}): Pro
     window.innerHeight,
     Math.min(window.devicePixelRatio || 1, options.maxPixelRatio ?? 2),
   );
+  if (options.provider) {
+    const provided = await captureWithProvider(options.provider, pixelRatio, options.hideOwnUi);
+    if (provided) return provided;
+  }
   if (options.mode === "display") {
     try {
       const display = await captureDisplay(pixelRatio);
@@ -50,6 +61,46 @@ export async function captureViewport(options: CaptureInternalOptions = {}): Pro
     }
   }
   return captureDom(pixelRatio, options.exclude);
+}
+
+async function captureWithProvider(
+  provider: CaptureProvider,
+  pixelRatio: number,
+  hideOwnUi?: () => () => void,
+): Promise<CapturedScreenshot | null> {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const restore = hideOwnUi?.();
+  try {
+    // Two frames, so the hidden UI is gone from what the compositor shows.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    const result = await provider({ width, height, pixelRatio });
+    if (!result) return null;
+    const source = result instanceof HTMLCanvasElement ? result : await loadImage(result);
+    // Normalize to the same pixel budget as the built-in capture.
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(width * pixelRatio);
+    canvas.height = Math.round(height * pixelRatio);
+    canvas.getContext("2d")?.drawImage(source, 0, 0, canvas.width, canvas.height);
+    return { canvas, width, height, pixelRatio };
+  } catch (error) {
+    console.warn("[FeedbackKit] Capture provider failed; using the built-in capture.", error);
+    return null;
+  } finally {
+    restore?.();
+  }
+}
+
+function loadImage(source: Blob | string): Promise<HTMLImageElement> {
+  const url = typeof source === "string" ? source : URL.createObjectURL(source);
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Couldn't decode the provided screenshot"));
+    image.src = url;
+  }).finally(() => {
+    if (typeof source !== "string") URL.revokeObjectURL(url);
+  }) as Promise<HTMLImageElement>;
 }
 
 const PIN_ATTR = "data-feedbackkit-pin";

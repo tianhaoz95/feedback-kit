@@ -91,6 +91,12 @@ public struct FeedbackEnvironment: Codable, Equatable, Sendable {
     public var browserName: String?
     /// Web SDK only, e.g. "141.0.7390.54".
     public var browserVersion: String?
+    /// Web SDK inside a desktop shell: `"tauri"` or `"electron"` (set by
+    /// `feedbackkit-tauri` / `feedbackkit-electron`). Nil in a browser and
+    /// for native reports.
+    public var runtime: String?
+    /// That shell's version, e.g. "2.8.5".
+    public var runtimeVersion: String?
 
     /// Whether this report came from the web SDK rather than a native app.
     public var isWeb: Bool { platform == "web" }
@@ -111,7 +117,9 @@ public struct FeedbackEnvironment: Codable, Equatable, Sendable {
         pageUrl: String? = nil,
         userAgent: String? = nil,
         browserName: String? = nil,
-        browserVersion: String? = nil
+        browserVersion: String? = nil,
+        runtime: String? = nil,
+        runtimeVersion: String? = nil
     ) {
         self.osName = osName
         self.osVersion = osVersion
@@ -129,6 +137,8 @@ public struct FeedbackEnvironment: Codable, Equatable, Sendable {
         self.userAgent = userAgent
         self.browserName = browserName
         self.browserVersion = browserVersion
+        self.runtime = runtime
+        self.runtimeVersion = runtimeVersion
     }
 }
 

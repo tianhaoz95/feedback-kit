@@ -1,0 +1,47 @@
+name: Android SDK CI
+
+# Unit tests and builds for the native Android SDK (android/feedbackkit) and
+# its demo app (android/demo).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - ".github/workflows/android-ci.yml"
+  pull_request:
+    paths:
+      - "android/**"
+      - ".github/workflows/android-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: SDK unit tests, AAR and demo build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Unit tests
+        run: ./gradlew :feedbackkit:testDebugUnitTest
+      - name: Library (release AAR) and demo app
+        run: ./gradlew :feedbackkit:assembleRelease :demo:assembleDebug
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-test-reports
+          path: android/feedbackkit/build/reports/tests
+          retention-days: 7

@@ -1,0 +1,21 @@
+{
+  "name": "feedbackkit-tauri-demo",
+  "private": true,
+  "version": "1.0.62",
+  "description": "FeedbackKit's Tauri demo app — the same Home / Cart / Settings sample as the other demos.",
+  "type": "module",
+  "scripts": {
+    "dev:web": "vite",
+    "build:web": "vite build",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "selftest": "node e2e/selftest.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/api": "^2.12.1",
+    "@tauri-apps/cli": "^2.12.1",
+    "modern-screenshot": "^4.7.0",
+    "typescript": "^5.9.3",
+    "vite": "^7"
+  }
+}

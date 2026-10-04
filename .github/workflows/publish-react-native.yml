@@ -1,0 +1,82 @@
+name: Publish React Native Module
+
+# Publishes react-native/ to npm as feedbackkit-react-native on unified
+# vX.Y.Z releases (and react-native-vX.Y.Z for this package alone). The
+# version comes from the tag; `npm publish` runs prepack, which vendors the
+# Android SDK into the package (scripts/vendor-native-sdks.sh).
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Pack and run npm publish --dry-run without writing to the registry"
+        type: boolean
+        default: false
+      version:
+        description: "Explicit version to publish (defaults to the release tag)"
+        required: false
+
+concurrency:
+  group: react-native-publish-${{ github.event.release.tag_name || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish-npm:
+    name: Publish to npm
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v') || startsWith(github.event.release.tag_name, 'react-native-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/feedbackkit-react-native
+    defaults:
+      run:
+        working-directory: react-native
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+          VERSION="${VERSION#react-native-v}"
+          VERSION="${VERSION#v}"
+          if [ -z "$VERSION" ]; then
+            VERSION="$(node -p 'require("./package.json").version')"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VERSION"
+
+      - run: corepack enable
+      - run: yarn install --immutable
+      - run: yarn typecheck
+      - run: yarn test
+
+      - name: Set package version
+        run: npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
+
+      - name: Publish package to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          PKG_VERSION="${{ steps.version.outputs.version }}"
+          if [ "$(npm view feedbackkit-react-native@"$PKG_VERSION" version 2>/dev/null || true)" = "$PKG_VERSION" ]; then
+            echo "feedbackkit-react-native@$PKG_VERSION is already on npm. Skipping."
+            exit 0
+          fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            npm publish --dry-run --access public
+          else
+            npm publish --access public --provenance
+          fi

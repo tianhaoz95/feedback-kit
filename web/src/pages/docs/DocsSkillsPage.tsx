@@ -94,6 +94,31 @@ export function DocsSkillsPage() {
               "Installs feedbackkit-web in a website or SPA (React, Next.js, Vue, plain HTML), configures it client-side, adds a trigger and screen names.",
             ],
             [
+              "setup-android-sdk",
+              "Android",
+              "Adds the native Android SDK from JitPack, configures it in Application.onCreate, wires the floating button or shake trigger, and sets screen names from navigation.",
+            ],
+            [
+              "setup-flutter-sdk",
+              "Flutter",
+              "Adds feedbackkit_flutter (the native iOS and Android SDKs under the hood), configures it in main(), adds triggers, and labels reports with route names.",
+            ],
+            [
+              "setup-react-native-sdk",
+              "React Native",
+              "Installs feedbackkit-react-native and the iOS pod, configures it at startup, adds triggers, and wires React Navigation screen names.",
+            ],
+            [
+              "setup-tauri-sdk",
+              "Tauri",
+              "Adds tauri-plugin-feedbackkit and feedbackkit-tauri, registers the plugin, its Help-menu item and capability permission, and configures the frontend.",
+            ],
+            [
+              "setup-electron-sdk",
+              "Electron",
+              "Installs feedbackkit-electron, adds setupFeedbackKit and the Help-menu item in the main process, and configures the renderer.",
+            ],
+            [
               "setup-mcp-server",
               "Agent / MCP",
               "Installs feedbackkit-cli, completes browser-based authentication, and registers the MCP server in Claude Code, Cursor, Antigravity, or Codex.",

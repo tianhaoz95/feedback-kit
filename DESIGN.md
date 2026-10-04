@@ -271,6 +271,103 @@ an SDK change is exercised by the real app in the same commit (and
 alias works without `web-sdk/node_modules`, which is what Cloudflare's build
 sees). Its reports go to the same hosted project as the Portal app's.
 
+## 1c. Android SDK, Flutter and React Native (`android/`, `flutter/`, `react-native/`)
+
+**Android is a native SDK, not a port of the iOS UI or a web view.** It's
+Kotlin with plain framework views (no AppCompat, no Compose) and
+`HttpURLConnection` + `org.json`, so the AAR has no dependency beyond the
+Kotlin stdlib. That matters most for the wrappers: a Flutter or React Native
+app already pins its own AndroidX/Compose/OkHttp versions, and an SDK that
+brings its own invites version conflicts it can't resolve. The editor
+(`FeedbackActivity`) has the same layout as `FeedbackViewController`: a
+header, the screenshot in a phone bezel with the tool rail beside it, and the
+chat-style composer with the + menu. It's an `Activity`, not a dialog,
+because the attach menu's pickers need `onActivityResult` and a dialog
+running inside someone else's activity can't receive it.
+
+**The report is the Swift contract.** `osName = "Android"`, display size in
+dp in the `*Points` fields, `versionCode` as `appBuild`, normalized
+annotation points as `[x, y]`, and the same snake_case ingest payload
+(`WireFormat.kt`). So ingestion, the dashboard, prompts, the CLI and the
+Portal (which decodes environments with the Swift types) need no Android
+branch. Only the platform badge learned the name.
+
+**Capture is window-level, like iOS, with one Android-specific step.**
+`PixelCopy` copies the activity window's surface without a MediaProjection
+prompt, but a SurfaceView is a separate surface behind a transparent hole in
+the window, so each visible one is copied too and composited underneath at
+its position. Without that step, video, maps, camera previews and Flutter's
+whole UI came out blank. The capture indicator sits in its own panel window
+so it's never in the shot. The floating trigger button lives in the decor
+view and is hidden for two frames around the copy.
+
+**No setup call.** A manifest-merged `ContentProvider` hands the SDK the
+application context at startup and registers activity lifecycle callbacks,
+so `present()`, the floating button (re-attached to each resumed activity)
+and shake detection (accelerometer, only while the app is in the foreground)
+all default to the activity in front. The iOS SDK asks for a presenter
+closure because UIKit has no equivalent "current" view controller. Android
+has one, so the API is simpler, and it's what lets the bridges skip passing
+activities around.
+
+**Flutter and React Native are bridges, by design.** Rebuilding the editor in
+Dart or JS would mean two more annotation UIs to keep identical to the native
+ones, and capture still has to be native, since neither framework can see
+outside its own view. So both wrappers forward each call to the native
+`FeedbackKit` and convert reports with `FeedbackKitBridge`, a plain-map
+helper in each native SDK. A Flutter or RN report is byte-for-byte a native
+report. The trade-off is that the wrappers need the native SDKs at build
+time:
+
+- **In this repo** they compile the SDK sources directly. Android uses Gradle
+  `sourceSets` pointing at `android/feedbackkit/src/main`. On iOS, Flutter's
+  `Package.swift` has a path dependency on the repo root, and React Native
+  uses the root `FeedbackKit.podspec`. An SDK change is testable in every app
+  at once, the same rule the iOS demo and Portal follow.
+- **Published**, Android is vendored into the package at pack time. iOS
+  resolves the Swift SDK from GitHub at the release tag (SPM) or from the
+  app's Podfile (`pod 'FeedbackKit', :git`), because the pod isn't on trunk.
+  A Flutter `git:` dependency gets the whole repo, so it works like the
+  in-repo case with nothing published.
+
+Native SDK API added for the bridges: `FeedbackKitBridge` (both platforms),
+and `presentFlow` now calls back with nil/null when it presents nothing
+(already open, or nothing to present from). Before, a Dart or JS caller
+awaiting the result could hang forever.
+
+## 1d. Tauri and Electron (`desktop/`)
+
+**Desktop web shells get the web SDK plus a host package, not a new SDK.** A
+Tauri or Electron app's UI is web content, so the web SDK's flow already
+works there: capture, annotation, upload, fix verification, console logs. A
+native SDK per OS would have meant three new UI implementations for apps that
+already render HTML. What a webview can't know or do, a small package per
+shell adds:
+
+- **Real details.** A user agent can't tell Windows 11 from 10 or name the
+  Linux distribution or the machine, and in Tauri `location.host` is the same
+  `tauri.localhost` for every app. The Rust plugin and Electron's main process
+  read these from the OS and the app bundle, and the web SDK merges them over
+  what it detected (`FeedbackKit.environment`).
+- **Native triggers.** A Help-menu item in both, plus `present()` (Tauri) or a
+  global shortcut (Electron).
+- **A better screenshot where one exists.** Electron's
+  `webContents.capturePage()` is pixel-exact with no permission prompt, so it
+  replaces the DOM re-render through a capture provider. Tauri has no
+  equivalent, so it keeps the DOM capture, which also never prompts.
+
+Reports stay `platform: "web"`, since they are web content with URLs and console
+logs, and gain `runtime` / `runtimeVersion`. That keeps every existing web
+code path (logs, page URL, the prompt's web context) and only changes how the
+report is named: "Tauri · Windows" in the dashboard, "Tauri app on Windows"
+in prompts, so a coding agent knows it's looking at a desktop app.
+
+Testing: Electron uses Playwright's Electron driver against the real demo
+app. Tauri has no WebDriver on macOS, so its demo carries a self-test that
+drives the dialog from inside the page and reports to Rust. It runs on
+macOS directly, on Linux in Docker (`run-linux.sh`), and on all three OSes in
+CI.
+
 ## 2. Data model / multi-tenancy (`supabase/migrations`)
 
 ```
@@ -755,6 +852,10 @@ ingestion to keep a report's text but not its media.
 ```
 Sources/FeedbackKit/   the SDK (Swift Package, iOS + macOS + watchOS)
 Tests/FeedbackKitTests/
+android/               the Android SDK (feedbackkit/) and its demo app (demo/), one Gradle project
+flutter/               the Flutter plugin (feedbackkit_flutter/, demo app in example/)
+react-native/          the React Native module (npm feedbackkit-react-native, demo app in example/)
+desktop/               Tauri (Rust plugin + npm feedbackkit-tauri) and Electron (npm feedbackkit-electron) packages and demos
 web-sdk/               the web SDK (npm feedbackkit-web): src/, unit tests, Playwright e2e
 DemoApp/               project.yml (XcodeGen) + sample apps exercising the SDK
                        on iOS, macOS, and watchOS (one project, three targets)

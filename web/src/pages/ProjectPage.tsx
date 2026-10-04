@@ -1274,7 +1274,7 @@ export function ProjectPage() {
                         <option value="all">All platforms</option>
                         {availablePlatforms.map((plat) => (
                           <option key={plat} value={plat}>
-                            {plat === "web" ? "Web" : plat === "ios" ? "iOS" : plat === "macos" ? "macOS" : plat === "watchos" ? "watchOS" : plat}
+                            {plat === "web" ? "Web" : plat === "tauri" ? "Tauri" : plat === "electron" ? "Electron" : plat === "ios" ? "iOS" : plat === "macos" ? "macOS" : plat === "watchos" ? "watchOS" : plat === "android" ? "Android" : plat}
                           </option>
                         ))}
                       </select>

@@ -82,6 +82,9 @@ export interface FeedbackEnvironment {
   userAgent?: string;
   browserName?: string;
   browserVersion?: string;
+  /** Web SDK inside a desktop shell: "tauri" or "electron". Unset in a browser. */
+  runtime?: string;
+  runtimeVersion?: string;
 }
 
 /** One console message / uncaught error / failed request captured by the web SDK. */

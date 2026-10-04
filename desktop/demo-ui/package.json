@@ -1,0 +1,8 @@
+{
+  "name": "feedbackkit-desktop-demo-ui",
+  "private": true,
+  "version": "0.0.0",
+  "description": "The Home / Cart / Settings sample shared by the Tauri and Electron demo apps.",
+  "type": "module",
+  "main": "src/index.ts"
+}

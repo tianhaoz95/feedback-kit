@@ -1,0 +1,107 @@
+name: Publish Desktop Packages
+
+# Publishes the desktop packages on unified vX.Y.Z releases (and
+# desktop-vX.Y.Z for these alone): feedbackkit-electron and
+# feedbackkit-tauri to npm, and tauri-plugin-feedbackkit to crates.io when a
+# CARGO_REGISTRY_TOKEN secret is set (until then that job only verifies the
+# crate packages). Versions come from the tag.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Pack and verify without publishing"
+        type: boolean
+        default: false
+      version:
+        description: "Explicit version to publish (defaults to the release tag)"
+        required: false
+
+concurrency:
+  group: desktop-publish-${{ github.event.release.tag_name || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v') || startsWith(github.event.release.tag_name, 'desktop-v')
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - id: resolve
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then VERSION="${{ github.event.release.tag_name }}"; else VERSION="${{ inputs.version }}"; fi
+          VERSION="${VERSION#desktop-v}"
+          VERSION="${VERSION#v}"
+          if [ -z "$VERSION" ]; then echo "No version: pass one when running by hand." >&2; exit 1; fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  npm:
+    name: npm (feedbackkit-electron, feedbackkit-tauri)
+    needs: version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: npm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+      - name: Build the web SDK (the packages compile against its types)
+        working-directory: web-sdk
+        run: npm ci && npm run build
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          for dir in desktop/electron desktop/tauri/guest-js; do
+            (
+              cd "$dir"
+              NAME="$(node -p 'require("./package.json").name')"
+              npm install --no-audit --no-fund
+              npm version "$VERSION" --no-git-tag-version --allow-same-version
+              # Both need a web SDK with environment overrides and capture providers.
+              npm pkg set "peerDependencies.feedbackkit-web=>=$VERSION"
+              if [ "$(npm view "$NAME@$VERSION" version 2>/dev/null || true)" = "$VERSION" ]; then
+                echo "$NAME@$VERSION is already on npm."
+              elif [ "${{ inputs.dry_run }}" = "true" ]; then
+                npm publish --dry-run --access public
+              else
+                npm publish --access public --provenance
+              fi
+            )
+          done
+
+  crates:
+    name: crates.io (tauri-plugin-feedbackkit)
+    needs: version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Linux system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      - name: Set the crate version
+        working-directory: desktop/tauri
+        run: sed -i -E "0,/^version = \".*\"/s//version = \"${{ needs.version.outputs.version }}\"/" Cargo.toml
+      - name: Publish (or verify the package when there's no token)
+        working-directory: desktop/tauri
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ -z "$CARGO_REGISTRY_TOKEN" ] || [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "::notice::No CARGO_REGISTRY_TOKEN (or dry run) — verifying the package only."
+            cargo publish --dry-run --allow-dirty
+          else
+            cargo publish --allow-dirty
+          fi
