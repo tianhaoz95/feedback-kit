@@ -36,7 +36,10 @@ const server = createServer((req, res) => {
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 const endpoint = `http://127.0.0.1:${server.address().port}/functions/v1/ingest-feedback`;
 
-const app = await electron.launch({ args: [fileURLToPath(new URL("..", import.meta.url))] });
+// Linux CI runners restrict the unprivileged user namespaces Chromium's
+// sandbox needs, so it's off there (and only there).
+const sandboxArgs = process.platform === "linux" && process.env.CI ? ["--no-sandbox"] : [];
+const app = await electron.launch({ args: [...sandboxArgs, fileURLToPath(new URL("..", import.meta.url))] });
 try {
   let page = await app.firstWindow();
   await page.waitForSelector("#report-problem");
