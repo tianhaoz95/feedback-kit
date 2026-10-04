@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -39,7 +40,10 @@ const endpoint = `http://127.0.0.1:${server.address().port}/functions/v1/ingest-
 // Linux CI runners restrict the unprivileged user namespaces Chromium's
 // sandbox needs, so it's off there (and only there).
 const sandboxArgs = process.platform === "linux" && process.env.CI ? ["--no-sandbox"] : [];
-const app = await electron.launch({ args: [...sandboxArgs, fileURLToPath(new URL("..", import.meta.url))] });
+// path.resolve drops the trailing separator: on Windows a trailing "\" before
+// the closing quote escapes it, and Electron never sees the app path.
+const appDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
+const app = await electron.launch({ args: [...sandboxArgs, appDir] });
 try {
   let page = await app.firstWindow();
   await page.waitForSelector("#report-problem");
