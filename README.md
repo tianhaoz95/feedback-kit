@@ -1,3 +1,5 @@
+> **FeedbackKit has moved.** Development continues in [`tianhaoz95/hejitech-apps`](https://github.com/tianhaoz95/hejitech-apps/tree/main/projects/feedbackkit) (`projects/feedbackkit`), with this repository's full history. This repository is archived: Swift Package Manager, CocoaPods and JitPack still resolve released versions (up to 1.0.62) from here; npm packages keep publishing from the new home. Docs: https://tianhaoz95.github.io/hejitech-apps/feedbackkit/
+
 # FeedbackKit
 
 | Product | Tests | Release / deploy |
